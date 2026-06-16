@@ -21,6 +21,7 @@ import (
 
 	"github.com/openagentplatform/openagentplatform/pkg/agent"
 	"github.com/openagentplatform/openagentplatform/pkg/agent/checkers"
+	"github.com/openagentplatform/openagentplatform/pkg/agent/patcher"
 	"github.com/openagentplatform/openagentplatform/pkg/logger"
 )
 
@@ -136,6 +137,26 @@ func main() {
 		_ = complianceSub.Unsubscribe()
 	}()
 
+	// Subscribe to patch scan + install commands from the server.
+	patchHandler := patcher.NewHandler(cfg.AgentID, natsClient.Conn(), log)
+	patchScanSub, err := patchHandler.RunScanHandler(ctx)
+	if err != nil {
+		log.Error("patch scan handler failed", "err", err)
+		os.Exit(1)
+	}
+	defer func() {
+		_ = patchScanSub.Unsubscribe()
+	}()
+	patchInstallSub, err := patchHandler.RunInstallHandler(ctx)
+	if err != nil {
+		log.Error("patch install handler failed", "err", err)
+		os.Exit(1)
+	}
+	defer func() {
+		patchHandler.Close()
+		_ = patchInstallSub.Unsubscribe()
+	}()
+
 	// Heartbeat goroutine.
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -149,6 +170,8 @@ func main() {
 		"checks_subject", agent.ChecksSubject(cfg.AgentID),
 		"scripts_subject", agent.ScriptsSubject(cfg.AgentID),
 		"compliance_subject", "oap.agents."+cfg.AgentID+".compliance",
+		"patch_scan_subject", patcher.PatchScanSubject(cfg.AgentID),
+		"patch_install_subject", patcher.PatchInstallSubject(cfg.AgentID),
 		"heartbeat_subject", agent.HeartbeatSubject(cfg.AgentID),
 	)
 

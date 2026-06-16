@@ -21,6 +21,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/config"
 	"github.com/openagentplatform/openagentplatform/internal/db"
 	"github.com/openagentplatform/openagentplatform/internal/events"
+	"github.com/openagentplatform/openagentplatform/internal/patches"
 	"github.com/openagentplatform/openagentplatform/internal/policy"
 	"github.com/openagentplatform/openagentplatform/pkg/logger"
 	"github.com/openagentplatform/openagentplatform/pkg/models"
@@ -138,6 +139,33 @@ func main() {
 	}
 	seedCancel2()
 
+	// --- Patch deployer and scheduler -----------------------------------
+	// Wire the deployer to NATS for install/scan commands and to the
+	// agent lister so it can check online status before installing.
+	patchStore := patches.NewPGStore(pool)
+	patchDeployer := patches.NewPatchDeployer(patches.PatchDeployerConfig{
+		SuccessThreshold:  0.95,
+		MaxRetries:        3,
+		StageWaitDuration: 15 * time.Minute,
+		InstallTimeout:    10 * time.Minute,
+		HealthCheckTimeout: 60 * time.Second,
+		RebootStagger:     30 * time.Second,
+		CanaryCount:       1,
+		IsAgentOnlineFn: func(_ context.Context, agentID string) bool {
+			ag, err := agentStore.GetAgent(rootCtx, agentID)
+			if err != nil || ag == nil {
+				return false
+			}
+			return ag.Status == "online"
+		},
+		Logger: log,
+	}, natsClient.Conn())
+
+	patchScheduler := patches.NewPatchScheduler(patches.PatchSchedulerConfig{
+		MaxConcurrency: 10,
+		Logger:         log,
+	}, patchDeployer, patchStore)
+
 	// Start event subscriptions after the HTTP server has had a chance to
 	// bind so /api/v1/agents/register accepts first contact from agents
 	// before any heartbeat traffic starts.
@@ -158,6 +186,10 @@ func main() {
 	if err := policyEngine.Start(hbCtx); err != nil {
 		log.Error("policy engine start failed", "err", err)
 	}
+
+	// Start the patch scheduler dispatch loop.
+	go patchScheduler.Run(hbCtx)
+	log.Info("patch scheduler started")
 
 	// --- HTTP server goroutine -------------------------------------------
 	go func() {
@@ -181,6 +213,7 @@ func main() {
 	ingestor.Stop()
 	alertEngine.Stop()
 	policyEngine.Stop()
+	patchScheduler.Close()
 
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		log.Error("graceful shutdown failed", "err", err)

@@ -12,11 +12,15 @@ import {
   CheckCheck,
   CalendarDays,
   ShieldCheck,
+  Wrench,
+  Shield,
+  CirclePlay,
 } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { useChecks } from '@/lib/useChecks';
 import { useAlerts } from '@/lib/useAlerts';
 import { usePolicies, type PolicyCategory } from '@/lib/usePolicies';
+import { usePatches } from '@/lib/usePatches';
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,
@@ -84,6 +88,7 @@ function DashboardPage() {
   const { checks, isLoading: checksLoading } = useChecks();
   const { alerts, isLoading: alertsLoading } = useAlerts('all');
   const { policies, isLoading: policiesLoading, fetchComplianceSummary } = usePolicies();
+  const { jobs: patchJobs, isLoading: patchesLoading } = usePatches();
 
   // Live policy compliance aggregates (computed from the policy list when
   // a per-policy compliance summary endpoint is not available; falls back
@@ -242,11 +247,65 @@ function DashboardPage() {
     ];
   }, [alerts, alertsLoading]);
 
-  // 2 static agent + 4 check + 4 alert = 10 cards. Render in a 4-col grid
-  // for the alert row alone, and a separate row for checks.
+  // 2 static agent + 4 check + 4 alert + 4 patch = 14 cards. Render in
+  // separate rows so the grid stays readable.
   const agentRow: Kpi[] = staticKpis;
   const checkRow: Kpi[] = checkKpis;
   const alertRow: Kpi[] = alertKpis;
+
+  // Live patch KPIs.
+  const patchKpis: Kpi[] = useMemo(() => {
+    let total = 0;
+    let critical = 0;
+    let security = 0;
+    let approved = 0;
+    let inProgress = 0;
+    let completedToday = 0;
+    for (const j of patchJobs) {
+      total += 1;
+      const sev = (j.severity ?? '').toLowerCase();
+      if (sev === 'critical' || sev === 'emergency') critical += 1;
+      if (sev === 'important' || j.patch_count > 0) security += 1;
+      if (j.status === 'approved') approved += 1;
+      if (j.status === 'in_progress') inProgress += 1;
+      if (j.status === 'completed' && isToday(j.completed_at)) completedToday += 1;
+    }
+    const dash = patchesLoading && patchJobs.length === 0 ? '—' : null;
+    return [
+      {
+        label: 'Total Jobs',
+        value: dash ?? String(total),
+        delta: total === 0 ? 'No jobs yet' : `${total} tracked`,
+        deltaTone: 'neutral',
+        icon: Wrench,
+        to: '/patches',
+      },
+      {
+        label: 'Critical',
+        value: dash ?? String(critical),
+        delta: critical === 0 ? 'No critical' : 'Action required',
+        deltaTone: critical === 0 ? 'neutral' : 'down',
+        icon: Shield,
+        to: '/patches',
+      },
+      {
+        label: 'Approved',
+        value: dash ?? String(approved),
+        delta: approved === 0 ? 'None queued' : 'Ready to deploy',
+        deltaTone: 'neutral',
+        icon: CircleCheck,
+        to: '/patches',
+      },
+      {
+        label: 'In Progress',
+        value: dash ?? String(inProgress),
+        delta: inProgress === 0 ? 'Idle' : 'Rolling out',
+        deltaTone: inProgress === 0 ? 'neutral' : 'up',
+        icon: CirclePlay,
+        to: '/patches',
+      },
+    ];
+  }, [patchJobs, patchesLoading]);
 
   return (
     <div className="space-y-6">
@@ -269,6 +328,24 @@ function DashboardPage() {
         <h2 className="text-sm font-semibold text-slate-300 mb-3">Alerts</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {alertRow.map((kpi) => (
+            <KpiCard key={kpi.label} kpi={kpi} />
+          ))}
+        </div>
+      </div>
+
+      {/* Patch KPIs */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-slate-300">Patches</h2>
+          <Link
+            to="/patches"
+            className="text-xs text-slate-400 hover:text-slate-100 transition-colors"
+          >
+            View all →
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {patchKpis.map((kpi) => (
             <KpiCard key={kpi.label} kpi={kpi} />
           ))}
         </div>

@@ -18,7 +18,7 @@
 // upgrade request by the browser. A `?token=` query parameter is also
 // accepted as a fallback (e.g. for CLI clients).
 
-export type Channel = 'agents' | 'checks' | 'alerts';
+export type Channel = 'agents' | 'checks' | 'alerts' | 'patches';
 
 export interface WsEnvelope<T = unknown> {
   type: 'event' | 'ping' | 'pong' | 'subscribed' | 'unsubscribed' | 'error' | 'hello';

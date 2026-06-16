@@ -181,6 +181,37 @@ func (s *Server) registerRoutes(r chi.Router) {
 					r.Get("/", s.getAuditChain)
 				})
 			})
+
+			// Patch approval workflow with RBAC.
+			r.Route("/patches", func(r chi.Router) {
+				r.Get("/", s.listPatches)
+				r.Get("/stats", s.getPatchStats)
+				r.Post("/jobs", s.createPatchJob)
+				// Catalog: aggregated view of available patches
+				// across all agents, plus on-demand scan triggers.
+				r.Route("/catalog", func(r chi.Router) {
+					r.Get("/", s.listPatchCatalog)
+					r.Post("/scan", s.triggerScanAll)
+					r.Post("/scan/site/{siteId}", s.triggerScanSite)
+				})
+				r.Route("/{id}", func(r chi.Router) {
+					r.Get("/", s.getPatch)
+					r.Post("/approve", s.approvePatch)
+					r.Post("/reject", s.rejectPatch)
+					r.Post("/schedule", s.schedulePatch)
+					r.Post("/cancel", s.cancelPatch)
+					r.Post("/rollback", s.rollbackPatch)
+				})
+			})
+
+			// Per-agent patch feed (the agent's own available
+			// patches, from the most recent scan). Mounted under
+			// /agents/{id}/patches so the endpoint detail page can
+			// link directly to it.
+			r.Route("/agents/{id}/patches", func(r chi.Router) {
+				r.Get("/", s.getAgentPatches)
+				r.Post("/scan", s.triggerScanAgent)
+			})
 		})
 	})
 

@@ -215,13 +215,83 @@ type PolicyViolation struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
-type Patch struct {
+// PatchSeverity classifies the risk level of a patch and drives the
+// approval rules in the workflow engine:
+//
+//   - "critical"   : auto-approved on creation, notification dispatched.
+//   - "standard"   : requires a single approver.
+//   - "major_os"   : requires two distinct approvers (four-eyes principle).
+type PatchSeverity string
+
+const (
+	PatchSeverityCritical PatchSeverity = "critical"
+	PatchSeverityStandard PatchSeverity = "standard"
+	PatchSeverityMajorOS  PatchSeverity = "major_os"
+)
+
+// PatchJob represents a single patch deployment targeting one or more
+// endpoints. The state field is driven by the ApprovalWorkflow state
+// machine; the store is the source of truth for persistence.
+type PatchJob struct {
+	ID                      string         `json:"id"`
+	OrgID                   string         `json:"org_id"`
+	Title                   string         `json:"title"`
+	Description             string         `json:"description"`
+	Severity                PatchSeverity  `json:"severity"`
+	State                   string         `json:"state"`
+	CreatedBy               string         `json:"created_by"`
+	ScheduledAt             *time.Time     `json:"scheduled_at,omitempty"`
+	MaintenanceWindowStart  *time.Time     `json:"maintenance_window_start,omitempty"`
+	MaintenanceWindowEnd    *time.Time     `json:"maintenance_window_end,omitempty"`
+	ApprovalTimeout         *time.Time     `json:"approval_timeout,omitempty"`
+	RequiredApprovals       int            `json:"required_approvals"`
+	AutoApproveOnTimeout    bool           `json:"auto_approve_on_timeout"`
+	PackageName             string         `json:"package_name"`
+	PackageVersion          string         `json:"package_version,omitempty"`
+	RollbackVersion         string         `json:"rollback_version,omitempty"`
+	Targets                 []PatchJobTarget `json:"targets,omitempty"`
+	Approvals               []ApprovalRecord `json:"approvals,omitempty"`
+	FailureReason           string         `json:"failure_reason,omitempty"`
+	CreatedAt               time.Time      `json:"created_at"`
+	UpdatedAt               time.Time      `json:"updated_at"`
+	CompletedAt             *time.Time     `json:"completed_at,omitempty"`
+}
+
+// PatchJobTarget represents a single endpoint targeted by a PatchJob.
+// Status is populated by the agent when the patch is dispatched.
+type PatchJobTarget struct {
 	ID         string    `json:"id"`
+	PatchJobID string    `json:"patch_job_id"`
 	AgentID    string    `json:"agent_id"`
-	PolicyID   string    `json:"policy_id"`
-	Status     string    `json:"status"`
+	Hostname   string    `json:"hostname,omitempty"`
+	Status     string    `json:"status"` // pending, running, success, failed
+	ErrorMsg   string    `json:"error_msg,omitempty"`
 	AppliedAt  *time.Time `json:"applied_at,omitempty"`
-	CreatedAt  time.Time  `json:"created_at"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+// ApprovalRecord is a single approver's decision on a PatchJob. Multiple
+// rows per job are possible (e.g. two-approver rule for major_os).
+// Decision is one of "approved" or "rejected".
+type ApprovalRecord struct {
+	ID         string    `json:"id"`
+	PatchJobID string    `json:"patch_job_id"`
+	ApproverID string    `json:"approver_id"`
+	ApproverName string  `json:"approver_name,omitempty"`
+	Decision   string    `json:"decision"`
+	Comment    string    `json:"comment,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+// PatchStats provides aggregate statistics for the dashboard.
+type PatchStats struct {
+	TotalJobs       int            `json:"total_jobs"`
+	ByState         map[string]int `json:"by_state"`
+	BySeverity      map[string]int `json:"by_severity"`
+	PendingApproval int            `json:"pending_approval"`
+	RecentFailures  int            `json:"recent_failures_24h"`
+	AvgApprovalTime float64        `json:"avg_approval_time_hours"`
 }
 
 type Script struct {

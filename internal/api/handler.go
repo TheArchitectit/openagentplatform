@@ -16,6 +16,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/auth"
 	"github.com/openagentplatform/openagentplatform/internal/config"
 	"github.com/openagentplatform/openagentplatform/internal/notify"
+	"github.com/openagentplatform/openagentplatform/internal/patches"
 	"github.com/openagentplatform/openagentplatform/internal/policy"
 	"github.com/openagentplatform/openagentplatform/internal/schema"
 )
@@ -49,6 +50,12 @@ type Server struct {
 	policyStore policy.Store
 	// policyEngine evaluates Rego policies. May be nil.
 	policyEngine *policy.PolicyEngine
+	// patchStore is the patch job persistence interface. May be nil.
+	patchStore patches.Store
+	// patchScanner is the patch scan dispatcher that aggregates
+	// per-agent scan results into a platform-wide catalog. May be
+	// nil; catalog endpoints return 503 when unset.
+	patchScanner *patches.PatchScanDispatcher
 	// wsHub manages connected WebSocket clients and their
 	// subscriptions. Lazily constructed on first upgrade.
 	wsHub  *wsHub
@@ -146,6 +153,20 @@ func (s *Server) SetPolicyStore(store policy.Store) {
 // unset.
 func (s *Server) SetPolicyEngine(engine *policy.PolicyEngine) {
 	s.policyEngine = engine
+}
+
+// SetPatchStore wires the patch job persistence interface into the
+// server. Called from main. May be nil; patch endpoints return 503
+// when unset.
+func (s *Server) SetPatchStore(store patches.Store) {
+	s.patchStore = store
+}
+
+// SetPatchScanner wires the patch scan dispatcher into the server.
+// Called from main after the dispatcher is constructed. May be nil;
+// catalog endpoints return 503 when unset.
+func (s *Server) SetPatchScanner(d *patches.PatchScanDispatcher) {
+	s.patchScanner = d
 }
 
 func (s *Server) buildRouter() chi.Router {

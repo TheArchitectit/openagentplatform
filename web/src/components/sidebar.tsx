@@ -18,12 +18,14 @@ import {
 } from 'lucide-react';
 import { logout, getStoredUser } from '@/lib/auth';
 import { useAlerts } from '@/lib/useAlerts';
+import { usePatches } from '@/lib/usePatches';
 
 interface NavItem {
   to: string;
   label: string;
   icon: typeof LayoutDashboard;
   showAlertBadge?: boolean;
+  showPatchBadge?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -32,7 +34,7 @@ const navItems: NavItem[] = [
   { to: '/checks', label: 'Checks', icon: Activity },
   { to: '/alerts', label: 'Alerts', icon: BellRing, showAlertBadge: true },
   { to: '/policies', label: 'Policies', icon: ShieldCheck },
-  { to: '/patches', label: 'Patches', icon: Wrench },
+  { to: '/patches', label: 'Patches', icon: Wrench, showPatchBadge: true },
   { to: '/scripts', label: 'Scripts', icon: FileCode2 },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
@@ -53,6 +55,13 @@ export function Sidebar() {
       (a.state === 'open' || a.state === undefined)
   ).length;
 
+  // Patch jobs awaiting approval — drives the sidebar badge so operators
+  // can see pending approvals at a glance.
+  const { jobs: patchJobs } = usePatches();
+  const pendingPatchCount = patchJobs.filter(
+    (j) => j.status === 'pending_approval'
+  ).length;
+
   return (
     <aside className="w-60 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col">
       {/* Logo */}
@@ -68,6 +77,7 @@ export function Sidebar() {
         {navItems.map((item) => {
           const Icon = item.icon;
           const isAlerts = item.showAlertBadge === true;
+          const isPatches = item.showPatchBadge === true;
           return (
             <Link
               key={item.to}
@@ -86,6 +96,14 @@ export function Sidebar() {
                   title={`${openCriticalCount} open critical alert${openCriticalCount === 1 ? '' : 's'}`}
                 >
                   {openCriticalCount > 99 ? '99+' : openCriticalCount}
+                </span>
+              )}
+              {isPatches && pendingPatchCount > 0 && (
+                <span
+                  className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-amber-500/20 border border-amber-500/30 text-[10px] font-semibold text-amber-300"
+                  title={`${pendingPatchCount} patch job${pendingPatchCount === 1 ? '' : 's'} awaiting approval`}
+                >
+                  {pendingPatchCount > 99 ? '99+' : pendingPatchCount}
                 </span>
               )}
             </Link>
