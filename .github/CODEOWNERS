@@ -1,0 +1,9 @@
+# CODEOWNERS
+# Order matters: later patterns override earlier ones.
+/cmd/ @openagentplatform/backend
+/internal/ @openagentplatform/backend
+/py/ @openagentplatform/backend
+/web/ @openagentplatform/frontend
+/deploy/ @openagentplatform/infra
+/docs/ @openagentplatform/docs
+/pkg/agent/ @openagentplatform/agent

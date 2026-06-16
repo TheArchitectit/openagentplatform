@@ -1,0 +1,38 @@
+issuer: http://localhost:5556/dex
+storage:
+  type: memory
+web:
+  http: 0.0.0.0:5556
+
+staticClients:
+  - id: oap-web
+    redirectURIs:
+      - http://localhost:5173/auth/callback
+      - http://localhost:8080/auth/callback
+    name: "OAP Web"
+    secret: oap-web-secret
+    trustedPeers:
+      - id: oap-server
+        secret: oap-server-secret
+  - id: oap-server
+    redirectURIs:
+      - http://localhost:8080/oauth/callback
+    name: "OAP Server"
+    secret: oap-server-secret
+    public: true
+
+enablePasswordDB: true
+
+# Local users — passwords hashed with bcrypt (cost 10).
+# Both users have password "password". DO NOT USE IN PRODUCTION.
+staticPasswords:
+  - email: "admin@oap.local"
+    # bcrypt hash of "password"
+    hash: "$2a$10$ZJVcmZxy/NHf5.oWoDsLgu2.bxkBQFiG4yXchbNUmsmfNgOuTQd5O"
+    username: "admin"
+    userID: "00000000-0000-0000-0000-000000000001"
+  - email: "tech@oap.local"
+    # bcrypt hash of "password"
+    hash: "$2a$10$He5peYLhFm9GL2NWaF9Oj.DSS4P.VkVFUlBImWWuLLLwdDdFlBOaq"
+    username: "tech"
+    userID: "00000000-0000-0000-0000-000000000002"

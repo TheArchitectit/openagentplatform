@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  server:
+    build:
+      target: dev
+    volumes:
+      - ../cmd:/app/cmd
+      - ../internal:/app/internal
+      - ../pkg:/app/pkg
+    environment:
+      APP_ENV: development
+      LOG_LEVEL: debug
+    command: ["air", "-c", ".air.toml"]
+
+  web:
+    build:
+      target: dev
+    volumes:
+      - ../web:/app
+      - /app/node_modules
+    command: ["pnpm", "dev", "--host", "0.0.0.0"]

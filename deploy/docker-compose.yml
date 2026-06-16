@@ -1,0 +1,91 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: oap
+      POSTGRES_PASSWORD: oap
+      POSTGRES_DB: oap
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oap -d oap"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nats:
+    image: nats:2.10-alpine
+    restart: unless-stopped
+    command: ["--config", "/etc/nats/nats.conf"]
+    ports:
+      - "4222:4222"
+      - "6222:6222"
+      - "7422:7422"
+      - "8222:8222"
+    volumes:
+      - ./nats/nats.conf:/etc/nats/nats.conf:ro
+      - ./nats/certs:/etc/nats/certs:ro
+      - nats_jetstream:/data/jetstream
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  dex:
+    image: ghcr.io/dexidp/dex:v2.40.0
+    restart: unless-stopped
+    command: ["serve", "/etc/dex/config.yaml"]
+    ports:
+      - "5556:5556"
+    volumes:
+      - ./dex/config.yaml:/etc/dex/config.yaml:ro
+      - ./dex/static-users.yaml:/etc/dex/static-users.yaml:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:5556/dex/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    environment:
+      HTTP_PORT: "8080"
+      APP_ENV: development
+      LOG_LEVEL: info
+      POSTGRES_DSN: postgres://oap:oap@postgres:5432/oap?sslmode=disable
+      NATS_URL: nats://nats:4222
+      OIDC_ISSUER_URL: http://dex:5556/dex
+      OIDC_CLIENT_ID: oap-web
+      OIDC_CLIENT_SECRET: oap-web-secret
+      JWT_SECRET: dev-secret-change-me
+    ports:
+      - "8080:8080"
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "5173:80"
+
+volumes:
+  pg_data:
+  nats_jetstream:

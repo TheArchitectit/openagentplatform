@@ -1,0 +1,20 @@
+# Static users for Dex local development
+# DO NOT USE IN PRODUCTION
+# Passwords are bcrypt-hashed (cost 10) for "password".
+users:
+  - email: "admin@oap.local"
+    password_hash: "$2a$10$ZJVcmZxy/NHf5.oWoDsLgu2.bxkBQFiG4yXchbNUmsmfNgOuTQd5O"
+    role: "admin"
+    org_id: "00000000-0000-0000-0000-000000000001"
+    groups:
+      - "oap-admins"
+      - "oap-technicians"
+      - "oap-operators"
+      - "oap-viewers"
+  - email: "tech@oap.local"
+    password_hash: "$2a$10$He5peYLhFm9GL2NWaF9Oj.DSS4P.VkVFUlBImWWuLLLwdDdFlBOaq"
+    role: "technician"
+    org_id: "00000000-0000-0000-0000-000000000001"
+    groups:
+      - "oap-technicians"
+      - "oap-viewers"

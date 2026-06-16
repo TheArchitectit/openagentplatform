@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "_comment": "SPIFFE ID to NATS account mapping for OpenAgentPlatform. Used by the platform server to configure NATS authorization at startup.",
+  "domain": "openagentplatform",
+  "spiffe_trust_domain": "openagentplatform",
+  "mappings": [
+    {
+      "spiffe_id": "spiffe://openagentplatform/ns/oap/server",
+      "nats_account": "OAP",
+      "description": "NATS server itself — cluster routing identity",
+      "type": "server"
+    },
+    {
+      "spiffe_id": "spiffe://openagentplatform/agent/orchestrator",
+      "nats_account": "Agent",
+      "description": "Primary orchestration agent",
+      "type": "agent",
+      "permissions": {
+        "publish": ["oap.tasks.>", "agent.status.orchestrator.>"],
+        "subscribe": ["oap.>", "agent.invoke.orchestrator"]
+      }
+    },
+    {
+      "spiffe_id": "spiffe://openagentplatform/agent/planner",
+      "nats_account": "Agent",
+      "description": "Planning / decomposition agent",
+      "type": "agent",
+      "permissions": {
+        "publish": ["oap.tasks.>", "agent.status.planner.>"],
+        "subscribe": ["oap.tasks.plan.>", "agent.invoke.planner"]
+      }
+    },
+    {
+      "spiffe_id": "spiffe://openagentplatform/agent/executor",
+      "nats_account": "Agent",
+      "description": "Code execution / tool-running agent",
+      "type": "agent",
+      "permissions": {
+        "publish": ["oap.tasks.>", "agent.status.executor.>"],
+        "subscribe": ["oap.tasks.exec.>", "agent.invoke.executor"]
+      }
+    },
+    {
+      "spiffe_id": "spiffe://openagentplatform/agent/reviewer",
+      "nats_account": "Agent",
+      "description": "Code review / quality assurance agent",
+      "type": "agent",
+      "permissions": {
+        "publish": ["oap.tasks.>", "agent.status.reviewer.>"],
+        "subscribe": ["oap.tasks.review.>", "agent.invoke.reviewer"]
+      }
+    },
+    {
+      "spiffe_id": "spiffe://openagentplatform/a2a/gateway-primary",
+      "nats_account": "A2A",
+      "description": "Primary A2A federation gateway",
+      "type": "a2a",
+      "permissions": {
+        "publish": ["a2a.>", "federation.oap.>"],
+        "subscribe": ["a2a.>", "federation.oap.>", "agent.status.>"]
+      }
+    }
+  ],
+  "account_defaults": {
+    "OAP": {
+      "description": "Platform server and OIDC-authenticated human users",
+      "max_connections": 100,
+      "exports": ["oap.>"],
+      "imports_service": ["agent.invoke.>"],
+      "imports_stream": ["agent.status.>"]
+    },
+    "Agent": {
+      "description": "SPIFFE-authenticated AI agent processes",
+      "max_connections": 500,
+      "exports": ["agent.status.>", "agent.invoke.>"],
+      "imports_service": ["oap.>"],
+      "imports_stream": ["oap.events.>"]
+    },
+    "A2A": {
+      "description": "Agent-to-Agent federation peers",
+      "max_connections": 50,
+      "exports": ["a2a.>"],
+      "imports_service": ["oap.>"],
+      "imports_stream": ["agent.status.>"]
+    }
+  }
+}
