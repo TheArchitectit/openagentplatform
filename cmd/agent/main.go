@@ -124,6 +124,18 @@ func main() {
 		_ = scriptsSub.Unsubscribe()
 	}()
 
+	// Subscribe to compliance collection requests from the server.
+	complianceHandler := agent.NewComplianceHandler(cfg.AgentID, natsClient, log)
+	complianceSub, err := complianceHandler.Run(ctx)
+	if err != nil {
+		log.Error("compliance handler failed", "err", err)
+		os.Exit(1)
+	}
+	defer func() {
+		complianceHandler.Close()
+		_ = complianceSub.Unsubscribe()
+	}()
+
 	// Heartbeat goroutine.
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -136,6 +148,7 @@ func main() {
 		"agent_id", cfg.AgentID,
 		"checks_subject", agent.ChecksSubject(cfg.AgentID),
 		"scripts_subject", agent.ScriptsSubject(cfg.AgentID),
+		"compliance_subject", "oap.agents."+cfg.AgentID+".compliance",
 		"heartbeat_subject", agent.HeartbeatSubject(cfg.AgentID),
 	)
 

@@ -16,6 +16,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/auth"
 	"github.com/openagentplatform/openagentplatform/internal/config"
 	"github.com/openagentplatform/openagentplatform/internal/notify"
+	"github.com/openagentplatform/openagentplatform/internal/policy"
 	"github.com/openagentplatform/openagentplatform/internal/schema"
 )
 
@@ -44,6 +45,10 @@ type Server struct {
 	// routingLinker is the alert_rule_channels junction interface
 	// used by the rule-channel API endpoints. May be nil.
 	routingLinker alerts.AlertRuleChannelLinker
+	// policyStore is the policy persistence interface. May be nil.
+	policyStore policy.Store
+	// policyEngine evaluates Rego policies. May be nil.
+	policyEngine *policy.PolicyEngine
 	// wsHub manages connected WebSocket clients and their
 	// subscriptions. Lazily constructed on first upgrade.
 	wsHub  *wsHub
@@ -127,6 +132,20 @@ func (s *Server) SetPreferenceStore(store alerts.PreferenceStore) {
 // used by the rule-channel API endpoints. Called from main.
 func (s *Server) SetRoutingLinker(linker alerts.AlertRuleChannelLinker) {
 	s.routingLinker = linker
+}
+
+// SetPolicyStore wires the policy persistence interface into the
+// server. Called from main. May be nil; policy endpoints return 503
+// when unset.
+func (s *Server) SetPolicyStore(store policy.Store) {
+	s.policyStore = store
+}
+
+// SetPolicyEngine wires the policy evaluation engine into the server.
+// Called from main. May be nil; evaluation endpoints return 503 when
+// unset.
+func (s *Server) SetPolicyEngine(engine *policy.PolicyEngine) {
+	s.policyEngine = engine
 }
 
 func (s *Server) buildRouter() chi.Router {

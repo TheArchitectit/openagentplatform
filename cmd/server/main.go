@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
@@ -9,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/openagentplatform/openagentplatform/internal/alerts"
 	"github.com/openagentplatform/openagentplatform/internal/api"
@@ -18,6 +21,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/config"
 	"github.com/openagentplatform/openagentplatform/internal/db"
 	"github.com/openagentplatform/openagentplatform/internal/events"
+	"github.com/openagentplatform/openagentplatform/internal/policy"
 	"github.com/openagentplatform/openagentplatform/pkg/logger"
 	"github.com/openagentplatform/openagentplatform/pkg/models"
 )
@@ -104,6 +108,36 @@ func main() {
 	srv.SetAlertStore(alertStore)
 	srv.SetAlertEngine(alertEngine)
 
+	// --- Policy engine ---------------------------------------------------
+	// Rego-based compliance checks evaluated against agent state. OPA
+	// is embedded in-process (not an external service); the engine
+	// subscribes to NATS for manual evaluation requests and runs a
+	// scheduled sweep on a fixed interval.
+	policyStore := policy.NewPGStore(pool)
+	opaEngine := policy.NewOPAEngine(policy.OPACfg{Logger: log})
+	policyResolver := newPolicyResolver(pool, agentStore)
+	policyEngine := policy.NewEngine(policy.Config{
+		Store:     policyStore,
+		OPA:       opaEngine,
+		Publisher: natsClient,
+		Client:    natsClient,
+		Resolver:  policyResolver,
+		Logger:    log,
+		Interval:  cfg.PolicyEvalInterval,
+		QueueGroup: "oap-policy-engine",
+	})
+	srv.SetPolicyStore(policyStore)
+	srv.SetPolicyEngine(policyEngine)
+
+	// Seed built-in compliance policies on first boot. Idempotent.
+	seedCtx2, seedCancel2 := context.WithTimeout(rootCtx, 15*time.Second)
+	if seeded, skipped, err := policyEngine.SeedDefaults(seedCtx2); err != nil {
+		log.Warn("policy seeder failed", "err", err)
+	} else {
+		log.Info("policy defaults seeded", "seeded", seeded, "skipped", skipped)
+	}
+	seedCancel2()
+
 	// Start event subscriptions after the HTTP server has had a chance to
 	// bind so /api/v1/agents/register accepts first contact from agents
 	// before any heartbeat traffic starts.
@@ -120,6 +154,9 @@ func main() {
 	}
 	if err := alertEngine.Start(hbCtx); err != nil {
 		log.Error("alert engine start failed", "err", err)
+	}
+	if err := policyEngine.Start(hbCtx); err != nil {
+		log.Error("policy engine start failed", "err", err)
 	}
 
 	// --- HTTP server goroutine -------------------------------------------
@@ -143,6 +180,7 @@ func main() {
 	dispatcher.Stop()
 	ingestor.Stop()
 	alertEngine.Stop()
+	policyEngine.Stop()
 
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		log.Error("graceful shutdown failed", "err", err)
@@ -295,4 +333,123 @@ func (a *eventStoreAdapter) GetCheck(ctx context.Context, id string) (*models.Ch
 		return nil, err
 	}
 	return c, nil
+}
+
+// policyResolver is a thin adapter that backs the oap.* OPA builtins
+// from PostgreSQL. Each method looks up a small piece of agent state
+// and returns it; errors are returned (not swallowed) so policies can
+// use Rego's default rules to handle missing data gracefully.
+type policyResolver struct {
+	pool *pgxpool.Pool
+}
+
+func newPolicyResolver(pool *pgxpool.Pool, _ *eventStoreAdapter) *policyResolver {
+	return &policyResolver{pool: pool}
+}
+
+func (r *policyResolver) AgentStatus(ctx context.Context, agentID string) (string, error) {
+	if r.pool == nil {
+		return "", nil
+	}
+	const q = `SELECT COALESCE(status, 'offline') FROM agents WHERE id = $1 LIMIT 1`
+	var s string
+	if err := r.pool.QueryRow(ctx, q, agentID).Scan(&s); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "offline", nil
+		}
+		return "", err
+	}
+	return s, nil
+}
+
+func (r *policyResolver) AgentHasCheck(ctx context.Context, agentID, checkType string) (bool, error) {
+	if r.pool == nil {
+		return false, nil
+	}
+	const q = `
+		SELECT 1
+		FROM check_assignments ca
+		JOIN check_definitions cd ON cd.id = ca.check_id
+		WHERE ca.agent_id = $1 AND cd.check_type = $2
+		LIMIT 1
+	`
+	var n int
+	err := r.pool.QueryRow(ctx, q, agentID, checkType).Scan(&n)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func (r *policyResolver) CheckLastResult(ctx context.Context, agentID, checkID string) (map[string]any, error) {
+	if r.pool == nil {
+		return nil, nil
+	}
+	const q = `
+		SELECT COALESCE(status, ''), value, COALESCE(message, ''), metadata
+		FROM check_results
+		WHERE agent_id = $1 AND check_id = $2
+		ORDER BY timestamp DESC
+		LIMIT 1
+	`
+	out := map[string]any{
+		"agent_id": agentID,
+		"check_id": checkID,
+		"status":   "",
+		"value":    0.0,
+		"message":  "",
+	}
+	var status, message string
+	var value float64
+	var meta []byte
+	err := r.pool.QueryRow(ctx, q, agentID, checkID).Scan(&status, &value, &message, &meta)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return out, nil
+		}
+		return nil, err
+	}
+	out["status"] = status
+	out["value"] = value
+	out["message"] = message
+	if len(meta) > 0 {
+		var d map[string]any
+		if json.Unmarshal(meta, &d) == nil {
+			out["details"] = d
+		}
+	}
+	return out, nil
+}
+
+func (r *policyResolver) AgentPatchLevel(ctx context.Context, agentID string) (string, error) {
+	if r.pool == nil {
+		return "", nil
+	}
+	const q = `SELECT COALESCE(metadata->>'patch_level', '') FROM agents WHERE id = $1 LIMIT 1`
+	var s string
+	if err := r.pool.QueryRow(ctx, q, agentID).Scan(&s); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", nil
+		}
+		return "", err
+	}
+	return s, nil
+}
+
+func (r *policyResolver) AgentOSVersion(ctx context.Context, agentID string) (string, error) {
+	if r.pool == nil {
+		return "", nil
+	}
+	const q = `SELECT COALESCE(os, '') || ' ' || COALESCE(platform, '') FROM agents WHERE id = $1 LIMIT 1`
+	var s string
+	if err := r.pool.QueryRow(ctx, q, agentID).Scan(&s); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", nil
+		}
+		return "", err
+	}
+	return s, nil
 }

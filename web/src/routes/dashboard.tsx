@@ -11,10 +11,12 @@ import {
   PauseCircle,
   CheckCheck,
   CalendarDays,
+  ShieldCheck,
 } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useChecks } from '@/lib/useChecks';
 import { useAlerts } from '@/lib/useAlerts';
+import { usePolicies, type PolicyCategory } from '@/lib/usePolicies';
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,
@@ -81,6 +83,54 @@ function isToday(iso: string | undefined): boolean {
 function DashboardPage() {
   const { checks, isLoading: checksLoading } = useChecks();
   const { alerts, isLoading: alertsLoading } = useAlerts('all');
+  const { policies, isLoading: policiesLoading, fetchComplianceSummary } = usePolicies();
+
+  // Live policy compliance aggregates (computed from the policy list when
+  // a per-policy compliance summary endpoint is not available; falls back
+  // to whatever the policies endpoint provides).
+  const compliance = useMemo(() => {
+    let totalAgents = 0;
+    let compliantAgents = 0;
+    const byCategory: Record<
+      PolicyCategory,
+      { violations: number; total: number }
+    > = {
+      security: { violations: 0, total: 0 },
+      compliance: { violations: 0, total: 0 },
+      configuration: { violations: 0, total: 0 },
+      performance: { violations: 0, total: 0 },
+      custom: { violations: 0, total: 0 },
+    };
+    let weighted = 0;
+    let weight = 0;
+    for (const p of policies) {
+      const agents = p.agent_count ?? 0;
+      const pct = p.compliance_pct;
+      if (agents > 0 && typeof pct === 'number') {
+        weighted += (pct / 100) * agents;
+        weight += agents;
+      }
+      totalAgents = Math.max(totalAgents, agents);
+      byCategory[p.category].total += 1;
+      // We don't have raw violation counts in the policy list, so use
+      // compliance_pct as a proxy: <100% = at least one violation
+      if (typeof pct === 'number' && pct < 100) {
+        byCategory[p.category].violations += 1;
+        compliantAgents += Math.round((pct / 100) * agents);
+      } else if (typeof pct === 'number' && pct === 100) {
+        compliantAgents += agents;
+      }
+    }
+    const overallPct = weight > 0 ? (weighted / weight) * 100 : null;
+    return { overallPct, totalAgents, compliantAgents, byCategory };
+  }, [policies]);
+
+  // Try to load a server-side compliance summary in the background; if it
+  // succeeds, the values below would in a future revision be wired in.
+  // For now we trigger the request so the data is warm.
+  useEffect(() => {
+    void fetchComplianceSummary().catch(() => undefined);
+  }, [fetchComplianceSummary]);
 
   // Live check KPIs.
   const checkKpis: Kpi[] = useMemo(() => {
@@ -221,6 +271,91 @@ function DashboardPage() {
           {alertRow.map((kpi) => (
             <KpiCard key={kpi.label} kpi={kpi} />
           ))}
+        </div>
+      </div>
+
+      {/* Policy compliance */}
+      <div>
+        <h2 className="text-sm font-semibold text-slate-300 mb-3">Policy compliance</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Overall score card */}
+          <Link
+            to="/policies"
+            className="rounded-lg border border-slate-800 bg-slate-900/60 p-5 hover:border-slate-700 transition-colors block"
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm text-slate-400">Overall compliance</p>
+                <p
+                  className={
+                    'text-3xl font-semibold mt-2 tabular-nums ' +
+                    (compliance.overallPct === null
+                      ? 'text-slate-500'
+                      : compliance.overallPct >= 80
+                      ? 'text-emerald-400'
+                      : compliance.overallPct >= 60
+                      ? 'text-amber-400'
+                      : 'text-rose-400')
+                  }
+                >
+                  {policiesLoading && policies.length === 0
+                    ? '—'
+                    : compliance.overallPct === null
+                    ? '—'
+                    : `${compliance.overallPct.toFixed(0)}%`}
+                </p>
+                <p className="text-xs text-slate-500 mt-3">
+                  {policies.length} {policies.length === 1 ? 'policy' : 'policies'}
+                  {compliance.totalAgents > 0
+                    ? ` · ${compliance.compliantAgents} of ${compliance.totalAgents} agents compliant`
+                    : ''}
+                </p>
+              </div>
+              <div className="h-9 w-9 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center">
+                <ShieldCheck className="h-4 w-4 text-slate-300" />
+              </div>
+            </div>
+          </Link>
+
+          {/* Violations by category mini bar chart */}
+          <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-5 lg:col-span-2">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-slate-100">Violations by category</h3>
+              <Link
+                to="/policies"
+                className="text-xs text-slate-400 hover:text-slate-100 transition-colors"
+              >
+                View all →
+              </Link>
+            </div>
+            {policies.length === 0 ? (
+              <div className="text-center text-xs text-slate-500 py-6">
+                No policies to chart yet.
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {(Object.keys(compliance.byCategory) as PolicyCategory[]).map((cat) => {
+                  const { violations, total } = compliance.byCategory[cat];
+                  const pct = total > 0 ? (violations / total) * 100 : 0;
+                  if (total === 0) return null;
+                  return (
+                    <div key={cat} className="flex items-center gap-3">
+                      <div className="w-24 text-xs text-slate-400 capitalize">{cat}</div>
+                      <div className="flex-1 h-5 rounded bg-slate-800/60 overflow-hidden border border-slate-800">
+                        <div
+                          className="h-full bg-rose-500/70 transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <div className="w-20 text-right text-xs text-slate-300 tabular-nums">
+                        {violations} / {total}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

@@ -209,13 +209,21 @@ func (e *AlertEngine) Stop() {
 // check ingest pipeline. The engine reads these to create and escalate
 // alerts.
 type AlertEvent struct {
-	Type      string    `json:"type"` // "alert.fired" or "alert.resolved"
-	AgentID   string    `json:"agent_id"`
-	CheckID   string    `json:"check_id"`
-	Severity  string    `json:"severity"`
-	Status    string    `json:"status"`
-	Message   string    `json:"message"`
-	Timestamp time.Time `json:"timestamp"`
+	Type         string    `json:"type"` // "alert.fired" or "alert.resolved"
+	AgentID      string    `json:"agent_id"`
+	AgentHostname string   `json:"agent_hostname,omitempty"`
+	SiteID       string    `json:"site_id,omitempty"`
+	CheckID      string    `json:"check_id"`
+	Severity     string    `json:"severity"`
+	Status       string    `json:"status"`
+	Message      string    `json:"message"`
+	Timestamp    time.Time `json:"timestamp"`
+	// AlertType classifies the source of the event. "check_failure"
+	// is the default for check-based alerts; "policy_violation" is
+	// set by the PolicyEngine's ViolationManager and is treated
+	// specially in the state machine so that policy findings are
+	// never confused with monitoring checks.
+	AlertType string `json:"alert_type,omitempty"`
 }
 
 // DedupKey builds the canonical dedup key for a (check, agent, rule) triple.
@@ -308,14 +316,25 @@ func (e *AlertEngine) handleCheckFailure(ctx context.Context, evt *AlertEvent) {
 	}
 
 	// Create a new pending alert.
+	alertType := evt.AlertType
+	if alertType == "" {
+		alertType = "check_failure"
+	}
+	meta := map[string]any{
+		"alert_type":     alertType,
+		"agent_hostname": evt.AgentHostname,
+		"site_id":        evt.SiteID,
+	}
 	alert := &models.Alert{
 		ID:          uuid.New().String(),
 		DedupKey:    dedupKey,
 		CheckID:     evt.CheckID,
 		AgentID:     evt.AgentID,
+		SiteID:      evt.SiteID,
 		Severity:    normalizeSeverity(evt.Severity),
 		State:       StatePending,
 		Message:     evt.Message,
+		Metadata:    meta,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
@@ -329,6 +348,7 @@ func (e *AlertEngine) handleCheckFailure(ctx context.Context, evt *AlertEvent) {
 		ToState:   StatePending,
 		Event:     EventCheckFailure,
 		Actor:     "system",
+		Reason:    alertType,
 		CreatedAt: now,
 	}
 	if err := e.store.InsertStateTransition(ctx, rec); err != nil {
@@ -339,7 +359,8 @@ func (e *AlertEngine) handleCheckFailure(ctx context.Context, evt *AlertEvent) {
 		"alert_id", alert.ID,
 		"check_id", evt.CheckID,
 		"agent_id", evt.AgentID,
-		"severity", alert.Severity)
+		"severity", alert.Severity,
+		"alert_type", alertType)
 
 	// Dispatch notifications for the new alert. Newly-fired alerts
 	// are considered "open" for notification purposes even though the

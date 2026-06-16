@@ -135,6 +135,43 @@ func (s *Server) registerRoutes(r chi.Router) {
 				})
 			})
 
+			// Policy engine: Rego-based compliance checks.
+			// The /evaluate-site route is mounted first because
+			// chi's path matching is order-independent for non-
+			// overlapping paths, but we keep it ahead of the
+			// /{id} group for readability.
+			r.Route("/policies", func(r chi.Router) {
+				r.Get("/", s.listPolicies)
+				r.Post("/", s.createPolicy)
+				r.Post("/evaluate-site", s.evaluateSite)
+				r.Route("/{id}", func(r chi.Router) {
+					r.Get("/", s.getPolicy)
+					r.Put("/", s.updatePolicy)
+					r.Delete("/", s.deletePolicy)
+					r.Post("/evaluate", s.evaluatePolicy)
+					r.Post("/assign", s.assignPolicy)
+					// Per-policy violation feed. Supports resolved
+					// and status filters plus pagination.
+					r.Get("/violations", s.listViolationsByPolicy)
+				})
+			})
+
+			// Per-agent violation feed. Lives at /agents/{id}/violations
+			// (not under /policies) because it is the agent-centric
+			// view used by the endpoint detail page.
+			r.Route("/agents/{id}/violations", func(r chi.Router) {
+				r.Get("/", s.listViolationsByAgent)
+			})
+
+			// Violation lifecycle endpoints (dismiss, remediate).
+			r.Route("/violations/{id}", func(r chi.Router) {
+				r.Post("/dismiss", s.dismissViolation)
+				r.Post("/remediate", s.remediateViolation)
+			})
+
+			// Org-level compliance summary used by the dashboard.
+			r.Get("/compliance/summary", s.complianceSummary)
+
 			r.Route("/audit", func(r chi.Router) {
 				r.Get("/events", s.listAuditEvents)
 				r.Route("/events/{id}", func(r chi.Router) {

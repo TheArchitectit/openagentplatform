@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -31,6 +33,10 @@ type Config struct {
 	CookieSecure  bool
 
 	SentryDSN     string
+
+	// PolicyEvalInterval is the interval at which the policy engine
+	// runs a full sweep across all agents. Defaults to 5 minutes.
+	PolicyEvalInterval time.Duration
 }
 
 func Load() (*Config, error) {
@@ -53,6 +59,7 @@ func Load() (*Config, error) {
 		CookieDomain:     getEnv("COOKIE_DOMAIN", "localhost"),
 		CookieSecure:     getEnv("COOKIE_SECURE", "false") == "true",
 		SentryDSN:        os.Getenv("SENTRY_DSN"),
+		PolicyEvalInterval: getDurationEnv("POLICY_EVAL_INTERVAL", 5*time.Minute),
 	}
 
 	if err := c.validate(); err != nil {
@@ -78,6 +85,23 @@ func (c *Config) validate() error {
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return fallback
+}
+
+// getDurationEnv reads a duration from an env var, falling back to the
+// provided default if missing or invalid.
+func getDurationEnv(key string, fallback time.Duration) time.Duration {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	if d, err := time.ParseDuration(v); err == nil {
+		return d
+	}
+	// Accept raw seconds as a fallback for shell-friendliness.
+	if secs, err := strconv.Atoi(v); err == nil {
+		return time.Duration(secs) * time.Second
 	}
 	return fallback
 }
