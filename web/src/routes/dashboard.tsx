@@ -9,9 +9,12 @@ import {
   CheckCircle2,
   AlertTriangle,
   PauseCircle,
+  CheckCheck,
+  CalendarDays,
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useChecks } from '@/lib/useChecks';
+import { useAlerts } from '@/lib/useAlerts';
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,
@@ -26,13 +29,6 @@ interface Kpi {
   to?: string;
 }
 
-// Static agent/alert KPIs (checks KPIs are computed live from useChecks).
-const staticKpis: Kpi[] = [
-  { label: 'Total Agents', value: '128', delta: '+12 this week', deltaTone: 'up', icon: Bot, to: '/agents' },
-  { label: 'Online', value: '119', delta: '93% online', deltaTone: 'neutral', icon: CircleCheck, to: '/agents' },
-  { label: 'Open Alerts', value: '7', delta: '+3 today', deltaTone: 'up', icon: Bell, to: '/alerts' },
-];
-
 interface ActivityItem {
   id: string;
   type: 'check' | 'alert' | 'agent' | 'patch';
@@ -42,6 +38,12 @@ interface ActivityItem {
   icon: typeof Activity;
   tone: 'success' | 'warning' | 'info' | 'danger';
 }
+
+// Static agent/alert KPIs (checks KPIs are computed live from useChecks).
+const staticKpis: Kpi[] = [
+  { label: 'Total Agents', value: '128', delta: '+12 this week', deltaTone: 'up', icon: Bot, to: '/agents' },
+  { label: 'Online', value: '119', delta: '93% online', deltaTone: 'neutral', icon: CircleCheck, to: '/agents' },
+];
 
 const recentActivity: ActivityItem[] = [
   { id: '1', type: 'check', title: 'Check "disk-usage" failed on agent prod-web-03', meta: 'Agent prod-web-03', time: '2m ago', icon: Activity, tone: 'danger' },
@@ -64,10 +66,23 @@ const deltaClasses: Record<Kpi['deltaTone'], string> = {
   neutral: 'text-slate-400',
 };
 
+function isToday(iso: string | undefined): boolean {
+  if (!iso) return false;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return false;
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
+
 function DashboardPage() {
   const { checks, isLoading: checksLoading } = useChecks();
+  const { alerts, isLoading: alertsLoading } = useAlerts('all');
 
-  // Compute live check KPIs from the loaded checks list.
+  // Live check KPIs.
   const checkKpis: Kpi[] = useMemo(() => {
     let ok = 0;
     let warn = 0;
@@ -121,7 +136,67 @@ function DashboardPage() {
     ];
   }, [checks, checksLoading]);
 
-  const allKpis: Kpi[] = [...staticKpis, ...checkKpis];
+  // Live alert KPIs.
+  const alertKpis: Kpi[] = useMemo(() => {
+    let open = 0;
+    let critical = 0;
+    let acknowledged = 0;
+    let today = 0;
+    for (const a of alerts) {
+      const state = (a.state ?? '').toLowerCase();
+      const severity = (a.severity ?? '').toLowerCase();
+      if (state === 'open') open += 1;
+      if (
+        (severity === 'critical' || severity === 'emergency') &&
+        (state === 'open' || state === 'acknowledged' || state === 'snoozed')
+      ) {
+        critical += 1;
+      }
+      if (state === 'acknowledged') acknowledged += 1;
+      if (isToday(a.created_at)) today += 1;
+    }
+    const dash = alertsLoading && alerts.length === 0 ? '—' : null;
+    return [
+      {
+        label: 'Open Alerts',
+        value: dash ?? String(open),
+        delta: open === 0 ? 'Inbox clear' : `${open} need${open === 1 ? 's' : ''} attention`,
+        deltaTone: open === 0 ? 'up' : 'down',
+        icon: Bell,
+        to: '/alerts',
+      },
+      {
+        label: 'Critical',
+        value: dash ?? String(critical),
+        delta: critical === 0 ? 'No critical' : 'Page on-call',
+        deltaTone: critical === 0 ? 'up' : 'down',
+        icon: CircleAlert,
+        to: '/alerts',
+      },
+      {
+        label: 'Acknowledged',
+        value: dash ?? String(acknowledged),
+        delta: acknowledged === 0 ? 'None pending ack' : 'In progress',
+        deltaTone: 'neutral',
+        icon: CheckCheck,
+        to: '/alerts',
+      },
+      {
+        label: 'Total Today',
+        value: dash ?? String(today),
+        delta: today === 0 ? 'Quiet day' : 'Last 24 hours',
+        deltaTone: 'neutral',
+        icon: CalendarDays,
+        to: '/alerts',
+      },
+    ];
+  }, [alerts, alertsLoading]);
+
+  // 2 static agent + 4 check + 4 alert = 10 cards. Render in a 4-col grid
+  // for the alert row alone, and a separate row for checks.
+  const agentRow: Kpi[] = staticKpis;
+  const checkRow: Kpi[] = checkKpis;
+  const alertRow: Kpi[] = alertKpis;
 
   return (
     <div className="space-y-6">
@@ -132,44 +207,21 @@ function DashboardPage() {
         </div>
       </div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
-        {allKpis.map((kpi) => {
-          const Icon = kpi.icon;
-          const inner = (
-            <>
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm text-slate-400">{kpi.label}</p>
-                  <p className="text-3xl font-semibold text-slate-100 mt-2">{kpi.value}</p>
-                </div>
-                <div className="h-9 w-9 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center">
-                  <Icon className="h-4 w-4 text-slate-300" />
-                </div>
-              </div>
-              <p className={`text-xs mt-3 ${deltaClasses[kpi.deltaTone]}`}>{kpi.delta}</p>
-            </>
-          );
-          if (kpi.to) {
-            return (
-              <Link
-                key={kpi.label}
-                to={kpi.to}
-                className="rounded-lg border border-slate-800 bg-slate-900/60 p-5 hover:border-slate-700 transition-colors block"
-              >
-                {inner}
-              </Link>
-            );
-          }
-          return (
-            <div
-              key={kpi.label}
-              className="rounded-lg border border-slate-800 bg-slate-900/60 p-5 hover:border-slate-700 transition-colors"
-            >
-              {inner}
-            </div>
-          );
-        })}
+      {/* Agents + Checks KPIs (static agents + live check KPIs) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        {[...agentRow, ...checkRow].map((kpi) => (
+          <KpiCard key={kpi.label} kpi={kpi} />
+        ))}
+      </div>
+
+      {/* Alert KPIs */}
+      <div>
+        <h2 className="text-sm font-semibold text-slate-300 mb-3">Alerts</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {alertRow.map((kpi) => (
+            <KpiCard key={kpi.label} kpi={kpi} />
+          ))}
+        </div>
       </div>
 
       {/* Recent activity */}
@@ -201,6 +253,39 @@ function DashboardPage() {
           })}
         </ul>
       </div>
+    </div>
+  );
+}
+
+function KpiCard({ kpi }: { kpi: Kpi }) {
+  const Icon = kpi.icon;
+  const inner = (
+    <>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm text-slate-400">{kpi.label}</p>
+          <p className="text-3xl font-semibold text-slate-100 mt-2">{kpi.value}</p>
+        </div>
+        <div className="h-9 w-9 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center">
+          <Icon className="h-4 w-4 text-slate-300" />
+        </div>
+      </div>
+      <p className={`text-xs mt-3 ${deltaClasses[kpi.deltaTone]}`}>{kpi.delta}</p>
+    </>
+  );
+  if (kpi.to) {
+    return (
+      <Link
+        to={kpi.to}
+        className="rounded-lg border border-slate-800 bg-slate-900/60 p-5 hover:border-slate-700 transition-colors block"
+      >
+        {inner}
+      </Link>
+    );
+  }
+  return (
+    <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-5 hover:border-slate-700 transition-colors">
+      {inner}
     </div>
   );
 }

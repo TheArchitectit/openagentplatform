@@ -1,3 +1,9 @@
+// Sidebar — primary left-side navigation.
+//
+// The "Alerts" entry shows a live badge with the number of open critical
+// alerts so operators can see what needs attention at a glance, even
+// when they are on another section of the app.
+
 import { Link } from '@tanstack/react-router';
 import {
   LayoutDashboard,
@@ -11,18 +17,20 @@ import {
   LogOut,
 } from 'lucide-react';
 import { logout, getStoredUser } from '@/lib/auth';
+import { useAlerts } from '@/lib/useAlerts';
 
 interface NavItem {
   to: string;
   label: string;
   icon: typeof LayoutDashboard;
+  showAlertBadge?: boolean;
 }
 
 const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/agents', label: 'Agents', icon: Bot },
   { to: '/checks', label: 'Checks', icon: Activity },
-  { to: '/alerts', label: 'Alerts', icon: BellRing },
+  { to: '/alerts', label: 'Alerts', icon: BellRing, showAlertBadge: true },
   { to: '/policies', label: 'Policies', icon: ShieldCheck },
   { to: '/patches', label: 'Patches', icon: Wrench },
   { to: '/scripts', label: 'Scripts', icon: FileCode2 },
@@ -34,6 +42,16 @@ export function Sidebar() {
   const initials = user?.name
     ? user.name.split(' ').map((p) => p.charAt(0).toUpperCase()).slice(0, 2).join('')
     : user?.email?.charAt(0).toUpperCase() ?? 'U';
+
+  // Subscribe to the "alerts" channel via the dedicated "all" filter so
+  // we can render a count badge for the currently-open critical alerts.
+  // The list itself is not consumed here — only the count is needed.
+  const { alerts } = useAlerts('all');
+  const openCriticalCount = alerts.filter(
+    (a) =>
+      (a.severity === 'critical' || a.severity === 'emergency') &&
+      (a.state === 'open' || a.state === undefined)
+  ).length;
 
   return (
     <aside className="w-60 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col">
@@ -49,17 +67,27 @@ export function Sidebar() {
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
+          const isAlerts = item.showAlertBadge === true;
           return (
             <Link
               key={item.to}
               to={item.to}
               className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
               activeProps={{
-                className: 'flex items-center gap-3 px-3 py-2 rounded-md text-sm bg-slate-800 text-white',
+                className:
+                  'flex items-center gap-3 px-3 py-2 rounded-md text-sm bg-slate-800 text-white',
               }}
             >
               <Icon size={16} />
-              <span>{item.label}</span>
+              <span className="flex-1">{item.label}</span>
+              {isAlerts && openCriticalCount > 0 && (
+                <span
+                  className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-rose-500/20 border border-rose-500/30 text-[10px] font-semibold text-rose-300"
+                  title={`${openCriticalCount} open critical alert${openCriticalCount === 1 ? '' : 's'}`}
+                >
+                  {openCriticalCount > 99 ? '99+' : openCriticalCount}
+                </span>
+              )}
             </Link>
           );
         })}

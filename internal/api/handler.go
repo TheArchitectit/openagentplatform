@@ -11,9 +11,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/openagentplatform/openagentplatform/internal/alerts"
 	"github.com/openagentplatform/openagentplatform/internal/audit"
 	"github.com/openagentplatform/openagentplatform/internal/auth"
 	"github.com/openagentplatform/openagentplatform/internal/config"
+	"github.com/openagentplatform/openagentplatform/internal/notify"
 	"github.com/openagentplatform/openagentplatform/internal/schema"
 )
 
@@ -28,6 +30,20 @@ type Server struct {
 	// eventBus is an optional publisher used to emit platform events
 	// (e.g. AgentOnline, AgentOffline) from API handlers. May be nil.
 	eventBus Publisher
+	// alertStore is the alert persistence interface. May be nil.
+	alertStore alerts.Store
+	// alertEngine drives state-machine transitions. May be nil.
+	alertEngine *alerts.AlertEngine
+	// notifierReg is the notifier registry used to validate channel
+	// configurations and dispatch test notifications. May be nil;
+	// a default registry is used lazily when not set.
+	notifierReg *notify.NotifierRegistry
+	// prefStore is the alert preferences persistence interface. May
+	// be nil; preference endpoints return 503 when unset.
+	prefStore alerts.PreferenceStore
+	// routingLinker is the alert_rule_channels junction interface
+	// used by the rule-channel API endpoints. May be nil.
+	routingLinker alerts.AlertRuleChannelLinker
 	// wsHub manages connected WebSocket clients and their
 	// subscriptions. Lazily constructed on first upgrade.
 	wsHub  *wsHub
@@ -78,6 +94,39 @@ func NewServer(cfg *config.Config, log *slog.Logger, db *pgxpool.Pool, eventBus 
 
 func (s *Server) Router() http.Handler {
 	return s.router
+}
+
+// SetAlertStore wires the alert persistence interface into the server.
+// Called from main after the pool is ready. May be nil.
+func (s *Server) SetAlertStore(store alerts.Store) {
+	s.alertStore = store
+}
+
+// SetAlertEngine wires the alert state-machine engine into the server.
+// Called from main after the engine is constructed. May be nil.
+func (s *Server) SetAlertEngine(engine *alerts.AlertEngine) {
+	s.alertEngine = engine
+}
+
+// SetNotifierRegistry wires the notifier registry used to validate
+// channel configurations and dispatch test notifications. Called from
+// main after the registry is initialised. May be nil; the server
+// falls back to a default registry on demand.
+func (s *Server) SetNotifierRegistry(reg *notify.NotifierRegistry) {
+	s.notifierReg = reg
+}
+
+// SetPreferenceStore wires the alert-preferences persistence layer
+// into the server. Called from main after the store is initialised.
+// May be nil; preference endpoints return 503 when unset.
+func (s *Server) SetPreferenceStore(store alerts.PreferenceStore) {
+	s.prefStore = store
+}
+
+// SetRoutingLinker wires the alert_rule_channels junction interface
+// used by the rule-channel API endpoints. Called from main.
+func (s *Server) SetRoutingLinker(linker alerts.AlertRuleChannelLinker) {
+	s.routingLinker = linker
 }
 
 func (s *Server) buildRouter() chi.Router {

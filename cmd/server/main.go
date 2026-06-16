@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/openagentplatform/openagentplatform/internal/alerts"
 	"github.com/openagentplatform/openagentplatform/internal/api"
 	"github.com/openagentplatform/openagentplatform/internal/audit"
 	"github.com/openagentplatform/openagentplatform/internal/checklib"
@@ -92,6 +93,17 @@ func main() {
 		Logger:    log,
 	})
 
+	// --- Alert engine -----------------------------------------------------
+	alertStore := alerts.NewPGStore(pool)
+	alertEngine := alerts.New(alerts.Config{
+		Client:    natsClient,
+		Store:     alertStore,
+		Publisher: natsClient,
+		Logger:    log,
+	})
+	srv.SetAlertStore(alertStore)
+	srv.SetAlertEngine(alertEngine)
+
 	// Start event subscriptions after the HTTP server has had a chance to
 	// bind so /api/v1/agents/register accepts first contact from agents
 	// before any heartbeat traffic starts.
@@ -105,6 +117,9 @@ func main() {
 	}
 	if err := ingestor.Start(hbCtx); err != nil {
 		log.Error("result ingestor start failed", "err", err)
+	}
+	if err := alertEngine.Start(hbCtx); err != nil {
+		log.Error("alert engine start failed", "err", err)
 	}
 
 	// --- HTTP server goroutine -------------------------------------------
@@ -127,6 +142,7 @@ func main() {
 	heartbeat.Stop()
 	dispatcher.Stop()
 	ingestor.Stop()
+	alertEngine.Stop()
 
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		log.Error("graceful shutdown failed", "err", err)
