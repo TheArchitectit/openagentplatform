@@ -236,3 +236,71 @@ func (m *SessionMinter) Parse(raw string) (*SessionClaims, error) {
 	}
 	return claims, nil
 }
+
+// AgentClaims is the payload carried by an agent JWT. Distinct from
+// SessionClaims so agents can be authorised independently of human users.
+type AgentClaims struct {
+	AgentID string `json:"agent_id"`
+	SiteID  string `json:"site_id"`
+	OrgID   string `json:"org_id"`
+	Role    string `json:"role"`
+	jwt.RegisteredClaims
+}
+
+// MintAgentToken produces a signed EdDSA agent JWT scoped to a single agent
+// at a particular site and org. The token is intended for the agent's own
+// outbound calls; the server-side verifier uses ParseAgentToken to validate.
+func (m *SessionMinter) MintAgentToken(agentID, siteID, orgID string, ttl time.Duration) (string, error) {
+	if m == nil {
+		return "", errors.New("auth: session minter not configured")
+	}
+	if agentID == "" {
+		return "", errors.New("auth: agent id required")
+	}
+	if ttl <= 0 {
+		ttl = 24 * time.Hour
+	}
+	now := time.Now()
+	claims := AgentClaims{
+		AgentID: agentID,
+		SiteID:  siteID,
+		OrgID:   orgID,
+		Role:    "agent",
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   agentID,
+			Issuer:    m.issuer,
+			Audience:  jwt.ClaimStrings{m.audience},
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
+			NotBefore: jwt.NewNumericDate(now),
+		},
+	}
+	tok := jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims)
+	signed, err := tok.SignedString(m.signKey)
+	if err != nil {
+		return "", fmt.Errorf("auth: sign agent token: %w", err)
+	}
+	return signed, nil
+}
+
+// ParseAgentToken validates a previously-minted agent JWT and returns its
+// claims.
+func (m *SessionMinter) ParseAgentToken(raw string) (*AgentClaims, error) {
+	if m == nil {
+		return nil, errors.New("auth: session minter not configured")
+	}
+	claims := &AgentClaims{}
+	parsed, err := jwt.ParseWithClaims(raw, claims, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodEd25519); !ok {
+			return nil, jwt.ErrTokenSignatureInvalid
+		}
+		return m.signKey.Public(), nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("auth: parse agent token: %w", err)
+	}
+	if !parsed.Valid {
+		return nil, errors.New("auth: invalid agent token")
+	}
+	return claims, nil
+}

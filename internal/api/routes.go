@@ -6,9 +6,11 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/openagentplatform/openagentplatform/internal/audit"
 	"github.com/openagentplatform/openagentplatform/internal/auth"
 )
 
@@ -29,6 +31,11 @@ func (s *Server) registerRoutes(r chi.Router) {
 		r.Get("/me", s.handleMe)
 	})
 
+	// WebSocket upgrade endpoint. Authentication is enforced inside
+	// the handler (cookie or ?token=) because WebSocket clients cannot
+	// use the same Authorization-header flow as REST calls.
+	r.Get("/ws", s.handleWebSocket)
+
 	// Protected API.
 	r.Group(func(r chi.Router) {
 		r.Use(auth.VerifierMiddleware(s.sessionMinter, s.oidcVerifier, sessionCookieName))
@@ -38,6 +45,15 @@ func (s *Server) registerRoutes(r chi.Router) {
 			r.Route("/agents", func(r chi.Router) {
 				r.Get("/", s.listAgents)
 				r.Post("/", s.createAgent)
+				// New agent registration + detail routes. Registration is
+				// the only agent-side endpoint that uses the site
+				// registration token in the body; it does NOT require the
+				// session cookie. We mount it outside the verifier group
+				// further down so the auth middleware doesn't reject the
+				// agent's first contact with the platform.
+				r.Route("/{id}", func(r chi.Router) {
+					r.Get("/", s.handleGetAgent)
+				})
 			})
 
 			r.Route("/sites", func(r chi.Router) {
@@ -51,6 +67,24 @@ func (s *Server) registerRoutes(r chi.Router) {
 			r.Route("/alerts", func(r chi.Router) {
 				r.Get("/", s.listAlerts)
 			})
+
+			r.Route("/audit", func(r chi.Router) {
+				r.Get("/events", s.listAuditEvents)
+				r.Route("/events/{id}", func(r chi.Router) {
+					r.Get("/", s.getAuditEvent)
+				})
+				r.Route("/chain/{resource_id}", func(r chi.Router) {
+					r.Get("/", s.getAuditChain)
+				})
+			})
+		})
+	})
+
+	// Public agent-side endpoint: registration. Validated by the per-site
+	// registration token carried in the body, not by a session cookie.
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Route("/agents", func(r chi.Router) {
+			r.Post("/register", s.handleRegisterAgent)
 		})
 	})
 }
@@ -128,6 +162,7 @@ func (s *Server) handleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.recordLogin(r, claims)
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    sessionTok,
@@ -156,6 +191,7 @@ func (s *Server) handleCallback(w http.ResponseWriter, r *http.Request) {
 
 // handleLogout clears the session cookie.
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
+	s.recordLogout(r)
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    "",
@@ -336,4 +372,86 @@ func randomState() (string, error) {
 		return "", err
 	}
 	return base64URL(b), nil
+}
+
+// recordLogin writes a "login" audit event for a successful OIDC callback.
+// Failures are logged but do not block the response.
+func (s *Server) recordLogin(r *http.Request, claims *auth.Claims) {
+	if s.audit == nil || claims == nil {
+		return
+	}
+	// Use a detached context so the audit write survives the request
+	// being cancelled by the browser navigating away.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := s.audit.Record(ctx, audit.EventInput{
+		ActorType:    audit.ActorUser,
+		ActorID:      claims.Subject,
+		Action:       string(audit.EventLogin),
+		ResourceType: "session",
+		ResourceID:   claims.Subject,
+		Details: map[string]any{
+			"email": claims.Email,
+			"role":  auth.MapGroupsToRole(claims.Groups),
+		},
+		Outcome:   audit.OutcomeSuccess,
+		IP:        clientIP(r),
+		UserAgent: r.UserAgent(),
+		OrgID:     claims.OrgID,
+		SiteID:    claims.SiteID,
+	})
+	if err != nil {
+		s.log.Error("audit: login record failed", "err", err)
+	}
+}
+
+// recordLogout writes a "logout" audit event. We try to attribute the event
+// to the authenticated user, but fall back to "unknown" if the session has
+// already been invalidated.
+func (s *Server) recordLogout(r *http.Request) {
+	if s.audit == nil {
+		return
+	}
+	actorID := ""
+	orgID := ""
+	siteID := ""
+	if claims, ok := auth.UserFromContext(r.Context()); ok && claims != nil {
+		actorID = claims.Subject
+		orgID = claims.OrgID
+		siteID = claims.SiteID
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := s.audit.Record(ctx, audit.EventInput{
+		ActorType:    audit.ActorUser,
+		ActorID:      actorID,
+		Action:       string(audit.EventLogout),
+		ResourceType: "session",
+		ResourceID:   actorID,
+		Outcome:      audit.OutcomeSuccess,
+		IP:           clientIP(r),
+		UserAgent:    r.UserAgent(),
+		OrgID:        orgID,
+		SiteID:       siteID,
+	})
+	if err != nil {
+		s.log.Error("audit: logout record failed", "err", err)
+	}
+}
+
+// clientIP is duplicated from the audit middleware so the auth handlers
+// (which run before middleware-injected request IDs) can still attribute
+// the event to a client. chi's RealIP middleware sets X-Forwarded-For /
+// X-Real-IP, so we honour those here too.
+func clientIP(r *http.Request) string {
+	if h := r.Header.Get("X-Forwarded-For"); h != "" {
+		if comma := strings.Index(h, ","); comma >= 0 {
+			return strings.TrimSpace(h[:comma])
+		}
+		return strings.TrimSpace(h)
+	}
+	if h := r.Header.Get("X-Real-IP"); h != "" {
+		return strings.TrimSpace(h)
+	}
+	return r.RemoteAddr
 }

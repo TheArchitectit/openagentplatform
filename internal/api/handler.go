@@ -5,27 +5,46 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/openagentplatform/openagentplatform/internal/audit"
 	"github.com/openagentplatform/openagentplatform/internal/auth"
 	"github.com/openagentplatform/openagentplatform/internal/config"
 	"github.com/openagentplatform/openagentplatform/internal/schema"
 )
 
 type Server struct {
-	cfg            *config.Config
-	log            *slog.Logger
-	router         chi.Router
-	oidcVerifier   *auth.Verifier
-	sessionMinter  *auth.SessionMinter
+	cfg           *config.Config
+	log           *slog.Logger
+	router        chi.Router
+	oidcVerifier  *auth.Verifier
+	sessionMinter *auth.SessionMinter
+	db            *pgxpool.Pool
+	audit         *audit.AuditService
+	// eventBus is an optional publisher used to emit platform events
+	// (e.g. AgentOnline, AgentOffline) from API handlers. May be nil.
+	eventBus Publisher
+	// wsHub manages connected WebSocket clients and their
+	// subscriptions. Lazily constructed on first upgrade.
+	wsHub  *wsHub
+	wsOnce sync.Once
+}
+
+// Publisher is the subset of the events.Client interface used by API handlers.
+type Publisher interface {
+	Publish(ctx context.Context, subject string, payload []byte) error
 }
 
 // NewServer constructs the HTTP server. If OIDC_ISSUER_URL is configured,
 // an OIDC verifier is initialised. The session minter is always created.
-func NewServer(cfg *config.Config, log *slog.Logger) *Server {
-	s := &Server{cfg: cfg, log: log}
+// db, eventBus, and audit may be nil; when nil, endpoints that require them
+// return 503 Service Unavailable.
+func NewServer(cfg *config.Config, log *slog.Logger, db *pgxpool.Pool, eventBus Publisher, auditSvc *audit.AuditService) *Server {
+	s := &Server{cfg: cfg, log: log, db: db, eventBus: eventBus, audit: auditSvc}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -68,6 +87,10 @@ func (s *Server) buildRouter() chi.Router {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Heartbeat("/healthz"))
+	// Audit middleware wraps the whole router so it captures every API
+	// call regardless of whether the request was authenticated. The
+	// middleware itself filters out /health, /docs, and /ws paths.
+	r.Use(audit.Middleware(s.audit, s.log))
 
 	s.registerRoutes(r)
 	schema.MountSwagger(r)

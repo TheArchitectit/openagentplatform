@@ -20,15 +20,46 @@ type Site struct {
 }
 
 type Agent struct {
-	ID         string    `json:"id"`
-	SiteID     string    `json:"site_id"`
-	Hostname   string    `json:"hostname"`
-	OS         string    `json:"os"`
+	ID           string    `json:"id"`
+	SiteID       string    `json:"site_id"`
+	OrgID        string    `json:"org_id"`
+	Hostname     string    `json:"hostname"`
+	OS           string    `json:"os"`
+	Arch         string    `json:"arch"`
+	Platform     string    `json:"platform"`
+	CPUCount     int       `json:"cpu_count"`
+	TotalMemoryMB int64    `json:"total_memory_mb"`
+	TotalDiskGB  int64     `json:"total_disk_gb"`
+	AgentVersion string    `json:"agent_version"`
+	Version      string    `json:"version"`
+	Status       string    `json:"status"`
+	LastSeen     time.Time `json:"last_seen"`
+	Tags         []string  `json:"tags"`
+	Metadata     map[string]any `json:"metadata,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+// Heartbeat is the payload published by agents on oap.agents.<id>.heartbeat.
+type Heartbeat struct {
+	AgentID    string    `json:"agent_id"`
+	Timestamp  time.Time `json:"timestamp"`
+	CPUPercent float64   `json:"cpu_percent"`
+	MemPercent float64   `json:"mem_percent"`
+	DiskPercent float64  `json:"disk_percent"`
+	UptimeSecs uint64    `json:"uptime_secs"`
 	Version    string    `json:"version"`
-	Status     string    `json:"status"`
-	LastSeen   time.Time `json:"last_seen"`
-	Tags       []string  `json:"tags"`
-	CreatedAt  time.Time `json:"created_at"`
+}
+
+// CheckResult is the payload published by agents on oap.agents.<id>.results.
+type CheckResult struct {
+	AgentID    string         `json:"agent_id"`
+	CheckID    string         `json:"check_id"`
+	Timestamp  time.Time      `json:"timestamp"`
+	Status     string         `json:"status"`
+	Value      float64        `json:"value"`
+	Message    string         `json:"message"`
+	Metadata   map[string]any `json:"metadata,omitempty"`
 }
 
 type Check struct {
