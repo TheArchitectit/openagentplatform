@@ -12,6 +12,18 @@ type MemoryChecker struct{}
 
 func (m *MemoryChecker) Name() string { return "memory" }
 
+// Metadata describes the memory checker.
+func (m *MemoryChecker) Metadata() CheckerMetadata {
+	return CheckerMetadata{
+		Name:        "memory",
+		Version:     "1.0.0",
+		Description: "Reports virtual memory utilization percent and available/total bytes.",
+		SupportedPlatforms: []string{
+			"linux", "darwin", "freebsd", "windows",
+		},
+	}
+}
+
 func (m *MemoryChecker) Run(ctx context.Context, req *CheckRequest) *Result {
 	start := time.Now()
 	v, err := mem.VirtualMemoryWithContext(ctx)

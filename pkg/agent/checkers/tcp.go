@@ -11,6 +11,18 @@ type TCPChecker struct{}
 
 func (t *TCPChecker) Name() string { return "tcp" }
 
+// Metadata describes the TCP checker.
+func (t *TCPChecker) Metadata() CheckerMetadata {
+	return CheckerMetadata{
+		Name:        "tcp",
+		Version:     "1.0.0",
+		Description: "Opens a TCP connection to host:port and verifies the peer accepts it.",
+		SupportedPlatforms: []string{
+			"linux", "darwin", "freebsd", "netbsd", "openbsd", "windows",
+		},
+	}
+}
+
 func (t *TCPChecker) Run(ctx context.Context, req *CheckRequest) *Result {
 	if req.Target == "" {
 		return &Result{OK: false, Error: "tcp check requires target"}

@@ -11,6 +11,18 @@ type DNSChecker struct{}
 
 func (d *DNSChecker) Name() string { return "dns" }
 
+// Metadata describes the DNS checker.
+func (d *DNSChecker) Metadata() CheckerMetadata {
+	return CheckerMetadata{
+		Name:        "dns",
+		Version:     "1.0.0",
+		Description: "Resolves a hostname using the system resolver and verifies at least one A/AAAA record exists.",
+		SupportedPlatforms: []string{
+			"linux", "darwin", "freebsd", "netbsd", "openbsd", "windows",
+		},
+	}
+}
+
 func (d *DNSChecker) Run(ctx context.Context, req *CheckRequest) *Result {
 	if req.Target == "" {
 		return &Result{OK: false, Error: "dns check requires target"}

@@ -10,6 +10,18 @@ type PingChecker struct{}
 
 func (p *PingChecker) Name() string { return "ping" }
 
+// Metadata describes the ping checker.
+func (p *PingChecker) Metadata() CheckerMetadata {
+	return CheckerMetadata{
+		Name:        "ping",
+		Version:     "1.0.0",
+		Description: "Sends an ICMP echo to the target and reports round-trip stats.",
+		SupportedPlatforms: []string{
+			"linux", "darwin", "freebsd", "netbsd", "openbsd", "windows",
+		},
+	}
+}
+
 func (p *PingChecker) Run(ctx context.Context, req *CheckRequest) *Result {
 	if req.Target == "" {
 		return &Result{OK: false, Error: "ping requires target"}

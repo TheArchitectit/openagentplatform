@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/openagentplatform/openagentplatform/internal/audit"
 	"github.com/openagentplatform/openagentplatform/internal/auth"
+	"github.com/openagentplatform/openagentplatform/internal/checklib"
 )
 
 const sessionCookieName = "oap_session"
@@ -53,15 +54,35 @@ func (s *Server) registerRoutes(r chi.Router) {
 				// agent's first contact with the platform.
 				r.Route("/{id}", func(r chi.Router) {
 					r.Get("/", s.handleGetAgent)
+					// Per-agent check-result history. Supports limit,
+					// offset, check_id, and status query parameters.
+					r.Get("/check-results", s.handleListAgentCheckResults)
 				})
 			})
+
+			// Platform-wide check-result feed. Supports agent_id,
+			// check_id, status, search, limit, and offset filters.
+			r.Get("/check-results", s.handleListAllCheckResults)
 
 			r.Route("/sites", func(r chi.Router) {
 				r.Get("/", s.listSites)
 			})
 
 			r.Route("/checks", func(r chi.Router) {
-				r.Get("/", s.listChecks)
+				r.Get("/", s.handleListChecks)
+				r.Post("/", s.handleCreateCheck)
+				r.Post("/assign-bulk", s.handleBulkAssign)
+				// Built-in check library: catalog + instantiate from template.
+				checklib.NewLibrary(s.db).RegisterRoutes(r)
+				r.Route("/{id}", func(r chi.Router) {
+					r.Get("/", s.handleGetCheck)
+					r.Put("/", s.handleUpdateCheck)
+					r.Delete("/", s.handleDeleteCheck)
+					r.Post("/run-now", s.handleRunCheckNow)
+					r.Post("/assign", s.handleAssignCheck)
+					r.Delete("/assign/{agent_id}", s.handleUnassignCheck)
+					r.Get("/assignments", s.handleListCheckAssignments)
+				})
 			})
 
 			r.Route("/alerts", func(r chi.Router) {
@@ -248,11 +269,6 @@ func (s *Server) createAgent(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) listSites(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write([]byte(`[]`))
-}
-
-func (s *Server) listChecks(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write([]byte(`[]`))
 }

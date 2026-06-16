@@ -212,6 +212,178 @@ func (p *pgAgentStore) ListCheckResultsByAgent(ctx context.Context, agentID stri
 	return out, nil
 }
 
+// ListCheckResultsByAgentPaged is a paginated variant of
+// ListCheckResultsByAgent used by the public REST endpoint
+// GET /api/v1/agents/{id}/check-results. It returns results ordered from
+// newest to oldest. The default limit is 50 and the maximum is 500 to
+// bound memory usage. Returns an empty slice if the table is missing
+// (best-effort for the MVP).
+func (p *pgAgentStore) ListCheckResultsByAgentPaged(ctx context.Context, agentID string, limit, offset int) ([]models.CheckResult, int, error) {
+	if p.pool == nil {
+		return nil, 0, errors.New("agent_store: nil pool")
+	}
+	if limit <= 0 || limit > 500 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	const countQ = `SELECT COUNT(*) FROM check_results WHERE agent_id = $1`
+	var total int
+	if err := p.pool.QueryRow(ctx, countQ, agentID).Scan(&total); err != nil {
+		// Tolerate missing table.
+		return []models.CheckResult{}, 0, nil
+	}
+	const q = `
+		SELECT agent_id, check_id, COALESCE(timestamp, 'epoch'::timestamptz),
+		       COALESCE(status,''), COALESCE(value, 0), COALESCE(message,''), metadata
+		FROM check_results
+		WHERE agent_id = $1
+		ORDER BY timestamp DESC
+		LIMIT $2 OFFSET $3
+	`
+	rows, err := p.pool.Query(ctx, q, agentID, limit, offset)
+	if err != nil {
+		return []models.CheckResult{}, 0, nil
+	}
+	defer rows.Close()
+	out := make([]models.CheckResult, 0, limit)
+	for rows.Next() {
+		var r models.CheckResult
+		if err := rows.Scan(
+			&r.AgentID, &r.CheckID, &r.Timestamp, &r.Status, &r.Value, &r.Message, &r.Metadata,
+		); err != nil {
+			return nil, 0, fmt.Errorf("agent_store: scan check result: %w", err)
+		}
+		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("agent_store: check result rows err: %w", err)
+	}
+	return out, total, nil
+}
+
+// ListRecentResults returns the most recent N check results for the
+// given (agent_id, check_id) pair, ordered from oldest to newest. It
+// is used by the threshold evaluator to count consecutive failures.
+// limit is clamped to [1, 200] with a default of 20.
+func (p *pgAgentStore) ListRecentResults(ctx context.Context, agentID, checkID string, limit int) ([]models.CheckResult, error) {
+	if p.pool == nil {
+		return nil, errors.New("agent_store: nil pool")
+	}
+	if limit <= 0 || limit > 200 {
+		limit = 20
+	}
+	const q = `
+		SELECT agent_id, check_id, COALESCE(timestamp, 'epoch'::timestamptz),
+		       COALESCE(status,''), COALESCE(value, 0), COALESCE(message,''), metadata
+		FROM check_results
+		WHERE agent_id = $1 AND check_id = $2
+		ORDER BY timestamp DESC
+		LIMIT $3
+	`
+	rows, err := p.pool.Query(ctx, q, agentID, checkID, limit)
+	if err != nil {
+		// Tolerate missing table; treat as empty history.
+		return []models.CheckResult{}, nil
+	}
+	defer rows.Close()
+	out := make([]models.CheckResult, 0, limit)
+	for rows.Next() {
+		var r models.CheckResult
+		if err := rows.Scan(
+			&r.AgentID, &r.CheckID, &r.Timestamp, &r.Status, &r.Value, &r.Message, &r.Metadata,
+		); err != nil {
+			return nil, fmt.Errorf("agent_store: scan recent result: %w", err)
+		}
+		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("agent_store: recent result rows err: %w", err)
+	}
+	// Reverse so the slice is ordered oldest -> newest, matching what
+	// the threshold evaluator expects.
+	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
+		out[i], out[j] = out[j], out[i]
+	}
+	return out, nil
+}
+
+// ListCheckResultsPaged returns a filtered, paginated slice of check
+// results across all agents. Used by the platform-wide endpoint
+// GET /api/v1/check-results. Filters: agent_id, check_id, status, and
+// a free-text search on the message column. The default limit is 50
+// and the maximum is 500.
+func (p *pgAgentStore) ListCheckResultsPaged(ctx context.Context, agentID, checkID, status, search string, limit, offset int) ([]models.CheckResult, int, error) {
+	if p.pool == nil {
+		return nil, 0, errors.New("agent_store: nil pool")
+	}
+	if limit <= 0 || limit > 500 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	args := make([]any, 0, 5)
+	where := make([]string, 0, 4)
+	add := func(clause string, val any) {
+		args = append(args, val)
+		where = append(where, fmt.Sprintf(clause, len(args)))
+	}
+	if agentID != "" {
+		add("agent_id = $%d", agentID)
+	}
+	if checkID != "" {
+		add("check_id = $%d", checkID)
+	}
+	if status != "" {
+		add("status = $%d", status)
+	}
+	if search != "" {
+		args = append(args, "%"+search+"%")
+		where = append(where, fmt.Sprintf("(message ILIKE $%d)", len(args)))
+	}
+	whereSQL := ""
+	if len(where) > 0 {
+		whereSQL = "WHERE " + joinAnd(where)
+	}
+
+	var total int
+	if err := p.pool.QueryRow(ctx, "SELECT COUNT(*) FROM check_results "+whereSQL, args...).Scan(&total); err != nil {
+		return []models.CheckResult{}, 0, nil
+	}
+
+	args = append(args, limit, offset)
+	q := fmt.Sprintf(`
+		SELECT agent_id, check_id, COALESCE(timestamp, 'epoch'::timestamptz),
+		       COALESCE(status,''), COALESCE(value, 0), COALESCE(message,''), metadata
+		FROM check_results
+		%s
+		ORDER BY timestamp DESC
+		LIMIT $%d OFFSET $%d
+	`, whereSQL, len(args)-1, len(args))
+
+	rows, err := p.pool.Query(ctx, q, args...)
+	if err != nil {
+		return []models.CheckResult{}, 0, nil
+	}
+	defer rows.Close()
+	out := make([]models.CheckResult, 0, limit)
+	for rows.Next() {
+		var r models.CheckResult
+		if err := rows.Scan(
+			&r.AgentID, &r.CheckID, &r.Timestamp, &r.Status, &r.Value, &r.Message, &r.Metadata,
+		); err != nil {
+			return nil, 0, fmt.Errorf("agent_store: scan paged result: %w", err)
+		}
+		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("agent_store: paged result rows err: %w", err)
+	}
+	return out, total, nil
+}
+
 // UpdateAgentHeartbeat is used by the events package to update an agent's
 // status, last_seen, and metrics from a heartbeat payload.
 func (p *pgAgentStore) UpdateAgentHeartbeat(ctx context.Context, agentID string, status string, lastSeen any, cpu, mem, disk float64) error {

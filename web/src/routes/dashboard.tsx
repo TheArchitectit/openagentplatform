@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import {
   Bot,
   CircleCheck,
@@ -6,7 +6,12 @@ import {
   Bell,
   Activity,
   ArrowUpRight,
+  CheckCircle2,
+  AlertTriangle,
+  PauseCircle,
 } from 'lucide-react';
+import { useMemo } from 'react';
+import { useChecks } from '@/lib/useChecks';
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,
@@ -18,13 +23,14 @@ interface Kpi {
   delta: string;
   deltaTone: 'up' | 'down' | 'neutral';
   icon: typeof Bot;
+  to?: string;
 }
 
-const kpis: Kpi[] = [
-  { label: 'Total Agents', value: '128', delta: '+12 this week', deltaTone: 'up', icon: Bot },
-  { label: 'Online', value: '119', delta: '93% online', deltaTone: 'neutral', icon: CircleCheck },
-  { label: 'Failing Checks', value: '4', delta: '-2 vs yesterday', deltaTone: 'down', icon: CircleAlert },
-  { label: 'Open Alerts', value: '7', delta: '+3 today', deltaTone: 'up', icon: Bell },
+// Static agent/alert KPIs (checks KPIs are computed live from useChecks).
+const staticKpis: Kpi[] = [
+  { label: 'Total Agents', value: '128', delta: '+12 this week', deltaTone: 'up', icon: Bot, to: '/agents' },
+  { label: 'Online', value: '119', delta: '93% online', deltaTone: 'neutral', icon: CircleCheck, to: '/agents' },
+  { label: 'Open Alerts', value: '7', delta: '+3 today', deltaTone: 'up', icon: Bell, to: '/alerts' },
 ];
 
 interface ActivityItem {
@@ -59,6 +65,64 @@ const deltaClasses: Record<Kpi['deltaTone'], string> = {
 };
 
 function DashboardPage() {
+  const { checks, isLoading: checksLoading } = useChecks();
+
+  // Compute live check KPIs from the loaded checks list.
+  const checkKpis: Kpi[] = useMemo(() => {
+    let ok = 0;
+    let warn = 0;
+    let crit = 0;
+    let disabled = 0;
+    for (const c of checks) {
+      if (!c.enabled) {
+        disabled += 1;
+        continue;
+      }
+      const s = c.last_status;
+      if (s === 'ok') ok += 1;
+      else if (s === 'warning') warn += 1;
+      else if (s === 'critical') crit += 1;
+      else disabled += 1;
+    }
+    const failing = warn + crit;
+    return [
+      {
+        label: 'Checks Passing',
+        value: checksLoading && checks.length === 0 ? '—' : String(ok),
+        delta: checks.length > 0 ? `${ok} of ${checks.length} ok` : 'No checks yet',
+        deltaTone: failing === 0 ? 'up' : 'down',
+        icon: CheckCircle2,
+        to: '/checks',
+      },
+      {
+        label: 'Checks Warning',
+        value: checksLoading && checks.length === 0 ? '—' : String(warn),
+        delta: warn === 0 ? 'No warnings' : 'Needs attention',
+        deltaTone: warn === 0 ? 'neutral' : 'up',
+        icon: AlertTriangle,
+        to: '/checks',
+      },
+      {
+        label: 'Checks Critical',
+        value: checksLoading && checks.length === 0 ? '—' : String(crit),
+        delta: crit === 0 ? 'All healthy' : 'Investigate now',
+        deltaTone: crit === 0 ? 'neutral' : 'down',
+        icon: CircleAlert,
+        to: '/checks',
+      },
+      {
+        label: 'Checks Disabled',
+        value: checksLoading && checks.length === 0 ? '—' : String(disabled),
+        delta: disabled === 0 ? 'All enabled' : 'Paused',
+        deltaTone: 'neutral',
+        icon: PauseCircle,
+        to: '/checks',
+      },
+    ];
+  }, [checks, checksLoading]);
+
+  const allKpis: Kpi[] = [...staticKpis, ...checkKpis];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -69,14 +133,11 @@ function DashboardPage() {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map((kpi) => {
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+        {allKpis.map((kpi) => {
           const Icon = kpi.icon;
-          return (
-            <div
-              key={kpi.label}
-              className="rounded-lg border border-slate-800 bg-slate-900/60 p-5 hover:border-slate-700 transition-colors"
-            >
+          const inner = (
+            <>
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-slate-400">{kpi.label}</p>
@@ -87,6 +148,25 @@ function DashboardPage() {
                 </div>
               </div>
               <p className={`text-xs mt-3 ${deltaClasses[kpi.deltaTone]}`}>{kpi.delta}</p>
+            </>
+          );
+          if (kpi.to) {
+            return (
+              <Link
+                key={kpi.label}
+                to={kpi.to}
+                className="rounded-lg border border-slate-800 bg-slate-900/60 p-5 hover:border-slate-700 transition-colors block"
+              >
+                {inner}
+              </Link>
+            );
+          }
+          return (
+            <div
+              key={kpi.label}
+              className="rounded-lg border border-slate-800 bg-slate-900/60 p-5 hover:border-slate-700 transition-colors"
+            >
+              {inner}
             </div>
           );
         })}

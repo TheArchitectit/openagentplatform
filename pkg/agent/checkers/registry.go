@@ -38,9 +38,25 @@ type Checker interface {
 	Run(ctx context.Context, req *CheckRequest) *Result
 }
 
+// CheckerMetadata describes a registered checker.
+type CheckerMetadata struct {
+	Name              string   `json:"name"`
+	Version           string   `json:"version"`
+	Description       string   `json:"description"`
+	SupportedPlatforms []string `json:"supported_platforms"`
+}
+
+// MetaChecker is an optional extension: checkers that implement it supply
+// additional metadata used for --list-checkers and platform filtering.
+type MetaChecker interface {
+	Checker
+	Metadata() CheckerMetadata
+}
+
 var (
 	regMu      sync.RWMutex
 	registry   = map[string]Checker{}
+	metadata   = map[string]CheckerMetadata{}
 	defaultReg = []Checker{
 		&PingChecker{},
 		&HTTPChecker{},
@@ -51,19 +67,54 @@ var (
 		&DiskChecker{},
 		&ServiceChecker{},
 	}
+	// Default timeout applied when neither req.Timeout nor wrap-timeout is set.
+	defaultWrapTimeout = 30 * time.Second
 )
 
 func init() {
 	for _, c := range defaultReg {
-		registry[strings.ToLower(c.Name())] = c
+		var meta CheckerMetadata
+		if m, ok := c.(MetaChecker); ok {
+			meta = m.Metadata()
+		} else {
+			meta = autoMetadata(c)
+		}
+		registerInternal(c.Name(), c, meta)
 	}
 }
 
-// Register adds a checker under the given type name.
-func Register(name string, c Checker) {
+// autoMetadata derives a CheckerMetadata for checkers that do not implement
+// MetaChecker. The list of supported platforms defaults to "any".
+func autoMetadata(c Checker) CheckerMetadata {
+	name := c.Name()
+	platforms := []string{"any"}
+	return CheckerMetadata{
+		Name:               name,
+		Version:            "1.0.0",
+		Description:        fmt.Sprintf("%s checker", name),
+		SupportedPlatforms: platforms,
+	}
+}
+
+func registerInternal(name string, c Checker, meta CheckerMetadata) {
 	regMu.Lock()
 	defer regMu.Unlock()
-	registry[strings.ToLower(name)] = c
+	key := strings.ToLower(name)
+	registry[key] = c
+	metadata[key] = meta
+}
+
+// Register adds a checker under the given type name. If the checker
+// implements MetaChecker, the supplied metadata is used; otherwise a
+// default is generated.
+func Register(name string, c Checker) {
+	var meta CheckerMetadata
+	if m, ok := c.(MetaChecker); ok {
+		meta = m.Metadata()
+	} else {
+		meta = autoMetadata(c)
+	}
+	registerInternal(name, c, meta)
 }
 
 // Get returns a checker for the given type, or an error.
@@ -77,6 +128,17 @@ func Get(checkType string) (Checker, error) {
 	return c, nil
 }
 
+// GetMetadata returns the metadata for a registered checker.
+func GetMetadata(checkType string) (CheckerMetadata, error) {
+	regMu.RLock()
+	defer regMu.RUnlock()
+	m, ok := metadata[strings.ToLower(checkType)]
+	if !ok {
+		return CheckerMetadata{}, fmt.Errorf("unknown check type: %s", checkType)
+	}
+	return m, nil
+}
+
 // Types returns the list of registered check type names.
 func Types() []string {
 	regMu.RLock()
@@ -88,8 +150,29 @@ func Types() []string {
 	return out
 }
 
+// AllMetadata returns metadata for every registered checker, sorted by name.
+func AllMetadata() []CheckerMetadata {
+	regMu.RLock()
+	defer regMu.RUnlock()
+	out := make([]CheckerMetadata, 0, len(metadata))
+	for _, m := range metadata {
+		out = append(out, m)
+	}
+	return out
+}
+
+// SetDefaultWrapTimeout overrides the timeout applied by Run when neither
+// the request nor the caller supplies one.
+func SetDefaultWrapTimeout(d time.Duration) {
+	if d <= 0 {
+		return
+	}
+	defaultWrapTimeout = d
+}
+
 // Run dispatches a check to the appropriate checker. The supplied timeout is
-// applied on top of the checker's own internal logic.
+// applied on top of the checker's own internal logic; if the checker exceeds
+// it the returned Result is marked failed with a timeout error.
 func Run(ctx context.Context, req *CheckRequest) *Result {
 	start := time.Now()
 	if req == nil {
@@ -99,12 +182,13 @@ func Run(ctx context.Context, req *CheckRequest) *Result {
 	if err != nil {
 		return &Result{OK: false, Error: err.Error(), Duration: time.Since(start).Milliseconds(), Timestamp: time.Now().Unix()}
 	}
+
+	timeout := defaultWrapTimeout
 	if req.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, time.Duration(req.Timeout)*time.Second)
-		defer cancel()
+		timeout = time.Duration(req.Timeout) * time.Second
 	}
-	res := checker.Run(ctx, req)
+
+	res := runWithTimeout(ctx, checker, req, timeout)
 	if res == nil {
 		res = &Result{OK: false, Error: "checker returned nil result"}
 	}
@@ -115,4 +199,44 @@ func Run(ctx context.Context, req *CheckRequest) *Result {
 		res.Duration = time.Since(start).Milliseconds()
 	}
 	return res
+}
+
+// runWithTimeout enforces a hard ceiling on the checker, even if the
+// checker ignores its own ctx. A separate timer goroutine kills the
+// bookkeeping (we can't actually kill a misbehaving checker goroutine,
+// but we return a timeout result the instant the deadline expires).
+func runWithTimeout(parent context.Context, checker Checker, req *CheckRequest, timeout time.Duration) *Result {
+	ctx, cancel := context.WithTimeout(parent, timeout)
+	defer cancel()
+
+	type res struct {
+		r *Result
+	}
+	ch := make(chan res, 1)
+	go func() {
+		ch <- res{r: checker.Run(ctx, req)}
+	}()
+
+	start := time.Now()
+	select {
+	case r := <-ch:
+		return r.r
+	case <-ctx.Done():
+		if r := <-ch; r.r != nil {
+			// Return whatever the checker produced, but mark it failed.
+			if r.r.OK {
+				r.r.OK = false
+			}
+			if r.r.Error == "" {
+				r.r.Error = "check timed out"
+			}
+			r.r.Duration = time.Since(start).Milliseconds()
+			return r.r
+		}
+		return &Result{
+			OK:       false,
+			Error:    "check timed out",
+			Duration: time.Since(start).Milliseconds(),
+		}
+	}
 }

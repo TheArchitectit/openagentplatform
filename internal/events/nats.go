@@ -27,6 +27,24 @@ const (
 	// SubjectCheckAssignmentPrefix is the per-agent subject check
 	// assignments are published on.
 	SubjectCheckAssignmentPrefix = "oap.agents"
+
+	// SubjectCheckResultPrefix is the wildcard subject the check result
+	// ingest pipeline subscribes to. It mirrors SubjectCheckResultsPrefix
+	// but is named with a "Result" suffix to disambiguate from the existing
+	// result subject consumed by CheckDispatcher.
+	SubjectCheckResultPrefix = "oap.agents.*.results"
+
+	// SubjectAlertEvents is the wildcard subject the threshold evaluator
+	// publishes alert lifecycle events on. Consumers (WebSocket hub, pager
+	// integrations) subscribe to this subject to receive AlertFired /
+	// AlertResolved notifications.
+	SubjectAlertEvents = "oap.events.alerts"
+
+	// SubjectCheckResultEvent is the wildcard subject the ingest pipeline
+	// publishes to whenever a new check result is persisted. The WebSocket
+	// hub subscribes here to broadcast live result updates to connected
+	// dashboards.
+	SubjectCheckResultEvent = "oap.events.checks.result"
 )
 
 // HeartbeatStaleThreshold is the duration after which a silent agent is

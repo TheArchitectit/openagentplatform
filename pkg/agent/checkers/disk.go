@@ -12,6 +12,18 @@ type DiskChecker struct{}
 
 func (d *DiskChecker) Name() string { return "disk" }
 
+// Metadata describes the disk checker.
+func (d *DiskChecker) Metadata() CheckerMetadata {
+	return CheckerMetadata{
+		Name:        "disk",
+		Version:     "1.0.0",
+		Description: "Reports disk usage percent for a given path (default \"/\").",
+		SupportedPlatforms: []string{
+			"linux", "darwin", "freebsd", "windows",
+		},
+	}
+}
+
 func (d *DiskChecker) Run(ctx context.Context, req *CheckRequest) *Result {
 	path := "/"
 	if p, ok := req.Options["path"].(string); ok && p != "" {

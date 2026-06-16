@@ -12,6 +12,18 @@ type CPUChecker struct{}
 
 func (c *CPUChecker) Name() string { return "cpu" }
 
+// Metadata describes the CPU checker.
+func (c *CPUChecker) Metadata() CheckerMetadata {
+	return CheckerMetadata{
+		Name:        "cpu",
+		Version:     "1.0.0",
+		Description: "Reports the system-wide CPU utilization percent over a short sampling interval.",
+		SupportedPlatforms: []string{
+			"linux", "darwin", "freebsd", "windows",
+		},
+	}
+}
+
 func (c *CPUChecker) Run(ctx context.Context, req *CheckRequest) *Result {
 	interval := 1 * time.Second
 	if v, ok := req.Options["interval_sec"].(float64); ok && v > 0 {

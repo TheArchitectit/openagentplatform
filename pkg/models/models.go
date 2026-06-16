@@ -62,15 +62,47 @@ type CheckResult struct {
 	Metadata   map[string]any `json:"metadata,omitempty"`
 }
 
-type Check struct {
-	ID         string         `json:"id"`
-	AgentID    string         `json:"agent_id"`
-	Type       string         `json:"type"`
-	Target     string         `json:"target"`
-	Config     map[string]any `json:"config"`
-	Schedule   string         `json:"schedule"`
-	Enabled    bool           `json:"enabled"`
-	CreatedAt  time.Time      `json:"created_at"`
+// CheckDefinition is a reusable, named check definition (e.g. "ping Google DNS").
+// Config holds type-specific parameters (host, url, threshold, etc.) as JSONB
+// and is validated at API time against the check_type's schema.
+type CheckDefinition struct {
+	ID              string         `json:"id"`
+	OrgID           string         `json:"org_id"`
+	Name            string         `json:"name"`
+	Description     string         `json:"description"`
+	CheckType       string         `json:"check_type"`
+	Config          map[string]any `json:"config"`
+	IntervalSeconds int            `json:"interval_seconds"`
+	TimeoutSeconds  int            `json:"timeout_seconds"`
+	Enabled         bool           `json:"enabled"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+}
+
+// CheckAssignment links a CheckDefinition to an Agent (or a site_id for
+// fan-out to all agents in a site). site_id is used only for assignments
+// created from /assign when the request supplies a site instead of an agent.
+type CheckAssignment struct {
+	ID            string    `json:"id"`
+	CheckID       string    `json:"check_id"`
+	AgentID       string    `json:"agent_id"`
+	SiteID        string    `json:"site_id"`
+	AssignedBy    string    `json:"assigned_by"`
+	CreatedAt     time.Time `json:"created_at"`
+	// Joined fields (populated by ListAssignments).
+	AgentHostname string     `json:"agent_hostname,omitempty"`
+	LastResult    *CheckResult `json:"last_result,omitempty"`
+}
+
+// CheckAssignmentDetail pairs an assignment with the agent's most recent
+// check result for that check_id, used by the GET /assignments endpoint.
+type CheckAssignmentDetail struct {
+	AssignmentID string      `json:"assignment_id"`
+	AgentID      string      `json:"agent_id"`
+	Hostname     string      `json:"hostname,omitempty"`
+	SiteID       string      `json:"site_id,omitempty"`
+	AssignedAt   time.Time   `json:"assigned_at"`
+	LastResult   *CheckResult `json:"last_result,omitempty"`
 }
 
 type Alert struct {

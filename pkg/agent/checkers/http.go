@@ -15,6 +15,18 @@ type HTTPChecker struct {
 
 func (h *HTTPChecker) Name() string { return "http" }
 
+// Metadata describes the HTTP checker.
+func (h *HTTPChecker) Metadata() CheckerMetadata {
+	return CheckerMetadata{
+		Name:        "http",
+		Version:     "1.0.0",
+		Description: "Performs an HTTP GET against the target URL and optionally matches a substring in the body.",
+		SupportedPlatforms: []string{
+			"linux", "darwin", "freebsd", "windows",
+		},
+	}
+}
+
 func (h *HTTPChecker) Run(ctx context.Context, req *CheckRequest) *Result {
 	if req.Target == "" {
 		return &Result{OK: false, Error: "http check requires target"}

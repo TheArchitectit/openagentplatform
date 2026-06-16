@@ -13,28 +13,38 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"sort"
 	"sync"
 	"syscall"
+	"text/tabwriter"
 	"time"
 
 	"github.com/openagentplatform/openagentplatform/pkg/agent"
+	"github.com/openagentplatform/openagentplatform/pkg/agent/checkers"
 	"github.com/openagentplatform/openagentplatform/pkg/logger"
 )
 
 var (
-	configPath string
-	doRegister bool
-	showVer    bool
+	configPath    string
+	doRegister    bool
+	showVer       bool
+	listCheckers  bool
 )
 
 func main() {
 	flag.StringVar(&configPath, "config", "", "Path to agent config (YAML or JSON). Defaults to OS-specific path.")
 	flag.BoolVar(&doRegister, "register", false, "Run one-shot registration, then exit (does not run the daemon).")
 	flag.BoolVar(&showVer, "version", false, "Print version and exit.")
+	flag.BoolVar(&listCheckers, "list-checkers", false, "Print available checkers (with metadata) and exit.")
 	flag.Parse()
 
 	if showVer {
 		fmt.Printf("oap-agent %s\n", agent.AgentVersion)
+		return
+	}
+
+	if listCheckers {
+		printCheckers()
 		return
 	}
 
@@ -54,6 +64,9 @@ func main() {
 		"nats_url", cfg.NATSURL,
 		"config_path", cfg.ConfigPath,
 	)
+
+	// Log every registered checker with its metadata.
+	logRegisteredCheckers(log)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -140,4 +153,50 @@ func main() {
 	case <-shutdownCtx.Done():
 		log.Warn("shutdown deadline reached, exiting")
 	}
+}
+
+// logRegisteredCheckers logs each registered checker with its metadata at startup.
+func logRegisteredCheckers(log *slog.Logger) {
+	metas := checkers.AllMetadata()
+	sort.Slice(metas, func(i, j int) bool { return metas[i].Name < metas[j].Name })
+	for _, m := range metas {
+		log.Info("checker registered",
+			"name", m.Name,
+			"version", m.Version,
+			"description", m.Description,
+			"supported_platforms", m.SupportedPlatforms,
+		)
+	}
+	log.Info("checkers registered", "count", len(metas))
+}
+
+// printCheckers writes a human-readable table of available checkers to stdout.
+func printCheckers() {
+	metas := checkers.AllMetadata()
+	sort.Slice(metas, func(i, j int) bool { return metas[i].Name < metas[j].Name })
+	tw := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(tw, "NAME\tVERSION\tPLATFORMS\tDESCRIPTION\n")
+	for _, m := range metas {
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
+			m.Name,
+			m.Version,
+			joinOrAny(m.SupportedPlatforms),
+			m.Description,
+		)
+	}
+	_ = tw.Flush()
+}
+
+func joinOrAny(platforms []string) string {
+	if len(platforms) == 0 {
+		return "any"
+	}
+	out := ""
+	for i, p := range platforms {
+		if i > 0 {
+			out += ","
+		}
+		out += p
+	}
+	return out
 }

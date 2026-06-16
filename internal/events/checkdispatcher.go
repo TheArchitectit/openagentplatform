@@ -87,8 +87,26 @@ func (d *CheckDispatcher) Stop() {
 	d.wg.Wait()
 }
 
+// CheckAssignment is the canonical payload published to agents. It carries
+// everything the agent needs to start running the check: the check_id, the
+// type, the validated config, the run interval, and the timeout. Agents
+// subscribed to oap.agents.<agent_id>.checks receive this struct and
+// either start a new goroutine for the check or update an existing one.
+type CheckAssignment struct {
+	Type           string         `json:"type"`
+	CheckID        string         `json:"check_id"`
+	Name           string         `json:"name,omitempty"`
+	Config         map[string]any `json:"config"`
+	IntervalSecs   int            `json:"interval_seconds"`
+	TimeoutSecs    int            `json:"timeout_seconds"`
+	Timestamp      time.Time      `json:"timestamp"`
+	OrgID          string         `json:"org_id,omitempty"`
+}
+
 // AssignCheck publishes a check assignment to a specific agent. The agent
-// is expected to subscribe to oap.agents.<agent_id>.checks.
+// is expected to subscribe to oap.agents.<agent_id>.checks. The supplied
+// assignment value is JSON-encoded as-is; callers wanting the canonical
+// payload shape should use AssignCheckWithDefinition.
 func (d *CheckDispatcher) AssignCheck(ctx context.Context, agentID string, assignment any) error {
 	if d.client == nil {
 		return errors.New("checkdispatcher: nats client not connected")
@@ -99,6 +117,29 @@ func (d *CheckDispatcher) AssignCheck(ctx context.Context, agentID string, assig
 	}
 	subject := CheckAssignmentSubject(agentID)
 	return d.client.Publish(ctx, subject, payload)
+}
+
+// AssignCheckWithDefinition builds the canonical CheckAssignment payload
+// from a check definition and publishes it to the given agent. This is
+// the preferred entry point for API handlers creating assignments.
+func (d *CheckDispatcher) AssignCheckWithDefinition(ctx context.Context, agentID, orgID string, def *models.CheckDefinition) error {
+	if def == nil {
+		return errors.New("checkdispatcher: nil check definition")
+	}
+	if def.Config == nil {
+		def.Config = map[string]any{}
+	}
+	assign := CheckAssignment{
+		Type:         "RunCheck",
+		CheckID:      def.ID,
+		Name:         def.Name,
+		Config:       def.Config,
+		IntervalSecs: def.IntervalSeconds,
+		TimeoutSecs:  def.TimeoutSeconds,
+		Timestamp:    time.Now().UTC(),
+		OrgID:        orgID,
+	}
+	return d.AssignCheck(ctx, agentID, assign)
 }
 
 // CheckAssignmentSubject returns the per-agent subject for check assignments.
