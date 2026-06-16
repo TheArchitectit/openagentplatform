@@ -191,6 +191,13 @@ func main() {
 	go patchScheduler.Run(hbCtx)
 	log.Info("patch scheduler started")
 
+	// --- Script library ---------------------------------------------------
+	// Reusable scripts that can be enqueued for execution on one or more
+	// agents. The store is wired into the API server; the CLI binary and
+	// platform web UI consume the same handlers.
+	scriptStore := api.NewPGScriptStore(pool)
+	srv.SetScriptStore(scriptStore)
+
 	// --- HTTP server goroutine -------------------------------------------
 	go func() {
 		log.Info("starting server", "addr", httpServer.Addr)

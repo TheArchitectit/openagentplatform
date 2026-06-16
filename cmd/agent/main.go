@@ -21,7 +21,9 @@ import (
 
 	"github.com/openagentplatform/openagentplatform/pkg/agent"
 	"github.com/openagentplatform/openagentplatform/pkg/agent/checkers"
+	"github.com/openagentplatform/openagentplatform/pkg/agent/executor"
 	"github.com/openagentplatform/openagentplatform/pkg/agent/patcher"
+	"github.com/openagentplatform/openagentplatform/pkg/agent/shell"
 	"github.com/openagentplatform/openagentplatform/pkg/logger"
 )
 
@@ -68,6 +70,9 @@ func main() {
 
 	// Log every registered checker with its metadata.
 	logRegisteredCheckers(log)
+
+	// Log which scripting runtimes are available on this host.
+	logAvailableRuntimes(log)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -157,6 +162,23 @@ func main() {
 		_ = patchInstallSub.Unsubscribe()
 	}()
 
+	// Register the remote shell handler. Errors here are non-fatal
+	// because the rest of the agent can still run heartbeats and
+	// checks without remote-shell support.
+	shellHandler := shell.NewHandler(shell.HandlerConfig{
+		AgentID:             cfg.AgentID,
+		MaxConcurrentShells: shell.DefaultMaxConcurrentShells,
+		IdleTimeout:         shell.DefaultIdleTimeout,
+	}, natsClient.Conn(), log)
+	go func() {
+		if err := shellHandler.Run(ctx); err != nil {
+			log.Warn("shell handler exited", "err", err)
+		}
+	}()
+	defer func() {
+		// Run returns when ctx is cancelled; no extra cleanup needed.
+	}()
+
 	// Heartbeat goroutine.
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -169,9 +191,11 @@ func main() {
 		"agent_id", cfg.AgentID,
 		"checks_subject", agent.ChecksSubject(cfg.AgentID),
 		"scripts_subject", agent.ScriptsSubject(cfg.AgentID),
+		"scripts_cancel_subject", agent.ScriptsCancelSubject(cfg.AgentID),
 		"compliance_subject", "oap.agents."+cfg.AgentID+".compliance",
 		"patch_scan_subject", patcher.PatchScanSubject(cfg.AgentID),
 		"patch_install_subject", patcher.PatchInstallSubject(cfg.AgentID),
+		"shell_start_subject", shell.StartRequestSubject(cfg.AgentID),
 		"heartbeat_subject", agent.HeartbeatSubject(cfg.AgentID),
 	)
 
@@ -189,6 +213,24 @@ func main() {
 	case <-shutdownCtx.Done():
 		log.Warn("shutdown deadline reached, exiting")
 	}
+}
+
+// logAvailableRuntimes logs which scripting runtimes are installed and
+// reachable on this host. Useful for operators to spot missing tooling
+// without having to send a script and see it fail.
+func logAvailableRuntimes(log *slog.Logger) {
+	reg := executor.Default()
+	all := reg.Available()
+	if len(all) == 0 {
+		log.Warn("no script runtimes available on this host")
+		return
+	}
+	names := make([]string, 0, len(all))
+	for _, rt := range all {
+		names = append(names, string(rt))
+	}
+	sort.Strings(names)
+	log.Info("script runtimes available", "runtimes", names, "count", len(all))
 }
 
 // logRegisteredCheckers logs each registered checker with its metadata at startup.

@@ -294,13 +294,43 @@ type PatchStats struct {
 	AvgApprovalTime float64        `json:"avg_approval_time_hours"`
 }
 
-type Script struct {
-	ID        string    `json:"id"`
-	OrgID     string    `json:"org_id"`
-	Name      string    `json:"name"`
-	Body      string    `json:"body"`
-	Runtime   string    `json:"runtime"`
-	CreatedAt time.Time `json:"created_at"`
+// ScriptDefinition is a reusable, named script that can be enqueued for
+// execution on one or more agents. Runtime is one of bash, powershell,
+// python, or node. Tags are free-form strings used for filtering.
+type ScriptDefinition struct {
+	ID             string    `json:"id"`
+	OrgID          string    `json:"org_id"`
+	Name           string    `json:"name"`
+	Description    string    `json:"description"`
+	Runtime        string    `json:"runtime"`
+	ScriptBody     string    `json:"script_body"`
+	TimeoutSeconds int       `json:"timeout_seconds"`
+	Enabled        bool      `json:"enabled"`
+	Tags           []string  `json:"tags,omitempty"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+// ScriptRun records a single execution of a ScriptDefinition on a specific
+// agent. Status transitions: pending -> running -> completed | failed |
+// timed_out | cancelled. Stdout and Stderr are populated as the agent
+// reports output. TriggeredBy is the user subject that enqueued the run;
+// Scheduled is true when the run was enqueued by a schedule rather than a
+// direct user action.
+type ScriptRun struct {
+	ID          string     `json:"id"`
+	ScriptID    string     `json:"script_id"`
+	AgentID     string     `json:"agent_id"`
+	Status      string     `json:"status"`
+	StartedAt   time.Time  `json:"started_at"`
+	FinishedAt  *time.Time `json:"finished_at,omitempty"`
+	ExitCode    *int       `json:"exit_code,omitempty"`
+	Stdout      string     `json:"stdout,omitempty"`
+	Stderr      string     `json:"stderr,omitempty"`
+	TriggeredBy string     `json:"triggered_by,omitempty"`
+	Scheduled   bool       `json:"scheduled"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 type AuditEvent struct {

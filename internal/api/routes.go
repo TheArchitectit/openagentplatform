@@ -182,6 +182,26 @@ func (s *Server) registerRoutes(r chi.Router) {
 				})
 			})
 
+			// Script library: reusable scripts that can be enqueued for
+			// execution on one or more agents. The /runs sub-route is
+			// mounted before the /{id} group so chi can match
+			// /scripts/runs/{run_id} without falling through to the
+			// {id} parameter.
+			r.Route("/scripts", func(r chi.Router) {
+				r.Get("/", s.handleListScripts)
+				r.Post("/", s.handleCreateScript)
+				// Per-run detail mounted at /scripts/runs/{run_id}
+				// so it doesn't collide with /scripts/{id}.
+				r.Get("/runs/{run_id}", s.handleGetScriptRun)
+				r.Route("/{id}", func(r chi.Router) {
+					r.Get("/", s.handleGetScript)
+					r.Put("/", s.handleUpdateScript)
+					r.Delete("/", s.handleDeleteScript)
+					r.Post("/run", s.handleRunScript)
+					r.Get("/runs", s.handleListScriptRuns)
+				})
+			})
+
 			// Patch approval workflow with RBAC.
 			r.Route("/patches", func(r chi.Router) {
 				r.Get("/", s.listPatches)
@@ -212,8 +232,45 @@ func (s *Server) registerRoutes(r chi.Router) {
 				r.Get("/", s.getAgentPatches)
 				r.Post("/scan", s.triggerScanAgent)
 			})
+
+			// Remote shell: list/get/kill shell sessions and
+			// manage stored credentials. The WebSocket bridge is
+			// mounted in the public group below because it does
+			// its own authentication (cookie or ?token=).
+			r.Route("/shell", func(r chi.Router) {
+				r.Get("/sessions", s.handleRemoteListSessions)
+				r.Get("/{session_id}", s.handleRemoteGetSession)
+				r.Post("/{session_id}/kill", s.handleRemoteKillSession)
+				r.Post("/credentials", s.handleRemoteStoreCredential)
+				r.Get("/credentials", s.handleRemoteListCredentials)
+				r.Delete("/credentials/{id}", s.handleRemoteDeleteCredential)
+				// Recorded shell sessions: list, metadata,
+				// SSE playback, export, and hard delete.
+				// Playback supports speed + from query params;
+				// export emits an asciinema v2 .cast file.
+				r.Route("/recordings", func(r chi.Router) {
+					r.Get("/", s.handleListRecordings)
+					r.Route("/{session_id}", func(r chi.Router) {
+						r.Get("/", s.handleGetRecording)
+						r.Get("/play", s.handlePlayRecording)
+						r.Get("/export", s.handleExportRecording)
+						r.Delete("/", s.handleDeleteRecording)
+					})
+				})
+			})
+			r.Route("/agents/{id}/shell", func(r chi.Router) {
+				r.Post("/", s.handleRemoteCreateSession)
+			})
 		})
 	})
+
+	// Public WebSocket endpoint for shell sessions. Authentication
+	// (cookie or ?token=) is enforced inside the handler. We mount
+	// this outside the verifier group because the WebSocket upgrade
+	// cannot use the standard middleware flow.
+	if s.remote != nil {
+		r.Get("/api/v1/shell/{session_id}/ws", s.remote.HandleShellWebSocket)
+	}
 
 	// Public agent-side endpoint: registration. Validated by the per-site
 	// registration token carried in the body, not by a session cookie.
@@ -621,6 +678,69 @@ func actorFromContext(r *http.Request) string {
 // need to import the uuid package directly.
 func uuidNew() string {
 	return uuid.New().String()
+}
+
+// --- Remote shell route shims -----------------------------------------
+//
+// These methods all forward to the *RemoteHandler if one is
+// configured; otherwise they return 503. Keeping them on Server
+// preserves the existing pattern (every other route in this file
+// is a method on Server).
+
+func (s *Server) handleRemoteListSessions(w http.ResponseWriter, r *http.Request) {
+	if s.remote == nil {
+		writeJSONError(w, http.StatusServiceUnavailable, "remote_not_configured")
+		return
+	}
+	s.remote.HandleListShellSessions(w, r)
+}
+
+func (s *Server) handleRemoteGetSession(w http.ResponseWriter, r *http.Request) {
+	if s.remote == nil {
+		writeJSONError(w, http.StatusServiceUnavailable, "remote_not_configured")
+		return
+	}
+	s.remote.HandleGetShellSession(w, r)
+}
+
+func (s *Server) handleRemoteKillSession(w http.ResponseWriter, r *http.Request) {
+	if s.remote == nil {
+		writeJSONError(w, http.StatusServiceUnavailable, "remote_not_configured")
+		return
+	}
+	s.remote.HandleKillShellSession(w, r)
+}
+
+func (s *Server) handleRemoteCreateSession(w http.ResponseWriter, r *http.Request) {
+	if s.remote == nil {
+		writeJSONError(w, http.StatusServiceUnavailable, "remote_not_configured")
+		return
+	}
+	s.remote.HandleCreateShellSession(w, r)
+}
+
+func (s *Server) handleRemoteStoreCredential(w http.ResponseWriter, r *http.Request) {
+	if s.remote == nil {
+		writeJSONError(w, http.StatusServiceUnavailable, "remote_not_configured")
+		return
+	}
+	s.remote.HandleStoreCredential(w, r)
+}
+
+func (s *Server) handleRemoteListCredentials(w http.ResponseWriter, r *http.Request) {
+	if s.remote == nil {
+		writeJSONError(w, http.StatusServiceUnavailable, "remote_not_configured")
+		return
+	}
+	s.remote.HandleListCredentials(w, r)
+}
+
+func (s *Server) handleRemoteDeleteCredential(w http.ResponseWriter, r *http.Request) {
+	if s.remote == nil {
+		writeJSONError(w, http.StatusServiceUnavailable, "remote_not_configured")
+		return
+	}
+	s.remote.HandleDeleteCredential(w, r)
 }
 
 // bearerOrCookie extracts a token from Authorization header or session cookie.

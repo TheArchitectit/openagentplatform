@@ -18,7 +18,7 @@
 // upgrade request by the browser. A `?token=` query parameter is also
 // accepted as a fallback (e.g. for CLI clients).
 
-export type Channel = 'agents' | 'checks' | 'alerts' | 'patches';
+export type Channel = 'agents' | 'checks' | 'alerts' | 'patches' | 'scripts';
 
 export interface WsEnvelope<T = unknown> {
   type: 'event' | 'ping' | 'pong' | 'subscribed' | 'unsubscribed' | 'error' | 'hello';
@@ -289,4 +289,50 @@ export function _resetWsClient(): void {
     _instance.close();
     _instance = null;
   }
+}
+
+// --- Shell WebSocket URL helper ---------------------------------------
+//
+// The shell endpoint is not on the multiplexed /ws channel; it is a
+// dedicated upgrade that the server keeps open for the lifetime of
+// the session. The server returns a relative ws_url like
+// "/api/v1/shell/<sid>/ws" which we need to resolve against the
+// same base origin as the regular WS connection.
+
+export function getShellWsUrl(wsUrl: string, sessionId?: string): string {
+  // If the server returned a fully qualified URL, use it verbatim.
+  if (/^wss?:\/\//i.test(wsUrl)) return wsUrl;
+
+  // Otherwise resolve against the configured base. We honour the
+  // same env variables as resolveUrl() so dev / prod stay in sync.
+  const env = (import.meta as ImportMeta).env;
+  let base: string;
+  if (env?.VITE_WS_URL) {
+    // VITE_WS_URL points at the multiplexed /ws. We need the
+    // origin part only; the server's ws_url already includes the
+    // /api/v1/shell/... path.
+    try {
+      const u = new URL(env.VITE_WS_URL);
+      return u.origin + wsUrl;
+    } catch {
+      /* fall through */
+    }
+  }
+  if (env?.VITE_API_URL) {
+    try {
+      const u = new URL(env.VITE_API_URL);
+      u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:';
+      // Use origin + the server-supplied relative path.
+      return u.origin + wsUrl;
+    } catch {
+      /* fall through */
+    }
+  }
+  if (typeof window !== 'undefined') {
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${proto}//${window.location.host}${wsUrl}`;
+  }
+  // SSR / tests: hand back a best-effort localhost URL.
+  void sessionId;
+  return `ws://localhost:8080${wsUrl}`;
 }

@@ -15,12 +15,16 @@ import {
   Wrench,
   Shield,
   CirclePlay,
+  FileCode2,
+  Terminal,
+  Timer,
 } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { useChecks } from '@/lib/useChecks';
 import { useAlerts } from '@/lib/useAlerts';
 import { usePolicies, type PolicyCategory } from '@/lib/usePolicies';
 import { usePatches } from '@/lib/usePatches';
+import { useScripts } from '@/lib/useScripts';
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,
@@ -89,6 +93,7 @@ function DashboardPage() {
   const { alerts, isLoading: alertsLoading } = useAlerts('all');
   const { policies, isLoading: policiesLoading, fetchComplianceSummary } = usePolicies();
   const { jobs: patchJobs, isLoading: patchesLoading } = usePatches();
+  const { scripts, isLoading: scriptsLoading, total: scriptsTotal } = useScripts();
 
   // Live policy compliance aggregates (computed from the policy list when
   // a per-policy compliance summary endpoint is not available; falls back
@@ -307,6 +312,60 @@ function DashboardPage() {
     ];
   }, [patchJobs, patchesLoading]);
 
+  // Live script KPIs — derived from the script list and (when present)
+  // per-script last_status / run_count fields. A full run-history
+  // aggregation would require a separate endpoint, so we keep the
+  // "today" / "in progress" buckets based on what the script records
+  // report, falling back to "—" when the server hasn't supplied them.
+  const scriptKpis: Kpi[] = useMemo(() => {
+    let total = scriptsTotal || scripts.length;
+    let succeeded = 0;
+    let failed = 0;
+    let running = 0;
+    let totalRuns = 0;
+    for (const s of scripts) {
+      if (typeof s.run_count === 'number') totalRuns += s.run_count;
+      if (s.last_status === 'completed') succeeded += 1;
+      if (s.last_status === 'failed' || s.last_status === 'timeout') failed += 1;
+      if (s.last_status === 'in_progress' || s.last_status === 'pending') running += 1;
+    }
+    const dash = scriptsLoading && scripts.length === 0 ? '—' : null;
+    return [
+      {
+        label: 'Total Scripts',
+        value: dash ?? String(total),
+        delta: total === 0 ? 'No scripts yet' : `${total} in library`,
+        deltaTone: 'neutral',
+        icon: FileCode2,
+        to: '/scripts',
+      },
+      {
+        label: 'Last Run OK',
+        value: dash ?? String(succeeded),
+        delta: succeeded === 0 ? 'No clean runs' : 'Most recent succeeded',
+        deltaTone: succeeded === 0 ? 'neutral' : 'up',
+        icon: CircleCheck,
+        to: '/scripts',
+      },
+      {
+        label: 'Last Run Failed',
+        value: dash ?? String(failed),
+        delta: failed === 0 ? 'No failures' : 'Investigate runs',
+        deltaTone: failed === 0 ? 'neutral' : 'down',
+        icon: CircleAlert,
+        to: '/scripts',
+      },
+      {
+        label: 'Total Runs',
+        value: dash ?? String(totalRuns),
+        delta: totalRuns === 0 ? 'No runs yet' : `${running} active`,
+        deltaTone: running > 0 ? 'up' : 'neutral',
+        icon: Timer,
+        to: '/scripts',
+      },
+    ];
+  }, [scripts, scriptsLoading, scriptsTotal]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -346,6 +405,24 @@ function DashboardPage() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {patchKpis.map((kpi) => (
+            <KpiCard key={kpi.label} kpi={kpi} />
+          ))}
+        </div>
+      </div>
+
+      {/* Script KPIs */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-slate-300">Scripts</h2>
+          <Link
+            to="/scripts"
+            className="text-xs text-slate-400 hover:text-slate-100 transition-colors"
+          >
+            View all →
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {scriptKpis.map((kpi) => (
             <KpiCard key={kpi.label} kpi={kpi} />
           ))}
         </div>

@@ -15,6 +15,7 @@ import {
   FileCode2,
   Settings,
   LogOut,
+  Terminal,
 } from 'lucide-react';
 import { logout, getStoredUser } from '@/lib/auth';
 import { useAlerts } from '@/lib/useAlerts';
@@ -37,6 +38,14 @@ const navItems: NavItem[] = [
   { to: '/patches', label: 'Patches', icon: Wrench, showPatchBadge: true },
   { to: '/scripts', label: 'Scripts', icon: FileCode2 },
   { to: '/settings', label: 'Settings', icon: Settings },
+  // Admin-only items are appended dynamically below; we keep the
+  // static list above so the dashboard link renders for everyone.
+];
+
+// Admin-only entries appended after construction. Keeping them in
+// a second list lets us reuse the same rendering path.
+const adminNavItems: NavItem[] = [
+  { to: '/shell-recordings', label: 'Shell Recordings', icon: Terminal },
 ];
 
 export function Sidebar() {
@@ -44,6 +53,11 @@ export function Sidebar() {
   const initials = user?.name
     ? user.name.split(' ').map((p) => p.charAt(0).toUpperCase()).slice(0, 2).join('')
     : user?.email?.charAt(0).toUpperCase() ?? 'U';
+  // Surface admin-only nav entries (shell recordings, etc.) to
+  // operators with elevated roles. The list page itself does its
+  // own role check via the API filter so this is purely a UX hint.
+  const isAdminUser =
+    user?.role === 'admin' || user?.role === 'owner' || user?.role === 'superadmin';
 
   // Subscribe to the "alerts" channel via the dedicated "all" filter so
   // we can render a count badge for the currently-open critical alerts.
@@ -74,7 +88,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
+        {[...navItems, ...(isAdminUser ? adminNavItems : [])].map((item) => {
           const Icon = item.icon;
           const isAlerts = item.showAlertBadge === true;
           const isPatches = item.showPatchBadge === true;

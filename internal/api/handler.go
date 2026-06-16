@@ -18,6 +18,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/notify"
 	"github.com/openagentplatform/openagentplatform/internal/patches"
 	"github.com/openagentplatform/openagentplatform/internal/policy"
+	"github.com/openagentplatform/openagentplatform/internal/remote"
 	"github.com/openagentplatform/openagentplatform/internal/schema"
 )
 
@@ -56,10 +57,23 @@ type Server struct {
 	// per-agent scan results into a platform-wide catalog. May be
 	// nil; catalog endpoints return 503 when unset.
 	patchScanner *patches.PatchScanDispatcher
+	// scriptStore is the script definition and run persistence interface.
+	// May be nil; script endpoints return 503 when unset.
+	scriptStore scriptStore
 	// wsHub manages connected WebSocket clients and their
 	// subscriptions. Lazily constructed on first upgrade.
 	wsHub  *wsHub
 	wsOnce sync.Once
+	// remote is the remote-shell API handler. May be nil; remote
+	// endpoints return 503 when unset.
+	remote *RemoteHandler
+	// recordingStore is the shell-session recording persistence
+	// interface. May be nil; recording endpoints return 503 when
+	// unset.
+	recordingStore remote.SessionRecordingStore
+	// recorderFactory produces a SessionRecorder for a given live
+	// session id. Optional; when nil, live sessions are not recorded.
+	recorderFactory func(sessionID string) (*remote.SessionRecorder, bool)
 }
 
 // Publisher is the subset of the events.Client interface used by API handlers.
@@ -167,6 +181,13 @@ func (s *Server) SetPatchStore(store patches.Store) {
 // catalog endpoints return 503 when unset.
 func (s *Server) SetPatchScanner(d *patches.PatchScanDispatcher) {
 	s.patchScanner = d
+}
+
+// SetScriptStore wires the script definition and run persistence interface
+// into the server. Called from main. May be nil; script endpoints return
+// 503 when unset.
+func (s *Server) SetScriptStore(store scriptStore) {
+	s.scriptStore = store
 }
 
 func (s *Server) buildRouter() chi.Router {
