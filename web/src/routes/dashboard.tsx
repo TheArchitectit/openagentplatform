@@ -140,7 +140,7 @@ function mapAuditToActivity(events: AuditEventShape[]): ActivityItem[] {
       id: ev.id,
       type,
       title,
-      meta: detailStr || ev.resource_type ?? '',
+      meta: detailStr || (ev.resource_type ?? ''),
       time: relativeTime(ev.timestamp),
       tone,
       actor,
