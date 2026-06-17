@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
 @import './styles/themes.css';
 
 @tailwind base;
@@ -5,18 +7,6 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --bg-app: var(--color-bg-primary);
-    --bg-surface: var(--color-bg-secondary);
-    --bg-elevated: var(--color-bg-tertiary);
-    --border: var(--color-border);
-    --text-primary: var(--color-text-primary);
-    --text-secondary: var(--color-text-secondary);
-    --text-muted: var(--color-text-muted);
-    --accent: var(--color-accent);
-    --accent-hover: var(--color-accent-hover);
-  }
-
   /* Smooth colour / background transitions when toggling theme.
    * Disabled for users who prefer reduced motion. */
   html.light,
@@ -35,14 +25,12 @@
     }
   }
 
-  /* Focus-visible: keyboard-only focus indicator.
-   * Outline appears on keyboard navigation, not on mouse click.
-   * This complements the per-component focus-visible:ring-2 utilities. */
+  /* Focus-visible: keyboard-only focus indicator. */
   *:focus {
     outline: none;
   }
   *:focus-visible {
-    outline: 2px solid rgb(var(--color-accent) / 0.7);
+    outline: 2px solid hsl(var(--ring) / 0.7);
     outline-offset: 2px;
   }
 
@@ -53,11 +41,8 @@
   }
 
   body {
-    @apply antialiased;
-    background-color: rgb(var(--bg-app));
-    color: rgb(var(--text-primary));
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-      "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    @apply antialiased bg-surface-primary text-text-primary;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 
   /* Scrollbar styling for dark mode */
@@ -66,43 +51,29 @@
     height: 10px;
   }
   ::-webkit-scrollbar-track {
-    background: rgb(var(--bg-app));
+    background: hsl(var(--background));
   }
   ::-webkit-scrollbar-thumb {
-    background: rgb(var(--bg-elevated));
+    background: hsl(var(--secondary));
     border-radius: 5px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgb(var(--color-border-light));
+    background: hsl(var(--border));
   }
 
   /* ---------------------------------------------------------------
    * Responsive layout primitives — mobile-first
-   *
-   * Breakpoints (matching Tailwind defaults):
-   *   sm  >=  640px   — small tablet / large phone landscape
-   *   md  >=  768px   — tablet / sidebar becomes inline
-   *   lg  >= 1024px   — desktop
-   *   xl  >= 1280px   — wide desktop
-   *
-   * Mobile-first: styles below apply at ALL widths; overrides inside
-   * the media queries kick in at the listed breakpoint.
    * ------------------------------------------------------------- */
 
-  /* Prevent horizontal overflow on small screens — tables, pre, and
-   * long line-content in cards can otherwise cause sideways scrolling
-   * on phones. */
   body {
     overflow-x: hidden;
   }
 
-  /* On mobile the main content is padded less aggressively. */
   main {
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Touch targets: on coarse pointers (touch screens) ensure buttons
-   * are at least 44x44 px per WCAG 2.5.5 / Apple HIG. */
+  /* Touch targets on coarse pointers */
   @media (pointer: coarse) {
     button,
     [role='button'],
@@ -111,15 +82,13 @@
     }
   }
 
-  /* Sidebar drawer animation — transform-based for GPU acceleration.
-   * The .translate-x-full class hides the drawer off-screen left. */
+  /* Sidebar drawer animation */
   @media (max-width: 767.98px) {
     aside[aria-label='Primary navigation'] {
       will-change: transform;
     }
   }
 
-  /* Reduced motion: strip the slide transition entirely. */
   @media (prefers-reduced-motion: reduce) {
     aside[aria-label='Primary navigation'],
     aside[aria-label='Primary navigation'] + .fixed {
@@ -129,9 +98,8 @@
 }
 
 @layer utilities {
-  /* Container-aware sidebar width: collapses to auto on narrow viewports. */
   .sidebar-shell {
-    width: 16rem; /* 256px — matches w-64 */
+    width: 16rem;
   }
   @media (max-width: 767.98px) {
     .sidebar-shell {
@@ -142,7 +110,6 @@
     }
   }
 
-  /* Responsive content padding — mobile gets p-4, tablet/desktop get p-6. */
   .content-pad {
     padding: 1rem;
   }
@@ -152,7 +119,6 @@
     }
   }
 
-  /* Hide on mobile, show on tablet+ */
   .show-md {
     display: none;
   }
@@ -162,7 +128,6 @@
     }
   }
 
-  /* Show on mobile only */
   .show-mobile {
     display: initial;
   }
@@ -175,17 +140,49 @@
 
 @layer components {
   .card {
-    @apply p-4 rounded-lg border bg-surface-secondary/60;
-    border-color: rgb(var(--border));
+    @apply bg-surface-secondary border border-border-subtle rounded-lg p-6;
+    @apply hover:border-blue-500/50 transition-colors;
+  }
+
+  .kpi-card {
+    @apply bg-surface-secondary border border-border-subtle rounded-xl p-6;
+    @apply hover:border-blue-500/30 transition-all;
+  }
+
+  .badge {
+    @apply px-2 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1;
+  }
+  .badge-success {
+    @apply badge bg-green-900/50 text-green-400 border border-green-800;
+  }
+  .badge-warning {
+    @apply badge bg-yellow-900/50 text-yellow-400 border border-yellow-800;
+  }
+  .badge-danger {
+    @apply badge bg-red-900/50 text-red-400 border border-red-800;
+  }
+  .badge-info {
+    @apply badge bg-blue-900/50 text-blue-400 border border-blue-800;
+  }
+
+  .input {
+    @apply bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-gray-100;
+    @apply focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500;
+    @apply outline-none transition-colors;
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface-secondary;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium;
+    @apply transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply focus:ring-offset-surface-primary;
   }
   .btn-primary {
-    @apply btn bg-accent hover:bg-accent-hover text-white focus:ring-accent;
+    @apply btn bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500;
   }
   .btn-secondary {
-    @apply btn bg-surface-tertiary hover:bg-border-strong text-text-primary border border-border-strong focus:ring-text-muted;
+    @apply btn bg-slate-700 hover:bg-slate-600 text-gray-100 focus:ring-slate-500;
+  }
+  .btn-danger {
+    @apply btn bg-red-600 hover:bg-red-700 text-white focus:ring-red-500;
   }
 }

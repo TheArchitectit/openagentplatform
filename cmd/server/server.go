@@ -128,7 +128,7 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		RebootStagger:      30 * time.Second,
 		CanaryCount:        1,
 		IsAgentOnlineFn: func(_ context.Context, agentID string) bool {
-			ag, err := agentStore.GetAgent(context.Background(), agentID)
+			ag, err := agentStore.GetAgent(context.Background(), "", agentID)
 			if err != nil || ag == nil {
 				return false
 			}
@@ -425,7 +425,7 @@ func (a *eventStoreAdapter) UpdateAgentHeartbeat(ctx context.Context, agentID st
 	return err
 }
 
-func (a *eventStoreAdapter) GetAgent(ctx context.Context, id string) (*models.Agent, error) {
+func (a *eventStoreAdapter) GetAgent(ctx context.Context, _, id string) (*models.Agent, error) {
 	if a.pool == nil {
 		return nil, nil
 	}

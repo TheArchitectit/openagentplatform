@@ -49,282 +49,233 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-function formatDate(iso: string): string {
-  if (!iso) return '—';
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString();
-  } catch {
-    return iso;
-  }
-}
-
-function formatDuration(s: string): string {
-  // ISO 8601 duration or HH:MM:SS-ish. The server returns a Go
-  // duration string like "5m32s" or "1h2m3s". Parse manually.
-  if (!s) return '—';
-  const re = /^(?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?$/;
-  const m = s.match(re);
-  if (!m) return s;
-  const h = parseInt(m[1] || '0', 10);
-  const mm = parseInt(m[2] || '0', 10);
-  const ss = parseFloat(m[3] || '0');
-  if (h > 0) return `${h}h ${mm}m ${Math.floor(ss)}s`;
-  if (mm > 0) return `${mm}m ${Math.floor(ss)}s`;
-  return `${ss.toFixed(1)}s`;
+function shortId(id: string): string {
+  if (!id) return '—';
+  if (id.length <= 12) return id;
+  return id.slice(0, 8);
 }
 
 function RecordingsListPage() {
   const navigate = useNavigate();
-  const user = getStoredUser();
-  const isAdmin = user?.role === 'admin' || user?.role === 'owner' || user?.role === 'superadmin';
-
-  const [items, setItems] = useState<Recording[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [recordings, setRecordings] = useState<Recording[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Filters
   const [search, setSearch] = useState('');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(0);
 
-  const queryString = useMemo(() => {
-    const params = new URLSearchParams();
-    if (search.trim()) {
-      // The backend matches session_id with ILIKE; we also send
-      // the value as agent_id/user_id hints so the search box works
-      // for hostname lookups too. The backend ORs them implicitly
-      // by checking session_id only; for hostname / user we pass
-      // those params explicitly when possible.
-      params.set('session_id', search.trim());
-    }
-    if (fromDate) {
-      const d = new Date(fromDate);
-      if (!Number.isNaN(d.getTime())) {
-        params.set('since', d.toISOString());
-      }
-    }
-    if (toDate) {
-      const d = new Date(toDate);
-      if (!Number.isNaN(d.getTime())) {
-        params.set('until', d.toISOString());
-      }
-    }
-    params.set('limit', String(PAGE_SIZE));
-    params.set('offset', String(page * PAGE_SIZE));
-    return params.toString();
-  }, [search, fromDate, toDate, page]);
-
-  const fetchList = async () => {
-    setLoading(true);
+  const fetchRecordings = async () => {
+    setIsLoading(true);
     setError(null);
     try {
-      const data = await apiFetch<ListResponse>(`/shell/recordings?${queryString}`);
-      setItems(data.recordings);
-      setTotal(data.total);
-    } catch (e) {
-      setError((e as Error).message);
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String(page * PAGE_SIZE),
+      });
+      if (dateFrom) params.set('started_after', new Date(dateFrom).toISOString());
+      if (dateTo) params.set('started_before', new Date(dateTo).toISOString());
+      const res = await apiFetch(`/api/v1/shell/recordings?${params}`);
+      if (!res.ok) throw new Error(`Failed to load recordings (${res.status})`);
+      const data: ListResponse = await res.json();
+      setRecordings(data.recordings ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    void fetchList();
+    void fetchRecordings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryString]);
+  }, [page]);
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return recordings;
+    return recordings.filter(
+      (r) =>
+        r.agent_id.toLowerCase().includes(q) ||
+        r.user_id.toLowerCase().includes(q) ||
+        r.session_id.toLowerCase().includes(q)
+    );
+  }, [recordings, search]);
+
+  const handleExport = () => {
+    const blob = new Blob([JSON.stringify(filtered, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `shell-recordings-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5" aria-busy={isLoading}>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-text-primary">Shell Recordings</h1>
-          <p className="text-sm text-text-secondary mt-1">
-            Searchable archive of recorded remote shell sessions. {isAdmin ? 'Admin view — all sessions.' : 'Your sessions only.'}
-          </p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center" aria-hidden="true">
+            <Terminal className="h-4 w-4 text-gray-300" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-white">Shell Recordings</h1>
+            <p className="text-gray-300 text-sm mt-0.5">
+              Recorded remote shell sessions — click a row to play back
+            </p>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={fetchList}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-surface-tertiary hover:bg-border-strong text-sm text-text-primary"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void fetchRecordings()}
+            className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          <button
+            type="button"
+            onClick={handleExport}
+            className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
+          >
+            <Download className="h-4 w-4" />
+            Export
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-surface-secondary border border-border-subtle rounded-lg p-4 flex flex-wrap gap-3 items-end">
-        <label className="flex flex-col gap-1 flex-1 min-w-[200px]">
-          <span className="text-xs text-text-secondary">Search (session id / agent / user)</span>
-          <div className="relative">
-            <Search size={14} className="absolute left-2.5 top-2.5 text-text-muted" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(0);
-              }}
-              placeholder="filter…"
-              className="w-full pl-8 pr-3 py-1.5 rounded-md bg-surface-primary border border-border-strong text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
-            />
-          </div>
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-text-secondary">From</span>
-          <div className="relative">
-            <Calendar size={14} className="absolute left-2.5 top-2.5 text-text-muted" />
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => {
-                setFromDate(e.target.value);
-                setPage(0);
-              }}
-              className="pl-8 pr-3 py-1.5 rounded-md bg-surface-primary border border-border-strong text-sm text-text-primary focus:outline-none focus:border-accent"
-            />
-          </div>
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-text-secondary">To</span>
-          <div className="relative">
-            <Calendar size={14} className="absolute left-2.5 top-2.5 text-text-muted" />
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => {
-                setToDate(e.target.value);
-                setPage(0);
-              }}
-              className="pl-8 pr-3 py-1.5 rounded-md bg-surface-primary border border-border-strong text-sm text-text-primary focus:outline-none focus:border-accent"
-            />
-          </div>
-        </label>
-        <div className="text-xs text-text-muted ml-auto">
-          {total} recording{total === 1 ? '' : 's'}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative w-full sm:w-64" role="search">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" aria-hidden="true" />
+          <input
+            type="search"
+            role="searchbox"
+            aria-label="Search recordings"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by agent, user, or session…"
+            className="w-full h-9 pl-9 pr-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Calendar className="h-3.5 w-3.5 text-gray-400" />
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            aria-label="From date"
+            className="h-9 px-2 rounded-md bg-slate-800/60 border border-slate-700 text-xs text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
+          />
+          <span className="text-xs text-gray-400">to</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            aria-label="To date"
+            className="h-9 px-2 rounded-md bg-slate-800/60 border border-slate-700 text-xs text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
+          />
+          <button
+            type="button"
+            onClick={() => void fetchRecordings()}
+            className="inline-flex items-center px-3 h-9 rounded-md bg-blue-600 hover:bg-blue-500 text-xs text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
+          >
+            Apply
+          </button>
         </div>
       </div>
 
+      {error && (
+        <div role="alert" className="rounded-md border border-red-800 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+          {error}
+        </div>
+      )}
+
       {/* Table */}
-      <div className="bg-surface-secondary border border-border-subtle rounded-lg overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-surface-tertiary/50 text-text-secondary text-xs uppercase">
-            <tr>
-              <th className="text-left px-4 py-2">Session</th>
-              <th className="text-left px-4 py-2">User</th>
-              <th className="text-left px-4 py-2">Agent</th>
-              <th className="text-left px-4 py-2">Protocol</th>
-              <th className="text-left px-4 py-2">Duration</th>
-              <th className="text-left px-4 py-2">Bytes (in/out)</th>
-              <th className="text-left px-4 py-2">Started</th>
-              <th className="text-right px-4 py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {error && (
-              <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-danger">
-                  {error}
-                </td>
+      <div className="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-800 text-left text-xs uppercase tracking-wider text-gray-300">
+                <th className="px-4 py-2.5 font-medium">Session</th>
+                <th className="px-4 py-2.5 font-medium">Agent</th>
+                <th className="px-4 py-2.5 font-medium">User</th>
+                <th className="px-4 py-2.5 font-medium">Protocol</th>
+                <th className="px-4 py-2.5 font-medium">Started</th>
+                <th className="px-4 py-2.5 font-medium">Duration</th>
+                <th className="px-4 py-2.5 font-medium text-right">Events</th>
+                <th className="px-4 py-2.5 font-medium text-right">In / Out</th>
               </tr>
-            )}
-            {!error && items.length === 0 && !loading && (
-              <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-text-muted">
-                  No recordings match the current filters.
-                </td>
-              </tr>
-            )}
-            {items.map((r) => (
-              <tr
-                key={r.session_id}
-                onClick={() =>
-                  navigate({
-                    to: '/shell-recordings/$sessionId',
-                    params: { sessionId: r.session_id },
-                  })
-                }
-                className="border-t border-border-subtle hover:bg-surface-tertiary/40 cursor-pointer"
-              >
-                <td className="px-4 py-2 font-mono text-xs text-text-primary max-w-[180px] truncate">
-                  {r.session_id}
-                </td>
-                <td className="px-4 py-2 text-text-secondary">{r.user_id}</td>
-                <td className="px-4 py-2 text-text-secondary">{r.agent_id}</td>
-                <td className="px-4 py-2">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-accent/10 border border-accent/20 text-xs text-accent">
-                    {r.protocol}
-                  </span>
-                </td>
-                <td className="px-4 py-2 text-text-secondary">{formatDuration(r.duration)}</td>
-                <td className="px-4 py-2 text-text-secondary text-xs">
-                  {formatBytes(r.bytes_in)} / {formatBytes(r.bytes_out)}
-                </td>
-                <td className="px-4 py-2 text-text-secondary text-xs">{formatDate(r.started_at)}</td>
-                <td className="px-4 py-2 text-right">
-                  <div className="inline-flex gap-1">
-                    <button
-                      type="button"
-                      title="Open playback"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate({
-                          to: '/shell-recordings/$sessionId',
-                          params: { sessionId: r.session_id },
-                        });
-                      }}
-                      className="p-1.5 rounded-md hover:bg-border-strong text-text-secondary"
-                    >
-                      <Terminal size={14} />
-                    </button>
-                    <a
-                      title="Download .cast"
-                      href={`/api/v1/shell/recordings/${r.session_id}/export`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="p-1.5 rounded-md hover:bg-border-strong text-text-secondary"
-                    >
-                      <Download size={14} />
-                    </a>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {isLoading && recordings.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-12 text-center text-gray-400" role="status">
+                    Loading recordings…
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-12 text-center text-gray-400" role="status">
+                    No recordings found.
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((r) => (
+                  <tr
+                    key={r.session_id}
+                    onClick={() => void navigate({ to: '/shell-recordings/$sessionId', params: { sessionId: r.session_id } })}
+                    className="hover:bg-slate-800/40 transition-colors cursor-pointer"
+                  >
+                    <td className="px-4 py-2.5 font-mono text-blue-400 text-xs">
+                      {shortId(r.session_id)}
+                    </td>
+                    <td className="px-4 py-2.5 text-gray-300 text-xs">{r.agent_id}</td>
+                    <td className="px-4 py-2.5 text-gray-300 text-xs">{r.user_id}</td>
+                    <td className="px-4 py-2.5 text-gray-300 text-xs uppercase">{r.protocol}</td>
+                    <td className="px-4 py-2.5 text-gray-400 text-xs">
+                      {new Date(r.started_at).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2.5 text-gray-300 text-xs">{r.duration}</td>
+                    <td className="px-4 py-2.5 text-gray-300 text-xs text-right">
+                      {r.event_count.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2.5 text-gray-300 text-xs text-right">
+                      {formatBytes(r.bytes_in)} / {formatBytes(r.bytes_out)}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-text-secondary">
-          <div>
-            Page {page + 1} of {totalPages}
-          </div>
-          <div className="space-x-2">
-            <button
-              type="button"
-              disabled={page === 0}
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              className="px-3 py-1 rounded-md bg-surface-tertiary hover:bg-border-strong disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              disabled={page >= totalPages - 1}
-              onClick={() => setPage((p) => p + 1)}
-              className="px-3 py-1 rounded-md bg-surface-tertiary hover:bg-border-strong disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
+      <div className="flex items-center justify-between text-xs text-gray-400">
+        <span>Page {page + 1}</span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            className="inline-flex items-center gap-1 px-2 h-7 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Prev
+          </button>
+          <button
+            type="button"
+            onClick={() => setPage((p) => p + 1)}
+            disabled={recordings.length < PAGE_SIZE}
+            className="inline-flex items-center gap-1 px-2 h-7 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Next
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }

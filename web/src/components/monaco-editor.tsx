@@ -338,7 +338,7 @@ function FallbackTextarea({
       aria-label={ariaLabel ?? `${language ?? 'code'} editor`}
       aria-describedby={ariaDescribedBy}
       className={
-        'w-full bg-surface-primary text-text-primary p-3 resize-none outline-none text-sm font-mono leading-6 whitespace-pre overflow-auto ' +
+        'w-full bg-slate-900 text-white p-3 resize-none outline-none text-sm font-mono leading-6 whitespace-pre overflow-auto ' +
         (className ?? '')
       }
       style={{ tabSize: 2, ...heightStyle }}
@@ -515,14 +515,14 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>(
       return (
         <div
           className={
-            'rounded-md border border-border-subtle bg-surface-primary flex items-center justify-center ' +
+            'rounded-xl border border-slate-800 bg-slate-900 flex items-center justify-center ' +
             (className ?? '')
           }
           style={{ ...containerStyle, minHeight: '120px' }}
         >
-          <div className="flex items-center gap-2 text-xs text-text-muted">
+          <div className="flex items-center gap-2 text-xs text-gray-300">
             <span
-              className="inline-block h-3 w-3 rounded-full border-2 border-text-muted border-t-accent animate-spin"
+              className="inline-block h-3 w-3 rounded-full border-2 border-gray-300 border-t-blue-500 animate-spin"
               aria-hidden
             />
             Loading editor…
@@ -569,7 +569,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>(
       >
         <div
           ref={containerRef}
-          className={'rounded-md border border-border-subtle overflow-hidden ' + (className ?? '')}
+          className={'rounded-xl border border-slate-800 overflow-hidden ' + (className ?? '')}
           style={containerStyle}
           role="textbox"
           aria-multiline="true"

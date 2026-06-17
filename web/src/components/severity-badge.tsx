@@ -23,22 +23,22 @@ export interface SeverityMeta {
 export const SEVERITY_META: Record<Severity, SeverityMeta> = {
   info: {
     label: 'Info',
-    classes: 'bg-info/10 text-info border-info/20',
+    classes: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
     icon: Info,
   },
   warning: {
     label: 'Warning',
-    classes: 'bg-warning/10 text-warning border-warning/20',
+    classes: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
     icon: TriangleAlert,
   },
   critical: {
     label: 'Critical',
-    classes: 'bg-danger/10 text-danger border-danger/20',
+    classes: 'bg-red-500/10 text-red-400 border-red-500/20',
     icon: CircleX,
   },
   emergency: {
     label: 'Emergency',
-    classes: 'bg-danger/15 text-danger border-danger/30',
+    classes: 'bg-red-500/15 text-red-400 border-red-500/30',
     icon: Flame,
   },
 };

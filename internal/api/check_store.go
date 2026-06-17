@@ -26,6 +26,7 @@ var ErrCheckNotFound = errors.New("check not found")
 
 // CheckListFilter is the filter applied to ListChecks.
 type CheckListFilter struct {
+	OrgID     string
 	CheckType string
 	Enabled   *bool
 	Search    string
@@ -72,12 +73,20 @@ func (p *pgCheckStore) InsertCheck(ctx context.Context, c *models.CheckDefinitio
 	return nil
 }
 
-// GetCheck returns one check definition by id, or ErrCheckNotFound.
-func (p *pgCheckStore) GetCheck(ctx context.Context, id string) (*models.CheckDefinition, error) {
+// GetCheck returns one check definition by id, scoped to the given org.
+// If orgID is non-empty, the query enforces org ownership; otherwise the
+// caller is responsible for org verification.
+func (p *pgCheckStore) GetCheck(ctx context.Context, orgID, id string) (*models.CheckDefinition, error) {
 	if p.pool == nil {
 		return nil, errors.New("check_store: nil pool")
 	}
-	const q = `
+	args := []any{id}
+	where := []string{"id = $1"}
+	if orgID != "" {
+		args = append(args, orgID)
+		where = append(where, fmt.Sprintf("org_id = $%d", len(args)))
+	}
+	q := `
 		SELECT id, COALESCE(org_id,''), name, COALESCE(description,''),
 		       check_type, config,
 		       COALESCE(interval_seconds, 60), COALESCE(timeout_seconds, 30),
@@ -86,12 +95,12 @@ func (p *pgCheckStore) GetCheck(ctx context.Context, id string) (*models.CheckDe
 		       COALESCE(alert_severity, ''), COALESCE(is_template, false), COALESCE(last_status, ''),
 		       created_at, updated_at
 		FROM check_definitions
-		WHERE id = $1
+		WHERE ` + joinAnd(where) + `
 		LIMIT 1
 	`
 	c := &models.CheckDefinition{}
 	var cfgRaw []byte
-	err := p.pool.QueryRow(ctx, q, id).Scan(
+	err := p.pool.QueryRow(ctx, q, args...).Scan(
 		&c.ID, &c.OrgID, &c.Name, &c.Description, &c.CheckType, &cfgRaw,
 		&c.IntervalSeconds, &c.TimeoutSeconds, &c.Enabled,
 		&c.FailThreshold, &c.WarnThreshold, &c.ErrorThreshold,
@@ -125,6 +134,9 @@ func (p *pgCheckStore) ListChecks(ctx context.Context, f CheckListFilter) ([]mod
 	add := func(clause string, val any) {
 		args = append(args, val)
 		where = append(where, fmt.Sprintf(clause, len(args)))
+	}
+	if f.OrgID != "" {
+		add("org_id = $%d", f.OrgID)
 	}
 	if f.CheckType != "" {
 		add("check_type = $%d", f.CheckType)
@@ -199,7 +211,7 @@ func (p *pgCheckStore) ListChecks(ctx context.Context, f CheckListFilter) ([]mod
 // UpdateCheck applies a partial update to a check definition. Only the
 // non-nil fields in the patch are persisted. The updated_at column is
 // always bumped to NOW().
-func (p *pgCheckStore) UpdateCheck(ctx context.Context, id string, patch CheckPatch) (*models.CheckDefinition, error) {
+func (p *pgCheckStore) UpdateCheck(ctx context.Context, orgID, id string, patch CheckPatch) (*models.CheckDefinition, error) {
 	if p.pool == nil {
 		return nil, errors.New("check_store: nil pool")
 	}
@@ -251,15 +263,20 @@ func (p *pgCheckStore) UpdateCheck(ctx context.Context, id string, patch CheckPa
 	}
 	if len(sets) == 0 {
 		// Nothing to update — just return the current row.
-		return p.GetCheck(ctx, id)
+		return p.GetCheck(ctx, orgID, id)
 	}
 	sets = append(sets, "updated_at = NOW()")
 	args = append(args, id)
+	whereClause := "id = $%d"
+	if orgID != "" {
+		args = append(args, orgID)
+		whereClause += fmt.Sprintf(" AND org_id = $%d", len(args))
+	}
 	q := fmt.Sprintf(`
 		UPDATE check_definitions SET %s
-		WHERE id = $%d
+		WHERE %s
 		RETURNING id
-	`, joinAnd(sets), len(args))
+	`, joinAnd(sets), whereClause)
 
 	var newID string
 	if err := p.pool.QueryRow(ctx, q, args...).Scan(&newID); err != nil {
@@ -268,7 +285,7 @@ func (p *pgCheckStore) UpdateCheck(ctx context.Context, id string, patch CheckPa
 		}
 		return nil, fmt.Errorf("check_store: update: %w", err)
 	}
-	return p.GetCheck(ctx, id)
+	return p.GetCheck(ctx, orgID, id)
 }
 
 // CheckPatch carries optional fields for UpdateCheck. Nil means "leave
@@ -288,14 +305,21 @@ type CheckPatch struct {
 	LastStatus      *string
 }
 
-// DeleteCheck hard-deletes a check definition row. Caller is responsible
-// for checking assignment count first.
-func (p *pgCheckStore) DeleteCheck(ctx context.Context, id string) error {
+// DeleteCheck hard-deletes a check definition row, scoped to the given org.
+// If orgID is non-empty, only rows owned by that org are deleted.
+// Caller is responsible for checking assignment count first.
+func (p *pgCheckStore) DeleteCheck(ctx context.Context, orgID, id string) error {
 	if p.pool == nil {
 		return errors.New("check_store: nil pool")
 	}
-	const q = `DELETE FROM check_definitions WHERE id = $1`
-	_, err := p.pool.Exec(ctx, q, id)
+	args := []any{id}
+	where := "id = $1"
+	if orgID != "" {
+		args = append(args, orgID)
+		where += fmt.Sprintf(" AND org_id = $%d", len(args))
+	}
+	q := "DELETE FROM check_definitions WHERE " + where
+	_, err := p.pool.Exec(ctx, q, args...)
 	if err != nil {
 		return fmt.Errorf("check_store: delete: %w", err)
 	}

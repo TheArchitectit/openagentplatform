@@ -36,270 +36,314 @@ function fmtMoney(n: number, currency = 'USD'): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(n);
 }
 
-function fmtPct(n: number): string {
-  return `${n.toFixed(1)}%`;
-}
-
 function CostDashboardPage() {
   const [start, setStart] = useState(thirtyDaysAgoIso());
   const [end, setEnd] = useState(todayIso());
-  const { summary, isLoading, error, refresh } = useA2ACost({
-    start: new Date(start).toISOString(),
-    end: new Date(end + 'T23:59:59').toISOString(),
-  });
+  const { data, isLoading, error, refetch } = useA2ACost({ start, end });
 
-  const dailyMax = useMemo(() => {
-    if (!summary?.by_day?.length) return 0;
-    return Math.max(...summary.by_day.map((d) => d.cost), 0);
-  }, [summary]);
+  const totals = useMemo(() => {
+    if (!data) return null;
+    const total = data.by_day.reduce((s, d) => s + d.cost, 0);
+    const tokens = data.by_day.reduce((s, d) => s + d.input_tokens + d.output_tokens, 0);
+    const calls = data.by_day.reduce((s, d) => s + d.call_count, 0);
+    const avgDaily = data.by_day.length > 0 ? total / data.by_day.length : 0;
+    return { total, tokens, calls, avgDaily };
+  }, [data]);
+
+  // Build simple bar chart from daily costs
+  const maxDaily = useMemo(() => {
+    if (!data) return 0;
+    return Math.max(0, ...data.by_day.map((d) => d.cost));
+  }, [data]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5" aria-busy={isLoading}>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-text-primary flex items-center gap-2">
-            <CircleDollarSign className="h-6 w-6 text-warning" />
-            Cost Dashboard
-          </h1>
-          <p className="text-sm text-text-secondary mt-1">A2A protocol spend analytics</p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center" aria-hidden="true">
+            <CircleDollarSign className="h-4 w-4 text-gray-300" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-white">Cost Analytics</h1>
+            <p className="text-gray-300 text-sm mt-0.5">
+              A2A spend by day, adapter, model, and organisation
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Date range picker */}
-      <div className="rounded-lg border border-border-subtle bg-surface-secondary p-4 flex flex-wrap items-end gap-3">
-        <div>
-          <label className="block text-xs text-text-muted mb-1">Start date</label>
+      {/* Date range filter */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-1.5">
+          <Calendar className="h-3.5 w-3.5 text-gray-400" />
+          <label htmlFor="cost-start" className="text-xs text-gray-300">
+            From
+          </label>
           <input
+            id="cost-start"
             type="date"
             value={start}
             max={end}
             onChange={(e) => setStart(e.target.value)}
-            className="rounded-md bg-surface-tertiary border border-border-strong text-sm text-text-primary px-2 py-1.5"
+            className="h-8 px-2 rounded-md bg-slate-800/60 border border-slate-700 text-xs text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
           />
         </div>
-        <div>
-          <label className="block text-xs text-text-muted mb-1">End date</label>
+        <div className="flex items-center gap-1.5">
+          <label htmlFor="cost-end" className="text-xs text-gray-300">
+            To
+          </label>
           <input
+            id="cost-end"
             type="date"
             value={end}
             min={start}
             max={todayIso()}
             onChange={(e) => setEnd(e.target.value)}
-            className="rounded-md bg-surface-tertiary border border-border-strong text-sm text-text-primary px-2 py-1.5"
+            className="h-8 px-2 rounded-md bg-slate-800/60 border border-slate-700 text-xs text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
           />
         </div>
         <button
           type="button"
-          onClick={() => void refresh()}
-          className="px-3 py-1.5 text-sm rounded-md bg-accent hover:bg-accent text-white"
+          onClick={() => void refetch()}
+          className="inline-flex items-center gap-1.5 px-3 h-8 rounded-md bg-blue-600 hover:bg-blue-500 text-xs text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
         >
           Apply
         </button>
-        <div className="ml-auto flex items-center gap-2 text-xs text-text-muted">
-          <Calendar className="h-3.5 w-3.5" />
-          {summary?.date_range?.start
-            ? `${summary.date_range.start.slice(0, 10)} → ${summary.date_range.end.slice(0, 10)}`
-            : `${start} → ${end}`}
-        </div>
       </div>
 
       {error && (
-        <div className="p-3 rounded-md border border-danger/30 bg-danger/10 text-danger text-sm">
-          Failed to load cost data: {error.message}
+        <div role="alert" className="rounded-md border border-red-800 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+          {error.message}
         </div>
       )}
 
-      {isLoading ? (
-        <div className="text-center py-12 text-text-secondary text-sm">Loading cost data...</div>
-      ) : summary ? (
-        <>
-          {/* Total cost KPI */}
-          <div className="rounded-lg border border-border-subtle bg-surface-secondary p-5">
-            <div className="text-xs uppercase tracking-wider text-text-muted mb-1">
-              Total cost for period
-            </div>
-            <div className="text-3xl font-semibold text-text-primary">
-              {fmtMoney(summary.total_cost, summary.currency)}
-            </div>
-            <div className="text-xs text-text-muted mt-1 flex items-center gap-1">
-              <TrendingUp className="h-3 w-3" />
-              Across {summary.by_adapter?.reduce((s, a) => s + a.tasks, 0) ?? 0} tasks
-            </div>
+      {/* KPI bar */}
+      {totals && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard
+            icon={<CircleDollarSign className="h-4 w-4" />}
+            label="Total Cost"
+            value={fmtMoney(totals.total)}
+            sub={`${data?.by_day.length ?? 0} days`}
+            accent="indigo"
+          />
+          <KpiCard
+            icon={<TrendingUp className="h-4 w-4" />}
+            label="Avg / Day"
+            value={fmtMoney(totals.avgDaily)}
+            sub="Daily average"
+            accent="sky"
+          />
+          <KpiCard
+            icon={<Layers className="h-4 w-4" />}
+            label="Total Tokens"
+            value={fmt(totals.tokens)}
+            sub="Input + output"
+            accent="emerald"
+          />
+          <KpiCard
+            icon={<Cpu className="h-4 w-4" />}
+            label="Total Calls"
+            value={fmt(totals.calls)}
+            sub="Task invocations"
+            accent="amber"
+          />
+        </div>
+      )}
+
+      {/* Daily cost bar chart */}
+      {data && data.by_day.length > 0 && (
+        <section className="rounded-lg border border-slate-800 bg-slate-900 p-4" aria-label="Daily cost chart">
+          <h2 className="text-sm font-semibold text-white uppercase tracking-wider mb-3">Daily Cost</h2>
+          <div className="flex items-end gap-1 h-40">
+            {data.by_day.map((d) => {
+              const h = maxDaily > 0 ? Math.max(2, (d.cost / maxDaily) * 100) : 0;
+              return (
+                <div
+                  key={d.date}
+                  className="flex-1 min-w-0 flex flex-col items-center justify-end"
+                  title={`${d.date}: ${fmtMoney(d.cost)}`}
+                >
+                  <div
+                    className="w-full rounded-t bg-blue-500/70 hover:bg-blue-500 transition-colors"
+                    style={{ height: `${h}%` }}
+                  />
+                  <span className="text-[9px] text-gray-400 mt-0.5 truncate w-full text-center">
+                    {d.date.slice(5)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
+        </section>
+      )}
 
-          {/* Daily cost bar chart */}
-          {summary.by_day && summary.by_day.length > 0 && (
-            <div className="rounded-lg border border-border-subtle bg-surface-secondary p-5">
-              <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-4">
-                Daily cost
-              </h2>
-              <div className="flex items-end gap-1 h-32">
-                {summary.by_day.map((d) => {
-                  const heightPct = dailyMax > 0 ? Math.max(2, (d.cost / dailyMax) * 100) : 0;
-                  return (
-                    <div
-                      key={d.date}
-                      className="flex-1 flex flex-col items-center justify-end group relative"
-                      title={`${d.date}: ${fmtMoney(d.cost, summary.currency)}`}
-                    >
-                      <div
-                        className="w-full bg-accent/70 hover:bg-accent-hover rounded-t transition-colors"
-                        style={{ height: `${heightPct}%` }}
-                      />
-                      <div className="text-[9px] text-text-muted mt-1 truncate w-full text-center">
-                        {d.date.slice(5)}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Cost by adapter */}
-          <div className="rounded-lg border border-border-subtle bg-surface-secondary p-5">
-            <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-3 flex items-center gap-2">
-              <Layers className="h-4 w-4" /> Cost by Adapter
+      {/* By adapter */}
+      {data && data.by_adapter && data.by_adapter.length > 0 && (
+        <section className="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden" aria-label="Cost by adapter">
+          <div className="px-4 py-3 border-b border-slate-800">
+            <h2 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
+              <Layers className="h-4 w-4" /> By Adapter
             </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs uppercase text-text-muted border-b border-border-subtle">
-                    <th className="py-2 pr-3">Adapter</th>
-                    <th className="py-2 pr-3 text-right">Tasks</th>
-                    <th className="py-2 pr-3 text-right">Tokens</th>
-                    <th className="py-2 pr-3 text-right">Cost</th>
-                    <th className="py-2 text-right">% of total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {summary.by_adapter?.length ? (
-                    summary.by_adapter.map((a) => (
-                      <tr key={a.adapter} className="border-b border-border-subtle/50">
-                        <td className="py-2 pr-3 text-text-primary font-mono">{a.adapter}</td>
-                        <td className="py-2 pr-3 text-right text-text-secondary">{fmt(a.tasks)}</td>
-                        <td className="py-2 pr-3 text-right text-text-secondary">{fmt(a.tokens)}</td>
-                        <td className="py-2 pr-3 text-right text-text-secondary">
-                          {fmtMoney(a.cost, summary.currency)}
-                        </td>
-                        <td className="py-2 text-right text-text-secondary">
-                          <div className="flex items-center justify-end gap-2">
-                            <div className="w-20 h-1.5 bg-surface-tertiary rounded overflow-hidden">
-                              <div
-                                className="h-full bg-accent"
-                                style={{ width: `${Math.min(100, a.percent_of_total)}%` }}
-                              />
-                            </div>
-                            <span className="w-12 text-right">{fmtPct(a.percent_of_total)}</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={5} className="py-4 text-center text-text-muted text-xs">
-                        No adapter data for this period.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
           </div>
-
-          {/* Cost by model */}
-          <div className="rounded-lg border border-border-subtle bg-surface-secondary p-5">
-            <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-3 flex items-center gap-2">
-              <Cpu className="h-4 w-4" /> Cost by Model
-            </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs uppercase text-text-muted border-b border-border-subtle">
-                    <th className="py-2 pr-3">Model</th>
-                    <th className="py-2 pr-3 text-right">Tasks</th>
-                    <th className="py-2 pr-3 text-right">Tokens</th>
-                    <th className="py-2 pr-3 text-right">Cost</th>
-                    <th className="py-2 text-right">% of total</th>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-800 text-left text-xs uppercase tracking-wider text-gray-300">
+                  <th className="px-4 py-2.5 font-medium">Adapter</th>
+                  <th className="px-4 py-2.5 font-medium text-right">Cost</th>
+                  <th className="px-4 py-2.5 font-medium text-right">Tokens</th>
+                  <th className="px-4 py-2.5 font-medium text-right">Calls</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {data.by_adapter.map((row) => (
+                  <tr key={row.adapter} className="hover:bg-slate-800/40 transition-colors">
+                    <td className="px-4 py-2.5 text-white text-xs font-mono">{row.adapter}</td>
+                    <td className="px-4 py-2.5 text-gray-300 text-xs text-right">
+                      {fmtMoney(row.cost)}
+                    </td>
+                    <td className="px-4 py-2.5 text-gray-300 text-xs text-right">
+                      {fmt(row.input_tokens + row.output_tokens)}
+                    </td>
+                    <td className="px-4 py-2.5 text-gray-300 text-xs text-right">
+                      {fmt(row.call_count)}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {summary.by_model?.length ? (
-                    summary.by_model.map((m) => (
-                      <tr key={m.model} className="border-b border-border-subtle/50">
-                        <td className="py-2 pr-3 text-text-primary font-mono">{m.model}</td>
-                        <td className="py-2 pr-3 text-right text-text-secondary">{fmt(m.tasks)}</td>
-                        <td className="py-2 pr-3 text-right text-text-secondary">{fmt(m.tokens)}</td>
-                        <td className="py-2 pr-3 text-right text-text-secondary">
-                          {fmtMoney(m.cost, summary.currency)}
-                        </td>
-                        <td className="py-2 text-right text-text-secondary">{fmtPct(m.percent_of_total)}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={5} className="py-4 text-center text-text-muted text-xs">
-                        No model data for this period.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Budget progress per org */}
-          {summary.by_org && summary.by_org.length > 0 && (
-            <div className="rounded-lg border border-border-subtle bg-surface-secondary p-5">
-              <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Building2 className="h-4 w-4" /> Budget by Organization
-              </h2>
-              <div className="space-y-3">
-                {summary.by_org.map((o) => (
-                  <BudgetBar key={o.org_id} org={o} currency={summary.currency} />
                 ))}
-              </div>
-            </div>
-          )}
-        </>
-      ) : null}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* By model */}
+      {data && data.by_model && data.by_model.length > 0 && (
+        <section className="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden" aria-label="Cost by model">
+          <div className="px-4 py-3 border-b border-slate-800">
+            <h2 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
+              <Cpu className="h-4 w-4" /> By Model
+            </h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-800 text-left text-xs uppercase tracking-wider text-gray-300">
+                  <th className="px-4 py-2.5 font-medium">Model</th>
+                  <th className="px-4 py-2.5 font-medium text-right">Cost</th>
+                  <th className="px-4 py-2.5 font-medium text-right">Tokens</th>
+                  <th className="px-4 py-2.5 font-medium text-right">Calls</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {data.by_model.map((row) => (
+                  <tr key={row.model} className="hover:bg-slate-800/40 transition-colors">
+                    <td className="px-4 py-2.5 text-white text-xs font-mono">{row.model}</td>
+                    <td className="px-4 py-2.5 text-gray-300 text-xs text-right">
+                      {fmtMoney(row.cost)}
+                    </td>
+                    <td className="px-4 py-2.5 text-gray-300 text-xs text-right">
+                      {fmt(row.input_tokens + row.output_tokens)}
+                    </td>
+                    <td className="px-4 py-2.5 text-gray-300 text-xs text-right">
+                      {fmt(row.call_count)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* By organisation / budgets */}
+      {data && data.by_org && data.by_org.length > 0 && (
+        <section className="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden" aria-label="Budget progress by organisation">
+          <div className="px-4 py-3 border-b border-slate-800">
+            <h2 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
+              <Building2 className="h-4 w-4" /> Organisation Budgets
+            </h2>
+          </div>
+          <div className="divide-y divide-slate-800">
+            {data.by_org.map((row) => {
+              const pct = row.budget_usd > 0 ? Math.min(100, (row.spent_usd / row.budget_usd) * 100) : 0;
+              const overBudget = row.budget_usd > 0 && row.spent_usd > row.budget_usd;
+              return (
+                <div key={row.org} className="px-4 py-3 hover:bg-slate-800/40 transition-colors">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-white font-medium">{row.org}</span>
+                    <span className="text-gray-300 text-xs">
+                      {fmtMoney(row.spent_usd)} / {fmtMoney(row.budget_usd)}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        overBudget
+                          ? 'bg-red-500'
+                          : pct > 80
+                            ? 'bg-yellow-500'
+                            : 'bg-green-500'
+                      }`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  {overBudget && (
+                    <div className="mt-1 flex items-center gap-1 text-[10px] text-red-400">
+                      <AlertTriangle className="h-3 w-3" />
+                      Over budget
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && data && data.by_day.length === 0 && (
+        <div className="rounded-lg border border-slate-800 bg-slate-900 p-12 text-center text-gray-400" role="status">
+          No cost data for the selected range.
+        </div>
+      )}
+      {isLoading && !data && (
+        <div className="rounded-lg border border-slate-800 bg-slate-900 p-12 text-center text-gray-400" role="status" aria-live="polite">
+          Loading cost data…
+        </div>
+      )}
     </div>
   );
 }
 
-function BudgetBar({ org, currency }: { org: { org_id: string; org_name?: string; spend: number; budget: number; percent_used: number; status: 'ok' | 'warning' | 'critical' | 'exceeded' }; currency: string }) {
-  const colorMap: Record<typeof org.status, string> = {
-    ok: 'bg-success',
-    warning: 'bg-warning',
-    critical: 'bg-orange-500',
-    exceeded: 'bg-danger',
+function KpiCard({
+  icon,
+  label,
+  value,
+  sub,
+  accent,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub: string;
+  accent: 'indigo' | 'sky' | 'emerald' | 'amber';
+}) {
+  const accentMap: Record<typeof accent, string> = {
+    indigo: 'text-blue-400 bg-blue-500/10',
+    sky: 'text-sky-400 bg-sky-500/10',
+    emerald: 'text-green-400 bg-green-500/10',
+    amber: 'text-yellow-400 bg-yellow-500/10',
   };
-  // Add visual threshold markers at 80% and 90%.
-  const fillPct = Math.min(100, Math.max(0, org.percent_used));
   return (
-    <div>
-      <div className="flex items-center justify-between text-sm mb-1">
-        <span className="text-text-primary font-medium">
-          {org.org_name ?? org.org_id}
-          {org.status === 'exceeded' && (
-            <AlertTriangle className="inline h-3.5 w-3.5 ml-1.5 text-danger" />
-          )}
-        </span>
-        <span className="text-text-secondary text-xs">
-          {fmtMoney(org.spend, currency)} / {fmtMoney(org.budget, currency)}
-          <span className="ml-2 text-text-secondary">{fmtPct(org.percent_used)}</span>
-        </span>
+    <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+      <div className="flex items-center justify-between">
+        <span className="text-xs uppercase tracking-wider text-gray-300">{label}</span>
+        <span className={`p-1.5 rounded-md ${accentMap[accent]}`}>{icon}</span>
       </div>
-      <div className="relative h-2.5 bg-surface-tertiary rounded overflow-hidden">
-        <div
-          className={`h-full ${colorMap[org.status]} transition-all`}
-          style={{ width: `${fillPct}%` }}
-        />
-        {/* Threshold tick marks at 80% and 90% */}
-        <div className="absolute top-0 bottom-0 w-px bg-warning/40" style={{ left: '80%' }} />
-        <div className="absolute top-0 bottom-0 w-px bg-orange-300/40" style={{ left: '90%' }} />
-      </div>
+      <div className="mt-2 text-2xl font-semibold text-white">{value}</div>
+      <div className="text-xs text-gray-400 mt-1">{sub}</div>
     </div>
   );
 }

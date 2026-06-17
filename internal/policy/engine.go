@@ -291,7 +291,7 @@ func (e *PolicyEngine) EvaluateAllForAgent(ctx context.Context, agentID string) 
 	}
 	out := make([]PolicyEvaluationResult, 0, len(assignments))
 	for _, a := range assignments {
-		pol, err := e.store.GetPolicy(ctx, a.PolicyID)
+		pol, err := e.store.GetPolicy(ctx, "", a.PolicyID)
 		if err != nil {
 			e.log.Warn("get policy failed", "policy_id", a.PolicyID, "err", err)
 			continue
@@ -352,7 +352,7 @@ func (e *PolicyEngine) EvaluatePolicyManual(ctx context.Context, req PolicyEvalu
 	if req.PolicyID == "" {
 		return nil, errors.New("policy_id required")
 	}
-	pol, err := e.store.GetPolicy(ctx, req.PolicyID)
+	pol, err := e.store.GetPolicy(ctx, "", req.PolicyID)
 	if err != nil {
 		return nil, err
 	}
@@ -442,7 +442,7 @@ func (e *PolicyEngine) SeedDefaults(ctx context.Context) (seeded, skipped int, e
 		// Use a deterministic ID derived from the name so re-seeding
 		// updates the same row.
 		policyID := "default-" + name
-		existing, getErr := e.store.GetPolicy(ctx, policyID)
+		existing, getErr := e.store.GetPolicy(ctx, "", policyID)
 		now := e.now()
 		if getErr == nil && existing != nil {
 			skipped++

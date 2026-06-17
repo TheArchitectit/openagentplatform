@@ -43,7 +43,7 @@ const DefaultFlapThreshold = 5
 // update alerts and rules.
 type Engine interface {
 	InsertAlert(ctx context.Context, a *models.Alert) error
-	GetAlert(ctx context.Context, id string) (*models.Alert, error)
+	GetAlert(ctx context.Context, orgID, id string) (*models.Alert, error)
 	GetAlertByDedupKey(ctx context.Context, dedupKey string) (*models.Alert, error)
 	UpdateAlertState(ctx context.Context, a *models.Alert) error
 	InsertStateTransition(ctx context.Context, t *models.AlertStateMachine) error
@@ -431,7 +431,7 @@ func (e *AlertEngine) Close(ctx context.Context, alertID, actor string) error {
 
 // transitionByID is the shared internal helper for user-driven transitions.
 func (e *AlertEngine) transitionByID(ctx context.Context, alertID, event, actor, reason string, duration time.Duration) error {
-	alert, err := e.store.GetAlert(ctx, alertID)
+	alert, err := e.store.GetAlert(ctx, "", alertID)
 	if err != nil {
 		return err
 	}

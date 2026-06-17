@@ -50,22 +50,22 @@ const RUNTIME_META: Record<ScriptRuntime, { label: string; icon: typeof Terminal
   bash: {
     label: 'Bash',
     icon: Terminal,
-    classes: 'bg-success/10 text-success border-success/20',
+    classes: 'bg-green-500/10 text-green-400 border-green-800',
   },
   powershell: {
     label: 'PowerShell',
     icon: Terminal,
-    classes: 'bg-info/10 text-info border-info/20',
+    classes: 'bg-blue-500/10 text-blue-400 border-blue-800',
   },
   python: {
     label: 'Python',
     icon: Code2,
-    classes: 'bg-warning/10 text-warning border-warning/20',
+    classes: 'bg-yellow-500/10 text-yellow-400 border-yellow-800',
   },
   node: {
     label: 'Node',
     icon: Braces,
-    classes: 'bg-accent/10 text-accent border-accent/20',
+    classes: 'bg-blue-600/10 text-blue-400 border-blue-500/20',
   },
 };
 
@@ -75,32 +75,32 @@ const STATUS_META: Record<
 > = {
   pending: {
     label: 'Pending',
-    classes: 'bg-text-muted/10 text-text-secondary border-text-muted/20',
+    classes: 'bg-slate-500/10 text-gray-300 border-slate-700',
     icon: CircleDashed,
   },
   in_progress: {
     label: 'Running',
-    classes: 'bg-accent/10 text-accent border-accent/20',
+    classes: 'bg-blue-600/10 text-blue-400 border-blue-500/20',
     icon: CirclePlay,
   },
   completed: {
     label: 'Success',
-    classes: 'bg-success/10 text-success border-success/20',
+    classes: 'bg-green-500/10 text-green-400 border-green-800',
     icon: CircleCheck,
   },
   failed: {
     label: 'Failed',
-    classes: 'bg-danger/10 text-danger border-danger/20',
+    classes: 'bg-red-500/10 text-red-400 border-red-800',
     icon: CircleX,
   },
   cancelled: {
     label: 'Cancelled',
-    classes: 'bg-text-muted/10 text-text-secondary border-text-muted/20',
+    classes: 'bg-slate-500/10 text-gray-300 border-slate-700',
     icon: CircleDashed,
   },
   timeout: {
     label: 'Timeout',
-    classes: 'bg-warning/10 text-warning border-warning/20',
+    classes: 'bg-yellow-500/10 text-yellow-400 border-yellow-800',
     icon: CircleAlert,
   },
 };
@@ -193,12 +193,12 @@ function ScriptsListPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center" aria-hidden="true">
-            <FileCode2 className="h-4 w-4 text-accent" />
+          <div className="h-9 w-9 rounded-md bg-blue-600/10 border border-blue-500/20 flex items-center justify-center" aria-hidden="true">
+            <FileCode2 className="h-4 w-4 text-blue-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-text-primary">Scripts</h1>
-            <p className="text-text-secondary text-sm mt-0.5">
+            <h1 className="text-2xl font-bold text-white">Scripts</h1>
+            <p className="text-gray-300 text-sm mt-0.5">
               Reusable script library for on-demand execution across the fleet.
             </p>
           </div>
@@ -207,7 +207,7 @@ function ScriptsListPage() {
           <span
             className={
               'inline-flex h-2 w-2 rounded-full ' +
-              (status === 'open' ? 'bg-success' : status === 'connecting' ? 'bg-warning' : 'bg-text-muted')
+              (status === 'open' ? 'bg-green-500' : status === 'connecting' ? 'bg-yellow-500' : 'bg-slate-500')
             }
             role="status"
             aria-label={`WebSocket connection: ${status}`}
@@ -219,7 +219,7 @@ function ScriptsListPage() {
             }}
             disabled={isLoading}
             aria-label="Refresh scripts"
-            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-surface-tertiary hover:bg-border-strong border border-border-strong text-sm text-text-primary disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
+            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-white disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
           >
             <RefreshCw className={'h-4 w-4 ' + (isLoading ? 'animate-spin' : '')} aria-hidden="true" />
             <span>Refresh</span>
@@ -229,7 +229,7 @@ function ScriptsListPage() {
             onClick={() => {
               void navigate({ to: '/scripts/new' });
             }}
-            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-accent hover:bg-accent-hover text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
+            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-blue-600 hover:bg-blue-500 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
             <span>Create Script</span>
@@ -242,7 +242,7 @@ function ScriptsListPage() {
         <div
           role="tablist"
           aria-label="Filter scripts by runtime"
-          className="flex items-center gap-1 p-1 rounded-md bg-surface-secondary border border-border-subtle flex-wrap"
+          className="flex items-center gap-1 p-1 rounded-md bg-slate-900 border border-slate-800 flex-wrap"
         >
           {RUNTIME_TABS.map((t) => (
             <button
@@ -252,21 +252,21 @@ function ScriptsListPage() {
               aria-selected={filter === t.id}
               onClick={() => setFilter(t.id)}
               className={
-                'px-3 h-8 rounded text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ' +
+                'px-3 h-8 rounded text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ' +
                 (filter === t.id
-                  ? 'bg-surface-tertiary text-text-primary'
-                  : 'text-text-secondary hover:text-text-primary')
+                  ? 'bg-slate-800 text-white'
+                  : 'text-gray-300 hover:text-white')
               }
             >
               {t.label}
-              <span className="ml-2 text-xs text-text-muted" aria-hidden="true">{counts[t.id]}</span>
+              <span className="ml-2 text-xs text-gray-400" aria-hidden="true">{counts[t.id]}</span>
               <span className="sr-only">({counts[t.id]} scripts)</span>
             </button>
           ))}
         </div>
 
         <div className="relative w-full sm:w-72" role="search">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" aria-hidden="true" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" aria-hidden="true" />
           <input
             type="search"
             role="searchbox"
@@ -274,17 +274,17 @@ function ScriptsListPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search scripts…"
-            className="w-full h-9 pl-9 pr-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus:border-accent"
+            className="w-full h-9 pl-9 pr-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
           />
         </div>
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 overflow-hidden">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table role="table" aria-label="Scripts" className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-text-muted border-b border-border-subtle bg-surface-primary/40">
+              <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-slate-800 bg-slate-800">
                 <th className="px-4 py-3" scope="col">Name</th>
                 <th className="px-4 py-3 w-32" scope="col">Runtime</th>
                 <th className="px-4 py-3" scope="col">Description</th>
@@ -293,10 +293,10 @@ function ScriptsListPage() {
                 <th className="px-4 py-3 text-right w-32" scope="col">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-subtle">
+            <tbody className="divide-y divide-slate-800">
               {isLoading && scripts.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-text-muted" role="status" aria-live="polite">
+                  <td colSpan={6} className="px-4 py-12 text-center text-gray-400" role="status" aria-live="polite">
                     <div className="inline-flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                       <span>Loading scripts…</span>
@@ -305,13 +305,13 @@ function ScriptsListPage() {
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-danger" role="alert">
+                  <td colSpan={6} className="px-4 py-12 text-center text-red-400" role="alert">
                     Failed to load scripts: {error.message}
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-text-muted" role="status">
+                  <td colSpan={6} className="px-4 py-12 text-center text-gray-400" role="status">
                     No scripts match the current filter.
                   </td>
                 </tr>
@@ -335,17 +335,17 @@ function ScriptsListPage() {
                       }}
                       tabIndex={0}
                       aria-label={`Script: ${s.name}. Press Enter to view details.`}
-                      className="hover:bg-surface-tertiary/40 cursor-pointer transition-colors focus:outline-none focus-visible:bg-surface-tertiary/60"
+                      className="hover:bg-slate-800/40 cursor-pointer transition-colors focus:outline-none focus-visible:bg-slate-800/60"
                     >
                       <td className="px-4 py-3">
                         <div className="flex flex-col">
-                          <span className="text-text-primary font-medium">{s.name}</span>
+                          <span className="text-white font-medium">{s.name}</span>
                           {s.tags && s.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-1">
                               {s.tags.slice(0, 3).map((tag) => (
                                 <span
                                   key={tag}
-                                  className="inline-flex px-1.5 py-0.5 rounded text-[10px] bg-surface-tertiary border border-border-strong text-text-secondary"
+                                  className="inline-flex px-1.5 py-0.5 rounded text-[10px] bg-slate-800 border border-slate-700 text-gray-300"
                                 >
                                   {tag}
                                 </span>
@@ -365,10 +365,10 @@ function ScriptsListPage() {
                           {runtimeMeta.label}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-text-secondary max-w-xs truncate">
+                      <td className="px-4 py-3 text-gray-300 max-w-xs truncate">
                         {s.description ?? '—'}
                       </td>
-                      <td className="px-4 py-3 text-text-secondary">
+                      <td className="px-4 py-3 text-gray-300">
                         {formatRelative(s.last_run, now)}
                       </td>
                       <td className="px-4 py-3">
@@ -385,7 +385,7 @@ function ScriptsListPage() {
                             {meta.label}
                           </span>
                         ) : (
-                          <span className="text-xs text-text-muted">—</span>
+                          <span className="text-xs text-gray-400">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
@@ -396,7 +396,7 @@ function ScriptsListPage() {
                             onClick={() => {
                               void onRunNow(s);
                             }}
-                            className="inline-flex items-center gap-1 px-2 h-7 rounded text-xs text-text-secondary hover:bg-border-strong border border-border-strong disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
+                            className="inline-flex items-center gap-1 px-2 h-7 rounded text-xs text-gray-300 hover:bg-slate-700 border border-slate-700 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
                             aria-label={`Run script ${s.name} now`}
                           >
                             {isBusy ? (
@@ -412,7 +412,7 @@ function ScriptsListPage() {
                             onClick={() => {
                               void onDelete(s);
                             }}
-                            className="inline-flex items-center gap-1 px-2 h-7 rounded text-xs text-danger hover:bg-danger/10 border border-danger/30 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
+                            className="inline-flex items-center gap-1 px-2 h-7 rounded text-xs text-red-400 hover:bg-red-500/10 border border-red-800 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
                             aria-label={`Delete script ${s.name}`}
                           >
                             <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />

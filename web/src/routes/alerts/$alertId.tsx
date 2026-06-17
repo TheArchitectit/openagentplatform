@@ -45,22 +45,22 @@ export const Route = createFileRoute('/alerts/$alertId')({
 });
 
 const STATE_BADGE: Record<string, { label: string; classes: string }> = {
-  open: { label: 'Open', classes: 'bg-danger/10 text-danger border-danger/20' },
+  open: { label: 'Open', classes: 'bg-red-500/10 text-red-400 border-red-800' },
   acknowledged: {
     label: 'Acknowledged',
-    classes: 'bg-warning/10 text-warning border-warning/20',
+    classes: 'bg-yellow-500/10 text-yellow-400 border-yellow-800',
   },
   snoozed: {
     label: 'Snoozed',
-    classes: 'bg-text-muted/10 text-text-secondary border-text-muted/30',
+    classes: 'bg-slate-500/10 text-gray-300 border-slate-700',
   },
   resolved: {
     label: 'Resolved',
-    classes: 'bg-success/10 text-success border-success/20',
+    classes: 'bg-green-500/10 text-green-400 border-green-800',
   },
   closed: {
     label: 'Closed',
-    classes: 'bg-border-strong/30 text-text-secondary border-border-strong/30',
+    classes: 'bg-slate-700/30 text-gray-300 border-slate-700/30',
   },
 };
 
@@ -100,23 +100,23 @@ function deliveryTone(status: string): { classes: string; icon: typeof CircleChe
   switch (status.toLowerCase()) {
     case 'delivered':
       return {
-        classes: 'text-success bg-success/10 border-success/20',
+        classes: 'text-green-400 bg-green-500/10 border-green-800',
         icon: CircleCheck,
       };
     case 'sent':
       return {
-        classes: 'text-info bg-info/10 border-info/20',
+        classes: 'text-blue-400 bg-blue-500/10 border-blue-800',
         icon: Send,
       };
     case 'failed':
       return {
-        classes: 'text-danger bg-danger/10 border-danger/20',
+        classes: 'text-red-400 bg-red-500/10 border-red-800',
         icon: CircleX,
       };
     case 'pending':
     default:
       return {
-        classes: 'text-text-secondary bg-border-strong/30 border-border-strong/30',
+        classes: 'text-gray-300 bg-slate-700/30 border-slate-700/30',
         icon: CircleDot,
       };
   }
@@ -134,11 +134,11 @@ function transitionIcon(toState: string) {
 
 function transitionTone(toState: string): string {
   const s = (toState ?? '').toLowerCase();
-  if (s === 'resolved' || s === 'closed') return 'bg-success/15 border-success/30 text-success';
-  if (s === 'acknowledged') return 'bg-warning/15 border-warning/30 text-warning';
-  if (s === 'snoozed') return 'bg-border-strong/20 border-text-muted/30 text-text-secondary';
-  if (s === 'open') return 'bg-danger/15 border-danger/30 text-danger';
-  return 'bg-border-strong/30 border-border-strong/30 text-text-secondary';
+  if (s === 'resolved' || s === 'closed') return 'bg-green-500/15 border-green-800 text-green-400';
+  if (s === 'acknowledged') return 'bg-yellow-500/15 border-yellow-800 text-yellow-400';
+  if (s === 'snoozed') return 'bg-slate-700/20 border-slate-700 text-gray-300';
+  if (s === 'open') return 'bg-red-500/15 border-red-800 text-red-400';
+  return 'bg-slate-700/30 border-slate-700/30 text-gray-300';
 }
 
 const SNOOZE_PRESETS: { label: string; mins: number }[] = [
@@ -326,7 +326,7 @@ function AlertDetailPage() {
 
   if (isLoading && !alert) {
     return (
-      <div className="text-center text-text-muted py-24">
+      <div className="text-center text-gray-400 py-24">
         <Loader2 className="inline h-5 w-5 animate-spin mr-2" />
         Loading alert…
       </div>
@@ -338,12 +338,12 @@ function AlertDetailPage() {
       <div className="space-y-4">
         <Link
           to="/alerts"
-          className="inline-flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary"
+          className="inline-flex items-center gap-2 text-sm text-gray-300 hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>Back to alerts</span>
         </Link>
-        <div className="rounded-lg border border-danger/30 bg-danger/5 p-6 text-danger">
+        <div className="rounded-lg border border-red-800 bg-red-500/5 p-6 text-red-400">
           Failed to load alert: {error.message}
         </div>
       </div>
@@ -362,31 +362,31 @@ function AlertDetailPage() {
         <div className="flex items-start gap-3 min-w-0">
           <Link
             to="/alerts"
-            className="h-9 w-9 rounded-md bg-surface-tertiary border border-border-strong flex items-center justify-center hover:bg-border-strong transition-colors shrink-0"
+            className="h-9 w-9 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center hover:bg-slate-700 transition-colors shrink-0"
             title="Back to alerts"
           >
-            <ArrowLeft className="h-4 w-4 text-text-secondary" />
+            <ArrowLeft className="h-4 w-4 text-gray-300" />
           </Link>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <SeverityBadge severity={alert.severity} size="md" />
               <StateBadge state={alert.state} />
             </div>
-            <h1 className="text-2xl font-bold text-text-primary mt-2 break-words">
+            <h1 className="text-2xl font-bold text-white mt-2 break-words">
               {alert.title}
             </h1>
             {alert.message && (
-              <p className="text-text-secondary mt-1 break-words">{alert.message}</p>
+              <p className="text-gray-300 mt-1 break-words">{alert.message}</p>
             )}
             <button
               type="button"
               onClick={() => void handleCopyId()}
               aria-label={`Copy alert ID ${alert.id} to clipboard`}
-              className="mt-2 inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-text-secondary font-mono focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
+              className="mt-2 inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-300 font-mono focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
             >
               <span>{alert.id}</span>
               {copyOk ? (
-                <Check className="h-3 w-3 text-success" aria-hidden="true" />
+                <Check className="h-3 w-3 text-green-400" aria-hidden="true" />
               ) : null}
             </button>
           </div>
@@ -400,7 +400,7 @@ function AlertDetailPage() {
               disabled={actionBusy !== null}
               onClick={() => void doAction('ack')}
               aria-label="Acknowledge this alert"
-              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-warning/15 border border-warning/30 text-warning text-sm hover:bg-warning/25 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-yellow-500/15 border border-yellow-800 text-yellow-400 text-sm hover:bg-yellow-500/25 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
             >
               {actionBusy === 'ack' ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -419,7 +419,7 @@ function AlertDetailPage() {
                 aria-expanded={snoozeOpen}
                 aria-haspopup="menu"
                 aria-label="Snooze this alert"
-                className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-surface-tertiary border border-border-strong text-text-primary text-sm hover:bg-border-strong disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-slate-800 border border-slate-700 text-white text-sm hover:bg-slate-700 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
               >
                 <Clock className="h-4 w-4" aria-hidden="true" />
                 <span>Snooze</span>
@@ -441,7 +441,7 @@ function AlertDetailPage() {
               disabled={actionBusy !== null}
               onClick={() => void doAction('resolve')}
               aria-label="Resolve this alert"
-              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-success/15 border border-success/30 text-success text-sm hover:bg-success/25 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-green-500/15 border border-green-800 text-green-400 text-sm hover:bg-green-500/25 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
             >
               {actionBusy === 'resolve' ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -456,7 +456,7 @@ function AlertDetailPage() {
             disabled={actionBusy !== null}
             onClick={() => void doAction('close')}
             aria-label="Close this alert"
-            className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-surface-tertiary border border-border-strong text-text-secondary text-sm hover:bg-border-strong disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-slate-800 border border-slate-700 text-gray-300 text-sm hover:bg-slate-700 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
           >
             {actionBusy === 'close' ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -469,74 +469,74 @@ function AlertDetailPage() {
       </div>
 
       {/* Timestamps row */}
-      <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-4">
+      <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
         <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">Created</dt>
-            <dd className="text-text-primary mt-1">{formatTime(alert.created_at)}</dd>
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">Created</dt>
+            <dd className="text-white mt-1">{formatTime(alert.created_at)}</dd>
           </div>
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">
               Last state change
             </dt>
-            <dd className="text-text-primary mt-1">
+            <dd className="text-white mt-1">
               {formatTime(alert.updated_at ?? alert.created_at)}
             </dd>
           </div>
           {alert.acknowledged_at && (
             <div>
-              <dt className="text-xs text-text-muted uppercase tracking-wider">
+              <dt className="text-xs text-gray-400 uppercase tracking-wider">
                 Acknowledged
               </dt>
-              <dd className="text-text-primary mt-1">
+              <dd className="text-white mt-1">
                 {formatTime(alert.acknowledged_at)}
                 {alert.acknowledged_by && (
-                  <span className="text-text-muted"> · {alert.acknowledged_by}</span>
+                  <span className="text-gray-400"> · {alert.acknowledged_by}</span>
                 )}
               </dd>
             </div>
           )}
           {alert.resolved_at && (
             <div>
-              <dt className="text-xs text-text-muted uppercase tracking-wider">
+              <dt className="text-xs text-gray-400 uppercase tracking-wider">
                 Resolved
               </dt>
-              <dd className="text-text-primary mt-1">
+              <dd className="text-white mt-1">
                 {formatTime(alert.resolved_at)}
                 {alert.resolved_by && (
-                  <span className="text-text-muted"> · {alert.resolved_by}</span>
+                  <span className="text-gray-400"> · {alert.resolved_by}</span>
                 )}
               </dd>
             </div>
           )}
           {alert.snoozed_until && state === 'snoozed' && (
             <div>
-              <dt className="text-xs text-text-muted uppercase tracking-wider">
+              <dt className="text-xs text-gray-400 uppercase tracking-wider">
                 Snoozed until
               </dt>
-              <dd className="text-text-primary mt-1">{formatTime(alert.snoozed_until)}</dd>
+              <dd className="text-white mt-1">{formatTime(alert.snoozed_until)}</dd>
             </div>
           )}
         </dl>
       </div>
 
       {/* Details card */}
-      <div className="rounded-lg border border-border-subtle bg-surface-secondary/60">
-        <div className="px-5 py-4 border-b border-border-subtle">
-          <h2 className="text-sm font-semibold text-text-primary">Details</h2>
+      <div className="rounded-lg border border-slate-800 bg-slate-900">
+        <div className="px-5 py-4 border-b border-slate-800">
+          <h2 className="text-sm font-semibold text-white">Details</h2>
         </div>
         <div className="p-5 space-y-5">
           <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
-              <dt className="text-xs text-text-muted uppercase tracking-wider">Check</dt>
-              <dd className="text-text-primary mt-1 flex items-center gap-2">
-                <Activity className="h-3.5 w-3.5 text-text-muted" />
+              <dt className="text-xs text-gray-400 uppercase tracking-wider">Check</dt>
+              <dd className="text-white mt-1 flex items-center gap-2">
+                <Activity className="h-3.5 w-3.5 text-gray-400" />
                 {alert.check_name ? (
                   alert.check_id ? (
                     <Link
                       to="/checks/$checkId"
                       params={{ checkId: alert.check_id }}
-                      className="text-text-primary hover:text-accent underline-offset-2 hover:underline"
+                      className="text-white hover:text-blue-400 underline-offset-2 hover:underline"
                     >
                       {alert.check_name}
                     </Link>
@@ -546,20 +546,20 @@ function AlertDetailPage() {
                 ) : alert.check_id ? (
                   <span className="font-mono text-xs">{alert.check_id}</span>
                 ) : (
-                  <span className="text-text-muted">—</span>
+                  <span className="text-gray-400">—</span>
                 )}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-text-muted uppercase tracking-wider">Agent</dt>
-              <dd className="text-text-primary mt-1 flex items-center gap-2">
-                <Bot className="h-3.5 w-3.5 text-text-muted" />
+              <dt className="text-xs text-gray-400 uppercase tracking-wider">Agent</dt>
+              <dd className="text-white mt-1 flex items-center gap-2">
+                <Bot className="h-3.5 w-3.5 text-gray-400" />
                 {alert.hostname ? (
                   alert.agent_id ? (
                     <Link
                       to="/agents/$agentId"
                       params={{ agentId: alert.agent_id }}
-                      className="text-text-primary hover:text-accent underline-offset-2 hover:underline"
+                      className="text-white hover:text-blue-400 underline-offset-2 hover:underline"
                     >
                       {alert.hostname}
                     </Link>
@@ -569,28 +569,28 @@ function AlertDetailPage() {
                 ) : alert.agent_id ? (
                   <span className="font-mono text-xs">{alert.agent_id}</span>
                 ) : (
-                  <span className="text-text-muted">—</span>
+                  <span className="text-gray-400">—</span>
                 )}
               </dd>
             </div>
             {alert.source && (
               <div>
-                <dt className="text-xs text-text-muted uppercase tracking-wider">
+                <dt className="text-xs text-gray-400 uppercase tracking-wider">
                   Source
                 </dt>
-                <dd className="text-text-primary mt-1 font-mono text-xs">
+                <dd className="text-white mt-1 font-mono text-xs">
                   {alert.source}
                 </dd>
               </div>
             )}
             {alert.tags && alert.tags.length > 0 && (
               <div>
-                <dt className="text-xs text-text-muted uppercase tracking-wider">Tags</dt>
+                <dt className="text-xs text-gray-400 uppercase tracking-wider">Tags</dt>
                 <dd className="mt-1 flex flex-wrap gap-1.5">
                   {alert.tags.map((t) => (
                     <span
                       key={t}
-                      className="inline-flex px-2 py-0.5 rounded-full bg-surface-tertiary border border-border-strong text-xs text-text-secondary"
+                      className="inline-flex px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-xs text-gray-300"
                     >
                       {t}
                     </span>
@@ -602,10 +602,10 @@ function AlertDetailPage() {
 
           {alert.output && (
             <div>
-              <h3 className="text-xs text-text-muted uppercase tracking-wider mb-1.5">
+              <h3 className="text-xs text-gray-400 uppercase tracking-wider mb-1.5">
                 Check output
               </h3>
-              <pre className="rounded-md bg-surface-primary/80 border border-border-subtle p-3 text-xs text-text-primary font-mono whitespace-pre-wrap break-words max-h-72 overflow-auto">
+              <pre className="rounded-md bg-slate-950/80 border border-slate-800 p-3 text-xs text-white font-mono whitespace-pre-wrap break-words max-h-72 overflow-auto">
                 {alert.output}
               </pre>
             </div>
@@ -613,17 +613,17 @@ function AlertDetailPage() {
 
           {alert.metrics && Object.keys(alert.metrics).length > 0 && (
             <div>
-              <h3 className="text-xs text-text-muted uppercase tracking-wider mb-1.5">
+              <h3 className="text-xs text-gray-400 uppercase tracking-wider mb-1.5">
                 Metrics
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {Object.entries(alert.metrics).map(([k, v]) => (
                   <div
                     key={k}
-                    className="rounded-md border border-border-subtle bg-surface-primary/40 px-3 py-2"
+                    className="rounded-md border border-slate-800 bg-slate-800 px-3 py-2"
                   >
-                    <div className="text-xs text-text-muted">{k}</div>
-                    <div className="text-sm text-text-primary font-medium tabular-nums">
+                    <div className="text-xs text-gray-400">{k}</div>
+                    <div className="text-sm text-white font-medium tabular-nums">
                       {String(v)}
                     </div>
                   </div>
@@ -635,15 +635,15 @@ function AlertDetailPage() {
       </div>
 
       {/* State timeline */}
-      <div className="rounded-lg border border-border-subtle bg-surface-secondary/60">
-        <div className="px-5 py-4 border-b border-border-subtle">
-          <h2 className="text-sm font-semibold text-text-primary">State timeline</h2>
+      <div className="rounded-lg border border-slate-800 bg-slate-900">
+        <div className="px-5 py-4 border-b border-slate-800">
+          <h2 className="text-sm font-semibold text-white">State timeline</h2>
         </div>
         <div className="p-5">
           {timeline.length === 0 ? (
-            <p className="text-sm text-text-muted">No state changes recorded yet.</p>
+            <p className="text-sm text-gray-400">No state changes recorded yet.</p>
           ) : (
-            <ol className="relative border-l border-border-subtle ml-2 space-y-4">
+            <ol className="relative border-l border-slate-800 ml-2 space-y-4">
               {timeline.map((t) => {
                 const Icon = transitionIcon(t.to_state);
                 return (
@@ -657,19 +657,19 @@ function AlertDetailPage() {
                       <Icon className="h-2.5 w-2.5" />
                     </span>
                     <div className="flex flex-wrap items-baseline gap-2">
-                      <span className="text-sm text-text-primary font-medium">
+                      <span className="text-sm text-white font-medium">
                         {t.from_state ? `${t.from_state} → ` : ''}
                         {t.to_state}
                       </span>
-                      <span className="text-xs text-text-muted">
+                      <span className="text-xs text-gray-400">
                         {formatTime(t.timestamp)}
                       </span>
                     </div>
                     {t.actor && (
-                      <p className="text-xs text-text-muted mt-0.5">by {t.actor}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">by {t.actor}</p>
                     )}
                     {t.note && (
-                      <p className="text-xs text-text-secondary mt-1">{t.note}</p>
+                      <p className="text-xs text-gray-300 mt-1">{t.note}</p>
                     )}
                   </li>
                 );
@@ -680,22 +680,22 @@ function AlertDetailPage() {
       </div>
 
       {/* Notification history */}
-      <div className="rounded-lg border border-border-subtle bg-surface-secondary/60">
-        <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-text-primary">Notification history</h2>
-          <span className="text-xs text-text-muted">
+      <div className="rounded-lg border border-slate-800 bg-slate-900">
+        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-white">Notification history</h2>
+          <span className="text-xs text-gray-400">
             {notifications.length} attempt{notifications.length === 1 ? '' : 's'}
           </span>
         </div>
         <div className="overflow-x-auto">
           {notifications.length === 0 ? (
-            <p className="text-sm text-text-muted p-5">
+            <p className="text-sm text-gray-400 p-5">
               No notifications have been dispatched for this alert.
             </p>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs uppercase tracking-wider text-text-muted border-b border-border-subtle bg-surface-primary/40">
+                <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-slate-800 bg-slate-800">
                   <th className="px-4 py-3">Channel</th>
                   <th className="px-4 py-3">Target</th>
                   <th className="px-4 py-3">Status</th>
@@ -703,7 +703,7 @@ function AlertDetailPage() {
                   <th className="px-4 py-3">Delivered</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-subtle">
+              <tbody className="divide-y divide-slate-800">
                 {notifications.map((n) => {
                   const Icon = channelIcon(n.channel);
                   const tone = deliveryTone(n.status);
@@ -711,12 +711,12 @@ function AlertDetailPage() {
                   return (
                     <tr key={n.id}>
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-2 text-text-primary">
-                          <Icon className="h-4 w-4 text-text-secondary" />
+                        <span className="inline-flex items-center gap-2 text-white">
+                          <Icon className="h-4 w-4 text-gray-300" />
                           <span>{n.channel}</span>
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-text-secondary break-all">
+                      <td className="px-4 py-3 text-gray-300 break-all">
                         {n.target || '—'}
                       </td>
                       <td className="px-4 py-3">
@@ -730,15 +730,15 @@ function AlertDetailPage() {
                           <span className="capitalize">{n.status}</span>
                         </span>
                         {n.error && (
-                          <p className="text-xs text-danger mt-1 break-all">
+                          <p className="text-xs text-red-400 mt-1 break-all">
                             {n.error}
                           </p>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-text-secondary">
+                      <td className="px-4 py-3 text-gray-300">
                         {formatTime(n.sent_at)}
                       </td>
-                      <td className="px-4 py-3 text-text-secondary">
+                      <td className="px-4 py-3 text-gray-300">
                         {formatTime(n.delivered_at)}
                       </td>
                     </tr>
@@ -751,10 +751,10 @@ function AlertDetailPage() {
       </div>
 
       {/* Related alerts */}
-      <div className="rounded-lg border border-border-subtle bg-surface-secondary/60">
-        <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-text-primary">Related alerts</h2>
-          <span className="text-xs text-text-muted">
+      <div className="rounded-lg border border-slate-800 bg-slate-900">
+        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-white">Related alerts</h2>
+          <span className="text-xs text-gray-400">
             {alert.check_id
               ? 'Same check'
               : alert.agent_id
@@ -763,16 +763,16 @@ function AlertDetailPage() {
           </span>
         </div>
         {related.length === 0 ? (
-          <p className="text-sm text-text-muted p-5">
+          <p className="text-sm text-gray-400 p-5">
             No other alerts share this{' '}
             {alert.check_id ? 'check' : 'agent'}.
           </p>
         ) : (
-          <ul className="divide-y divide-border-subtle">
+          <ul className="divide-y divide-slate-800">
             {related.map((r) => (
               <li
                 key={r.id}
-                className="px-5 py-3 flex items-center gap-4 hover:bg-surface-secondary transition-colors"
+                className="px-5 py-3 flex items-center gap-4 hover:bg-slate-900 transition-colors"
               >
                 <SeverityBadge severity={r.severity} showLabel={false} />
                 <Link
@@ -780,16 +780,16 @@ function AlertDetailPage() {
                   params={{ alertId: r.id }}
                   className="flex-1 min-w-0"
                 >
-                  <p className="text-sm text-text-primary truncate hover:text-accent">
+                  <p className="text-sm text-white truncate hover:text-blue-400">
                     {r.title}
                   </p>
-                  <p className="text-xs text-text-muted truncate">
+                  <p className="text-xs text-gray-400 truncate">
                     {r.hostname ?? r.agent_id ?? ''}
                     {r.check_name ? ` · ${r.check_name}` : ''}
                   </p>
                 </Link>
                 <StateBadge state={r.state} />
-                <span className="text-xs text-text-muted shrink-0">
+                <span className="text-xs text-gray-400 shrink-0">
                   {formatTime(r.created_at)}
                 </span>
               </li>
@@ -819,9 +819,9 @@ function SnoozeMenu({
   return (
     <div
       ref={ref}
-      className="absolute right-0 top-full mt-1 w-44 rounded-md border border-border-strong bg-surface-secondary shadow-xl py-1 z-30"
+      className="absolute right-0 top-full mt-1 w-44 rounded-md border border-slate-700 bg-slate-900 shadow-xl py-1 z-30"
     >
-      <div className="px-3 py-1.5 text-xs text-text-muted uppercase tracking-wider border-b border-border-subtle">
+      <div className="px-3 py-1.5 text-xs text-gray-400 uppercase tracking-wider border-b border-slate-800">
         Snooze for…
       </div>
       {SNOOZE_PRESETS.map((p) => (
@@ -829,7 +829,7 @@ function SnoozeMenu({
           key={p.mins}
           type="button"
           onClick={() => void onPick(p.mins)}
-          className="w-full text-left px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-tertiary hover:text-text-primary transition-colors"
+          className="w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-slate-800 hover:text-white transition-colors"
         >
           {p.label}
         </button>

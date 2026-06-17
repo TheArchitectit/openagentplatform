@@ -95,27 +95,27 @@ function GaugeBar({
 }) {
   const value = Math.max(0, Math.min(100, percent ?? 0));
   const color =
-    value > 85 ? 'bg-danger' : value > 65 ? 'bg-warning' : 'bg-success';
+    value > 85 ? 'bg-red-500' : value > 65 ? 'bg-yellow-500' : 'bg-green-500';
 
   return (
-    <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-4">
+    <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2 text-text-secondary">
+        <div className="flex items-center gap-2 text-gray-300">
           <Icon className="h-4 w-4" />
           <span className="text-sm font-medium">{label}</span>
         </div>
-        <span className="text-sm tabular-nums text-text-primary">
+        <span className="text-sm tabular-nums text-white">
           {percent === undefined ? '—' : `${value.toFixed(1)}%`}
         </span>
       </div>
-      <div className="h-2 w-full rounded-full bg-surface-tertiary overflow-hidden">
+      <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
         <div
           className={'h-full transition-all ' + color}
           style={{ width: `${value}%` }}
         />
       </div>
       {total !== undefined && (
-        <p className="text-xs text-text-muted mt-2">
+        <p className="text-xs text-gray-400 mt-2">
           {used !== undefined ? `${used.toFixed(1)} / ` : ''}
           {total.toFixed(1)} GB
         </p>
@@ -129,16 +129,16 @@ function statusTone(s: string): { color: string; icon: typeof CheckCircle2; labe
     case 'pass':
     case 'success':
     case 'ok':
-      return { color: 'text-success', icon: CheckCircle2, label: s };
+      return { color: 'text-green-400', icon: CheckCircle2, label: s };
     case 'fail':
     case 'failed':
     case 'error':
-      return { color: 'text-danger', icon: XCircle, label: s };
+      return { color: 'text-red-400', icon: XCircle, label: s };
     case 'warn':
     case 'warning':
-      return { color: 'text-warning', icon: AlertTriangle, label: s };
+      return { color: 'text-yellow-400', icon: AlertTriangle, label: s };
     default:
-      return { color: 'text-text-secondary', icon: Activity, label: s || 'unknown' };
+      return { color: 'text-gray-300', icon: Activity, label: s || 'unknown' };
   }
 }
 
@@ -197,7 +197,7 @@ function AgentDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="text-center text-text-muted py-24">Loading agent…</div>
+      <div className="text-center text-gray-400 py-24">Loading agent…</div>
     );
   }
   if (error || !data) {
@@ -205,12 +205,12 @@ function AgentDetailPage() {
       <div className="space-y-4">
         <Link
           to="/agents"
-          className="inline-flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary"
+          className="inline-flex items-center gap-2 text-sm text-gray-300 hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>Back to agents</span>
         </Link>
-        <div className="rounded-lg border border-danger/30 bg-danger/5 p-6 text-danger">
+        <div className="rounded-lg border border-red-800 bg-red-500/5 p-6 text-red-400">
           Failed to load agent: {error?.message ?? 'unknown error'}
         </div>
       </div>
@@ -235,23 +235,23 @@ function AgentDetailPage() {
         <div className="flex items-center gap-3">
           <Link
             to="/agents"
-            className="h-9 w-9 rounded-md bg-surface-tertiary border border-border-strong flex items-center justify-center hover:bg-border-strong transition-colors"
+            className="h-9 w-9 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center hover:bg-slate-700 transition-colors"
           >
-            <ArrowLeft className="h-4 w-4 text-text-secondary" />
+            <ArrowLeft className="h-4 w-4 text-gray-300" />
           </Link>
-          <div className="h-9 w-9 rounded-md bg-accent/20 border border-accent/30 flex items-center justify-center">
-            <Bot className="h-4 w-4 text-accent" />
+          <div className="h-9 w-9 rounded-md bg-blue-600/20 border border-blue-500/30 flex items-center justify-center">
+            <Bot className="h-4 w-4 text-blue-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-text-primary">{a.hostname || a.id}</h1>
-            <p className="text-text-secondary text-sm mt-0.5 font-mono text-xs">{a.id}</p>
+            <h1 className="text-2xl font-bold text-white">{a.hostname || a.id}</h1>
+            <p className="text-gray-300 text-sm mt-0.5 font-mono text-xs">{a.id}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
             disabled
-            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-surface-tertiary border border-border-strong text-sm text-text-primary disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-slate-800 border border-slate-700 text-sm text-white disabled:opacity-50"
           >
             <Play className="h-4 w-4" />
             <span>Run check</span>
@@ -260,7 +260,7 @@ function AgentDetailPage() {
             type="button"
             disabled
             title="Remote shell — coming soon"
-            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-surface-tertiary border border-border-strong text-sm text-text-primary disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-slate-800 border border-slate-700 text-sm text-white disabled:opacity-50"
           >
             <Terminal className="h-4 w-4" />
             <span>Remote shell</span>
@@ -268,7 +268,7 @@ function AgentDetailPage() {
           <button
             type="button"
             disabled
-            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-surface-tertiary border border-border-strong text-sm text-text-primary disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-slate-800 border border-slate-700 text-sm text-white disabled:opacity-50"
           >
             <ScrollText className="h-4 w-4" />
             <span>View logs</span>
@@ -277,60 +277,60 @@ function AgentDetailPage() {
       </div>
 
       {/* Info card */}
-      <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-5">
-        <h2 className="text-sm font-semibold text-text-primary mb-4">Agent info</h2>
+      <div className="rounded-lg border border-slate-800 bg-slate-900 p-5">
+        <h2 className="text-sm font-semibold text-white mb-4">Agent info</h2>
         <dl className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 text-sm">
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">Hostname</dt>
-            <dd className="text-text-primary mt-1 break-all">{a.hostname || '—'}</dd>
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">Hostname</dt>
+            <dd className="text-white mt-1 break-all">{a.hostname || '—'}</dd>
           </div>
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">OS</dt>
-            <dd className="text-text-primary mt-1 break-all">{a.os || '—'}</dd>
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">OS</dt>
+            <dd className="text-white mt-1 break-all">{a.os || '—'}</dd>
           </div>
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">Agent version</dt>
-            <dd className="text-text-primary mt-1 break-all">
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">Agent version</dt>
+            <dd className="text-white mt-1 break-all">
               {a.agent_version || a.version || '—'}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">Site</dt>
-            <dd className="text-text-primary mt-1 break-all">{a.site_id || '—'}</dd>
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">Site</dt>
+            <dd className="text-white mt-1 break-all">{a.site_id || '—'}</dd>
           </div>
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">Last seen</dt>
-            <dd className="text-text-primary mt-1 break-all">
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">Last seen</dt>
+            <dd className="text-white mt-1 break-all">
               {formatTime(live.lastSeen ?? a.last_seen)}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">Arch</dt>
-            <dd className="text-text-primary mt-1 break-all">{a.arch || '—'}</dd>
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">Arch</dt>
+            <dd className="text-white mt-1 break-all">{a.arch || '—'}</dd>
           </div>
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">Platform</dt>
-            <dd className="text-text-primary mt-1 break-all">{a.platform || '—'}</dd>
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">Platform</dt>
+            <dd className="text-white mt-1 break-all">{a.platform || '—'}</dd>
           </div>
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">CPU cores</dt>
-            <dd className="text-text-primary mt-1">{a.cpu_count || '—'}</dd>
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">CPU cores</dt>
+            <dd className="text-white mt-1">{a.cpu_count || '—'}</dd>
           </div>
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">Memory</dt>
-            <dd className="text-text-primary mt-1">
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">Memory</dt>
+            <dd className="text-white mt-1">
               {a.total_memory_mb ? `${(a.total_memory_mb / 1024).toFixed(1)} GB` : '—'}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">Disk</dt>
-            <dd className="text-text-primary mt-1">
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">Disk</dt>
+            <dd className="text-white mt-1">
               {a.total_disk_gb ? `${a.total_disk_gb.toFixed(1)} GB` : '—'}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">Uptime</dt>
-            <dd className="text-text-primary mt-1">{formatUptime(uptime)}</dd>
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">Uptime</dt>
+            <dd className="text-white mt-1">{formatUptime(uptime)}</dd>
           </div>
         </dl>
       </div>
@@ -354,15 +354,15 @@ function AgentDetailPage() {
       </div>
 
       {/* Check results */}
-      <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 overflow-hidden">
-        <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-text-primary">Recent check results</h2>
-          <span className="text-xs text-text-muted">Last 20</span>
+      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-white">Recent check results</h2>
+          <span className="text-xs text-gray-400">Last 20</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-text-muted border-b border-border-subtle bg-surface-primary/40">
+              <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-slate-800 bg-slate-800">
                 <th className="px-4 py-3 w-10">Status</th>
                 <th className="px-4 py-3">Check</th>
                 <th className="px-4 py-3 text-right">Value</th>
@@ -370,10 +370,10 @@ function AgentDetailPage() {
                 <th className="px-4 py-3 text-right">Time</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-subtle">
+            <tbody className="divide-y divide-slate-800">
               {data.check_results.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-text-muted">
+                  <td colSpan={5} className="px-4 py-12 text-center text-gray-400">
                     No check results yet.
                   </td>
                 </tr>
@@ -386,16 +386,16 @@ function AgentDetailPage() {
                       <td className="px-4 py-3">
                         <Icon className={'h-4 w-4 ' + t.color} />
                       </td>
-                      <td className="px-4 py-3 text-text-primary font-mono text-xs">
+                      <td className="px-4 py-3 text-white font-mono text-xs">
                         {r.check_id}
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-text-secondary">
+                      <td className="px-4 py-3 text-right tabular-nums text-gray-300">
                         {Number.isFinite(r.value) ? r.value : '—'}
                       </td>
-                      <td className="px-4 py-3 text-text-secondary truncate max-w-md">
+                      <td className="px-4 py-3 text-gray-300 truncate max-w-md">
                         {r.message || '—'}
                       </td>
-                      <td className="px-4 py-3 text-right text-text-muted">
+                      <td className="px-4 py-3 text-right text-gray-400">
                         {formatTime(r.timestamp)}
                       </td>
                     </tr>

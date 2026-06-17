@@ -71,35 +71,35 @@ const STATUS_META: Record<
 > = {
   pending_approval: {
     label: 'Pending Approval',
-    classes: 'bg-warning/10 text-warning border-warning/20',
+    classes: 'bg-yellow-500/10 text-yellow-400 border-yellow-800',
   },
   approved: {
     label: 'Approved',
-    classes: 'bg-info/10 text-info border-info/20',
+    classes: 'bg-blue-500/10 text-blue-400 border-blue-800',
   },
   rejected: {
     label: 'Rejected',
-    classes: 'bg-surface-tertiary/20 text-text-secondary border-border-strong/30',
+    classes: 'bg-slate-800/20 text-gray-300 border-slate-700/30',
   },
   in_progress: {
     label: 'In Progress',
-    classes: 'bg-accent/10 text-accent border-accent/20',
+    classes: 'bg-blue-600/10 text-blue-400 border-blue-500/20',
   },
   completed: {
     label: 'Completed',
-    classes: 'bg-success/10 text-success border-success/20',
+    classes: 'bg-green-500/10 text-green-400 border-green-800',
   },
   failed: {
     label: 'Failed',
-    classes: 'bg-danger/10 text-danger border-danger/20',
+    classes: 'bg-red-500/10 text-red-400 border-red-800',
   },
   cancelled: {
     label: 'Cancelled',
-    classes: 'bg-surface-tertiary/20 text-text-secondary border-border-strong/30',
+    classes: 'bg-slate-800/20 text-gray-300 border-slate-700/30',
   },
   rolled_back: {
     label: 'Rolled Back',
-    classes: 'bg-warning/10 text-warning border-warning/20',
+    classes: 'bg-yellow-500/10 text-yellow-400 border-yellow-800',
   },
 };
 
@@ -287,12 +287,12 @@ function PatchesListPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center">
-            <Wrench className="h-4 w-4 text-accent" />
+          <div className="h-9 w-9 rounded-md bg-blue-600/10 border border-blue-500/20 flex items-center justify-center">
+            <Wrench className="h-4 w-4 text-blue-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-text-primary">Patches</h1>
-            <p className="text-text-secondary text-sm mt-0.5">
+            <h1 className="text-2xl font-bold text-white">Patches</h1>
+            <p className="text-gray-300 text-sm mt-0.5">
               Manage OS and application patch rollouts across the fleet.
             </p>
           </div>
@@ -301,7 +301,7 @@ function PatchesListPage() {
           <span
             className={
               'inline-flex h-2 w-2 rounded-full ' +
-              (status === 'open' ? 'bg-success' : status === 'connecting' ? 'bg-warning' : 'bg-text-muted')
+              (status === 'open' ? 'bg-green-500' : status === 'connecting' ? 'bg-yellow-500' : 'bg-slate-500')
             }
             title={`WebSocket: ${status}`}
           />
@@ -311,7 +311,7 @@ function PatchesListPage() {
               void refresh();
             }}
             disabled={isLoading}
-            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-surface-tertiary hover:bg-border-strong border border-border-strong text-sm text-text-primary disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-white disabled:opacity-50 transition-colors"
           >
             <RefreshCw className={'h-4 w-4 ' + (isLoading ? 'animate-spin' : '')} />
             <span>Refresh</span>
@@ -319,7 +319,7 @@ function PatchesListPage() {
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-accent hover:bg-accent-hover border border-accent text-sm text-white transition-colors"
+            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-blue-600 hover:bg-blue-500 border border-blue-500 text-sm text-white transition-colors"
           >
             <Plus className="h-4 w-4" />
             <span>Create Job</span>
@@ -369,7 +369,7 @@ function PatchesListPage() {
 
       {/* Tabs + search */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-1 p-1 rounded-md bg-surface-secondary border border-border-subtle overflow-x-auto">
+        <div className="flex items-center gap-1 p-1 rounded-md bg-slate-900 border border-slate-800 overflow-x-auto">
           {JOB_TABS.map((t) => (
             <button
               key={t.id}
@@ -381,18 +381,18 @@ function PatchesListPage() {
               className={
                 'px-3 h-8 rounded text-sm whitespace-nowrap transition-colors ' +
                 (filter === t.id
-                  ? 'bg-surface-tertiary text-text-primary'
-                  : 'text-text-secondary hover:text-text-primary')
+                  ? 'bg-slate-800 text-white'
+                  : 'text-gray-300 hover:text-white')
               }
             >
               {t.label}
-              <span className="ml-2 text-xs text-text-muted">{counts[t.id]}</span>
+              <span className="ml-2 text-xs text-gray-400">{counts[t.id]}</span>
             </button>
           ))}
         </div>
 
         <div className="relative w-full sm:w-72" role="search">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" aria-hidden="true" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" aria-hidden="true" />
           <input
             type="search"
             role="searchbox"
@@ -400,15 +400,15 @@ function PatchesListPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search jobs…"
-            className="w-full h-9 pl-9 pr-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus:border-accent"
+            className="w-full h-9 pl-9 pr-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
           />
         </div>
       </div>
 
       {/* Batch actions bar */}
       {selected.size > 0 && (
-        <div className="flex items-center justify-between gap-3 rounded-md border border-accent/30 bg-accent/5 px-4 py-2">
-          <div className="text-sm text-text-primary">
+        <div className="flex items-center justify-between gap-3 rounded-md border border-blue-500/30 bg-blue-600/5 px-4 py-2">
+          <div className="text-sm text-white">
             <span className="font-medium">{selected.size}</span> job
             {selected.size === 1 ? '' : 's'} selected (pending approval)
           </div>
@@ -417,7 +417,7 @@ function PatchesListPage() {
               type="button"
               disabled={batchBusy}
               onClick={() => void runBatch('approve')}
-              className="inline-flex items-center gap-1.5 px-3 h-8 rounded-md bg-success/15 border border-success/30 text-success text-sm hover:bg-success/25 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 h-8 rounded-md bg-green-500/15 border border-green-800 text-green-400 text-sm hover:bg-green-500/25 disabled:opacity-50 transition-colors"
             >
               <Check className="h-3.5 w-3.5" />
               <span>Approve all</span>
@@ -426,7 +426,7 @@ function PatchesListPage() {
               type="button"
               disabled={batchBusy}
               onClick={() => void runBatch('reject')}
-              className="inline-flex items-center gap-1.5 px-3 h-8 rounded-md bg-danger/15 border border-danger/30 text-danger text-sm hover:bg-danger/25 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 h-8 rounded-md bg-red-500/15 border border-red-800 text-red-400 text-sm hover:bg-red-500/25 disabled:opacity-50 transition-colors"
             >
               <X className="h-3.5 w-3.5" />
               <span>Reject all</span>
@@ -434,7 +434,7 @@ function PatchesListPage() {
             <button
               type="button"
               onClick={clearSelection}
-              className="inline-flex items-center gap-1.5 px-3 h-8 rounded-md bg-surface-tertiary border border-border-strong text-text-secondary text-sm hover:bg-border-strong transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 h-8 rounded-md bg-slate-800 border border-slate-700 text-gray-300 text-sm hover:bg-slate-700 transition-colors"
             >
               <X className="h-3.5 w-3.5" />
               <span>Clear</span>
@@ -444,11 +444,11 @@ function PatchesListPage() {
       )}
 
       {/* Table */}
-      <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 overflow-hidden">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table role="table" aria-label="Patch jobs" className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-text-muted border-b border-border-subtle bg-surface-primary/40">
+              <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-slate-800 bg-slate-800">
                 <th className="px-3 py-3 w-10" scope="col">
                   <input
                     type="checkbox"
@@ -456,7 +456,7 @@ function PatchesListPage() {
                     checked={allSelectableSelected}
                     onChange={toggleAllSelectable}
                     disabled={selectableIds.length === 0}
-                    className="h-4 w-4 rounded border-border-strong bg-surface-tertiary text-accent focus:ring-accent/40 disabled:opacity-40"
+                    className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-blue-400 focus:ring-blue-500/40 disabled:opacity-40"
                   />
                 </th>
                 <th className="px-3 py-3" scope="col">Job</th>
@@ -468,22 +468,22 @@ function PatchesListPage() {
                 <th className="px-3 py-3 text-right w-48" scope="col">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-subtle">
+            <tbody className="divide-y divide-slate-800">
               {isLoading && jobs.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-text-muted" role="status" aria-live="polite">
+                  <td colSpan={8} className="px-4 py-12 text-center text-gray-400" role="status" aria-live="polite">
                     Loading patches…
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-danger" role="alert">
+                  <td colSpan={8} className="px-4 py-12 text-center text-red-400" role="alert">
                     Failed to load jobs: {error.message}
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-text-muted" role="status">
+                  <td colSpan={8} className="px-4 py-12 text-center text-gray-400" role="status">
                     No patch jobs match the current filter.
                   </td>
                 </tr>
@@ -536,15 +536,15 @@ function SummaryTile({
   icon: typeof Package;
 }) {
   const toneClasses: Record<typeof tone, string> = {
-    success: 'text-success',
-    danger: 'text-danger',
-    info: 'text-info',
-    neutral: 'text-text-secondary',
+    success: 'text-green-400',
+    danger: 'text-red-400',
+    info: 'text-blue-400',
+    neutral: 'text-gray-300',
   };
   return (
-    <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-3">
+    <div className="rounded-lg border border-slate-800 bg-slate-900 p-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-text-muted uppercase tracking-wider">{label}</span>
+        <span className="text-xs text-gray-400 uppercase tracking-wider">{label}</span>
         <Icon className={'h-3.5 w-3.5 ' + toneClasses[tone]} />
       </div>
       <p className={'text-2xl font-semibold mt-1.5 tabular-nums ' + toneClasses[tone]}>
@@ -573,19 +573,19 @@ function JobRow({ job: j, isSelected, onToggleSelect, onOpen, now }: JobRowProps
   const progress = computeProgress(j);
   const progressTone =
     j.status === 'completed'
-      ? 'bg-success'
+      ? 'bg-green-500'
       : j.status === 'failed'
-      ? 'bg-danger'
+      ? 'bg-red-500'
       : j.status === 'cancelled'
-      ? 'bg-text-muted'
-      : 'bg-accent';
+      ? 'bg-slate-500'
+      : 'bg-blue-600';
 
   return (
     <tr
       onClick={onOpen}
       className={
         'cursor-pointer transition-colors ' +
-        (isSelected ? 'bg-accent/5' : 'hover:bg-surface-tertiary/40')
+        (isSelected ? 'bg-blue-600/5' : 'hover:bg-slate-800/40')
       }
     >
       <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
@@ -595,20 +595,20 @@ function JobRow({ job: j, isSelected, onToggleSelect, onOpen, now }: JobRowProps
           checked={isSelected}
           onChange={onToggleSelect}
           disabled={!isSelectable}
-          className="h-4 w-4 rounded border-border-strong bg-surface-tertiary text-accent focus:ring-accent/40 disabled:opacity-30"
+          className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-blue-400 focus:ring-blue-500/40 disabled:opacity-30"
         />
       </td>
       <td className="px-3 py-3">
         <div className="flex flex-col">
-          <span className="text-text-primary font-medium truncate max-w-md">
+          <span className="text-white font-medium truncate max-w-md">
             {j.name || j.id}
           </span>
           {j.description && (
-            <span className="text-xs text-text-muted truncate max-w-md">
+            <span className="text-xs text-gray-400 truncate max-w-md">
               {j.description}
             </span>
           )}
-          <span className="text-[10px] text-text-muted mt-0.5 font-mono">
+          <span className="text-[10px] text-gray-400 mt-0.5 font-mono">
             {j.id}
             {j.created_by ? ` · by ${j.created_by}` : ''}
             {' · '}
@@ -616,7 +616,7 @@ function JobRow({ job: j, isSelected, onToggleSelect, onOpen, now }: JobRowProps
           </span>
         </div>
       </td>
-      <td className="px-3 py-3 text-text-secondary">
+      <td className="px-3 py-3 text-gray-300">
         <span className="text-xs">
           {j.patch_count > 0 ? `${j.patch_count} patch${j.patch_count === 1 ? '' : 'es'}` : '—'}
         </span>
@@ -624,14 +624,14 @@ function JobRow({ job: j, isSelected, onToggleSelect, onOpen, now }: JobRowProps
       <td className="px-3 py-3">
         <SeverityBadge severity={j.severity} />
       </td>
-      <td className="px-3 py-3 text-right tabular-nums text-text-secondary">
+      <td className="px-3 py-3 text-right tabular-nums text-gray-300">
         {j.total_agents > 0 ? (
           <>
-            <span className="text-text-primary">{j.completed_agents}</span>
-            <span className="text-text-muted"> / {j.total_agents}</span>
+            <span className="text-white">{j.completed_agents}</span>
+            <span className="text-gray-400"> / {j.total_agents}</span>
           </>
         ) : (
-          <span className="text-text-muted">—</span>
+          <span className="text-gray-400">—</span>
         )}
       </td>
       <td className="px-3 py-3">
@@ -646,13 +646,13 @@ function JobRow({ job: j, isSelected, onToggleSelect, onOpen, now }: JobRowProps
       </td>
       <td className="px-3 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex-1 h-1.5 rounded-full bg-surface-tertiary overflow-hidden">
+          <div className="flex-1 h-1.5 rounded-full bg-slate-800 overflow-hidden">
             <div
               className={'h-full transition-all ' + progressTone}
               style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
             />
           </div>
-          <span className="text-xs text-text-secondary tabular-nums w-9 text-right">
+          <span className="text-xs text-gray-300 tabular-nums w-9 text-right">
             {Math.round(progress)}%
           </span>
         </div>
@@ -718,7 +718,7 @@ function RowActions({ job: j }: { job: PatchJob }) {
           type="button"
           disabled={busy !== null}
           onClick={() => void onApprove()}
-          className="inline-flex items-center gap-1 px-2 h-7 rounded-md text-xs bg-success/10 border border-success/30 text-success hover:bg-success/20 disabled:opacity-50 transition-colors"
+          className="inline-flex items-center gap-1 px-2 h-7 rounded-md text-xs bg-green-500/10 border border-green-800 text-green-400 hover:bg-green-500/20 disabled:opacity-50 transition-colors"
           title="Approve"
         >
           {busy === 'approve' ? (
@@ -732,7 +732,7 @@ function RowActions({ job: j }: { job: PatchJob }) {
           type="button"
           disabled={busy !== null}
           onClick={() => void onReject()}
-          className="inline-flex items-center gap-1 px-2 h-7 rounded-md text-xs bg-danger/10 border border-danger/30 text-danger hover:bg-danger/20 disabled:opacity-50 transition-colors"
+          className="inline-flex items-center gap-1 px-2 h-7 rounded-md text-xs bg-red-500/10 border border-red-800 text-red-400 hover:bg-red-500/20 disabled:opacity-50 transition-colors"
           title="Reject"
         >
           {busy === 'reject' ? (
@@ -749,7 +749,7 @@ function RowActions({ job: j }: { job: PatchJob }) {
   if (j.status === 'in_progress' || j.status === 'approved') {
     return (
       <div className="inline-flex items-center gap-1">
-        <span className="inline-flex items-center gap-1 text-xs text-text-muted">
+        <span className="inline-flex items-center gap-1 text-xs text-gray-400">
           <CirclePlay className="h-3.5 w-3.5" />
           <span>Running</span>
         </span>
@@ -757,7 +757,7 @@ function RowActions({ job: j }: { job: PatchJob }) {
           type="button"
           disabled={busy !== null}
           onClick={() => void onCancel()}
-          className="inline-flex items-center gap-1 px-2 h-7 rounded-md text-xs bg-surface-tertiary border border-border-strong text-text-secondary hover:bg-border-strong disabled:opacity-50 transition-colors"
+          className="inline-flex items-center gap-1 px-2 h-7 rounded-md text-xs bg-slate-800 border border-slate-700 text-gray-300 hover:bg-slate-700 disabled:opacity-50 transition-colors"
           title="Cancel job"
         >
           {busy === 'cancel' ? (
@@ -773,7 +773,7 @@ function RowActions({ job: j }: { job: PatchJob }) {
 
   if (j.status === 'failed') {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-danger">
+      <span className="inline-flex items-center gap-1 text-xs text-red-400">
         <CircleAlert className="h-3.5 w-3.5" />
         <span>Failed</span>
       </span>
@@ -782,7 +782,7 @@ function RowActions({ job: j }: { job: PatchJob }) {
 
   if (j.status === 'completed') {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-success">
+      <span className="inline-flex items-center gap-1 text-xs text-green-400">
         <CircleCheck className="h-3.5 w-3.5" />
         <span>Done</span>
       </span>
@@ -790,7 +790,7 @@ function RowActions({ job: j }: { job: PatchJob }) {
   }
 
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-text-muted">
+    <span className="inline-flex items-center gap-1 text-xs text-gray-400">
       <Clock className="h-3.5 w-3.5" />
       <span>No actions</span>
     </span>
@@ -979,20 +979,20 @@ function CreateJobModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-surface-primary/70 flex items-center justify-center p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-slate-950/70 flex items-center justify-center p-4 overflow-y-auto"
       onClick={() => {
         if (!submitting) onClose();
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-3xl rounded-lg border border-border-subtle bg-surface-secondary shadow-2xl"
+        className="w-full max-w-3xl rounded-lg border border-slate-800 bg-slate-900 shadow-2xl"
       >
         {/* Header */}
-        <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-text-primary">Create patch job</h2>
-            <p className="text-xs text-text-muted mt-0.5">
+            <h2 className="text-lg font-semibold text-white">Create patch job</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
               Step {stepIndex + 1} of {STEPS.length} — {STEP_LABELS[step]}
             </p>
           </div>
@@ -1000,7 +1000,7 @@ function CreateJobModal({
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="text-text-secondary hover:text-text-primary transition-colors"
+            className="text-gray-300 hover:text-white transition-colors"
             title="Close"
           >
             <X className="h-5 w-5" />
@@ -1008,7 +1008,7 @@ function CreateJobModal({
         </div>
 
         {/* Stepper */}
-        <div className="px-5 py-3 border-b border-border-subtle flex items-center gap-2">
+        <div className="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
           {STEPS.map((s, idx) => {
             const active = s === step;
             const done = idx < stepIndex;
@@ -1018,23 +1018,23 @@ function CreateJobModal({
                   className={
                     'h-6 w-6 rounded-full flex items-center justify-center text-xs font-medium border ' +
                     (done
-                      ? 'bg-success/15 border-success/30 text-success'
+                      ? 'bg-green-500/15 border-green-800 text-green-400'
                       : active
-                      ? 'bg-accent/15 border-accent/40 text-accent'
-                      : 'bg-surface-tertiary border-border-strong text-text-muted')
+                      ? 'bg-blue-600/15 border-blue-500/40 text-blue-400'
+                      : 'bg-slate-800 border-slate-700 text-gray-400')
                   }
                 >
                   {done ? <Check className="h-3.5 w-3.5" /> : idx + 1}
                 </div>
                 <span
                   className={
-                    'text-sm ' + (active ? 'text-text-primary' : done ? 'text-text-secondary' : 'text-text-muted')
+                    'text-sm ' + (active ? 'text-white' : done ? 'text-gray-300' : 'text-gray-400')
                   }
                 >
                   {STEP_LABELS[s]}
                 </span>
                 {idx < STEPS.length - 1 && (
-                  <ChevronRight className="h-4 w-4 text-text-muted ml-auto" />
+                  <ChevronRight className="h-4 w-4 text-gray-400 ml-auto" />
                 )}
               </div>
             );
@@ -1108,18 +1108,18 @@ function CreateJobModal({
         </div>
 
         {submitError && (
-          <div className="mx-5 mb-2 rounded-md border border-danger/30 bg-danger/5 p-3 text-danger text-sm">
+          <div className="mx-5 mb-2 rounded-md border border-red-800 bg-red-500/5 p-3 text-red-400 text-sm">
             {submitError}
           </div>
         )}
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-border-subtle flex items-center justify-between">
+        <div className="px-5 py-3 border-t border-slate-800 flex items-center justify-between">
           <button
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+            className="text-sm text-gray-300 hover:text-white transition-colors"
           >
             Cancel
           </button>
@@ -1128,7 +1128,7 @@ function CreateJobModal({
               type="button"
               onClick={goBack}
               disabled={stepIndex === 0 || submitting}
-              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-surface-tertiary border border-border-strong text-text-primary text-sm hover:bg-border-strong disabled:opacity-40 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-slate-800 border border-slate-700 text-white text-sm hover:bg-slate-700 disabled:opacity-40 transition-colors"
             >
               <ChevronLeft className="h-4 w-4" />
               <span>Back</span>
@@ -1138,7 +1138,7 @@ function CreateJobModal({
                 type="button"
                 onClick={() => void submit()}
                 disabled={submitting}
-                className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-accent hover:bg-accent border border-accent text-white text-sm disabled:opacity-50 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-blue-600 hover:bg-blue-600 border border-blue-500 text-white text-sm disabled:opacity-50 transition-colors"
               >
                 {submitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1152,7 +1152,7 @@ function CreateJobModal({
                 type="button"
                 onClick={goNext}
                 disabled={!canGoNext}
-                className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-accent hover:bg-accent border border-accent text-white text-sm disabled:opacity-40 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-blue-600 hover:bg-blue-600 border border-blue-500 text-white text-sm disabled:opacity-40 transition-colors"
               >
                 <span>Next</span>
                 <ChevronRight className="h-4 w-4" />
@@ -1192,7 +1192,7 @@ function PatchesStep({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[14rem]" role="search">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" aria-hidden="true" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" aria-hidden="true" />
           <input
             type="search"
             role="searchbox"
@@ -1200,7 +1200,7 @@ function PatchesStep({
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search by title, KB, or CVE…"
-            className="w-full h-9 pl-9 pr-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus:border-accent"
+            className="w-full h-9 pl-9 pr-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
           />
         </div>
         <select
@@ -1208,7 +1208,7 @@ function PatchesStep({
           onChange={(e) =>
             onCatalogFilterChange({ ...catalogFilter, severity: e.target.value || undefined })
           }
-          className="h-9 px-2 rounded-md bg-surface-tertiary border border-border-strong text-sm text-text-primary"
+          className="h-9 px-2 rounded-md bg-slate-800 border border-slate-700 text-sm text-white"
         >
           <option value="">All severities</option>
           <option value="critical">Critical</option>
@@ -1221,7 +1221,7 @@ function PatchesStep({
           onChange={(e) =>
             onCatalogFilterChange({ ...catalogFilter, category: e.target.value || undefined })
           }
-          className="h-9 px-2 rounded-md bg-surface-tertiary border border-border-strong text-sm text-text-primary"
+          className="h-9 px-2 rounded-md bg-slate-800 border border-slate-700 text-sm text-white"
         >
           <option value="">All categories</option>
           <option value="security">Security</option>
@@ -1232,11 +1232,11 @@ function PatchesStep({
         </select>
       </div>
 
-      <div className="rounded-md border border-border-subtle overflow-hidden">
+      <div className="rounded-md border border-slate-800 overflow-hidden">
         <div className="max-h-96 overflow-y-auto">
           <table role="table" aria-label="Patch catalog" className="w-full text-sm">
-            <thead className="sticky top-0 bg-surface-secondary/90 z-10">
-              <tr className="text-left text-xs uppercase tracking-wider text-text-muted border-b border-border-subtle">
+            <thead className="sticky top-0 bg-slate-900/90 z-10">
+              <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-slate-800">
                 <th className="px-3 py-2 w-10" scope="col"></th>
                 <th className="px-3 py-2" scope="col">Title</th>
                 <th className="px-3 py-2 w-28" scope="col">KB / CVE</th>
@@ -1245,17 +1245,17 @@ function PatchesStep({
                 <th className="px-3 py-2 w-20 text-right" scope="col">Affected</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-subtle">
+            <tbody className="divide-y divide-slate-800">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-text-muted" role="status" aria-live="polite">
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-400" role="status" aria-live="polite">
                     <Loader2 className="inline h-4 w-4 animate-spin mr-2" aria-hidden="true" />
                     Loading patch catalog…
                   </td>
                 </tr>
               ) : catalog.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-text-muted" role="status">
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-400" role="status">
                     No patches match your filters.
                   </td>
                 </tr>
@@ -1268,7 +1268,7 @@ function PatchesStep({
                       onClick={() => onToggle(c.id)}
                       className={
                         'cursor-pointer transition-colors ' +
-                        (isSelected ? 'bg-accent/10' : 'hover:bg-surface-tertiary/40')
+                        (isSelected ? 'bg-blue-600/10' : 'hover:bg-slate-800/40')
                       }
                     >
                       <td className="px-3 py-2">
@@ -1277,23 +1277,23 @@ function PatchesStep({
                           checked={isSelected}
                           onChange={() => onToggle(c.id)}
                           aria-label={`Select patch ${c.id}`}
-                          className="h-4 w-4 rounded border-border-strong bg-surface-tertiary text-accent focus:ring-accent/40"
+                          className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-blue-400 focus:ring-blue-500/40"
                         />
                       </td>
-                      <td className="px-3 py-2 text-text-primary">
+                      <td className="px-3 py-2 text-white">
                         <div className="flex flex-col">
                           <span className="truncate max-w-md">{c.title}</span>
                           {c.description && (
-                            <span className="text-xs text-text-muted truncate max-w-md">
+                            <span className="text-xs text-gray-400 truncate max-w-md">
                               {c.description}
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-2 text-text-secondary text-xs">
+                      <td className="px-3 py-2 text-gray-300 text-xs">
                         {c.kb_number ?? '—'}
                         {c.cve_ids && c.cve_ids.length > 0 && (
-                          <span className="block text-text-muted">
+                          <span className="block text-gray-400">
                             {c.cve_ids.slice(0, 2).join(', ')}
                             {c.cve_ids.length > 2 ? ` +${c.cve_ids.length - 2}` : ''}
                           </span>
@@ -1302,8 +1302,8 @@ function PatchesStep({
                       <td className="px-3 py-2">
                         <SeverityBadge severity={c.severity} />
                       </td>
-                      <td className="px-3 py-2 text-text-secondary text-xs">{c.os || '—'}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-text-secondary">
+                      <td className="px-3 py-2 text-gray-300 text-xs">{c.os || '—'}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-gray-300">
                         {c.affected_agent_count ?? 0}
                       </td>
                     </tr>
@@ -1314,7 +1314,7 @@ function PatchesStep({
           </table>
         </div>
       </div>
-      <p className="text-xs text-text-muted">
+      <p className="text-xs text-gray-400">
         {selected.size} patch{selected.size === 1 ? '' : 'es'} selected.
       </p>
     </div>
@@ -1344,35 +1344,35 @@ function TargetsStep({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[14rem]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="search"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search by hostname, ID, or OS…"
-            className="w-full h-9 pl-9 pr-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
+            className="w-full h-9 pl-9 pr-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40"
           />
         </div>
         <button
           type="button"
           onClick={onSelectAll}
-          className="px-3 h-9 rounded-md bg-surface-tertiary border border-border-strong text-text-secondary text-sm hover:bg-border-strong transition-colors"
+          className="px-3 h-9 rounded-md bg-slate-800 border border-slate-700 text-gray-300 text-sm hover:bg-slate-700 transition-colors"
         >
           Select all visible
         </button>
         <button
           type="button"
           onClick={onClear}
-          className="px-3 h-9 rounded-md bg-surface-tertiary border border-border-strong text-text-secondary text-sm hover:bg-border-strong transition-colors"
+          className="px-3 h-9 rounded-md bg-slate-800 border border-slate-700 text-gray-300 text-sm hover:bg-slate-700 transition-colors"
         >
           Clear
         </button>
       </div>
-      <div className="rounded-md border border-border-subtle overflow-hidden">
+      <div className="rounded-md border border-slate-800 overflow-hidden">
         <div className="max-h-96 overflow-y-auto">
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-surface-secondary/90 z-10">
-              <tr className="text-left text-xs uppercase tracking-wider text-text-muted border-b border-border-subtle">
+            <thead className="sticky top-0 bg-slate-900/90 z-10">
+              <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-slate-800">
                 <th className="px-3 py-2 w-10"></th>
                 <th className="px-3 py-2">Hostname</th>
                 <th className="px-3 py-2 w-32">OS</th>
@@ -1380,17 +1380,17 @@ function TargetsStep({
                 <th className="px-3 py-2 w-20 text-right">CPU%</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-subtle">
+            <tbody className="divide-y divide-slate-800">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-text-muted">
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
                     <Loader2 className="inline h-4 w-4 animate-spin mr-2" />
                     Loading agents…
                   </td>
                 </tr>
               ) : agents.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-text-muted">
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
                     No agents match your search.
                   </td>
                 </tr>
@@ -1403,7 +1403,7 @@ function TargetsStep({
                       onClick={() => onToggle(a.id)}
                       className={
                         'cursor-pointer transition-colors ' +
-                        (isSelected ? 'bg-accent/10' : 'hover:bg-surface-tertiary/40')
+                        (isSelected ? 'bg-blue-600/10' : 'hover:bg-slate-800/40')
                       }
                     >
                       <td className="px-3 py-2">
@@ -1412,24 +1412,24 @@ function TargetsStep({
                           checked={isSelected}
                           onChange={() => onToggle(a.id)}
                           aria-label={`Select agent ${a.id}`}
-                          className="h-4 w-4 rounded border-border-strong bg-surface-tertiary text-accent focus:ring-accent/40"
+                          className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-blue-400 focus:ring-blue-500/40"
                         />
                       </td>
-                      <td className="px-3 py-2 text-text-primary">{a.hostname || a.id}</td>
-                      <td className="px-3 py-2 text-text-secondary text-xs">{a.os || '—'}</td>
+                      <td className="px-3 py-2 text-white">{a.hostname || a.id}</td>
+                      <td className="px-3 py-2 text-gray-300 text-xs">{a.os || '—'}</td>
                       <td className="px-3 py-2 text-xs">
                         <span
                           className={
                             'inline-flex px-2 py-0.5 rounded-full border ' +
                             (a.status === 'online'
-                              ? 'bg-success/10 text-success border-success/20'
-                              : 'bg-border-strong/30 text-text-secondary border-border-strong/30')
+                              ? 'bg-green-500/10 text-green-400 border-green-800'
+                              : 'bg-slate-700/30 text-gray-300 border-slate-700/30')
                           }
                         >
                           {a.status || 'unknown'}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-text-secondary text-xs">
+                      <td className="px-3 py-2 text-right tabular-nums text-gray-300 text-xs">
                         {a.cpu_percent !== undefined ? `${a.cpu_percent.toFixed(0)}%` : '—'}
                       </td>
                     </tr>
@@ -1440,7 +1440,7 @@ function TargetsStep({
           </table>
         </div>
       </div>
-      <p className="text-xs text-text-muted">
+      <p className="text-xs text-gray-400">
         {selected.size} agent{selected.size === 1 ? '' : 's'} selected.
       </p>
     </div>
@@ -1485,28 +1485,28 @@ function ConfigureStep({
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-text-primary mb-1">Job name *</label>
+        <label className="block text-sm font-medium text-white mb-1">Job name *</label>
         <input
           type="text"
           value={name}
           onChange={(e) => onNameChange(e.target.value)}
           placeholder="e.g. Q2 Critical Security Rollout"
-          className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
+          className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40"
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-text-primary mb-1">Description</label>
+        <label className="block text-sm font-medium text-white mb-1">Description</label>
         <textarea
           value={description}
           onChange={(e) => onDescriptionChange(e.target.value)}
           rows={2}
           placeholder="Optional context for reviewers…"
-          className="w-full px-3 py-2 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
+          className="w-full px-3 py-2 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-text-primary mb-1.5">Deployment strategy</label>
+        <label className="block text-sm font-medium text-white mb-1.5">Deployment strategy</label>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {(
             [
@@ -1522,12 +1522,12 @@ function ConfigureStep({
               className={
                 'text-left rounded-md border p-3 transition-colors ' +
                 (strategy === s.value
-                  ? 'border-accent/50 bg-accent/10'
-                  : 'border-border-subtle bg-surface-secondary/60 hover:border-border-strong')
+                  ? 'border-blue-500/50 bg-blue-600/10'
+                  : 'border-slate-800 bg-slate-900 hover:border-slate-700')
               }
             >
-              <div className="text-sm font-medium text-text-primary">{s.label}</div>
-              <div className="text-xs text-text-muted mt-0.5">{s.desc}</div>
+              <div className="text-sm font-medium text-white">{s.label}</div>
+              <div className="text-xs text-gray-400 mt-0.5">{s.desc}</div>
             </button>
           ))}
         </div>
@@ -1536,18 +1536,18 @@ function ConfigureStep({
       {strategy === 'staged' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">Batch size</label>
+            <label className="block text-sm font-medium text-white mb-1">Batch size</label>
             <input
               type="number"
               min={1}
               value={batchSize}
               onChange={(e) => onBatchSizeChange(Math.max(1, Number(e.target.value) || 1))}
-              className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
+              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40"
             />
-            <p className="text-xs text-text-muted mt-1">Agents per rollout stage.</p>
+            <p className="text-xs text-gray-400 mt-1">Agents per rollout stage.</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">
+            <label className="block text-sm font-medium text-white mb-1">
               Batch interval (minutes)
             </label>
             <input
@@ -1557,9 +1557,9 @@ function ConfigureStep({
               onChange={(e) =>
                 onBatchIntervalChange(Math.max(1, Number(e.target.value) || 1))
               }
-              className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
+              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40"
             />
-            <p className="text-xs text-text-muted mt-1">Time between stages.</p>
+            <p className="text-xs text-gray-400 mt-1">Time between stages.</p>
           </div>
         </div>
       )}
@@ -1567,28 +1567,28 @@ function ConfigureStep({
       {strategy === 'maintenance_window' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">Window start</label>
+            <label className="block text-sm font-medium text-white mb-1">Window start</label>
             <input
               type="datetime-local"
               value={maintenanceStart}
               onChange={(e) => onMaintenanceStartChange(e.target.value)}
-              className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
+              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">Window end</label>
+            <label className="block text-sm font-medium text-white mb-1">Window end</label>
             <input
               type="datetime-local"
               value={maintenanceEnd}
               onChange={(e) => onMaintenanceEndChange(e.target.value)}
-              className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
+              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40"
             />
           </div>
         </div>
       )}
 
       <div>
-        <label className="block text-sm font-medium text-text-primary mb-1.5">Reboot policy</label>
+        <label className="block text-sm font-medium text-white mb-1.5">Reboot policy</label>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {(
             [
@@ -1605,8 +1605,8 @@ function ConfigureStep({
               className={
                 'rounded-md border px-3 h-8 text-sm transition-colors ' +
                 (rebootPolicy === r.value
-                  ? 'border-accent/50 bg-accent/10 text-text-primary'
-                  : 'border-border-subtle bg-surface-secondary/60 text-text-secondary hover:border-border-strong')
+                  ? 'border-blue-500/50 bg-blue-600/10 text-white'
+                  : 'border-slate-800 bg-slate-900 text-gray-300 hover:border-slate-700')
               }
             >
               {r.label}
@@ -1660,81 +1660,81 @@ function ReviewStep({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-md border border-border-subtle bg-surface-secondary/60 p-4 space-y-2">
-        <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
-          <Eye className="h-4 w-4 text-text-secondary" />
+      <div className="rounded-md border border-slate-800 bg-slate-900 p-4 space-y-2">
+        <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+          <Eye className="h-4 w-4 text-gray-300" />
           Job summary
         </h3>
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
           <div>
-            <dt className="text-xs text-text-muted">Name</dt>
-            <dd className="text-text-primary">{name || '—'}</dd>
+            <dt className="text-xs text-gray-400">Name</dt>
+            <dd className="text-white">{name || '—'}</dd>
           </div>
           <div>
-            <dt className="text-xs text-text-muted">Strategy</dt>
-            <dd className="text-text-primary capitalize">{strategy.replace('_', ' ')}</dd>
+            <dt className="text-xs text-gray-400">Strategy</dt>
+            <dd className="text-white capitalize">{strategy.replace('_', ' ')}</dd>
           </div>
           {description && (
             <div className="sm:col-span-2">
-              <dt className="text-xs text-text-muted">Description</dt>
-              <dd className="text-text-primary">{description}</dd>
+              <dt className="text-xs text-gray-400">Description</dt>
+              <dd className="text-white">{description}</dd>
             </div>
           )}
           {strategy === 'staged' && (
             <>
               <div>
-                <dt className="text-xs text-text-muted">Batch size</dt>
-                <dd className="text-text-primary">{batchSize}</dd>
+                <dt className="text-xs text-gray-400">Batch size</dt>
+                <dd className="text-white">{batchSize}</dd>
               </div>
               <div>
-                <dt className="text-xs text-text-muted">Batch interval</dt>
-                <dd className="text-text-primary">{batchIntervalMinutes} min</dd>
+                <dt className="text-xs text-gray-400">Batch interval</dt>
+                <dd className="text-white">{batchIntervalMinutes} min</dd>
               </div>
             </>
           )}
           {strategy === 'maintenance_window' && (
             <>
               <div>
-                <dt className="text-xs text-text-muted">Window start</dt>
-                <dd className="text-text-primary">{maintenanceStart || '—'}</dd>
+                <dt className="text-xs text-gray-400">Window start</dt>
+                <dd className="text-white">{maintenanceStart || '—'}</dd>
               </div>
               <div>
-                <dt className="text-xs text-text-muted">Window end</dt>
-                <dd className="text-text-primary">{maintenanceEnd || '—'}</dd>
+                <dt className="text-xs text-gray-400">Window end</dt>
+                <dd className="text-white">{maintenanceEnd || '—'}</dd>
               </div>
             </>
           )}
           <div>
-            <dt className="text-xs text-text-muted">Reboot policy</dt>
-            <dd className="text-text-primary capitalize">{rebootPolicy.replace('_', ' ')}</dd>
+            <dt className="text-xs text-gray-400">Reboot policy</dt>
+            <dd className="text-white capitalize">{rebootPolicy.replace('_', ' ')}</dd>
           </div>
           <div>
-            <dt className="text-xs text-text-muted">Patches / Agents</dt>
-            <dd className="text-text-primary tabular-nums">
+            <dt className="text-xs text-gray-400">Patches / Agents</dt>
+            <dd className="text-white tabular-nums">
               {patchCount} / {agentCount}
             </dd>
           </div>
         </dl>
       </div>
 
-      <div className="rounded-md border border-border-subtle bg-surface-secondary/60">
-        <div className="px-4 py-3 border-b border-border-subtle flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
-            <Package className="h-4 w-4 text-text-secondary" />
+      <div className="rounded-md border border-slate-800 bg-slate-900">
+        <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+            <Package className="h-4 w-4 text-gray-300" />
             Patches
           </h3>
-          <span className="text-xs text-text-muted">{patchCount} selected</span>
+          <span className="text-xs text-gray-400">{patchCount} selected</span>
         </div>
-        <ul className="divide-y divide-border-subtle max-h-48 overflow-y-auto">
+        <ul className="divide-y divide-slate-800 max-h-48 overflow-y-auto">
           {patchDetails.length === 0 ? (
-            <li className="px-4 py-3 text-sm text-text-muted">No patches selected.</li>
+            <li className="px-4 py-3 text-sm text-gray-400">No patches selected.</li>
           ) : (
             patchDetails.map((p) => (
               <li key={p.id} className="px-4 py-2 flex items-center gap-3 text-sm">
                 <SeverityBadge severity={p.severity} showLabel={false} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-text-primary truncate">{p.title}</p>
-                  <p className="text-xs text-text-muted">
+                  <p className="text-white truncate">{p.title}</p>
+                  <p className="text-xs text-gray-400">
                     {p.kb_number ?? '—'}
                     {p.os ? ` · ${p.os}` : ''}
                   </p>
@@ -1745,28 +1745,28 @@ function ReviewStep({
         </ul>
       </div>
 
-      <div className="rounded-md border border-border-subtle bg-surface-secondary/60">
-        <div className="px-4 py-3 border-b border-border-subtle flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
-            <Server className="h-4 w-4 text-text-secondary" />
+      <div className="rounded-md border border-slate-800 bg-slate-900">
+        <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+            <Server className="h-4 w-4 text-gray-300" />
             Target agents
           </h3>
-          <span className="text-xs text-text-muted">{agentCount} selected</span>
+          <span className="text-xs text-gray-400">{agentCount} selected</span>
         </div>
-        <ul className="divide-y divide-border-subtle max-h-48 overflow-y-auto">
+        <ul className="divide-y divide-slate-800 max-h-48 overflow-y-auto">
           {agentDetails.length === 0 ? (
-            <li className="px-4 py-3 text-sm text-text-muted">No agents selected.</li>
+            <li className="px-4 py-3 text-sm text-gray-400">No agents selected.</li>
           ) : (
             agentDetails.map((a) => (
               <li key={a.id} className="px-4 py-2 flex items-center gap-3 text-sm">
-                <span className="text-text-primary truncate flex-1">{a.hostname || a.id}</span>
-                <span className="text-xs text-text-muted">{a.os || '—'}</span>
+                <span className="text-white truncate flex-1">{a.hostname || a.id}</span>
+                <span className="text-xs text-gray-400">{a.os || '—'}</span>
                 <span
                   className={
                     'inline-flex px-2 py-0.5 rounded-full border text-xs ' +
                     (a.status === 'online'
-                      ? 'bg-success/10 text-success border-success/20'
-                      : 'bg-border-strong/30 text-text-secondary border-border-strong/30')
+                      ? 'bg-green-500/10 text-green-400 border-green-800'
+                      : 'bg-slate-700/30 text-gray-300 border-slate-700/30')
                   }
                 >
                   {a.status || 'unknown'}

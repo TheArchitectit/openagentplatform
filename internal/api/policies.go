@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/openagentplatform/openagentplatform/internal/auth"
 	"github.com/openagentplatform/openagentplatform/internal/policy"
 	"github.com/openagentplatform/openagentplatform/pkg/models"
 )
@@ -29,6 +30,9 @@ func (s *Server) listPolicies(w http.ResponseWriter, r *http.Request) {
 		Category:        q.Get("category"),
 		EnforcementMode: q.Get("enforcement_mode"),
 		Search:          q.Get("search"),
+	}
+	if claims, ok := authFromCtx(r); ok && claims != nil && claims.OrgID != "" {
+		f.OrgID = claims.OrgID
 	}
 	if v := q.Get("enabled"); v != "" {
 		b, err := strconv.ParseBool(v)
@@ -114,7 +118,11 @@ func (s *Server) getPolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := chi.URLParam(r, "id")
-	p, err := s.policyStore.GetPolicy(r.Context(), id)
+	orgID := ""
+	if claims, ok := auth.UserFromContext(r.Context()); ok && claims != nil {
+		orgID = claims.OrgID
+	}
+	p, err := s.policyStore.GetPolicy(r.Context(), orgID, id)
 	if err != nil {
 		if errors.Is(err, policy.ErrPolicyNotFound) {
 			http.Error(w, `{"error":"policy_not_found"}`, http.StatusNotFound)
@@ -140,12 +148,16 @@ func (s *Server) updatePolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := chi.URLParam(r, "id")
+	orgID := ""
+	if claims, ok := auth.UserFromContext(r.Context()); ok && claims != nil {
+		orgID = claims.OrgID
+	}
 	var p models.Policy
 	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
 		http.Error(w, `{"error":"invalid_body"}`, http.StatusBadRequest)
 		return
 	}
-	existing, err := s.policyStore.GetPolicy(r.Context(), id)
+	existing, err := s.policyStore.GetPolicy(r.Context(), orgID, id)
 	if err != nil {
 		if errors.Is(err, policy.ErrPolicyNotFound) {
 			http.Error(w, `{"error":"policy_not_found"}`, http.StatusNotFound)
@@ -192,7 +204,11 @@ func (s *Server) deletePolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := chi.URLParam(r, "id")
-	if err := s.policyStore.SoftDeletePolicy(r.Context(), id); err != nil {
+	orgID := ""
+	if claims, ok := auth.UserFromContext(r.Context()); ok && claims != nil {
+		orgID = claims.OrgID
+	}
+	if err := s.policyStore.SoftDeletePolicy(r.Context(), orgID, id); err != nil {
 		if errors.Is(err, policy.ErrPolicyNotFound) {
 			http.Error(w, `{"error":"policy_not_found"}`, http.StatusNotFound)
 			return
@@ -261,6 +277,10 @@ func (s *Server) assignPolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := chi.URLParam(r, "id")
+	orgID := ""
+	if claims, ok := auth.UserFromContext(r.Context()); ok && claims != nil {
+		orgID = claims.OrgID
+	}
 	var body struct {
 		AgentIDs []string `json:"agent_ids"`
 		SiteIDs  []string `json:"site_ids"`
@@ -270,7 +290,7 @@ func (s *Server) assignPolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Confirm the policy exists.
-	if _, err := s.policyStore.GetPolicy(r.Context(), id); err != nil {
+	if _, err := s.policyStore.GetPolicy(r.Context(), orgID, id); err != nil {
 		if errors.Is(err, policy.ErrPolicyNotFound) {
 			http.Error(w, `{"error":"policy_not_found"}`, http.StatusNotFound)
 			return

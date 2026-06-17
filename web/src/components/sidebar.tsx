@@ -193,7 +193,7 @@ export function Sidebar() {
         aria-hidden="true"
         onClick={closeMobile}
         className={
-          'fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity duration-200 ' +
+          'fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-40 md:hidden transition-opacity duration-200 ' +
           (mobileOpen
             ? 'opacity-100 pointer-events-auto'
             : 'opacity-0 pointer-events-none')
@@ -203,9 +203,9 @@ export function Sidebar() {
       <aside
         aria-label="Primary navigation"
         className={
-          // Base styles: dark surface, scrollable list, full-height.
-          'flex flex-col w-64 shrink-0 border-r bg-surface-secondary text-text-primary ' +
-          'border-border ' +
+          // Base styles: dark card surface, right border, full-height.
+          'flex flex-col w-64 shrink-0 bg-slate-950 md:bg-slate-900 text-gray-100 ' +
+          'border-r border-slate-800 backdrop-blur-xl md:backdrop-blur-none ' +
           // Mobile: fixed overlay, slide in from left, hidden off-screen when closed.
           'fixed inset-y-0 left-0 z-50 transform transition-transform duration-200 ease-in-out ' +
           // Desktop: static, always visible, no transform.
@@ -214,15 +214,20 @@ export function Sidebar() {
         }
       >
         {/* Brand / close button row */}
-        <div className="flex items-center justify-between px-4 h-14 border-b border-border shrink-0">
-          <span className="text-lg font-semibold tracking-tight">
-            <span className="text-accent">Open</span>AgentPlatform
-          </span>
+        <div className="flex items-center justify-between px-4 h-14 border-b border-slate-800 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <Bot className="w-5 h-5 text-white" aria-hidden="true" />
+            </div>
+            <span className="text-lg font-semibold tracking-tight">
+              <span className="text-blue-400">Open</span>AgentPlatform
+            </span>
+          </div>
           {/* Mobile-only close button. */}
           <button
             type="button"
             onClick={closeMobile}
-            className="md:hidden p-1.5 rounded-md text-text-muted hover:text-text-primary hover:bg-surface-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
+            className="md:hidden p-1.5 rounded-md text-gray-500 hover:text-gray-200 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
             aria-label="Close navigation menu"
           >
             <X className="w-5 h-5" aria-hidden="true" />
@@ -232,7 +237,7 @@ export function Sidebar() {
         {/* Scrollable nav area */}
         <nav
           aria-label="Sections"
-          className="flex-1 overflow-y-auto py-3 px-2 space-y-4"
+          className="flex-1 overflow-y-auto py-3 px-2 space-y-1"
         >
           {NAV_SECTIONS.map((section) => {
             const isCollapsed = collapsed[section.id] ?? false;
@@ -251,11 +256,11 @@ export function Sidebar() {
         </nav>
 
         {/* Footer: user info + logout */}
-        <div className="border-t border-border p-3 shrink-0">
+        <div className="border-t border-slate-800 p-3 shrink-0">
           {user && (
-            <div className="flex items-center gap-2 px-2 py-1.5">
+            <div className="flex items-center gap-2.5 px-2 py-1.5">
               <div
-                className="w-8 h-8 rounded-full bg-accent/20 text-accent flex items-center justify-center text-sm font-semibold"
+                className="w-8 h-8 rounded-full bg-blue-600/20 text-blue-400 flex items-center justify-center text-sm font-semibold"
                 aria-hidden="true"
               >
                 {user.name
@@ -263,11 +268,11 @@ export function Sidebar() {
                   : user.email.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium truncate">
+                <div className="text-sm font-medium truncate text-gray-200">
                   {user.name ?? user.email}
                 </div>
                 {user.name && (
-                  <div className="text-xs text-text-muted truncate">{user.email}</div>
+                  <div className="text-xs text-gray-500 truncate">{user.email}</div>
                 )}
               </div>
             </div>
@@ -275,7 +280,7 @@ export function Sidebar() {
           <button
             type="button"
             onClick={() => logout()}
-            className="w-full mt-2 flex items-center gap-2 px-2 py-2 rounded-md text-sm text-text-secondary hover:text-text-primary hover:bg-surface-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
+            className="w-full mt-2 flex items-center gap-2 px-2 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-200 hover:bg-slate-800/50 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <LogOut className="w-4 h-4" aria-hidden="true" />
             Sign out
@@ -321,7 +326,7 @@ function SidebarSection({
         onClick={onToggle}
         aria-expanded={!collapsed}
         aria-controls={contentId}
-        className="w-full flex items-center justify-between px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-text-muted hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-accent rounded"
+        className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg"
       >
         <span>{section.label}</span>
         <ChevronDown
@@ -334,7 +339,7 @@ function SidebarSection({
       </button>
 
       {!collapsed && (
-        <ul id={contentId} role="list" className="mt-1 space-y-0.5">
+        <ul id={contentId} role="list" className="mt-0.5 space-y-0.5">
           {section.items.map((item, index) => {
             const badge =
               item.showAlertBadge && criticalAlertCount > 0
@@ -350,11 +355,11 @@ function SidebarSection({
                   onClick={onNavClick}
                   activeProps={{
                     className:
-                      'flex items-center gap-2 px-2 py-2 rounded-md text-sm font-medium bg-accent/15 text-accent border-l-2 border-accent',
+                      'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600/20 text-blue-400',
                   }}
                   inactiveProps={{
                     className:
-                      'flex items-center gap-2 px-2 py-2 rounded-md text-sm text-text-secondary hover:text-text-primary hover:bg-surface-tertiary border-l-2 border-transparent',
+                      'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:bg-slate-800/50 hover:text-gray-200',
                   }}
                   {...getItemProps(index)}
                 >

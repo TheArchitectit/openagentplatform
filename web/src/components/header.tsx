@@ -72,39 +72,44 @@ export function Header() {
   const unreadCount = 0;
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between gap-2 h-14 px-3 md:px-4 border-b border-border bg-surface-secondary/95 backdrop-blur supports-[backdrop-filter]:bg-surface-secondary/80">
-      <div className="flex items-center gap-2 min-w-0">
+    <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-6 border-b border-slate-800 bg-slate-950/80 backdrop-blur-xl">
+      <div className="flex items-center gap-3 min-w-0">
         {/* Mobile hamburger */}
         <button
           type="button"
           onClick={toggleMobile}
-          className="md:hidden p-2 -ml-1 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
+          className="md:hidden p-2 -ml-1 rounded-lg text-gray-400 hover:text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
           aria-label="Open navigation menu"
         >
           <Menu className="w-5 h-5" aria-hidden="true" />
         </button>
 
-        {/* Search (hidden on small screens to save space) */}
+        {/* Page title / breadcrumb */}
+        <h1 className="text-sm font-medium text-gray-300 truncate hidden sm:block">
+          Dashboard
+        </h1>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {/* Search */}
         <div className="hidden sm:flex relative">
           <Search
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none"
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none"
             aria-hidden="true"
           />
           <input
             type="search"
             placeholder="Search…"
             aria-label="Search"
-            className="w-48 md:w-64 pl-8 pr-3 py-1.5 text-sm rounded-md bg-surface-tertiary border border-border text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+            className="h-9 w-64 pl-9 pr-3 text-sm rounded-lg bg-slate-800 border border-slate-700 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
-      </div>
 
-      <div className="flex items-center gap-1 sm:gap-2">
         {/* Theme toggle */}
         <button
           type="button"
           onClick={toggleTheme}
-          className="p-2 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
+          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
           aria-label={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} mode`}
         >
           {resolvedTheme === 'dark' ? (
@@ -119,7 +124,7 @@ export function Header() {
           <button
             type="button"
             onClick={() => setNotifOpen((v) => !v)}
-            className="p-2 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary focus:outline-none focus:ring-2 focus:ring-accent relative"
+            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 relative"
             aria-label={
               unreadCount > 0
                 ? `Notifications, ${unreadCount} unread`
@@ -143,12 +148,12 @@ export function Header() {
             <div
               role="dialog"
               aria-label="Notifications"
-              className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-1rem)] rounded-md border border-border bg-surface-secondary shadow-lg overflow-hidden"
+              className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-1rem)] rounded-lg border border-slate-700 bg-slate-800 shadow-2xl overflow-hidden"
             >
-              <div className="px-4 py-3 border-b border-border">
-                <h3 className="text-sm font-semibold">Notifications</h3>
+              <div className="px-4 py-3 border-b border-slate-700">
+                <h3 className="text-sm font-semibold text-white">Notifications</h3>
               </div>
-              <div className="p-4 text-sm text-text-muted text-center">
+              <div className="p-4 text-sm text-gray-500 text-center">
                 No new notifications.
               </div>
             </div>
@@ -162,13 +167,13 @@ export function Header() {
             type="button"
             onClick={() => setMenuOpen((v) => !v)}
             onKeyDown={handleUserMenuKey}
-            className="flex items-center gap-1.5 p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
+            className="flex items-center gap-1.5 p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             aria-label="User menu"
           >
             <span
-              className="w-7 h-7 rounded-full bg-accent/20 text-accent flex items-center justify-center text-xs font-semibold"
+              className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-semibold"
               aria-hidden="true"
             >
               {user?.name
@@ -177,7 +182,7 @@ export function Header() {
             </span>
             <ChevronDown
               className={
-                'w-3.5 h-3.5 hidden sm:block transition-transform ' +
+                'w-3.5 h-3.5 hidden sm:block transition-transform text-gray-400 ' +
                 (menuOpen ? 'rotate-180' : '')
               }
               aria-hidden="true"
@@ -188,14 +193,14 @@ export function Header() {
             <div
               role="menu"
               aria-label="User menu"
-              className="absolute right-0 mt-2 w-56 rounded-md border border-border bg-surface-secondary shadow-lg py-1"
+              className="absolute right-0 mt-2 w-56 rounded-lg border border-slate-700 bg-slate-800 shadow-2xl py-1"
             >
               {user && (
-                <div className="px-3 py-2 border-b border-border">
-                  <div className="text-sm font-medium truncate">
+                <div className="px-3 py-2 border-b border-slate-700">
+                  <div className="text-sm font-medium text-white truncate">
                     {user.name ?? user.email}
                   </div>
-                  <div className="text-xs text-text-muted truncate">
+                  <div className="text-xs text-gray-400 truncate">
                     {user.email}
                   </div>
                 </div>
@@ -208,7 +213,7 @@ export function Header() {
                   setMenuOpen(false);
                   void navigate({ to: '/settings' });
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-surface-tertiary hover:text-text-primary focus:bg-surface-tertiary focus:outline-none"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-slate-700 hover:text-white focus:bg-slate-700 focus:outline-none"
               >
                 <UserIcon className="w-4 h-4" aria-hidden="true" />
                 Profile
@@ -221,7 +226,7 @@ export function Header() {
                   setMenuOpen(false);
                   void navigate({ to: '/settings' });
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-surface-tertiary hover:text-text-primary focus:bg-surface-tertiary focus:outline-none"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-slate-700 hover:text-white focus:bg-slate-700 focus:outline-none"
               >
                 <Settings className="w-4 h-4" aria-hidden="true" />
                 Settings
@@ -234,13 +239,13 @@ export function Header() {
                   setMenuOpen(false);
                   void navigate({ to: '/settings/api-keys' });
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-surface-tertiary hover:text-text-primary focus:bg-surface-tertiary focus:outline-none"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-slate-700 hover:text-white focus:bg-slate-700 focus:outline-none"
               >
                 <KeyRound className="w-4 h-4" aria-hidden="true" />
                 API Keys
               </button>
 
-              <div className="my-1 border-t border-border" />
+              <div className="my-1 border-t border-slate-700" />
 
               <button
                 type="button"

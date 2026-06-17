@@ -50,9 +50,12 @@ func VerifierMiddleware(sm *SessionMinter, v *Verifier, cookieName string) func(
 				oidcClaims, err := v.Verify(r.Context(), tok)
 				if err == nil {
 					session := &SessionClaims{
-						Email: oidcClaims.Email,
-						Name:  oidcClaims.Name,
-						Role:  MapGroupsToRole(oidcClaims.Groups),
+						Email:  oidcClaims.Email,
+						Name:   oidcClaims.Name,
+						Groups: oidcClaims.Groups,
+						OrgID:  oidcClaims.OrgID,
+						SiteID: oidcClaims.SiteID,
+						Role:   MapGroupsToRole(oidcClaims.Groups),
 						RegisteredClaims: jwt.RegisteredClaims{
 							Subject: oidcClaims.Subject,
 						},

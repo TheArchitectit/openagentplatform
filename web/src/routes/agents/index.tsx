@@ -32,12 +32,12 @@ function deriveStatus(a: Agent, now: number): StatusKind {
 function statusColor(kind: StatusKind): string {
   switch (kind) {
     case 'online':
-      return 'bg-success';
+      return 'bg-green-500';
     case 'error':
-      return 'bg-danger';
+      return 'bg-red-500';
     case 'offline':
     default:
-      return 'bg-text-muted';
+      return 'bg-slate-500';
   }
 }
 
@@ -109,14 +109,14 @@ function AgentsListPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-md bg-surface-tertiary border border-border-strong flex items-center justify-center" aria-hidden="true">
-            <Bot className="h-4 w-4 text-text-secondary" />
+          <div className="h-9 w-9 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center" aria-hidden="true">
+            <Bot className="h-4 w-4 text-gray-300" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-text-primary">Agents</h1>
-            <p className="text-text-secondary text-sm mt-0.5">
+            <h1 className="text-2xl font-bold text-white">Agents</h1>
+            <p className="text-gray-300 text-sm mt-0.5">
               Endpoints reporting to this site.
-              <span className="ml-2 text-text-muted" aria-live="polite">
+              <span className="ml-2 text-gray-400" aria-live="polite">
                 {updatedAgo !== null ? `Updated ${updatedAgo}s ago` : '—'}
               </span>
             </p>
@@ -126,7 +126,7 @@ function AgentsListPage() {
           <span
             className={
               'inline-flex h-2 w-2 rounded-full ' +
-              (status === 'open' ? 'bg-success' : status === 'connecting' ? 'bg-warning' : 'bg-text-muted')
+              (status === 'open' ? 'bg-green-500' : status === 'connecting' ? 'bg-yellow-500' : 'bg-slate-500')
             }
             role="status"
             aria-label={`WebSocket connection: ${status}`}
@@ -138,7 +138,7 @@ function AgentsListPage() {
             }}
             disabled={isLoading}
             aria-label="Refresh agents"
-            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-surface-tertiary hover:bg-border-strong border border-border-strong text-sm text-text-primary disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
+            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-white disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
           >
             <RefreshCw className={'h-4 w-4 ' + (isLoading ? 'animate-spin' : '')} aria-hidden="true" />
             <span>Refresh</span>
@@ -151,7 +151,7 @@ function AgentsListPage() {
         <div
           role="tablist"
           aria-label="Filter agents by status"
-          className="flex items-center gap-1 p-1 rounded-md bg-surface-secondary border border-border-subtle"
+          className="flex items-center gap-1 p-1 rounded-md bg-slate-900 border border-slate-800"
         >
           {(['all', 'online', 'offline', 'error'] as StatusFilter[]).map((f) => (
             <button
@@ -164,21 +164,21 @@ function AgentsListPage() {
                 setPage(0);
               }}
               className={
-                'px-3 h-8 rounded text-sm capitalize transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ' +
+                'px-3 h-8 rounded text-sm capitalize transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ' +
                 (filter === f
-                  ? 'bg-surface-tertiary text-text-primary'
-                  : 'text-text-secondary hover:text-text-primary')
+                  ? 'bg-slate-800 text-white'
+                  : 'text-gray-300 hover:text-white')
               }
             >
               {f}
-              <span className="ml-2 text-xs text-text-muted" aria-hidden="true">{counts[f]}</span>
+              <span className="ml-2 text-xs text-gray-400" aria-hidden="true">{counts[f]}</span>
               <span className="sr-only">({counts[f]} agents)</span>
             </button>
           ))}
         </div>
 
         <div className="relative w-full sm:w-72" role="search">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" aria-hidden="true" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" aria-hidden="true" />
           <input
             type="search"
             role="searchbox"
@@ -189,17 +189,17 @@ function AgentsListPage() {
               setPage(0);
             }}
             placeholder="Search hostname…"
-            className="w-full h-9 pl-9 pr-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus:border-accent"
+            className="w-full h-9 pl-9 pr-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
           />
         </div>
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 overflow-hidden">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table role="table" aria-label="Agents" className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-text-muted border-b border-border-subtle bg-surface-primary/40">
+              <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-slate-800 bg-slate-800">
                 <th className="px-4 py-3 w-10" scope="col">Status</th>
                 <th className="px-4 py-3" scope="col">Hostname</th>
                 <th className="px-4 py-3" scope="col">Site</th>
@@ -211,22 +211,22 @@ function AgentsListPage() {
                 <th className="px-4 py-3 text-right" scope="col">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-subtle">
+            <tbody className="divide-y divide-slate-800">
               {isLoading && agents.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-text-muted" role="status" aria-live="polite">
+                  <td colSpan={9} className="px-4 py-12 text-center text-gray-400" role="status" aria-live="polite">
                     Loading agents…
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-danger" role="alert">
+                  <td colSpan={9} className="px-4 py-12 text-center text-red-400" role="alert">
                     Failed to load agents: {error.message}
                   </td>
                 </tr>
               ) : paged.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-text-muted" role="status">
+                  <td colSpan={9} className="px-4 py-12 text-center text-gray-400" role="status">
                     No agents match the current filter.
                   </td>
                 </tr>
@@ -246,7 +246,7 @@ function AgentsListPage() {
                         }
                       }}
                       tabIndex={0}
-                      className="hover:bg-surface-tertiary/40 cursor-pointer transition-colors focus:outline-none focus-visible:bg-surface-tertiary/60"
+                      className="hover:bg-slate-800/40 cursor-pointer transition-colors focus:outline-none focus-visible:bg-slate-800/60"
                     >
                       <td className="px-4 py-3">
                         <span
@@ -257,24 +257,24 @@ function AgentsListPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <Bot className="h-4 w-4 text-text-muted" aria-hidden="true" />
-                          <span className="text-text-primary font-medium">{a.hostname || a.id}</span>
+                          <Bot className="h-4 w-4 text-gray-400" aria-hidden="true" />
+                          <span className="text-white font-medium">{a.hostname || a.id}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-text-secondary">{a.site_id || '—'}</td>
-                      <td className="px-4 py-3 text-text-secondary">{a.os || '—'}</td>
-                      <td className="px-4 py-3 text-text-secondary">{formatLastSeen(a.last_seen, now)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-text-primary">{pct(a.cpu_percent)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-text-primary">{pct(a.mem_percent)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-text-primary">{pct(a.disk_percent)}</td>
+                      <td className="px-4 py-3 text-gray-300">{a.site_id || '—'}</td>
+                      <td className="px-4 py-3 text-gray-300">{a.os || '—'}</td>
+                      <td className="px-4 py-3 text-gray-300">{formatLastSeen(a.last_seen, now)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-white">{pct(a.cpu_percent)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-white">{pct(a.mem_percent)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums text-white">{pct(a.disk_percent)}</td>
                       <td className="px-4 py-3 text-right">
                         <div className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                           {k === 'online' ? (
-                            <CircleCheck className="h-4 w-4 text-success" aria-label="Online" />
+                            <CircleCheck className="h-4 w-4 text-green-400" aria-label="Online" />
                           ) : k === 'error' ? (
-                            <CircleAlert className="h-4 w-4 text-danger" aria-label="Error" />
+                            <CircleAlert className="h-4 w-4 text-red-400" aria-label="Error" />
                           ) : (
-                            <CircleX className="h-4 w-4 text-text-muted" aria-label="Offline" />
+                            <CircleX className="h-4 w-4 text-gray-400" aria-label="Offline" />
                           )}
                         </div>
                       </td>
@@ -287,17 +287,17 @@ function AgentsListPage() {
         </div>
 
         {/* Pagination */}
-        <div className="px-4 py-3 border-t border-border-subtle flex items-center justify-between text-sm">
-          <div className="text-text-muted" aria-live="polite">
+        <div className="px-4 py-3 border-t border-slate-800 flex items-center justify-between text-sm">
+          <div className="text-gray-400" aria-live="polite">
             Showing{' '}
-            <span className="text-text-secondary">
+            <span className="text-gray-300">
               {filtered.length === 0 ? 0 : currentPage * PAGE_SIZE + 1}
             </span>
             –
-            <span className="text-text-secondary">
+            <span className="text-gray-300">
               {Math.min((currentPage + 1) * PAGE_SIZE, filtered.length)}
             </span>{' '}
-            of <span className="text-text-secondary">{filtered.length}</span>
+            of <span className="text-gray-300">{filtered.length}</span>
           </div>
           <div className="flex items-center gap-1" role="navigation" aria-label="Pagination">
             <button
@@ -305,11 +305,11 @@ function AgentsListPage() {
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={currentPage === 0}
               aria-label="Previous page"
-              className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border-strong bg-surface-tertiary text-text-secondary disabled:opacity-40 hover:bg-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
+              className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-slate-700 bg-slate-800 text-gray-300 disabled:opacity-40 hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </button>
-            <span className="px-2 text-text-secondary tabular-nums" aria-label={`Page ${currentPage + 1} of ${totalPages}`}>
+            <span className="px-2 text-gray-300 tabular-nums" aria-label={`Page ${currentPage + 1} of ${totalPages}`}>
               {currentPage + 1} / {totalPages}
             </span>
             <button
@@ -317,7 +317,7 @@ function AgentsListPage() {
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={currentPage >= totalPages - 1}
               aria-label="Next page"
-              className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-border-strong bg-surface-tertiary text-text-secondary disabled:opacity-40 hover:bg-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
+              className="h-8 w-8 inline-flex items-center justify-center rounded-md border border-slate-700 bg-slate-800 text-gray-300 disabled:opacity-40 hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
             >
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>

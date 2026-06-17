@@ -13,7 +13,6 @@ import {
   type Role,
   type UpdateRoleInput,
 } from '@/lib/useSettings';
-import './settings.css';
 
 export const Route = createFileRoute('/settings/roles')({
   component: RolesPage,
@@ -60,121 +59,101 @@ function RolesPage() {
   );
 
   return (
-    <>
-      <div className="settings-page-header">
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1>Roles</h1>
-          <p>Manage role-based access control and assign permissions per category.</p>
+          <h1 className="text-2xl font-bold text-white">Roles</h1>
+          <p className="text-gray-300 text-sm mt-0.5">
+            Manage role-based access control and assign permissions per category.
+          </p>
         </div>
         <button
           type="button"
-          className="settings-input"
-          style={{
-            width: 'auto',
-            height: '2.25rem',
-            padding: '0 0.75rem',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.375rem',
-            background: 'rgb(99 102 241)',
-            color: 'white',
-            border: 'none',
-            fontWeight: 500,
-          }}
           onClick={() => setCreating(true)}
+          className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-blue-600 hover:bg-blue-500 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
         >
           <Plus className="h-4 w-4" />
           Create Role
         </button>
       </div>
 
-      <div className="settings-table-wrap">
-        <table className="settings-table">
-          <thead>
-            <tr>
-              <th>Role Name</th>
-              <th>Description</th>
-              <th>Users</th>
-              <th>Permissions</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoadingRoles ? (
-              <tr className="empty-row">
-                <td colSpan={5}>Loading roles...</td>
+      {/* Table */}
+      <div className="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-800 text-left text-xs uppercase tracking-wider text-gray-300">
+                <th className="px-4 py-2.5 font-medium">Role Name</th>
+                <th className="px-4 py-2.5 font-medium">Description</th>
+                <th className="px-4 py-2.5 font-medium text-right">Users</th>
+                <th className="px-4 py-2.5 font-medium text-right">Permissions</th>
+                <th className="px-4 py-2.5 font-medium text-right">Actions</th>
               </tr>
-            ) : roles.length === 0 ? (
-              <tr className="empty-row">
-                <td colSpan={5}>No roles defined.</td>
-              </tr>
-            ) : (
-              roles.map((r) => (
-                <tr key={r.id}>
-                  <td style={{ color: 'rgb(241 245 249)', fontWeight: 500 }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
-                      {r.built_in && <Lock className="h-3 w-3 text-text-muted" />}
-                      {r.name}
-                    </span>
-                    {r.built_in && (
-                      <span className="settings-badge settings-badge--built-in" style={{ marginLeft: '0.5rem' }}>
-                        built-in
-                      </span>
-                    )}
-                  </td>
-                  <td style={{ color: 'rgb(148 163 184)' }}>{r.description}</td>
-                  <td>{r.user_count}</td>
-                  <td>{r.permission_count || r.permissions.length}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.375rem' }}>
-                      <button
-                        type="button"
-                        className="settings-input"
-                        style={{
-                          width: 'auto',
-                          height: '1.75rem',
-                          padding: '0 0.5rem',
-                          cursor: r.built_in ? 'not-allowed' : 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                          fontSize: '0.75rem',
-                          opacity: r.built_in ? 0.4 : 1,
-                        }}
-                        onClick={() => !r.built_in && setEditing(r)}
-                        disabled={r.built_in}
-                        title={r.built_in ? 'Built-in roles cannot be edited' : 'Edit role'}
-                      >
-                        <ShieldCheck className="h-3 w-3" /> Edit
-                      </button>
-                      {!r.built_in && (
-                        <button
-                          type="button"
-                          className="settings-input"
-                          style={{
-                            width: 'auto',
-                            height: '1.75rem',
-                            padding: '0 0.5rem',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            fontSize: '0.75rem',
-                            color: 'rgb(252 165 165)',
-                          }}
-                          onClick={() => handleDelete(r.id, r.name)}
-                          title="Delete role"
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {isLoadingRoles ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-12 text-center text-gray-400" role="status">
+                    Loading roles...
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : roles.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-12 text-center text-gray-400" role="status">
+                    No roles defined.
+                  </td>
+                </tr>
+              ) : (
+                roles.map((r) => (
+                  <tr key={r.id} className="hover:bg-slate-800/40 transition-colors">
+                    <td className="px-4 py-2.5 text-white font-medium">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5">
+                          {r.built_in && <Lock className="h-3 w-3 text-gray-400" />}
+                          {r.name}
+                        </span>
+                        {r.built_in && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-full border bg-slate-500/10 text-gray-300 border-slate-500/20">
+                            built-in
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 text-gray-300 text-xs">{r.description}</td>
+                    <td className="px-4 py-2.5 text-gray-300 text-xs text-right">{r.user_count}</td>
+                    <td className="px-4 py-2.5 text-gray-300 text-xs text-right">
+                      {r.permission_count || r.permissions.length}
+                    </td>
+                    <td className="px-4 py-2.5 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => !r.built_in && setEditing(r)}
+                          disabled={r.built_in}
+                          title={r.built_in ? 'Built-in roles cannot be edited' : 'Edit role'}
+                          className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-gray-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <ShieldCheck className="h-3 w-3" /> Edit
+                        </button>
+                        {!r.built_in && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(r.id, r.name)}
+                            title="Delete role"
+                            className="inline-flex items-center h-7 px-2 rounded-md bg-slate-800 hover:bg-red-600 border border-slate-700 text-xs text-red-400 hover:text-white transition-colors"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {creating && (
@@ -191,7 +170,7 @@ function RolesPage() {
           onSubmit={(input) => handleUpdate(editing.id, input)}
         />
       )}
-    </>
+    </div>
   );
 }
 
@@ -251,94 +230,101 @@ function RoleModal({
   };
 
   return (
-    <div className="settings-modal-backdrop" onClick={onClose}>
-      <div className="settings-modal settings-modal--wide" onClick={(e) => e.stopPropagation()}>
-        <div className="settings-modal-header">
-          <h2>{isEdit ? `Edit Role: ${role!.name}` : 'Create Role'}</h2>
-          <button type="button" className="settings-modal-close" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div
+        className="rounded-xl border border-slate-800 bg-slate-900 p-5 w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-white">
+            {isEdit ? `Edit Role: ${role!.name}` : 'Create Role'}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex items-center justify-center h-7 w-7 rounded-md text-gray-300 hover:bg-slate-800 hover:text-white transition-colors"
+            aria-label="Close"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
-        <form onSubmit={handleSubmit}>
-          <div className="settings-form-group">
-            <label className="settings-form-label" htmlFor="role-name">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="role-name" className="block text-xs text-gray-300 mb-1">
               Role Name
             </label>
             <input
               id="role-name"
               type="text"
-              className="settings-input"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
               readOnly={isEdit}
               placeholder="e.g. auditor"
+              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500 readOnly:cursor-not-allowed"
             />
           </div>
-          <div className="settings-form-group">
-            <label className="settings-form-label" htmlFor="role-desc">
+          <div>
+            <label htmlFor="role-desc" className="block text-xs text-gray-300 mb-1">
               Description
             </label>
             <textarea
               id="role-desc"
-              className="settings-textarea"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What can this role do?"
+              rows={3}
+              className="w-full px-3 py-2 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
-          <div className="settings-form-group">
-            <label className="settings-form-label">
+          <div>
+            <label className="block text-xs text-gray-300 mb-2">
               Permissions ({permCount} selected)
             </label>
-            {PERMISSION_CATEGORIES.map((cat) => (
-              <div key={cat.key} className="settings-perm-category">
-                <div className="settings-perm-category-header">
-                  <span className="settings-perm-category-label">{cat.label}</span>
+            <div className="space-y-3">
+              {PERMISSION_CATEGORIES.map((cat) => (
+                <div key={cat.key} className="rounded-md border border-slate-800 bg-slate-800/40 p-3">
+                  <div className="text-xs font-semibold text-white uppercase tracking-wider mb-2">
+                    {cat.label}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {cat.actions.map((action) => {
+                      const perm = `${cat.key}:${action}`;
+                      const checked = permissions.has(perm);
+                      return (
+                        <label
+                          key={perm}
+                          className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-slate-700 bg-slate-800 text-xs text-gray-300 cursor-pointer hover:border-slate-600 transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => togglePerm(perm, e.target.checked)}
+                            className="h-3 w-3 rounded border-slate-600 text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
+                          />
+                          {action}
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="settings-perm-row">
-                  {cat.actions.map((action) => {
-                    const perm = `${cat.key}:${action}`;
-                    return (
-                      <label key={perm} className="settings-perm-check">
-                        <input
-                          type="checkbox"
-                          checked={permissions.has(perm)}
-                          onChange={(e) => togglePerm(perm, e.target.checked)}
-                        />
-                        {action}
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          <div className="settings-form-actions">
+          <div className="flex items-center justify-end gap-2 pt-2">
             <button
               type="button"
-              className="settings-input"
-              style={{ width: 'auto', height: '2.25rem', padding: '0 0.75rem', cursor: 'pointer' }}
               onClick={onClose}
+              className="inline-flex items-center px-3 h-9 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-white transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="settings-input"
-              style={{
-                width: 'auto',
-                height: '2.25rem',
-                padding: '0 0.75rem',
-                cursor: 'pointer',
-                background: 'rgb(99 102 241)',
-                color: 'white',
-                border: 'none',
-                fontWeight: 500,
-              }}
               disabled={busy || !name.trim()}
+              className="inline-flex items-center px-3 h-9 rounded-md bg-blue-600 hover:bg-blue-500 text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {busy ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Role'}
             </button>

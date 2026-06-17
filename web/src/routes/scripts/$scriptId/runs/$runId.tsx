@@ -44,32 +44,32 @@ const STATUS_META: Record<
 > = {
   pending: {
     label: 'Pending',
-    classes: 'bg-text-muted/10 text-text-secondary border-text-muted/20',
+    classes: 'bg-slate-500/10 text-gray-300 border-slate-700',
     icon: CircleDashed,
   },
   in_progress: {
     label: 'Running',
-    classes: 'bg-accent/10 text-accent border-accent/20',
+    classes: 'bg-blue-600/10 text-blue-400 border-blue-500/20',
     icon: CirclePlay,
   },
   completed: {
     label: 'Success',
-    classes: 'bg-success/10 text-success border-success/20',
+    classes: 'bg-green-500/10 text-green-400 border-green-800',
     icon: CircleCheck,
   },
   failed: {
     label: 'Failed',
-    classes: 'bg-danger/10 text-danger border-danger/20',
+    classes: 'bg-red-500/10 text-red-400 border-red-800',
     icon: CircleX,
   },
   cancelled: {
     label: 'Cancelled',
-    classes: 'bg-text-muted/10 text-text-secondary border-text-muted/20',
+    classes: 'bg-slate-500/10 text-gray-300 border-slate-700',
     icon: CircleDashed,
   },
   timeout: {
     label: 'Timeout',
-    classes: 'bg-warning/10 text-warning border-warning/20',
+    classes: 'bg-yellow-500/10 text-yellow-400 border-yellow-800',
     icon: CircleAlert,
   },
 };
@@ -234,7 +234,7 @@ function RunDetailPage() {
 
   if (isLoading && !run) {
     return (
-      <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-12 text-center text-text-muted">
+      <div className="rounded-lg border border-slate-800 bg-slate-900 p-12 text-center text-gray-400">
         <Loader2 className="inline h-5 w-5 animate-spin mr-2" />
         Loading run…
       </div>
@@ -247,11 +247,11 @@ function RunDetailPage() {
         <Link
           to="/scripts/$scriptId"
           params={{ scriptId }}
-          className="inline-flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary"
+          className="inline-flex items-center gap-2 text-sm text-gray-300 hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" /> Back to script
         </Link>
-        <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-12 text-center text-text-muted">
+        <div className="rounded-lg border border-slate-800 bg-slate-900 p-12 text-center text-gray-400">
           Run not found.
         </div>
       </div>
@@ -271,16 +271,16 @@ function RunDetailPage() {
           <Link
             to="/scripts/$scriptId"
             params={{ scriptId }}
-            className="p-2 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary transition-colors"
+            className="p-2 rounded-md text-gray-300 hover:text-white hover:bg-slate-800 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <div className="h-9 w-9 rounded-md bg-surface-tertiary border border-border-strong flex items-center justify-center">
-            <Terminal className="h-4 w-4 text-text-secondary" />
+          <div className="h-9 w-9 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center">
+            <Terminal className="h-4 w-4 text-gray-300" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-text-primary">
+              <h1 className="text-2xl font-bold text-white">
                 {scriptName || `Run ${run.id.slice(0, 8)}`}
               </h1>
               <span
@@ -296,23 +296,23 @@ function RunDetailPage() {
                 {meta.label}
               </span>
               {live && (
-                <span className="inline-flex items-center gap-1 text-xs text-accent">
-                  <span className="inline-flex h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+                <span className="inline-flex items-center gap-1 text-xs text-blue-400">
+                  <span className="inline-flex h-1.5 w-1.5 rounded-full bg-blue-600 animate-pulse" />
                   live
                 </span>
               )}
             </div>
-            <p className="text-text-secondary text-sm mt-0.5">
-              <Bot className="inline h-3.5 w-3.5 mr-1 text-text-muted" />
+            <p className="text-gray-300 text-sm mt-0.5">
+              <Bot className="inline h-3.5 w-3.5 mr-1 text-gray-400" />
               {run.hostname ?? run.agent_id}
               {live && liveDuration ? (
                 <>
-                  <span className="mx-2 text-text-muted">•</span>
-                  <span className="text-accent">elapsed {liveDuration}</span>
+                  <span className="mx-2 text-gray-400">•</span>
+                  <span className="text-blue-400">elapsed {liveDuration}</span>
                 </>
               ) : (
                 <>
-                  <span className="mx-2 text-text-muted">•</span>
+                  <span className="mx-2 text-gray-400">•</span>
                   {finalDuration}
                 </>
               )}
@@ -325,7 +325,7 @@ function RunDetailPage() {
             type="button"
             onClick={() => void onCancel()}
             disabled={cancelling}
-            className="inline-flex items-center gap-2 px-3 h-9 rounded-md border border-danger/30 bg-danger/10 text-danger hover:bg-danger/20 text-sm disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-2 px-3 h-9 rounded-md border border-red-800 bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm disabled:opacity-50 transition-colors"
           >
             {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-4 w-4" />}
             <span>{cancelling ? 'Cancelling…' : 'Cancel Run'}</span>
@@ -334,64 +334,64 @@ function RunDetailPage() {
       </div>
 
       {error && (
-        <div className="rounded-md border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+        <div className="rounded-md border border-red-800 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           {error}
         </div>
       )}
 
       {/* Metadata */}
-      <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-5">
+      <div className="rounded-lg border border-slate-800 bg-slate-900 p-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <p className="text-xs uppercase tracking-wider text-text-muted">Script</p>
-            <p className="text-sm text-text-primary mt-1">
-              {scriptName || <span className="text-text-muted italic">Unknown</span>}
+            <p className="text-xs uppercase tracking-wider text-gray-400">Script</p>
+            <p className="text-sm text-white mt-1">
+              {scriptName || <span className="text-gray-400 italic">Unknown</span>}
             </p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-text-muted">Agent</p>
-            <p className="text-sm text-text-primary mt-1">
+            <p className="text-xs uppercase tracking-wider text-gray-400">Agent</p>
+            <p className="text-sm text-white mt-1">
               <Link
                 to="/agents/$agentId"
                 params={{ agentId: run.agent_id }}
-                className="hover:text-accent"
+                className="hover:text-blue-400"
               >
                 {run.hostname ?? run.agent_id}
               </Link>
             </p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-text-muted">Status</p>
-            <p className={'text-sm mt-1 capitalize ' + (meta.classes.split(' ')[1] ?? 'text-text-secondary')}>
+            <p className="text-xs uppercase tracking-wider text-gray-400">Status</p>
+            <p className={'text-sm mt-1 capitalize ' + (meta.classes.split(' ')[1] ?? 'text-gray-300')}>
               {meta.label}
             </p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-text-muted">Exit Code</p>
+            <p className="text-xs uppercase tracking-wider text-gray-400">Exit Code</p>
             <p className="text-sm mt-1">
               {run.exit_code !== undefined && run.exit_code !== null ? (
                 <span
                   className={
                     'tabular-nums font-mono ' +
-                    (run.exit_code === 0 ? 'text-success' : 'text-danger')
+                    (run.exit_code === 0 ? 'text-green-400' : 'text-red-400')
                   }
                 >
                   {run.exit_code}
                 </span>
               ) : (
-                <span className="text-text-muted">—</span>
+                <span className="text-gray-400">—</span>
               )}
             </p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-text-muted">Started</p>
-            <p className="text-sm text-text-primary mt-1">{formatDateTime(run.started_at)}</p>
+            <p className="text-xs uppercase tracking-wider text-gray-400">Started</p>
+            <p className="text-sm text-white mt-1">{formatDateTime(run.started_at)}</p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-text-muted">Finished</p>
-            <p className="text-sm text-text-primary mt-1">
+            <p className="text-xs uppercase tracking-wider text-gray-400">Finished</p>
+            <p className="text-sm text-white mt-1">
               {live ? (
-                <span className="text-accent inline-flex items-center gap-1">
+                <span className="text-blue-400 inline-flex items-center gap-1">
                   <Clock className="h-3.5 w-3.5" />
                   in progress…
                 </span>
@@ -401,27 +401,27 @@ function RunDetailPage() {
             </p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-text-muted">Duration</p>
-            <p className="text-sm text-text-primary mt-1 tabular-nums">
+            <p className="text-xs uppercase tracking-wider text-gray-400">Duration</p>
+            <p className="text-sm text-white mt-1 tabular-nums">
               {live ? liveDuration : finalDuration}
             </p>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wider text-text-muted">Triggered by</p>
-            <p className="text-sm text-text-primary mt-1">
+            <p className="text-xs uppercase tracking-wider text-gray-400">Triggered by</p>
+            <p className="text-sm text-white mt-1">
               {run.triggered_by ? (
                 <span className="inline-flex items-center gap-1">
-                  <User className="h-3.5 w-3.5 text-text-muted" />
+                  <User className="h-3.5 w-3.5 text-gray-400" />
                   {run.triggered_by}
                 </span>
               ) : (
-                <span className="text-text-muted">—</span>
+                <span className="text-gray-400">—</span>
               )}
             </p>
           </div>
           <div className="sm:col-span-2 lg:col-span-4">
-            <p className="text-xs uppercase tracking-wider text-text-muted">Run ID</p>
-            <p className="text-xs text-text-secondary mt-1 font-mono inline-flex items-center gap-1">
+            <p className="text-xs uppercase tracking-wider text-gray-400">Run ID</p>
+            <p className="text-xs text-gray-300 mt-1 font-mono inline-flex items-center gap-1">
               <Hash className="h-3 w-3" />
               {run.id}
             </p>
@@ -430,34 +430,34 @@ function RunDetailPage() {
       </div>
 
       {/* Output viewer */}
-      <div className="rounded-lg border border-border-subtle bg-black overflow-hidden flex flex-col">
-        <div className="px-4 py-2 border-b border-border-subtle bg-surface-secondary flex items-center justify-between">
+      <div className="rounded-lg border border-slate-800 bg-black overflow-hidden flex flex-col">
+        <div className="px-4 py-2 border-b border-slate-800 bg-slate-900 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <TerminalSquare className="h-4 w-4 text-text-secondary" />
-            <h2 className="text-sm font-semibold text-text-primary">Output</h2>
+            <TerminalSquare className="h-4 w-4 text-gray-300" />
+            <h2 className="text-sm font-semibold text-white">Output</h2>
             {live && (
-              <span className="inline-flex items-center gap-1 text-xs text-accent">
-                <span className="inline-flex h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+              <span className="inline-flex items-center gap-1 text-xs text-blue-400">
+                <span className="inline-flex h-1.5 w-1.5 rounded-full bg-blue-600 animate-pulse" />
                 streaming
               </span>
             )}
           </div>
-          <span className="text-xs text-text-muted font-mono">
+          <span className="text-xs text-gray-400 font-mono">
             {(stdout.length + stderr.length).toLocaleString()} bytes
           </span>
         </div>
         <div
           ref={outputRef}
-          className="bg-black text-text-primary font-mono text-xs p-4 overflow-auto max-h-[36rem] whitespace-pre-wrap break-words leading-5"
+          className="bg-black text-white font-mono text-xs p-4 overflow-auto max-h-[36rem] whitespace-pre-wrap break-words leading-5"
         >
           {stdout && (
-            <span className="text-text-primary">{stdout}</span>
+            <span className="text-white">{stdout}</span>
           )}
           {stderr && (
-            <span className="text-danger">{stderr}</span>
+            <span className="text-red-400">{stderr}</span>
           )}
           {!stdout && !stderr && (
-            <span className="text-text-muted italic">
+            <span className="text-gray-400 italic">
               {live ? 'Waiting for output…' : 'No output captured.'}
             </span>
           )}
@@ -469,7 +469,7 @@ function RunDetailPage() {
         <Link
           to="/scripts/$scriptId"
           params={{ scriptId }}
-          className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+          className="text-sm text-gray-300 hover:text-white transition-colors"
         >
           ← Back to script
         </Link>

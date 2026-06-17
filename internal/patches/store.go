@@ -32,10 +32,10 @@ type PatchJobFilter struct {
 // this interface; pgPatchStore is the default implementation.
 type Store interface {
 	CreatePatchJob(ctx context.Context, job *models.PatchJob) error
-	GetPatchJob(ctx context.Context, id string) (*models.PatchJob, error)
+	GetPatchJob(ctx context.Context, orgID, id string) (*models.PatchJob, error)
 	ListPatchJobs(ctx context.Context, f PatchJobFilter) ([]models.PatchJob, int, error)
 	UpdatePatchJob(ctx context.Context, job *models.PatchJob) error
-	DeletePatchJob(ctx context.Context, id string) error
+	DeletePatchJob(ctx context.Context, orgID, id string) error
 
 	InsertApprovalRecord(ctx context.Context, rec *models.ApprovalRecord) error
 	GetApprovalHistory(ctx context.Context, jobID string) ([]models.ApprovalRecord, error)
@@ -125,13 +125,20 @@ func (s *pgPatchStore) CreatePatchJob(ctx context.Context, job *models.PatchJob)
 }
 
 // GetPatchJob fetches a single patch job by id, including its
-// targets and approval records. Returns ErrPatchJobNotFound when
-// the id does not exist.
-func (s *pgPatchStore) GetPatchJob(ctx context.Context, id string) (*models.PatchJob, error) {
+// targets and approval records, scoped to the given org.
+// If orgID is non-empty, the query enforces org ownership.
+// Returns ErrPatchJobNotFound when the id does not exist.
+func (s *pgPatchStore) GetPatchJob(ctx context.Context, orgID, id string) (*models.PatchJob, error) {
 	if s.pool == nil {
 		return nil, errors.New("patches: nil pool")
 	}
-	const q = `
+	args := []any{id}
+	where := []string{"id = $1"}
+	if orgID != "" {
+		args = append(args, orgID)
+		where = append(where, fmt.Sprintf("org_id = $%d", len(args)))
+	}
+	q := `
 		SELECT id, COALESCE(org_id,''), COALESCE(title,''), COALESCE(description,''),
 		       COALESCE(severity,'standard'), COALESCE(state,'pending_approval'),
 		       COALESCE(created_by,''), scheduled_at, maintenance_window_start, maintenance_window_end,
@@ -139,11 +146,11 @@ func (s *pgPatchStore) GetPatchJob(ctx context.Context, id string) (*models.Patc
 		       COALESCE(package_name,''), COALESCE(package_version,''), COALESCE(rollback_version,''),
 		       COALESCE(failure_reason,''), created_at, updated_at, completed_at
 		FROM patch_jobs
-		WHERE id = $1
+		WHERE ` + joinAndPatches(where) + `
 		LIMIT 1
 	`
 	job := &models.PatchJob{}
-	err := s.pool.QueryRow(ctx, q, id).Scan(
+	err := s.pool.QueryRow(ctx, q, args...).Scan(
 		&job.ID, &job.OrgID, &job.Title, &job.Description,
 		&job.Severity, &job.State,
 		&job.CreatedBy, &job.ScheduledAt, &job.MaintenanceWindowStart, &job.MaintenanceWindowEnd,
@@ -305,12 +312,18 @@ func (s *pgPatchStore) UpdatePatchJob(ctx context.Context, job *models.PatchJob)
 
 // DeletePatchJob removes a patch job by id. Returns ErrPatchJobNotFound
 // if no row matches.
-func (s *pgPatchStore) DeletePatchJob(ctx context.Context, id string) error {
+func (s *pgPatchStore) DeletePatchJob(ctx context.Context, orgID, id string) error {
 	if s.pool == nil {
 		return errors.New("patches: nil pool")
 	}
-	const q = `DELETE FROM patch_jobs WHERE id = $1`
-	tag, err := s.pool.Exec(ctx, q, id)
+	args := []any{id}
+	where := "id = $1"
+	if orgID != "" {
+		args = append(args, orgID)
+		where += fmt.Sprintf(" AND org_id = $%d", len(args))
+	}
+	q := "DELETE FROM patch_jobs WHERE " + where
+	tag, err := s.pool.Exec(ctx, q, args...)
 	if err != nil {
 		return fmt.Errorf("patches: delete job: %w", err)
 	}

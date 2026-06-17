@@ -20,7 +20,7 @@ import (
 // interface.
 type HeartbeatStore interface {
 	UpdateAgentHeartbeat(ctx context.Context, agentID string, status string, lastSeen any, cpu, mem, disk float64) error
-	GetAgent(ctx context.Context, id string) (*models.Agent, error)
+	GetAgent(ctx context.Context, orgID, id string) (*models.Agent, error)
 	MarkStaleAgentsOffline(ctx context.Context, threshold any) ([]string, error)
 }
 
@@ -165,7 +165,7 @@ func (h *HeartbeatHandler) previousStatus(ctx context.Context, agentID string) s
 	if h.store == nil {
 		return ""
 	}
-	a, err := h.store.GetAgent(ctx, agentID)
+	a, err := h.store.GetAgent(ctx, "", agentID)
 	if err != nil || a == nil {
 		return ""
 	}

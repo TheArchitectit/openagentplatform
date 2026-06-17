@@ -43,6 +43,7 @@ func (s *Server) registerRoutes(r chi.Router) {
 	// Protected API.
 	r.Group(func(r chi.Router) {
 		r.Use(auth.VerifierMiddleware(s.sessionMinter, s.oidcVerifier, sessionCookieName))
+		r.Use(orgContextMiddleware)
 		r.Route("/api/v1", func(r chi.Router) {
 			r.Get("/health", s.healthz)
 
@@ -475,9 +476,27 @@ func (s *Server) listSites(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write([]byte(`[]`))
 }
 
-func (s *Server) listAlerts(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) listAlerts(w http.ResponseWriter, r *http.Request) {
+	if s.alertStore == nil {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[]`))
+		return
+	}
+	orgID := ""
+	if claims, ok := auth.UserFromContext(r.Context()); ok && claims != nil {
+		orgID = claims.OrgID
+	}
+	alerts, _, err := s.alertStore.ListAlerts(r.Context(), alerts.AlertFilter{OrgID: orgID, Limit: 50})
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[]`))
+		return
+	}
+	if alerts == nil {
+		alerts = []models.Alert{}
+	}
 	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write([]byte(`[]`))
+	_ = json.NewEncoder(w).Encode(alerts)
 }
 
 // getAlert returns a single alert by id, including its state history.
@@ -487,7 +506,11 @@ func (s *Server) getAlert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := chi.URLParam(r, "id")
-	alert, err := s.alertStore.GetAlert(r.Context(), id)
+	orgID := ""
+	if claims, ok := auth.UserFromContext(r.Context()); ok && claims != nil {
+		orgID = claims.OrgID
+	}
+	alert, err := s.alertStore.GetAlert(r.Context(), orgID, id)
 	if err != nil {
 		if errors.Is(err, alerts.ErrAlertNotFound) {
 			http.Error(w, `{"error":"alert_not_found"}`, http.StatusNotFound)
@@ -966,4 +989,25 @@ func clientIP(r *http.Request) string {
 		return strings.TrimSpace(h)
 	}
 	return r.RemoteAddr
+}
+
+// orgContextMiddleware ensures every authenticated request carries an OrgID
+// in its session claims. If no org context is present, the request is
+// rejected with 400. This enforces multi-tenant isolation: every API call
+// must be scoped to the caller's organization.
+func orgContextMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := auth.UserFromContext(r.Context())
+		if !ok || claims == nil {
+			// No claims means the request is unauthenticated; the auth
+			// middleware should have already rejected it.
+			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		if claims.OrgID == "" {
+			http.Error(w, `{"error":"org context required"}`, http.StatusBadRequest)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }

@@ -38,17 +38,19 @@ func (s *Server) handleAssignCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	store := s.checkStore()
-	if _, err := store.GetCheck(r.Context(), checkID); err != nil {
+	orgID := ""
+	actor := ""
+	if claims, ok := authFromCtx(r); ok && claims != nil {
+		orgID = claims.OrgID
+		actor = claims.Subject
+	}
+	if _, err := store.GetCheck(r.Context(), orgID, checkID); err != nil {
 		if errors.Is(err, ErrCheckNotFound) {
 			http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
 			return
 		}
 		http.Error(w, `{"error":"get_failed"}`, http.StatusInternalServerError)
 		return
-	}
-	actor := ""
-	if claims, ok := authFromCtx(r); ok {
-		actor = claims.Subject
 	}
 	now := time.Now().UTC()
 	agentCreated := 0
@@ -130,7 +132,11 @@ func (s *Server) handleListCheckAssignments(w http.ResponseWriter, r *http.Reque
 		http.Error(w, `{"error":"missing_id"}`, http.StatusBadRequest)
 		return
 	}
-	if _, err := s.checkStore().GetCheck(r.Context(), checkID); err != nil {
+	orgID := ""
+	if claims, ok := authFromCtx(r); ok && claims != nil {
+		orgID = claims.OrgID
+	}
+	if _, err := s.checkStore().GetCheck(r.Context(), orgID, checkID); err != nil {
 		if errors.Is(err, ErrCheckNotFound) {
 			http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
 			return
@@ -181,7 +187,11 @@ func (s *Server) handleBulkAssign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	store := s.checkStore()
-	if _, err := store.GetCheck(r.Context(), req.CheckID); err != nil {
+	orgID := ""
+	if claims, ok := authFromCtx(r); ok && claims != nil {
+		orgID = claims.OrgID
+	}
+	if _, err := store.GetCheck(r.Context(), orgID, req.CheckID); err != nil {
 		if errors.Is(err, ErrCheckNotFound) {
 			http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
 			return

@@ -35,7 +35,7 @@ type AlertFilter struct {
 // interface; pgAlertStore is the default implementation.
 type Store interface {
 	InsertAlert(ctx context.Context, a *models.Alert) error
-	GetAlert(ctx context.Context, id string) (*models.Alert, error)
+	GetAlert(ctx context.Context, orgID, id string) (*models.Alert, error)
 	GetAlertByDedupKey(ctx context.Context, dedupKey string) (*models.Alert, error)
 	ListAlerts(ctx context.Context, f AlertFilter) ([]models.Alert, int, error)
 	UpdateAlertState(ctx context.Context, a *models.Alert) error
@@ -132,13 +132,21 @@ func (s *pgAlertStore) InsertAlert(ctx context.Context, a *models.Alert) error {
 	return nil
 }
 
-// GetAlert fetches a single alert by id. Returns ErrAlertNotFound when
-// the id does not exist.
-func (s *pgAlertStore) GetAlert(ctx context.Context, id string) (*models.Alert, error) {
+// GetAlert fetches a single alert by id, scoped to the given org.
+// If orgID is non-empty, the query enforces org ownership; otherwise the
+// caller is responsible for org verification.
+// Returns ErrAlertNotFound when the id does not exist.
+func (s *pgAlertStore) GetAlert(ctx context.Context, orgID, id string) (*models.Alert, error) {
 	if s.pool == nil {
 		return nil, errors.New("alerts: nil pool")
 	}
-	const q = `
+	args := []any{id}
+	where := []string{"id = $1"}
+	if orgID != "" {
+		args = append(args, orgID)
+		where = append(where, fmt.Sprintf("org_id = $%d", len(args)))
+	}
+	q := `
 		SELECT id, COALESCE(dedup_key,''), check_id, COALESCE(agent_id,''),
 		       COALESCE(site_id,''), COALESCE(org_id,''), COALESCE(alert_rule_id,''),
 		       COALESCE(severity,''), COALESCE(state,'pending'),
@@ -146,12 +154,12 @@ func (s *pgAlertStore) GetAlert(ctx context.Context, id string) (*models.Alert, 
 		       COALESCE(acknowledged_by,''), snoozed_until,
 		       created_at, updated_at, resolved_at, closed_at
 		FROM alerts
-		WHERE id = $1
+		WHERE ` + joinAnd(where) + `
 		LIMIT 1
 	`
 	a := &models.Alert{}
 	var meta []byte
-	err := s.pool.QueryRow(ctx, q, id).Scan(
+	err := s.pool.QueryRow(ctx, q, args...).Scan(
 		&a.ID, &a.DedupKey, &a.CheckID, &a.AgentID,
 		&a.SiteID, &a.OrgID, &a.AlertRuleID,
 		&a.Severity, &a.State,

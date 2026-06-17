@@ -37,6 +37,7 @@ var ErrScriptRunNotFound = errors.New("script run not found")
 
 // ScriptListFilter is the filter applied to ListScripts.
 type ScriptListFilter struct {
+	OrgID   string
 	Runtime string
 	Enabled *bool
 	Tag     string
@@ -98,23 +99,30 @@ func (p *pgScriptStore) InsertScript(ctx context.Context, s *models.ScriptDefini
 
 // GetScript returns one script definition by id, or ErrScriptNotFound.
 // Soft-deleted rows (deleted_at IS NOT NULL) are treated as not found.
-func (p *pgScriptStore) GetScript(ctx context.Context, id string) (*models.ScriptDefinition, error) {
+// If orgID is non-empty, the query enforces org ownership.
+func (p *pgScriptStore) GetScript(ctx context.Context, orgID, id string) (*models.ScriptDefinition, error) {
 	if p.pool == nil {
 		return nil, errors.New("script_store: nil pool")
 	}
-	const q = `
+	args := []any{id}
+	where := []string{"id = $1", "deleted_at IS NULL"}
+	if orgID != "" {
+		args = append(args, orgID)
+		where = append(where, fmt.Sprintf("org_id = $%d", len(args)))
+	}
+	q := `
 		SELECT id, COALESCE(org_id,''), name, COALESCE(description,''),
 		       runtime, COALESCE(script_body,''),
 		       COALESCE(timeout_seconds, 30), COALESCE(enabled, true),
 		       COALESCE(tags, '[]'::jsonb),
 		       created_at, updated_at
 		FROM script_definitions
-		WHERE id = $1 AND deleted_at IS NULL
+		WHERE ` + joinAnd(where) + `
 		LIMIT 1
 	`
 	s := &models.ScriptDefinition{}
 	var tagsRaw []byte
-	err := p.pool.QueryRow(ctx, q, id).Scan(
+	err := p.pool.QueryRow(ctx, q, args...).Scan(
 		&s.ID, &s.OrgID, &s.Name, &s.Description,
 		&s.Runtime, &s.ScriptBody,
 		&s.TimeoutSeconds, &s.Enabled, &tagsRaw,
@@ -150,6 +158,9 @@ func (p *pgScriptStore) ListScripts(ctx context.Context, f ScriptListFilter) ([]
 		where = append(where, fmt.Sprintf(clause, len(args)))
 	}
 	where = append(where, "deleted_at IS NULL")
+	if f.OrgID != "" {
+		add("org_id = $%d", f.OrgID)
+	}
 	if f.Runtime != "" {
 		add("runtime = $%d", f.Runtime)
 	}
@@ -222,7 +233,7 @@ func (p *pgScriptStore) ListScripts(ctx context.Context, f ScriptListFilter) ([]
 // non-nil fields in the patch are persisted. The updated_at column is
 // always bumped to NOW(). A non-nil empty Tags slice is treated as "clear
 // all tags" (stored as []).
-func (p *pgScriptStore) UpdateScript(ctx context.Context, id string, patch ScriptPatch) (*models.ScriptDefinition, error) {
+func (p *pgScriptStore) UpdateScript(ctx context.Context, orgID, id string, patch ScriptPatch) (*models.ScriptDefinition, error) {
 	if p.pool == nil {
 		return nil, errors.New("script_store: nil pool")
 	}
@@ -259,15 +270,20 @@ func (p *pgScriptStore) UpdateScript(ctx context.Context, id string, patch Scrip
 	}
 	if len(sets) == 0 {
 		// Nothing to update — return the current row.
-		return p.GetScript(ctx, id)
+		return p.GetScript(ctx, orgID, id)
 	}
 	sets = append(sets, "updated_at = NOW()")
 	args = append(args, id)
+	whereClause := "id = $%d AND deleted_at IS NULL"
+	if orgID != "" {
+		args = append(args, orgID)
+		whereClause += fmt.Sprintf(" AND org_id = $%d", len(args))
+	}
 	q := fmt.Sprintf(`
 		UPDATE script_definitions SET %s
-		WHERE id = $%d AND deleted_at IS NULL
+		WHERE %s
 		RETURNING id
-	`, joinAnd(sets), len(args))
+	`, joinAnd(sets), whereClause)
 
 	var newID string
 	if err := p.pool.QueryRow(ctx, q, args...).Scan(&newID); err != nil {
@@ -276,22 +292,29 @@ func (p *pgScriptStore) UpdateScript(ctx context.Context, id string, patch Scrip
 		}
 		return nil, fmt.Errorf("script_store: update: %w", err)
 	}
-	return p.GetScript(ctx, id)
+	return p.GetScript(ctx, orgID, id)
 }
 
 // DeleteScript soft-deletes a script definition by setting deleted_at.
-func (p *pgScriptStore) DeleteScript(ctx context.Context, id string) error {
+// If orgID is non-empty, the query enforces org ownership.
+func (p *pgScriptStore) DeleteScript(ctx context.Context, orgID, id string) error {
 	if p.pool == nil {
 		return errors.New("script_store: nil pool")
 	}
-	const q = `
+	args := []any{id}
+	where := "id = $1 AND deleted_at IS NULL"
+	if orgID != "" {
+		args = append(args, orgID)
+		where += fmt.Sprintf(" AND org_id = $%d", len(args))
+	}
+	q := `
 		UPDATE script_definitions
 		SET deleted_at = NOW(), updated_at = NOW()
-		WHERE id = $1 AND deleted_at IS NULL
+		WHERE ` + where + `
 		RETURNING id
 	`
 	var returnedID string
-	if err := p.pool.QueryRow(ctx, q, id).Scan(&returnedID); err != nil {
+	if err := p.pool.QueryRow(ctx, q, args...).Scan(&returnedID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrScriptNotFound
 		}

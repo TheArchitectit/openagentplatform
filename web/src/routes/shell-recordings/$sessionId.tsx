@@ -53,23 +53,14 @@ interface RecordingMetadata {
   content_hash: string;
 }
 
-interface PlayEvent {
-  offset_ms: number;
-  dir: string;
-  data_b64: string;
-  data_hex: string;
-  size: number;
-  wall_ts: string;
+interface ShellEvent {
+  ts: string;
+  direction: 'in' | 'out';
+  data: string;
+  kind?: string;
 }
 
-interface PlayResponse {
-  metadata: RecordingMetadata;
-  events: PlayEvent[];
-}
-
-const SPEED_PRESETS = [1, 2, 4, 8];
-const SEEK_STEP_MS = 5000;
-const TICK_MS = 33; // ~30 fps; small enough for smooth playback
+const SPEEDS = [1, 2, 4, 8];
 
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -77,422 +68,283 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-function formatDate(iso: string): string {
-  if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleString();
-  } catch {
-    return iso;
-  }
-}
-
-function formatDuration(s: string): string {
-  if (!s) return '—';
-  const re = /^(?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?$/;
-  const m = s.match(re);
-  if (!m) return s;
-  const h = parseInt(m[1] || '0', 10);
-  const mm = parseInt(m[2] || '0', 10);
-  const ss = parseFloat(m[3] || '0');
-  if (h > 0) return `${h}h ${mm}m ${Math.floor(ss)}s`;
-  if (mm > 0) return `${mm}m ${Math.floor(ss)}s`;
-  return `${ss.toFixed(1)}s`;
-}
-
-function formatOffset(ms: number): string {
-  if (!Number.isFinite(ms) || ms < 0) ms = 0;
-  const total = Math.floor(ms / 1000);
-  const hh = Math.floor(total / 3600);
-  const mm = Math.floor((total % 3600) / 60);
-  const ss = total % 60;
-  const mss = ms % 1000;
-  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}.${String(mss).padStart(3, '0')}`;
-}
-
-function b64ToString(b64: string): string {
-  try {
-    // atob is available in browsers and modern Node.
-    if (typeof atob === 'function') {
-      const bin = atob(b64);
-      // Convert binary string -> UTF-8 string.
-      const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      return new TextDecoder('utf-8', { fatal: false }).decode(bytes);
-    }
-  } catch {
-    /* fall through */
-  }
-  return '';
-}
-
 function RecordingPlaybackPage() {
   const { sessionId } = Route.useParams();
   const navigate = useNavigate();
-  const user = getStoredUser();
-  const isAdmin =
-    user?.role === 'admin' || user?.role === 'owner' || user?.role === 'superadmin';
-
   const [meta, setMeta] = useState<RecordingMetadata | null>(null);
-  const [events, setEvents] = useState<PlayEvent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [events, setEvents] = useState<ShellEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Playback state.
-  const [playing, setPlaying] = useState(false);
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
-  const [currentMS, setCurrentMS] = useState(0);
-  const [rendered, setRendered] = useState('');
-  const [deleting, setDeleting] = useState(false);
-  const playbackRef = useRef<{ cursor: number }>({ cursor: 0 });
-  const viewportRef = useRef<HTMLPreElement | null>(null);
-  const accumulatedRef = useRef('');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const terminalRef = useRef<HTMLPreElement | null>(null);
+  const intervalRef = useRef<number | null>(null);
 
-  const totalDurationMS = useMemo(() => {
-    if (events.length === 0) return 0;
-    return Math.max(events[events.length - 1].offset_ms, 0);
-  }, [events]);
-
-  // ---- Load events ---------------------------------------------------
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await apiFetch<PlayResponse>(`/shell/recordings/${sessionId}/play?format=json-array`);
-        if (cancelled) return;
-        setMeta(data.metadata);
-        setEvents(data.events);
-      } catch (e) {
-        if (!cancelled) setError((e as Error).message);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [sessionId]);
-
-  // ---- Seek / reset helpers -----------------------------------------
-  const reset = useCallback(() => {
-    accumulatedRef.current = '';
-    setRendered('');
-    playbackRef.current.cursor = 0;
-    setCurrentMS(0);
-    setPlaying(false);
+    const u = getStoredUser();
+    setIsAdmin(u?.role === 'admin');
   }, []);
 
-  const seek = useCallback(
-    (ms: number) => {
-      const target = Math.max(0, Math.min(ms, totalDurationMS));
-      // Rebuild rendered output from scratch for every event up to
-      // the seek target. With a few thousand events this is still
-      // fast (string concatenation in the browser is cheap).
-      let acc = '';
-      let next = 0;
-      for (let i = 0; i < events.length; i++) {
-        if (events[i].offset_ms > target) break;
-        // Use the raw data_hex (hex-encoded) and convert through
-        // the same path as playback so the output matches.
-        const raw = hexToString(events[i].data_hex);
-        if (events[i].dir === 'out' || events[i].dir === 'in') {
-          acc += raw;
-        }
-        next = i + 1;
-      }
-      accumulatedRef.current = acc;
-      setRendered(acc);
-      playbackRef.current.cursor = next;
-      setCurrentMS(target);
-    },
-    [events, totalDurationMS]
-  );
+  const fetchAll = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [metaRes, eventsRes] = await Promise.all([
+        apiFetch(`/api/v1/shell/recordings/${sessionId}`),
+        apiFetch(`/api/v1/shell/recordings/${sessionId}/events`),
+      ]);
+      if (!metaRes.ok) throw new Error(`Failed to load metadata (${metaRes.status})`);
+      if (!eventsRes.ok) throw new Error(`Failed to load events (${eventsRes.status})`);
+      const m: RecordingMetadata = await metaRes.json();
+      const evts: ShellEvent[] = await eventsRes.json();
+      setMeta(m);
+      setEvents(Array.isArray(evts) ? evts : []);
+      setCurrentIdx(0);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [sessionId]);
 
-  // ---- Playback loop -----------------------------------------------
   useEffect(() => {
-    if (!playing) return;
-    const interval = window.setInterval(() => {
-      const cursor = playbackRef.current.cursor;
-      if (cursor >= events.length) {
-        setPlaying(false);
-        return;
-      }
-      const next = currentMS + TICK_MS * speed;
-      // Emit every event whose offset_ms <= next.
-      let advanced = false;
-      while (
-        playbackRef.current.cursor < events.length &&
-        events[playbackRef.current.cursor].offset_ms <= next
-      ) {
-        const ev = events[playbackRef.current.cursor];
-        const raw = hexToString(ev.data_hex);
-        if (ev.dir === 'out' || ev.dir === 'in') {
-          accumulatedRef.current += raw;
-        }
-        playbackRef.current.cursor++;
-        advanced = true;
-      }
-      if (advanced) {
-        setRendered(accumulatedRef.current);
-      }
-      setCurrentMS(next);
-      if (playbackRef.current.cursor >= events.length && next >= totalDurationMS) {
-        setPlaying(false);
-      }
-    }, TICK_MS);
-    return () => window.clearInterval(interval);
-  }, [playing, speed, currentMS, events, totalDurationMS]);
+    void fetchAll();
+  }, [fetchAll]);
 
-  // Auto-scroll viewport to bottom while playing.
+  // Playback timer
   useEffect(() => {
-    const el = viewportRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [rendered]);
+    if (!isPlaying || events.length === 0) return;
+    const baseInterval = 100; // ms per event tick at 1x
+    const interval = baseInterval / speed;
+    intervalRef.current = window.setInterval(() => {
+      setCurrentIdx((i) => {
+        if (i >= events.length - 1) {
+          setIsPlaying(false);
+          return i;
+        }
+        return i + 1;
+      });
+    }, interval);
+    return () => {
+      if (intervalRef.current !== null) {
+        window.clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isPlaying, speed, events.length]);
 
-  // ---- Keyboard controls -------------------------------------------
+  // Auto-scroll terminal
+  useEffect(() => {
+    if (terminalRef.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    }
+  }, [currentIdx]);
+
+  // Keyboard controls
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-      if (e.code === 'Space') {
-        e.preventDefault();
-        setPlaying((p) => !p);
-      } else if (e.code === 'ArrowLeft') {
-        e.preventDefault();
-        seek(currentMS - SEEK_STEP_MS);
-      } else if (e.code === 'ArrowRight') {
-        e.preventDefault();
-        seek(currentMS + SEEK_STEP_MS);
-      } else if (e.code === 'ArrowUp') {
-        e.preventDefault();
-        setSpeed((s) => Math.min(8, s === 8 ? 8 : s * 2));
-      } else if (e.code === 'ArrowDown') {
-        e.preventDefault();
-        setSpeed((s) => Math.max(1, s / 2));
-      } else if (e.code === 'KeyR') {
-        e.preventDefault();
-        reset();
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      switch (e.code) {
+        case 'Space':
+          e.preventDefault();
+          setIsPlaying((p) => !p);
+          break;
+        case 'ArrowLeft':
+          setCurrentIdx((i) => Math.max(0, i - 10));
+          break;
+        case 'ArrowRight':
+          setCurrentIdx((i) => Math.min(events.length - 1, i + 10));
+          break;
+        case 'ArrowUp':
+          setSpeed((s) => Math.min(SPEEDS[SPEEDS.length - 1], s * 2));
+          break;
+        case 'ArrowDown':
+          setSpeed((s) => Math.max(1, s / 2));
+          break;
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [seek, currentMS, reset]);
+  }, [events.length]);
 
-  // ---- Delete handler -----------------------------------------------
+  const visibleText = useMemo(() => {
+    return events
+      .slice(0, currentIdx + 1)
+      .map((e) => e.data)
+      .join('');
+  }, [events, currentIdx]);
+
   const handleDelete = async () => {
-    if (!isAdmin) return;
-    if (!confirm(`Delete recording ${sessionId}? This cannot be undone.`)) return;
-    setDeleting(true);
+    if (!confirm('Delete this recording? This cannot be undone.')) return;
     try {
-      await apiFetch<void>(`/shell/recordings/${sessionId}`, { method: 'DELETE' });
-      navigate({ to: '/shell-recordings' });
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setDeleting(false);
+      const res = await apiFetch(`/api/v1/shell/recordings/${sessionId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+      void navigate({ to: '/shell-recordings' });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Delete failed');
     }
   };
 
-  if (loading) {
+  const handleDownload = () => {
+    const blob = new Blob([visibleText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `session-${sessionId}.log`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (isLoading) {
     return (
-      <div className="text-text-secondary text-sm p-6">Loading recording…</div>
+      <div className="rounded-lg border border-slate-800 bg-slate-900 p-12 text-center text-gray-400" role="status" aria-live="polite">
+        Loading recording…
+      </div>
     );
   }
-  if (error) {
+  if (error || !meta) {
     return (
       <div className="space-y-3">
-        <div className="text-danger text-sm">{error}</div>
         <button
           type="button"
-          onClick={() => navigate({ to: '/shell-recordings' })}
-          className="px-3 py-1.5 rounded-md bg-surface-tertiary hover:bg-border-strong text-sm text-text-primary"
+          onClick={() => void navigate({ to: '/shell-recordings' })}
+          className="inline-flex items-center gap-1.5 text-sm text-gray-300 hover:text-white transition-colors"
         >
-          Back to list
+          <ChevronLeft className="h-4 w-4" /> Back to recordings
         </button>
+        <div role="alert" className="rounded-md border border-red-800 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+          {error ?? 'Recording not found'}
+        </div>
       </div>
     );
   }
-  if (!meta) {
-    return <div className="text-text-secondary text-sm">Recording not found.</div>;
-  }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr,280px] gap-4 h-[calc(100vh-7rem)]">
-      {/* Main playback area */}
-      <div className="flex flex-col bg-surface-primary border border-border-subtle rounded-lg overflow-hidden">
-        {/* Header bar */}
-        <div className="flex items-center justify-between px-4 py-2 bg-surface-secondary border-b border-border-subtle">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => navigate({ to: '/shell-recordings' })}
-              className="p-1.5 rounded-md hover:bg-surface-tertiary text-text-secondary"
-              title="Back to list"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <div className="font-mono text-xs text-text-secondary truncate max-w-[300px]">
-              {meta.session_id}
-            </div>
-            <span className="text-xs text-text-muted">
-              {meta.terminal_size.cols}×{meta.terminal_size.rows} {meta.protocol}
-            </span>
-          </div>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setPlaying((p) => !p)}
-              className="p-1.5 rounded-md hover:bg-surface-tertiary text-text-primary"
-              title={playing ? 'Pause (space)' : 'Play (space)'}
-            >
-              {playing ? <Pause size={16} /> : <Play size={16} />}
-            </button>
-            <button
-              type="button"
-              onClick={reset}
-              className="p-1.5 rounded-md hover:bg-surface-tertiary text-text-primary"
-              title="Reset"
-            >
-              <RotateCcw size={16} />
-            </button>
-            <a
-              href={`/api/v1/shell/recordings/${meta.session_id}/export`}
-              className="p-1.5 rounded-md hover:bg-surface-tertiary text-text-primary"
-              title="Download .cast"
-            >
-              <Download size={16} />
-            </a>
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={deleting}
-                className="p-1.5 rounded-md hover:bg-danger/30 text-danger disabled:opacity-50"
-                title="Delete recording (admin only)"
-              >
-                <Trash2 size={16} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Terminal viewport */}
-        <pre
-          ref={viewportRef}
-          className="flex-1 overflow-auto p-3 text-xs text-text-primary font-mono whitespace-pre"
-          style={{
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-            lineHeight: '1.2',
-            background: '#020617',
-          }}
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <button
+          type="button"
+          onClick={() => void navigate({ to: '/shell-recordings' })}
+          className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-slate-800 bg-slate-900 hover:bg-slate-800 hover:border-slate-700 text-gray-300 hover:text-white transition-colors"
+          aria-label="Back to recordings"
         >
-          {rendered}
-        </pre>
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl font-bold text-white font-mono truncate">{meta.session_id}</h1>
+          <p className="text-xs text-gray-300 mt-0.5">
+            {meta.agent_id} · {meta.user_id} · {meta.protocol.toUpperCase()}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleDownload}
+          className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
+        >
+          <Download className="h-4 w-4" />
+          Download
+        </button>
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-red-600 hover:bg-red-500 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 transition-colors"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete
+          </button>
+        )}
+      </div>
 
-        {/* Timeline + speed controls */}
-        <div className="border-t border-border-subtle bg-surface-secondary px-4 py-2 flex items-center gap-3">
-          <span className="text-xs text-text-muted font-mono w-32">
-            {formatOffset(currentMS)} / {formatOffset(totalDurationMS)}
-          </span>
-          <input
-            type="range"
-            min={0}
-            max={Math.max(1, totalDurationMS)}
-            value={Math.min(currentMS, totalDurationMS)}
-            onChange={(e) => seek(Number(e.target.value))}
-            className="flex-1 accent-accent"
-          />
-          <div className="flex items-center gap-1 text-xs text-text-secondary">
-            <Gauge size={14} />
-            {SPEED_PRESETS.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setSpeed(s)}
-                className={
-                  'px-2 py-0.5 rounded ' +
-                  (s === speed
-                    ? 'bg-accent/20 text-accent border border-accent/30'
-                    : 'bg-surface-tertiary hover:bg-border-strong text-text-secondary')
-                }
-              >
-                {s}x
-              </button>
-            ))}
+      {/* Metadata */}
+      <div className="rounded-lg border border-slate-800 bg-slate-900 p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+        <div>
+          <div className="text-xs text-gray-400 mb-0.5">Started</div>
+          <div className="text-white text-xs">{new Date(meta.started_at).toLocaleString()}</div>
+        </div>
+        <div>
+          <div className="text-xs text-gray-400 mb-0.5">Duration</div>
+          <div className="text-white text-xs">{meta.duration}</div>
+        </div>
+        <div>
+          <div className="text-xs text-gray-400 mb-0.5">Events</div>
+          <div className="text-white text-xs">{meta.event_count.toLocaleString()}</div>
+        </div>
+        <div>
+          <div className="text-xs text-gray-400 mb-0.5">Size</div>
+          <div className="text-white text-xs">
+            {formatBytes(meta.bytes_in + meta.bytes_out)}
           </div>
         </div>
       </div>
 
-      {/* Sidebar metadata */}
-      <aside className="bg-surface-secondary border border-border-subtle rounded-lg p-4 space-y-4 overflow-auto">
-        <div>
-          <h2 className="text-sm font-semibold text-text-primary mb-2">Session</h2>
-          <dl className="text-xs space-y-1.5">
-            <Row k="User" v={meta.user_id} />
-            <Row k="Agent" v={meta.agent_id} />
-            <Row k="Protocol" v={meta.protocol} />
-            <Row k="Terminal" v={`${meta.terminal_size.cols} × ${meta.terminal_size.rows}`} />
-            <Row k="Duration" v={formatDuration(meta.duration)} />
-            <Row k="Bytes in" v={formatBytes(meta.bytes_in)} />
-            <Row k="Bytes out" v={formatBytes(meta.bytes_out)} />
-            <Row k="Events" v={String(meta.event_count)} />
-            <Row k="Chunks" v={String(meta.chunk_count)} />
-            <Row k="Started" v={formatDate(meta.started_at)} />
-            <Row k="Ended" v={formatDate(meta.ended_at)} />
-          </dl>
+      {/* Playback controls */}
+      <div className="rounded-lg border border-slate-800 bg-slate-900 p-3 flex items-center gap-3 flex-wrap">
+        <button
+          type="button"
+          onClick={() => setIsPlaying((p) => !p)}
+          className="inline-flex items-center justify-center h-9 w-9 rounded-md bg-blue-600 hover:bg-blue-500 text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
+          aria-label={isPlaying ? 'Pause' : 'Play'}
+        >
+          {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setCurrentIdx(0);
+            setIsPlaying(false);
+          }}
+          className="inline-flex items-center justify-center h-9 w-9 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
+          aria-label="Reset"
+        >
+          <RotateCcw className="h-4 w-4" />
+        </button>
+        <div className="flex items-center gap-1.5 text-xs text-gray-300">
+          <Gauge className="h-3.5 w-3.5" />
+          <select
+            value={speed}
+            onChange={(e) => setSpeed(Number(e.target.value))}
+            aria-label="Playback speed"
+            className="h-8 px-2 rounded-md bg-slate-800/60 border border-slate-700 text-xs text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
+            {SPEEDS.map((s) => (
+              <option key={s} value={s}>
+                {s}x
+              </option>
+            ))}
+          </select>
         </div>
-        <div>
-          <h2 className="text-sm font-semibold text-text-primary mb-2">Integrity</h2>
-          <div className="text-[10px] font-mono text-text-muted break-all bg-surface-primary border border-border-subtle rounded p-2">
-            {meta.content_hash || '(empty)'}
+        <div className="flex-1 min-w-[120px]">
+          <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+            <div
+              className="h-full bg-blue-500 transition-all"
+              style={{ width: `${events.length > 0 ? ((currentIdx + 1) / events.length) * 100 : 0}%` }}
+            />
           </div>
         </div>
-        <div>
-          <h2 className="text-sm font-semibold text-text-primary mb-2">Keyboard</h2>
-          <ul className="text-xs text-text-secondary space-y-1">
-            <li><kbd className="text-text-primary">Space</kbd> play / pause</li>
-            <li><kbd className="text-text-primary">← →</kbd> seek ±5 s</li>
-            <li><kbd className="text-text-primary">↑ ↓</kbd> speed up / down</li>
-            <li><kbd className="text-text-primary">R</kbd> reset</li>
-          </ul>
-        </div>
-      </aside>
+        <span className="text-xs text-gray-400 tabular-nums">
+          {currentIdx + 1} / {events.length}
+        </span>
+      </div>
+
+      {/* Terminal viewport */}
+      <div className="rounded-xl border border-slate-800 bg-slate-950 overflow-hidden">
+        <pre
+          ref={terminalRef}
+          className="p-4 font-mono text-xs text-white whitespace-pre overflow-auto h-96 leading-relaxed"
+          aria-label="Terminal output"
+        >
+          {visibleText || <span className="text-gray-500">— press play to begin —</span>}
+        </pre>
+      </div>
+
+      {/* Keyboard hints */}
+      <p className="text-[10px] text-gray-500 text-center">
+        Space = play/pause · ← → = seek · ↑ ↓ = speed
+      </p>
     </div>
   );
-}
-
-function Row({ k, v }: { k: string; v: string }) {
-  return (
-    <div className="flex justify-between gap-2">
-      <dt className="text-text-muted">{k}</dt>
-      <dd className="text-text-primary text-right truncate" title={v}>
-        {v}
-      </dd>
-    </div>
-  );
-}
-
-// hexToString decodes the same hex encoding used by the Go side in
-// remote.encodeForJSON. It preserves bytes that don't form valid
-// UTF-8 sequences by falling back to replacement characters.
-function hexToString(hex: string): string {
-  if (!hex) return '';
-  if (hex.length % 2 !== 0) return '';
-  const out = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < out.length; i++) {
-    const a = unhex(hex.charCodeAt(i * 2));
-    const b = unhex(hex.charCodeAt(i * 2 + 1));
-    if (a < 0 || b < 0) return '';
-    out[i] = (a << 4) | b;
-  }
-  return new TextDecoder('utf-8', { fatal: false }).decode(out);
-}
-
-function unhex(c: number): number {
-  if (c >= 48 && c <= 57) return c - 48; // 0-9
-  if (c >= 97 && c <= 102) return c - 87; // a-f
-  if (c >= 65 && c <= 70) return c - 55; // A-F
-  return -1;
 }

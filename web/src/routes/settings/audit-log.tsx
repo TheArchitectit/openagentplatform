@@ -13,11 +13,23 @@ import {
   type AuditFilter,
   type AuditOutcome,
 } from '@/lib/useSettings';
-import './settings.css';
 
 export const Route = createFileRoute('/settings/audit-log')({
   component: AuditLogPage,
 });
+
+function outcomeBadgeClasses(outcome: AuditOutcome): string {
+  switch (outcome) {
+    case 'success':
+      return 'bg-green-500/10 text-green-400 border-green-500/20';
+    case 'failure':
+      return 'bg-red-500/10 text-red-400 border-red-500/20';
+    case 'denied':
+      return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+    default:
+      return 'bg-slate-500/10 text-gray-300 border-slate-500/20';
+  }
+}
 
 function AuditLogPage() {
   const { auditEvents, isLoadingAudit, fetchAuditEvents } = useSettings();
@@ -100,64 +112,60 @@ function AuditLogPage() {
   }, [auditEvents]);
 
   return (
-    <>
-      <div className="settings-page-header">
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1>Audit Log</h1>
-          <p>View and filter all activity across the platform.</p>
+          <h1 className="text-2xl font-bold text-white">Audit Log</h1>
+          <p className="text-gray-300 text-sm mt-0.5">
+            View and filter all activity across the platform.
+          </p>
         </div>
         <button
           type="button"
-          className="settings-input"
-          style={{
-            width: 'auto',
-            height: '2.25rem',
-            padding: '0 0.75rem',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.375rem',
-            background: 'rgb(99 102 241)',
-            color: 'white',
-            border: 'none',
-            fontWeight: 500,
-          }}
           onClick={handleExport}
           disabled={auditEvents.length === 0}
+          className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-blue-600 hover:bg-blue-500 text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
         >
           <Download className="h-4 w-4" />
           Export CSV
         </button>
       </div>
 
-      <div className="settings-table-wrap">
-        <div className="settings-filter-bar">
-          <Filter className="h-4 w-4 text-text-muted" />
+      {/* Table card */}
+      <div className="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden">
+        {/* Filter bar */}
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800 flex-wrap">
+          <Filter className="h-4 w-4 text-gray-400" aria-hidden="true" />
           <input
             type="text"
-            className="settings-input"
             placeholder="Actor"
+            aria-label="Filter by actor"
             value={actorFilter}
             onChange={(e) => setActorFilter(e.target.value)}
+            className="h-8 px-2 rounded-md bg-slate-800/60 border border-slate-700 text-xs text-white placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
           />
           <input
             type="text"
-            className="settings-input"
             placeholder="Action"
+            aria-label="Filter by action"
             value={actionFilter}
             onChange={(e) => setActionFilter(e.target.value)}
+            className="h-8 px-2 rounded-md bg-slate-800/60 border border-slate-700 text-xs text-white placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
           />
           <input
             type="text"
-            className="settings-input"
             placeholder="Resource type"
+            aria-label="Filter by resource type"
             value={resourceFilter}
             onChange={(e) => setResourceFilter(e.target.value)}
+            className="h-8 px-2 rounded-md bg-slate-800/60 border border-slate-700 text-xs text-white placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
           />
           <select
-            className="settings-select"
             value={outcomeFilter}
             onChange={(e) => setOutcomeFilter(e.target.value as AuditOutcome | '')}
+            aria-label="Filter by outcome"
+            className="h-8 px-2 rounded-md bg-slate-800/60 border border-slate-700 text-xs text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
           >
             <option value="">All outcomes</option>
             <option value="success">Success</option>
@@ -166,79 +174,75 @@ function AuditLogPage() {
           </select>
           <input
             type="date"
-            className="settings-input"
             value={fromDate}
             onChange={(e) => setFromDate(e.target.value)}
             title="From date"
+            aria-label="From date"
+            className="h-8 px-2 rounded-md bg-slate-800/60 border border-slate-700 text-xs text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
           />
           <input
             type="date"
-            className="settings-input"
             value={toDate}
             onChange={(e) => setToDate(e.target.value)}
             title="To date"
+            aria-label="To date"
+            className="h-8 px-2 rounded-md bg-slate-800/60 border border-slate-700 text-xs text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
           />
           {hasFilters && (
             <button
               type="button"
-              className="settings-input"
-              style={{
-                width: 'auto',
-                height: '2rem',
-                padding: '0 0.5rem',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-                fontSize: '0.75rem',
-              }}
               onClick={handleClearFilters}
+              className="inline-flex items-center gap-1 h-8 px-2 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-gray-300 hover:text-white transition-colors"
             >
               <X className="h-3 w-3" /> Clear
             </button>
           )}
-          <div style={{ marginLeft: 'auto', fontSize: '0.8125rem', color: 'rgb(100 116 139)' }}>
+          <span className="ml-auto text-xs text-gray-400">
             {auditEvents.length} event{auditEvents.length === 1 ? '' : 's'}
-          </div>
+          </span>
         </div>
 
-        <table className="settings-table">
-          <thead>
-            <tr>
-              <th style={{ width: '1.5rem' }} />
-              <th>Timestamp</th>
-              <th>Actor</th>
-              <th>Action</th>
-              <th>Resource</th>
-              <th>Outcome</th>
-              <th>IP</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoadingAudit ? (
-              <tr className="empty-row">
-                <td colSpan={7}>Loading audit events...</td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-800 text-left text-xs uppercase tracking-wider text-gray-300">
+                <th className="px-2 py-2.5 w-6" />
+                <th className="px-4 py-2.5 font-medium">Timestamp</th>
+                <th className="px-4 py-2.5 font-medium">Actor</th>
+                <th className="px-4 py-2.5 font-medium">Action</th>
+                <th className="px-4 py-2.5 font-medium">Resource</th>
+                <th className="px-4 py-2.5 font-medium">Outcome</th>
+                <th className="px-4 py-2.5 font-medium">IP</th>
               </tr>
-            ) : auditEvents.length === 0 ? (
-              <tr className="empty-row">
-                <td colSpan={7}>
-                  {hasFilters ? 'No events match your filters.' : 'No audit events recorded yet.'}
-                </td>
-              </tr>
-            ) : (
-              auditEvents.map((e) => (
-                <AuditRow
-                  key={e.id}
-                  event={e}
-                  expanded={expandedId === e.id}
-                  onToggle={() => setExpandedId(expandedId === e.id ? null : e.id)}
-                />
-              ))
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {isLoadingAudit ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-12 text-center text-gray-400" role="status">
+                    Loading audit events...
+                  </td>
+                </tr>
+              ) : auditEvents.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-12 text-center text-gray-400" role="status">
+                    {hasFilters ? 'No events match your filters.' : 'No audit events recorded yet.'}
+                  </td>
+                </tr>
+              ) : (
+                auditEvents.map((e) => (
+                  <AuditRow
+                    key={e.id}
+                    event={e}
+                    expanded={expandedId === e.id}
+                    onToggle={() => setExpandedId(expandedId === e.id ? null : e.id)}
+                  />
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -257,52 +261,56 @@ function AuditRow({
 }) {
   return (
     <>
-      <tr onClick={onToggle} style={{ cursor: 'pointer' }}>
-        <td>
+      <tr onClick={onToggle} className="cursor-pointer hover:bg-slate-800/40 transition-colors">
+        <td className="px-2 py-2.5">
           {expanded ? (
-            <ChevronDown className="h-3 w-3 text-text-muted" />
+            <ChevronDown className="h-3 w-3 text-gray-400" />
           ) : (
-            <ChevronRight className="h-3 w-3 text-text-muted" />
+            <ChevronRight className="h-3 w-3 text-gray-400" />
           )}
         </td>
-        <td style={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+        <td className="px-4 py-2.5 text-xs text-white whitespace-nowrap">
           {new Date(event.timestamp).toLocaleString()}
         </td>
-        <td style={{ color: 'rgb(241 245 249)' }}>{event.actor}</td>
-        <td style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{event.action}</td>
-        <td>
-          <span style={{ color: 'rgb(148 163 184)' }}>{event.resource_type}</span>
+        <td className="px-4 py-2.5 text-white">{event.actor}</td>
+        <td className="px-4 py-2.5 font-mono text-xs text-gray-300">{event.action}</td>
+        <td className="px-4 py-2.5">
+          <span className="text-gray-300">{event.resource_type}</span>
           {event.resource_id && (
-            <span style={{ fontFamily: 'monospace', fontSize: '0.6875rem', marginLeft: '0.375rem', color: 'rgb(100 116 139)' }}>
+            <span className="ml-1.5 font-mono text-[11px] text-gray-400">
               {event.resource_id}
             </span>
           )}
         </td>
-        <td>
-          <span className={`settings-badge settings-badge--${event.outcome}`}>
+        <td className="px-4 py-2.5">
+          <span
+            className={`inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-full border ${outcomeBadgeClasses(event.outcome)}`}
+          >
             {event.outcome}
           </span>
         </td>
-        <td style={{ fontSize: '0.75rem', color: 'rgb(148 163 184)' }}>
+        <td className="px-4 py-2.5 text-xs text-gray-300">
           {event.ip_address ?? '-'}
         </td>
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={7} style={{ padding: 0 }}>
-            <div className="settings-details-panel" style={{ margin: '0 0.75rem 0.5rem' }}>
-              <div style={{ marginBottom: '0.5rem' }}>
-                <strong>Event ID:</strong> {event.id}
+          <td colSpan={7} className="px-4 pb-3">
+            <div className="rounded-md border border-slate-800 bg-slate-800/40 p-3 text-xs text-gray-300">
+              <div className="mb-2">
+                <strong className="text-white">Event ID:</strong> <span className="font-mono">{event.id}</span>
               </div>
               {event.user_agent && (
-                <div style={{ marginBottom: '0.5rem' }}>
-                  <strong>User Agent:</strong> {event.user_agent}
+                <div className="mb-2">
+                  <strong className="text-white">User Agent:</strong> {event.user_agent}
                 </div>
               )}
               {event.details && Object.keys(event.details).length > 0 && (
                 <div>
-                  <strong>Details:</strong>
-                  <pre>{JSON.stringify(event.details, null, 2)}</pre>
+                  <strong className="text-white">Details:</strong>
+                  <pre className="mt-1 font-mono whitespace-pre-wrap text-white text-[11px]">
+                    {JSON.stringify(event.details, null, 2)}
+                  </pre>
                 </div>
               )}
             </div>

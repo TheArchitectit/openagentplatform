@@ -54,17 +54,17 @@ const statusIcon: Record<CheckStatus, typeof CircleCheck> = {
 };
 
 const statusColor: Record<CheckStatus, string> = {
-  ok: 'text-success',
-  warning: 'text-warning',
-  critical: 'text-danger',
-  disabled: 'text-text-muted',
+  ok: 'text-green-400',
+  warning: 'text-yellow-400',
+  critical: 'text-red-400',
+  disabled: 'text-gray-400',
 };
 
 const statusBg: Record<CheckStatus, string> = {
-  ok: 'bg-success/10 text-success border-success/20',
-  warning: 'bg-warning/10 text-warning border-warning/20',
-  critical: 'bg-danger/10 text-danger border-danger/20',
-  disabled: 'bg-text-muted/10 text-text-secondary border-text-muted/20',
+  ok: 'bg-green-500/10 text-green-400 border-green-800',
+  warning: 'bg-yellow-500/10 text-yellow-400 border-yellow-800',
+  critical: 'bg-red-500/10 text-red-400 border-red-800',
+  disabled: 'bg-slate-500/10 text-gray-300 border-slate-700',
 };
 
 const typeIcon: Record<CheckType, typeof Globe> = {
@@ -280,16 +280,16 @@ function CheckDetailPage() {
         <div className="flex items-center gap-3">
           <Link
             to="/checks"
-            className="p-2 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary transition-colors"
+            className="p-2 rounded-md text-gray-300 hover:text-white hover:bg-slate-800 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <div className="h-9 w-9 rounded-md bg-surface-tertiary border border-border-strong flex items-center justify-center">
-            <TypeIcon className="h-4 w-4 text-text-secondary" />
+          <div className="h-9 w-9 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center">
+            <TypeIcon className="h-4 w-4 text-gray-300" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-text-primary">
+              <h1 className="text-2xl font-bold text-white">
                 {isLoading && !check ? 'Loading…' : check?.name ?? 'Unknown check'}
               </h1>
               {check && (
@@ -299,13 +299,13 @@ function CheckDetailPage() {
                 </span>
               )}
             </div>
-            <p className="text-text-secondary text-sm mt-0.5">
+            <p className="text-gray-300 text-sm mt-0.5">
               {check ? (
                 <>
-                  <span className="text-text-secondary">{typeLabel[check.type]}</span>
-                  <span className="mx-2 text-text-muted">•</span>
+                  <span className="text-gray-300">{typeLabel[check.type]}</span>
+                  <span className="mx-2 text-gray-400">•</span>
                   Runs every {formatInterval(check.interval_secs)}
-                  <span className="mx-2 text-text-muted">•</span>
+                  <span className="mx-2 text-gray-400">•</span>
                   Last run {formatTime(check.last_run, now)}
                 </>
               ) : (
@@ -324,8 +324,8 @@ function CheckDetailPage() {
               className={
                 'inline-flex items-center gap-2 px-3 h-9 rounded-md border text-sm transition-colors disabled:opacity-50 ' +
                 (check.enabled
-                  ? 'border-success/30 bg-success/10 text-success hover:bg-success/20'
-                  : 'border-border-strong bg-surface-tertiary text-text-secondary hover:bg-border-strong')
+                  ? 'border-green-800 bg-green-500/10 text-green-400 hover:bg-green-500/20'
+                  : 'border-slate-700 bg-slate-800 text-gray-300 hover:bg-slate-700')
               }
             >
               <Power className="h-4 w-4" />
@@ -335,7 +335,7 @@ function CheckDetailPage() {
               type="button"
               onClick={onRunNow}
               disabled={busy}
-              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-surface-tertiary hover:bg-border-strong border border-border-strong text-sm text-text-primary disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-white disabled:opacity-50 transition-colors"
             >
               <Play className="h-4 w-4" />
               <span>Run Now</span>
@@ -344,7 +344,7 @@ function CheckDetailPage() {
               type="button"
               onClick={() => setShowEdit(true)}
               disabled={busy}
-              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-surface-tertiary hover:bg-border-strong border border-border-strong text-sm text-text-primary disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-white disabled:opacity-50 transition-colors"
             >
               <Save className="h-4 w-4" />
               <span>Edit</span>
@@ -353,7 +353,7 @@ function CheckDetailPage() {
               type="button"
               onClick={() => setShowAssign(true)}
               disabled={busy}
-              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-accent hover:bg-accent text-sm text-white disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-blue-600 hover:bg-blue-600 text-sm text-white disabled:opacity-50 transition-colors"
             >
               <Plus className="h-4 w-4" />
               <span>Assign Agent</span>
@@ -362,7 +362,7 @@ function CheckDetailPage() {
               type="button"
               onClick={onDelete}
               disabled={busy}
-              className="inline-flex items-center gap-2 px-3 h-9 rounded-md border border-danger/30 bg-danger/10 text-danger hover:bg-danger/20 text-sm disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 px-3 h-9 rounded-md border border-red-800 bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm disabled:opacity-50 transition-colors"
             >
               <Trash2 className="h-4 w-4" />
               <span>Delete</span>
@@ -372,66 +372,66 @@ function CheckDetailPage() {
       </div>
 
       {error && (
-        <div className="rounded-md border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+        <div className="rounded-md border border-red-800 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           {error}
         </div>
       )}
 
       {isLoading && !check ? (
-        <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-12 text-center text-text-muted">
+        <div className="rounded-lg border border-slate-800 bg-slate-900 p-12 text-center text-gray-400">
           <Loader2 className="inline h-5 w-5 animate-spin mr-2" />
           Loading check…
         </div>
       ) : !check ? (
-        <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-12 text-center text-text-muted">
+        <div className="rounded-lg border border-slate-800 bg-slate-900 p-12 text-center text-gray-400">
           Check not found.
         </div>
       ) : (
         <>
           {/* Info card */}
-          <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-5">
+          <div className="rounded-lg border border-slate-800 bg-slate-900 p-5">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <p className="text-xs uppercase tracking-wider text-text-muted">Name</p>
-                <p className="text-sm text-text-primary mt-1">{check.name}</p>
+                <p className="text-xs uppercase tracking-wider text-gray-400">Name</p>
+                <p className="text-sm text-white mt-1">{check.name}</p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wider text-text-muted">Type</p>
-                <p className="text-sm text-text-primary mt-1">{typeLabel[check.type]}</p>
+                <p className="text-xs uppercase tracking-wider text-gray-400">Type</p>
+                <p className="text-sm text-white mt-1">{typeLabel[check.type]}</p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wider text-text-muted">Interval</p>
-                <p className="text-sm text-text-primary mt-1">{formatInterval(check.interval_secs)}</p>
+                <p className="text-xs uppercase tracking-wider text-gray-400">Interval</p>
+                <p className="text-sm text-white mt-1">{formatInterval(check.interval_secs)}</p>
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-border-subtle">
-              <p className="text-xs uppercase tracking-wider text-text-muted mb-2">Configuration</p>
-              <pre className="rounded-md bg-surface-primary/60 border border-border-subtle p-3 text-xs text-text-secondary overflow-x-auto">
+            <div className="mt-4 pt-4 border-t border-slate-800">
+              <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">Configuration</p>
+              <pre className="rounded-md bg-slate-950/60 border border-slate-800 p-3 text-xs text-gray-300 overflow-x-auto">
 {JSON.stringify(check.config ?? {}, null, 2)}
               </pre>
             </div>
           </div>
 
           {/* Assigned agents */}
-          <div className="rounded-lg border border-border-subtle bg-surface-secondary/60">
-            <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-text-primary">Assigned Agents</h2>
-              <span className="text-xs text-text-muted">{assignments.length} agent{assignments.length === 1 ? '' : 's'}</span>
+          <div className="rounded-lg border border-slate-800 bg-slate-900">
+            <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-white">Assigned Agents</h2>
+              <span className="text-xs text-gray-400">{assignments.length} agent{assignments.length === 1 ? '' : 's'}</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs uppercase tracking-wider text-text-muted border-b border-border-subtle bg-surface-primary/40">
+                  <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-slate-800 bg-slate-800">
                     <th className="px-4 py-3">Agent</th>
                     <th className="px-4 py-3">Last Result</th>
                     <th className="px-4 py-3">Last Run</th>
                     <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border-subtle">
+                <tbody className="divide-y divide-slate-800">
                   {assignments.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-text-muted">
+                      <td colSpan={4} className="px-4 py-8 text-center text-gray-400">
                         No agents assigned yet.
                       </td>
                     </tr>
@@ -440,29 +440,29 @@ function CheckDetailPage() {
                       const sk = (a.last_status as CheckStatus) ?? 'disabled';
                       const SIcon = statusIcon[sk] ?? CircleDashed;
                       return (
-                        <tr key={a.id ?? a.agent_id} className="hover:bg-surface-tertiary/40">
+                        <tr key={a.id ?? a.agent_id} className="hover:bg-slate-800/40">
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
-                              <Bot className="h-4 w-4 text-text-muted" />
-                              <span className="text-text-primary font-medium">
+                              <Bot className="h-4 w-4 text-gray-400" />
+                              <span className="text-white font-medium">
                                 {a.hostname ?? a.agent_id}
                               </span>
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={'inline-flex items-center gap-1.5 text-xs ' + (statusColor[sk] ?? 'text-text-secondary')}>
+                            <span className={'inline-flex items-center gap-1.5 text-xs ' + (statusColor[sk] ?? 'text-gray-300')}>
                               <SIcon className="h-3.5 w-3.5" />
                               <span className="capitalize">{sk}</span>
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-text-secondary">{formatTime(a.last_run, now)}</td>
+                          <td className="px-4 py-3 text-gray-300">{formatTime(a.last_run, now)}</td>
                           <td className="px-4 py-3 text-right">
                             <button
                               type="button"
                               onClick={() => {
                                 void onUnassign(a.agent_id);
                               }}
-                              className="px-2 h-7 rounded text-xs text-danger hover:bg-danger/10 border border-danger/30"
+                              className="px-2 h-7 rounded text-xs text-red-400 hover:bg-red-500/10 border border-red-800"
                             >
                               Remove
                             </button>
@@ -477,24 +477,24 @@ function CheckDetailPage() {
           </div>
 
           {/* Result history bar chart */}
-          <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-5">
+          <div className="rounded-lg border border-slate-800 bg-slate-900 p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-text-primary">Result History</h2>
-              <span className="text-xs text-text-muted">Last 20 results</span>
+              <h2 className="text-sm font-semibold text-white">Result History</h2>
+              <span className="text-xs text-gray-400">Last 20 results</span>
             </div>
             <ResultBarChart results={results} />
           </div>
 
           {/* Recent results table */}
-          <div className="rounded-lg border border-border-subtle bg-surface-secondary/60">
-            <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-text-primary">Recent Results</h2>
-              <span className="text-xs text-text-muted">Last 20</span>
+          <div className="rounded-lg border border-slate-800 bg-slate-900">
+            <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-white">Recent Results</h2>
+              <span className="text-xs text-gray-400">Last 20</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs uppercase tracking-wider text-text-muted border-b border-border-subtle bg-surface-primary/40">
+                  <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-slate-800 bg-slate-800">
                     <th className="px-4 py-3">Time</th>
                     <th className="px-4 py-3">Agent</th>
                     <th className="px-4 py-3">Status</th>
@@ -503,10 +503,10 @@ function CheckDetailPage() {
                     <th className="px-4 py-3">Message</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border-subtle">
+                <tbody className="divide-y divide-slate-800">
                   {results.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-text-muted">
+                      <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
                         No results yet.
                       </td>
                     </tr>
@@ -515,30 +515,30 @@ function CheckDetailPage() {
                       const sk = (r.status as CheckStatus) ?? 'disabled';
                       const SIcon = statusIcon[sk] ?? CircleDashed;
                       return (
-                        <tr key={r.id ?? `${r.timestamp}-${idx}`} className="hover:bg-surface-tertiary/40">
-                          <td className="px-4 py-3 text-text-secondary">{formatDateTime(r.timestamp)}</td>
+                        <tr key={r.id ?? `${r.timestamp}-${idx}`} className="hover:bg-slate-800/40">
+                          <td className="px-4 py-3 text-gray-300">{formatDateTime(r.timestamp)}</td>
                           <td className="px-4 py-3">
                             <Link
                               to="/agents/$agentId"
                               params={{ agentId: r.agent_id }}
-                              className="text-text-primary hover:text-accent"
+                              className="text-white hover:text-blue-400"
                             >
                               {r.agent_id}
                             </Link>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={'inline-flex items-center gap-1.5 text-xs ' + (statusColor[sk] ?? 'text-text-secondary')}>
+                            <span className={'inline-flex items-center gap-1.5 text-xs ' + (statusColor[sk] ?? 'text-gray-300')}>
                               <SIcon className="h-3.5 w-3.5" />
                               <span className="capitalize">{sk}</span>
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-right tabular-nums text-text-primary">
+                          <td className="px-4 py-3 text-right tabular-nums text-white">
                             {r.value !== undefined && r.value !== null ? String(r.value) : '—'}
                           </td>
-                          <td className="px-4 py-3 text-right tabular-nums text-text-secondary">
+                          <td className="px-4 py-3 text-right tabular-nums text-gray-300">
                             {r.duration_ms !== undefined ? `${r.duration_ms}ms` : '—'}
                           </td>
-                          <td className="px-4 py-3 text-text-secondary truncate max-w-md">{r.message ?? '—'}</td>
+                          <td className="px-4 py-3 text-gray-300 truncate max-w-md">{r.message ?? '—'}</td>
                         </tr>
                       );
                     })
@@ -598,7 +598,7 @@ function ResultBarChart({ results }: { results: CheckResult[] }) {
 
   if (bars.length === 0) {
     return (
-      <div className="text-center text-text-muted text-sm py-8">No results to chart yet.</div>
+      <div className="text-center text-gray-400 text-sm py-8">No results to chart yet.</div>
     );
   }
 
@@ -607,12 +607,12 @@ function ResultBarChart({ results }: { results: CheckResult[] }) {
       {bars.map((b, i) => {
         const color =
           b.status === 'ok'
-            ? 'bg-success'
+            ? 'bg-green-500'
             : b.status === 'warning'
-            ? 'bg-warning'
+            ? 'bg-yellow-500'
             : b.status === 'critical'
-            ? 'bg-danger'
-            : 'bg-border-strong';
+            ? 'bg-red-500'
+            : 'bg-slate-700';
         // Show timestamp labels only on first, middle, and last to avoid clutter.
         const showLabel = bars.length <= 6 || i === 0 || i === Math.floor(bars.length / 2) || i === bars.length - 1;
         return (
@@ -623,7 +623,7 @@ function ResultBarChart({ results }: { results: CheckResult[] }) {
               title={b.status}
             />
             {showLabel && (
-              <span className="text-[10px] text-text-muted truncate w-full text-center">{b.label}</span>
+              <span className="text-[10px] text-gray-400 truncate w-full text-center">{b.label}</span>
             )}
           </div>
         );
@@ -671,13 +671,13 @@ function AssignAgentModal({ agents, assignedIds, onClose, onAssign }: AssignAgen
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-md rounded-lg border border-border-subtle bg-surface-secondary shadow-xl">
-        <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-text-primary">Assign Agent</h2>
+      <div className="w-full max-w-md rounded-lg border border-slate-800 bg-slate-900 shadow-xl">
+        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-white">Assign Agent</h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary"
+            className="p-1 rounded-md text-gray-300 hover:text-white hover:bg-slate-800"
           >
             <X className="h-4 w-4" />
           </button>
@@ -688,17 +688,17 @@ function AssignAgentModal({ agents, assignedIds, onClose, onAssign }: AssignAgen
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search agents…"
-            className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40 mb-3"
+            className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 mb-3"
           />
-          <ul className="max-h-80 overflow-y-auto divide-y divide-border-subtle rounded-md border border-border-subtle">
+          <ul className="max-h-80 overflow-y-auto divide-y divide-slate-800 rounded-md border border-slate-800">
             {candidates.length === 0 ? (
-              <li className="px-3 py-6 text-center text-text-muted text-sm">No agents available.</li>
+              <li className="px-3 py-6 text-center text-gray-400 text-sm">No agents available.</li>
             ) : (
               candidates.map((a) => (
-                <li key={a.id} className="px-3 py-2 flex items-center justify-between hover:bg-surface-tertiary/40">
+                <li key={a.id} className="px-3 py-2 flex items-center justify-between hover:bg-slate-800/40">
                   <div className="flex items-center gap-2 min-w-0">
-                    <Bot className="h-4 w-4 text-text-muted shrink-0" />
-                    <span className="text-sm text-text-primary truncate">{a.hostname || a.id}</span>
+                    <Bot className="h-4 w-4 text-gray-400 shrink-0" />
+                    <span className="text-sm text-white truncate">{a.hostname || a.id}</span>
                   </div>
                   <button
                     type="button"
@@ -706,7 +706,7 @@ function AssignAgentModal({ agents, assignedIds, onClose, onAssign }: AssignAgen
                       void handleAssign(a.id);
                     }}
                     disabled={busy}
-                    className="px-2 h-7 rounded text-xs text-accent hover:bg-accent/10 border border-accent/30 disabled:opacity-50"
+                    className="px-2 h-7 rounded text-xs text-blue-400 hover:bg-blue-600/10 border border-blue-500/30 disabled:opacity-50"
                   >
                     Assign
                   </button>
@@ -776,39 +776,39 @@ function EditCheckModal({ check, onClose, onSubmit }: EditCheckModalProps) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-lg rounded-lg border border-border-subtle bg-surface-secondary shadow-xl">
-        <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-text-primary">Edit Check</h2>
+      <div className="w-full max-w-lg rounded-lg border border-slate-800 bg-slate-900 shadow-xl">
+        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-white">Edit Check</h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary"
+            className="p-1 rounded-md text-gray-300 hover:text-white hover:bg-slate-800"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
-            <label className="block text-xs text-text-secondary mb-1">Name</label>
+            <label className="block text-xs text-gray-300 mb-1">Name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
+              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40"
             />
           </div>
           <div>
-            <label className="block text-xs text-text-secondary mb-1">Interval (seconds, min 10)</label>
+            <label className="block text-xs text-gray-300 mb-1">Interval (seconds, min 10)</label>
             <input
               type="number"
               value={interval}
               min={10}
               onChange={(e) => setInterval(Number(e.target.value) || 60)}
-              className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
+              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40"
             />
           </div>
           <div>
-            <label className="block text-xs text-text-secondary mb-1">Config (JSON)</label>
+            <label className="block text-xs text-gray-300 mb-1">Config (JSON)</label>
             <MonacoEditor
               value={configJson}
               onChange={(v) => setConfigJson(v)}
@@ -825,7 +825,7 @@ function EditCheckModal({ check, onClose, onSubmit }: EditCheckModalProps) {
             />
           </div>
           {error && (
-            <div className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
+            <div className="rounded-md border border-red-800 bg-red-500/10 px-3 py-2 text-xs text-red-400">
               {error}
             </div>
           )}
@@ -833,14 +833,14 @@ function EditCheckModal({ check, onClose, onSubmit }: EditCheckModalProps) {
             <button
               type="button"
               onClick={onClose}
-              className="px-3 h-9 rounded-md border border-border-strong bg-surface-tertiary text-sm text-text-primary hover:bg-border-strong transition-colors"
+              className="px-3 h-9 rounded-md border border-slate-700 bg-slate-800 text-sm text-white hover:bg-slate-700 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={busy}
-              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-accent hover:bg-accent text-sm text-white disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-blue-600 hover:bg-blue-600 text-sm text-white disabled:opacity-50 transition-colors"
             >
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               <span>{busy ? 'Saving…' : 'Save'}</span>

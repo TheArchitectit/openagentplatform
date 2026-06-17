@@ -54,22 +54,22 @@ const RUNTIME_META: Record<
   bash: {
     label: 'Bash',
     icon: Terminal,
-    classes: 'bg-success/10 text-success border-success/20',
+    classes: 'bg-green-500/10 text-green-400 border-green-800',
   },
   powershell: {
     label: 'PowerShell',
     icon: Terminal,
-    classes: 'bg-info/10 text-info border-info/20',
+    classes: 'bg-blue-500/10 text-blue-400 border-blue-800',
   },
   python: {
     label: 'Python',
     icon: Code2,
-    classes: 'bg-warning/10 text-warning border-warning/20',
+    classes: 'bg-yellow-500/10 text-yellow-400 border-yellow-800',
   },
   node: {
     label: 'Node',
     icon: Braces,
-    classes: 'bg-accent/10 text-accent border-accent/20',
+    classes: 'bg-blue-600/10 text-blue-400 border-blue-500/20',
   },
 };
 
@@ -87,32 +87,32 @@ const STATUS_META: Record<
 > = {
   pending: {
     label: 'Pending',
-    classes: 'bg-text-muted/10 text-text-secondary border-text-muted/20',
+    classes: 'bg-slate-500/10 text-gray-300 border-slate-700',
     icon: CircleDashed,
   },
   in_progress: {
     label: 'Running',
-    classes: 'bg-accent/10 text-accent border-accent/20',
+    classes: 'bg-blue-600/10 text-blue-400 border-blue-500/20',
     icon: CirclePlay,
   },
   completed: {
     label: 'Success',
-    classes: 'bg-success/10 text-success border-success/20',
+    classes: 'bg-green-500/10 text-green-400 border-green-800',
     icon: CircleCheck,
   },
   failed: {
     label: 'Failed',
-    classes: 'bg-danger/10 text-danger border-danger/20',
+    classes: 'bg-red-500/10 text-red-400 border-red-800',
     icon: CircleX,
   },
   cancelled: {
     label: 'Cancelled',
-    classes: 'bg-text-muted/10 text-text-secondary border-text-muted/20',
+    classes: 'bg-slate-500/10 text-gray-300 border-slate-700',
     icon: CircleDashed,
   },
   timeout: {
     label: 'Timeout',
-    classes: 'bg-warning/10 text-warning border-warning/20',
+    classes: 'bg-yellow-500/10 text-yellow-400 border-yellow-800',
     icon: CircleAlert,
   },
 };
@@ -184,31 +184,31 @@ function RunNowModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-md rounded-lg border border-border-subtle bg-surface-secondary shadow-xl">
-        <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-text-primary">Run Now</h2>
+      <div className="w-full max-w-md rounded-lg border border-slate-800 bg-slate-900 shadow-xl">
+        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-white">Run Now</h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary"
+            className="p-1 rounded-md text-gray-300 hover:text-white hover:bg-slate-800"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
         <div className="p-4 space-y-3">
           <div className="relative">
-            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search agents…"
-              className="w-full h-9 pl-9 pr-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
+              className="w-full h-9 pl-9 pr-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40"
             />
           </div>
-          <ul className="max-h-80 overflow-y-auto divide-y divide-border-subtle rounded-md border border-border-subtle">
+          <ul className="max-h-80 overflow-y-auto divide-y divide-slate-800 rounded-md border border-slate-800">
             {filtered.length === 0 ? (
-              <li className="px-3 py-6 text-center text-text-muted text-sm">
+              <li className="px-3 py-6 text-center text-gray-400 text-sm">
                 No agents available.
               </li>
             ) : (
@@ -220,7 +220,7 @@ function RunNowModal({
                     onClick={() => onToggle(a.id)}
                     className={
                       'px-3 py-2 flex items-center justify-between cursor-pointer transition-colors ' +
-                      (isSelected ? 'bg-accent/10' : 'hover:bg-surface-tertiary/40')
+                      (isSelected ? 'bg-blue-600/10' : 'hover:bg-slate-800/40')
                     }
                   >
                     <div className="flex items-center gap-2 min-w-0">
@@ -228,11 +228,11 @@ function RunNowModal({
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => onToggle(a.id)}
-                        className="h-4 w-4 rounded border-border-strong bg-surface-tertiary text-accent focus:ring-accent/40"
+                        className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-blue-400 focus:ring-blue-500/40"
                       />
                       <div className="min-w-0">
-                        <p className="text-sm text-text-primary truncate">{a.hostname || a.id}</p>
-                        <p className="text-xs text-text-muted truncate">
+                        <p className="text-sm text-white truncate">{a.hostname || a.id}</p>
+                        <p className="text-xs text-gray-400 truncate">
                           {a.os} · {a.status}
                         </p>
                       </div>
@@ -242,15 +242,15 @@ function RunNowModal({
               })
             )}
           </ul>
-          <p className="text-xs text-text-muted">
+          <p className="text-xs text-gray-400">
             {selected.size} agent{selected.size === 1 ? '' : 's'} selected
           </p>
         </div>
-        <div className="px-5 py-3 border-t border-border-subtle flex items-center justify-end gap-2">
+        <div className="px-5 py-3 border-t border-slate-800 flex items-center justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="px-3 h-9 rounded-md border border-border-strong bg-surface-tertiary text-sm text-text-primary hover:bg-border-strong transition-colors"
+            className="px-3 h-9 rounded-md border border-slate-700 bg-slate-800 text-sm text-white hover:bg-slate-700 transition-colors"
           >
             Cancel
           </button>
@@ -258,7 +258,7 @@ function RunNowModal({
             type="button"
             disabled={running || selected.size === 0}
             onClick={onRun}
-            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-accent hover:bg-accent text-sm text-white disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-blue-600 hover:bg-blue-600 text-sm text-white disabled:opacity-50 transition-colors"
           >
             {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <CirclePlay className="h-4 w-4" />}
             <span>{running ? 'Starting…' : 'Run'}</span>

@@ -12,7 +12,6 @@ import {
   Lock,
   ScrollText,
 } from 'lucide-react';
-import './settings.css';
 
 export const Route = createFileRoute('/settings/')({
   component: SettingsLayout,
@@ -38,109 +37,128 @@ function SettingsLayout() {
   const currentPath = location.pathname.replace(/\/$/, '') || '/settings';
 
   return (
-    <div className="settings-layout">
-      <nav className="settings-sidebar" aria-label="Settings navigation">
-        <div className="settings-sidebar-title" role="heading" aria-level={1}>Settings</div>
+    <div className="flex gap-6 min-h-[calc(100vh-8rem)]">
+      {/* Sidebar nav */}
+      <aside
+        className="w-56 flex-shrink-0 flex flex-col gap-0.5 p-3 rounded-lg bg-slate-900 border border-slate-800 h-fit sticky top-6"
+        aria-label="Settings sub-navigation"
+      >
+        <div className="text-[10px] uppercase tracking-wider text-gray-400 px-2 mb-1.5 font-semibold">
+          Settings
+        </div>
         {subNav.map((item) => {
-          const isActive =
-            item.to === '/settings'
-              ? currentPath === '/settings'
-              : currentPath.startsWith(item.to);
+          const itemPath = item.to.replace(/\/$/, '') || '/settings';
+          const isActive = currentPath === itemPath;
           const Icon = item.icon;
           return (
             <Link
               key={item.to}
               to={item.to}
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
+                isActive
+                  ? 'bg-blue-600/10 text-blue-400 border-l-2 border-blue-500'
+                  : 'text-gray-300 hover:bg-slate-800 hover:text-white border-l-2 border-transparent'
+              }`}
               aria-current={isActive ? 'page' : undefined}
-              className={`settings-nav-link ${isActive ? 'active' : ''}`}
             >
-              <Icon aria-hidden="true" />
-              <span>{item.label}</span>
+              <Icon className="h-4 w-4" />
+              {item.label}
             </Link>
           );
         })}
-      </nav>
+      </aside>
 
-      <div className="settings-content" role="region" aria-label="Settings content">
-        {currentPath === '/settings' ? <OrganizationView /> : <Outlet />}
-      </div>
+      {/* Content */}
+      <main className="flex-1 min-w-0">
+        {currentPath === '/settings' ? <OrganizationLanding /> : <Outlet />}
+      </main>
     </div>
   );
 }
 
-function OrganizationView() {
+// ---------------------------------------------------------------------------
+// Organization landing page
+// ---------------------------------------------------------------------------
+
+function OrganizationLanding() {
   return (
-    <>
-      <div className="settings-page-header">
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="h-9 w-9 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center" aria-hidden="true">
+          <Building2 className="h-4 w-4 text-gray-300" />
+        </div>
         <div>
-          <h1>Organization</h1>
-          <p>Manage your organization profile and global preferences.</p>
+          <h1 className="text-2xl font-bold text-white">Organization</h1>
+          <p className="text-gray-300 text-sm mt-0.5">
+            Manage your organization's profile and subscription details.
+          </p>
         </div>
       </div>
 
-      <div className="settings-card">
-        <h2 className="settings-card-title">Organization Details</h2>
-        <p className="settings-card-desc">
-          Your organization name and default contact information.
-        </p>
-        <div className="settings-form-group">
-          <label className="settings-form-label" htmlFor="org-name">
-            Organization Name
-          </label>
-          <input
-            id="org-name"
-            type="text"
-            className="settings-input"
-            defaultValue="OpenAgentPlatform"
-            readOnly
-          />
-        </div>
-        <div className="settings-form-group">
-          <label className="settings-form-label" htmlFor="org-slug">
-            Slug
-          </label>
-          <input
-            id="org-slug"
-            type="text"
-            className="settings-input"
-            defaultValue="openagentplatform"
-            readOnly
-          />
-        </div>
+      {/* Info cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <InfoCard label="Organization Name" value="Acme Corp" />
+        <InfoCard label="Plan" value="Enterprise" accent="blue" />
+        <InfoCard label="Created" value={new Date().toLocaleDateString()} />
+        <InfoCard label="Members" value="12 active" />
       </div>
 
-      <div className="settings-card">
-        <h2 className="settings-card-title">Defaults</h2>
-        <p className="settings-card-desc">
-          Default time zone, locale, and session timeout for the organization.
-        </p>
-        <div className="settings-form-group">
-          <label className="settings-form-label" htmlFor="org-tz">
-            Default Time Zone
-          </label>
-          <select id="org-tz" className="settings-select" defaultValue="UTC">
-            <option value="UTC">UTC</option>
-            <option value="America/New_York">America/New_York</option>
-            <option value="America/Los_Angeles">America/Los_Angeles</option>
-            <option value="Europe/London">Europe/London</option>
-            <option value="Europe/Berlin">Europe/Berlin</option>
-            <option value="Asia/Tokyo">Asia/Tokyo</option>
-          </select>
+      {/* Quick links */}
+      <section className="rounded-lg border border-slate-800 bg-slate-900 p-4" aria-label="Quick links">
+        <h2 className="text-sm font-semibold text-white uppercase tracking-wider mb-3">Quick Links</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <Link
+            to="/settings/users"
+            className="flex items-center gap-2 rounded-md border border-slate-800 bg-slate-800/40 px-3 py-2 text-sm text-gray-300 hover:bg-slate-800 hover:text-white hover:border-slate-700 transition-colors"
+          >
+            <Users className="h-4 w-4" /> Manage Users
+          </Link>
+          <Link
+            to="/settings/roles"
+            className="flex items-center gap-2 rounded-md border border-slate-800 bg-slate-800/40 px-3 py-2 text-sm text-gray-300 hover:bg-slate-800 hover:text-white hover:border-slate-700 transition-colors"
+          >
+            <ShieldCheck className="h-4 w-4" /> Roles &amp; Permissions
+          </Link>
+          <Link
+            to="/settings/api-keys"
+            className="flex items-center gap-2 rounded-md border border-slate-800 bg-slate-800/40 px-3 py-2 text-sm text-gray-300 hover:bg-slate-800 hover:text-white hover:border-slate-700 transition-colors"
+          >
+            <KeyRound className="h-4 w-4" /> API Keys
+          </Link>
+          <Link
+            to="/settings/sso"
+            className="flex items-center gap-2 rounded-md border border-slate-800 bg-slate-800/40 px-3 py-2 text-sm text-gray-300 hover:bg-slate-800 hover:text-white hover:border-slate-700 transition-colors"
+          >
+            <Lock className="h-4 w-4" /> SSO Configuration
+          </Link>
+          <Link
+            to="/settings/audit-log"
+            className="flex items-center gap-2 rounded-md border border-slate-800 bg-slate-800/40 px-3 py-2 text-sm text-gray-300 hover:bg-slate-800 hover:text-white hover:border-slate-700 transition-colors sm:col-span-2"
+          >
+            <ScrollText className="h-4 w-4" /> Audit Log
+          </Link>
         </div>
-        <div className="settings-form-group">
-          <label className="settings-form-label" htmlFor="org-session">
-            Session Timeout (minutes)
-          </label>
-          <input
-            id="org-session"
-            type="number"
-            className="settings-input"
-            defaultValue={60}
-            min={5}
-            max={1440}
-          />
-        </div>
+      </section>
+    </div>
+  );
+}
+
+function InfoCard({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: 'blue';
+}) {
+  return (
+    <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+      <div className="text-xs uppercase tracking-wider text-gray-300">{label}</div>
+      <div className={`mt-1 text-lg font-semibold ${accent === 'blue' ? 'text-blue-400' : 'text-white'}`}>
+        {value}
       </div>
-    </>
+    </div>
   );
 }

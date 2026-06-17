@@ -75,22 +75,30 @@ func (p *pgAgentStore) UpsertAgent(ctx context.Context, a *models.Agent) error {
 	return nil
 }
 
-// GetAgent returns one agent by id.
-func (p *pgAgentStore) GetAgent(ctx context.Context, id string) (*models.Agent, error) {
+// GetAgent returns one agent by id, scoped to the given org.
+// If orgID is non-empty, the query enforces org ownership; otherwise the
+// caller is responsible for org verification.
+func (p *pgAgentStore) GetAgent(ctx context.Context, orgID, id string) (*models.Agent, error) {
 	if p.pool == nil {
 		return nil, errors.New("agent_store: nil pool")
 	}
-	const q = `
+	args := []any{id}
+	where := []string{"id = $1"}
+	if orgID != "" {
+		args = append(args, orgID)
+		where = append(where, fmt.Sprintf("org_id = $%d", len(args)))
+	}
+	q := `
 		SELECT id, site_id, COALESCE(org_id,''), hostname, COALESCE(os,''), COALESCE(arch,''),
 		       COALESCE(platform,''), COALESCE(cpu_count,0), COALESCE(total_memory_mb,0),
 		       COALESCE(total_disk_gb,0), COALESCE(agent_version,''), COALESCE(status,'offline'),
 		       COALESCE(last_seen, 'epoch'::timestamptz), tags, created_at, updated_at
 		FROM agents
-		WHERE id = $1
+		WHERE ` + joinAnd(where) + `
 		LIMIT 1
 	`
 	a := &models.Agent{}
-	err := p.pool.QueryRow(ctx, q, id).Scan(
+	err := p.pool.QueryRow(ctx, q, args...).Scan(
 		&a.ID, &a.SiteID, &a.OrgID, &a.Hostname, &a.OperatingSystem, &a.Arch, &a.Platform,
 		&a.CPUCount, &a.TotalMemoryMB, &a.TotalDiskGB, &a.AgentVersion, &a.Status,
 		&a.LastSeen, &a.Tags, &a.CreatedAt, &a.UpdatedAt,
@@ -116,6 +124,9 @@ func (p *pgAgentStore) ListAgents(ctx context.Context, f AgentListFilter) ([]mod
 	add := func(clause string, val any) {
 		args = append(args, val)
 		where = append(where, fmt.Sprintf(clause, len(args)))
+	}
+	if f.OrgID != "" {
+		add("org_id = $%d", f.OrgID)
 	}
 	if f.SiteID != "" {
 		add("site_id = $%d", f.SiteID)

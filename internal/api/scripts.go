@@ -18,10 +18,10 @@ import (
 // and script run records. The default Postgres implementation is pgScriptStore.
 type scriptStore interface {
 	InsertScript(ctx context.Context, s *models.ScriptDefinition) error
-	GetScript(ctx context.Context, id string) (*models.ScriptDefinition, error)
+	GetScript(ctx context.Context, orgID, id string) (*models.ScriptDefinition, error)
 	ListScripts(ctx context.Context, f ScriptListFilter) ([]models.ScriptDefinition, int, error)
-	UpdateScript(ctx context.Context, id string, patch ScriptPatch) (*models.ScriptDefinition, error)
-	DeleteScript(ctx context.Context, id string) error
+	UpdateScript(ctx context.Context, orgID, id string, patch ScriptPatch) (*models.ScriptDefinition, error)
+	DeleteScript(ctx context.Context, orgID, id string) error
 	InsertScriptRun(ctx context.Context, run *models.ScriptRun) error
 	GetScriptRun(ctx context.Context, id string) (*models.ScriptRun, error)
 	ListScriptRuns(ctx context.Context, f ScriptRunListFilter) ([]models.ScriptRun, int, error)
@@ -147,6 +147,9 @@ func (s *Server) handleListScripts(w http.ResponseWriter, r *http.Request) {
 		Limit:   limit,
 		Offset:  offset,
 	}
+	if claims, ok := authFromCtx(r); ok && claims != nil {
+		filter.OrgID = claims.OrgID
+	}
 	scripts, total, err := s.scriptStoreFn().ListScripts(r.Context(), filter)
 	if err != nil {
 		s.log.Error("list scripts failed", "err", err)
@@ -177,7 +180,11 @@ func (s *Server) handleGetScript(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	store := s.scriptStoreFn()
-	script, err := store.GetScript(r.Context(), id)
+	orgID := ""
+	if claims, ok := authFromCtx(r); ok && claims != nil {
+		orgID = claims.OrgID
+	}
+	script, err := store.GetScript(r.Context(), orgID, id)
 	if err != nil {
 		if errors.Is(err, ErrScriptNotFound) {
 			http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
@@ -217,6 +224,10 @@ func (s *Server) handleUpdateScript(w http.ResponseWriter, r *http.Request) {
 	if id == "" {
 		http.Error(w, `{"error":"missing_id"}`, http.StatusBadRequest)
 		return
+	}
+	orgID := ""
+	if claims, ok := authFromCtx(r); ok && claims != nil {
+		orgID = claims.OrgID
 	}
 	var req map[string]any
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -262,7 +273,7 @@ func (s *Server) handleUpdateScript(w http.ResponseWriter, r *http.Request) {
 			patch.Tags = tags
 		}
 	}
-	updated, err := s.scriptStoreFn().UpdateScript(r.Context(), id, patch)
+	updated, err := s.scriptStoreFn().UpdateScript(r.Context(), orgID, id, patch)
 	if err != nil {
 		if errors.Is(err, ErrScriptNotFound) {
 			http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
@@ -288,7 +299,11 @@ func (s *Server) handleDeleteScript(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"missing_id"}`, http.StatusBadRequest)
 		return
 	}
-	if err := s.scriptStoreFn().DeleteScript(r.Context(), id); err != nil {
+	orgID := ""
+	if claims, ok := authFromCtx(r); ok && claims != nil {
+		orgID = claims.OrgID
+	}
+	if err := s.scriptStoreFn().DeleteScript(r.Context(), orgID, id); err != nil {
 		if errors.Is(err, ErrScriptNotFound) {
 			http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
 			return
@@ -325,7 +340,11 @@ func (s *Server) handleRunScript(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	store := s.scriptStoreFn()
-	script, err := store.GetScript(r.Context(), id)
+	orgID := ""
+	if claims, ok := authFromCtx(r); ok && claims != nil {
+		orgID = claims.OrgID
+	}
+	script, err := store.GetScript(r.Context(), orgID, id)
 	if err != nil {
 		if errors.Is(err, ErrScriptNotFound) {
 			http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)

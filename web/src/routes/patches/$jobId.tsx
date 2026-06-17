@@ -54,34 +54,34 @@ export const Route = createFileRoute('/patches/$jobId')({
 const STATUS_META: Record<PatchJobStatus, { label: string; classes: string }> = {
   pending_approval: {
     label: 'Pending Approval',
-    classes: 'bg-warning/10 text-warning border-warning/20',
+    classes: 'bg-yellow-500/10 text-yellow-400 border-yellow-800',
   },
-  approved: { label: 'Approved', classes: 'bg-info/10 text-info border-info/20' },
-  rejected: { label: 'Rejected', classes: 'bg-border-strong/20 text-text-secondary border-text-muted/30' },
-  in_progress: { label: 'In Progress', classes: 'bg-accent/10 text-accent border-accent/20' },
-  completed: { label: 'Completed', classes: 'bg-success/10 text-success border-success/20' },
-  failed: { label: 'Failed', classes: 'bg-danger/10 text-danger border-danger/20' },
-  cancelled: { label: 'Cancelled', classes: 'bg-border-strong/20 text-text-secondary border-text-muted/30' },
-  rolled_back: { label: 'Rolled Back', classes: 'bg-warning/10 text-warning border-warning/20' },
+  approved: { label: 'Approved', classes: 'bg-blue-500/10 text-blue-400 border-blue-800' },
+  rejected: { label: 'Rejected', classes: 'bg-slate-700/20 text-gray-300 border-slate-700' },
+  in_progress: { label: 'In Progress', classes: 'bg-blue-600/10 text-blue-400 border-blue-500/20' },
+  completed: { label: 'Completed', classes: 'bg-green-500/10 text-green-400 border-green-800' },
+  failed: { label: 'Failed', classes: 'bg-red-500/10 text-red-400 border-red-800' },
+  cancelled: { label: 'Cancelled', classes: 'bg-slate-700/20 text-gray-300 border-slate-700' },
+  rolled_back: { label: 'Rolled Back', classes: 'bg-yellow-500/10 text-yellow-400 border-yellow-800' },
 };
 
 const INSTALL_META: Record<InstallStatus, { label: string; classes: string }> = {
-  pending: { label: 'Pending', classes: 'bg-border-strong/20 text-text-secondary border-text-muted/30' },
-  downloading: { label: 'Downloading', classes: 'bg-info/10 text-info border-info/20' },
-  installing: { label: 'Installing', classes: 'bg-accent/10 text-accent border-accent/20' },
-  completed: { label: 'Completed', classes: 'bg-success/10 text-success border-success/20' },
-  failed: { label: 'Failed', classes: 'bg-danger/10 text-danger border-danger/20' },
-  skipped: { label: 'Skipped', classes: 'bg-border-strong/20 text-text-secondary border-text-muted/30' },
-  rolled_back: { label: 'Rolled Back', classes: 'bg-warning/10 text-warning border-warning/20' },
+  pending: { label: 'Pending', classes: 'bg-slate-700/20 text-gray-300 border-slate-700' },
+  downloading: { label: 'Downloading', classes: 'bg-blue-500/10 text-blue-400 border-blue-800' },
+  installing: { label: 'Installing', classes: 'bg-blue-600/10 text-blue-400 border-blue-500/20' },
+  completed: { label: 'Completed', classes: 'bg-green-500/10 text-green-400 border-green-800' },
+  failed: { label: 'Failed', classes: 'bg-red-500/10 text-red-400 border-red-800' },
+  skipped: { label: 'Skipped', classes: 'bg-slate-700/20 text-gray-300 border-slate-700' },
+  rolled_back: { label: 'Rolled Back', classes: 'bg-yellow-500/10 text-yellow-400 border-yellow-800' },
 };
 
 const REBOOT_META: Record<RebootStatus, { label: string; classes: string }> = {
-  not_required: { label: 'Not Required', classes: 'bg-border-strong/30 text-text-secondary border-border-strong/30' },
-  pending: { label: 'Pending', classes: 'bg-warning/10 text-warning border-warning/20' },
-  scheduled: { label: 'Scheduled', classes: 'bg-info/10 text-info border-info/20' },
-  in_progress: { label: 'In Progress', classes: 'bg-accent/10 text-accent border-accent/20' },
-  completed: { label: 'Completed', classes: 'bg-success/10 text-success border-success/20' },
-  failed: { label: 'Failed', classes: 'bg-danger/10 text-danger border-danger/20' },
+  not_required: { label: 'Not Required', classes: 'bg-slate-700/30 text-gray-300 border-slate-700/30' },
+  pending: { label: 'Pending', classes: 'bg-yellow-500/10 text-yellow-400 border-yellow-800' },
+  scheduled: { label: 'Scheduled', classes: 'bg-blue-500/10 text-blue-400 border-blue-800' },
+  in_progress: { label: 'In Progress', classes: 'bg-blue-600/10 text-blue-400 border-blue-500/20' },
+  completed: { label: 'Completed', classes: 'bg-green-500/10 text-green-400 border-green-800' },
+  failed: { label: 'Failed', classes: 'bg-red-500/10 text-red-400 border-red-800' },
 };
 
 const ROLLOUT_STAGES: { stage: DeploymentStage; pct: number; label: string }[] = [
@@ -309,7 +309,7 @@ function PatchJobDetailPage() {
 
   if (isLoading && !job) {
     return (
-      <div className="text-center text-text-muted py-24">
+      <div className="text-center text-gray-400 py-24">
         <Loader2 className="inline h-5 w-5 animate-spin mr-2" />
         Loading patch job…
       </div>
@@ -321,12 +321,12 @@ function PatchJobDetailPage() {
       <div className="space-y-4">
         <Link
           to="/patches"
-          className="inline-flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary"
+          className="inline-flex items-center gap-2 text-sm text-gray-300 hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>Back to patches</span>
         </Link>
-        <div className="rounded-lg border border-danger/30 bg-danger/5 p-6 text-danger">
+        <div className="rounded-lg border border-red-800 bg-red-500/5 p-6 text-red-400">
           Failed to load job: {error.message}
         </div>
       </div>
@@ -350,17 +350,17 @@ function PatchJobDetailPage() {
         <div className="flex items-start gap-3 min-w-0">
           <Link
             to="/patches"
-            className="h-9 w-9 rounded-md bg-surface-tertiary border border-border-strong flex items-center justify-center hover:bg-border-strong transition-colors shrink-0"
+            className="h-9 w-9 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center hover:bg-slate-700 transition-colors shrink-0"
             title="Back to patches"
           >
-            <ArrowLeft className="h-4 w-4 text-text-secondary" />
+            <ArrowLeft className="h-4 w-4 text-gray-300" />
           </Link>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="h-9 w-9 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center">
-                <Wrench className="h-4 w-4 text-accent" />
+              <div className="h-9 w-9 rounded-md bg-blue-600/10 border border-blue-500/20 flex items-center justify-center">
+                <Wrench className="h-4 w-4 text-blue-400" />
               </div>
-              <h1 className="text-2xl font-bold text-text-primary break-words">{job.name || job.id}</h1>
+              <h1 className="text-2xl font-bold text-white break-words">{job.name || job.id}</h1>
               <SeverityBadge severity={job.severity} />
               <span
                 className={
@@ -372,9 +372,9 @@ function PatchJobDetailPage() {
               </span>
             </div>
             {job.description && (
-              <p className="text-text-secondary mt-1 break-words">{job.description}</p>
+              <p className="text-gray-300 mt-1 break-words">{job.description}</p>
             )}
-            <p className="text-xs text-text-muted mt-1 font-mono">{job.id}</p>
+            <p className="text-xs text-gray-400 mt-1 font-mono">{job.id}</p>
           </div>
         </div>
 
@@ -386,7 +386,7 @@ function PatchJobDetailPage() {
                 type="button"
                 disabled={actionBusy !== null}
                 onClick={() => void doAction('approve')}
-                className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-success/15 border border-success/30 text-success text-sm hover:bg-success/25 disabled:opacity-50 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-green-500/15 border border-green-800 text-green-400 text-sm hover:bg-green-500/25 disabled:opacity-50 transition-colors"
               >
                 {actionBusy === 'approve' ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -399,7 +399,7 @@ function PatchJobDetailPage() {
                 type="button"
                 disabled={actionBusy !== null}
                 onClick={() => void doAction('reject')}
-                className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-danger/15 border border-danger/30 text-danger text-sm hover:bg-danger/25 disabled:opacity-50 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-red-500/15 border border-red-800 text-red-400 text-sm hover:bg-red-500/25 disabled:opacity-50 transition-colors"
               >
                 {actionBusy === 'reject' ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -415,7 +415,7 @@ function PatchJobDetailPage() {
               type="button"
               disabled={actionBusy !== null}
               onClick={() => void doAction('cancel')}
-              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-surface-tertiary border border-border-strong text-text-primary text-sm hover:bg-border-strong disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-slate-800 border border-slate-700 text-white text-sm hover:bg-slate-700 disabled:opacity-50 transition-colors"
             >
               {actionBusy === 'cancel' ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -430,7 +430,7 @@ function PatchJobDetailPage() {
               type="button"
               disabled={actionBusy !== null}
               onClick={() => void doAction('retry')}
-              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-accent hover:bg-accent border border-accent text-white text-sm disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-blue-600 hover:bg-blue-600 border border-blue-500 text-white text-sm disabled:opacity-50 transition-colors"
             >
               {actionBusy === 'retry' ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -445,7 +445,7 @@ function PatchJobDetailPage() {
               type="button"
               disabled={actionBusy !== null}
               onClick={() => void doAction('rollback')}
-              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-warning/15 border border-warning/30 text-warning text-sm hover:bg-warning/25 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-yellow-500/15 border border-yellow-800 text-yellow-400 text-sm hover:bg-yellow-500/25 disabled:opacity-50 transition-colors"
             >
               {actionBusy === 'rollback' ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -459,52 +459,52 @@ function PatchJobDetailPage() {
       </div>
 
       {/* Job metadata strip */}
-      <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-4">
+      <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
         <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">Created</dt>
-            <dd className="text-text-primary mt-1">
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">Created</dt>
+            <dd className="text-white mt-1">
               {formatTime(job.created_at)}
               {job.created_by && (
-                <span className="block text-xs text-text-muted">by {job.created_by}</span>
+                <span className="block text-xs text-gray-400">by {job.created_by}</span>
               )}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">Approved</dt>
-            <dd className="text-text-primary mt-1">
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">Approved</dt>
+            <dd className="text-white mt-1">
               {formatTime(job.approved_at)}
               {job.approved_by && (
-                <span className="block text-xs text-text-muted">by {job.approved_by}</span>
+                <span className="block text-xs text-gray-400">by {job.approved_by}</span>
               )}
-              {!job.approved_at && <span className="text-text-muted">—</span>}
+              {!job.approved_at && <span className="text-gray-400">—</span>}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">Started</dt>
-            <dd className="text-text-primary mt-1">{formatTime(job.started_at)}</dd>
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">Started</dt>
+            <dd className="text-white mt-1">{formatTime(job.started_at)}</dd>
           </div>
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">Completed</dt>
-            <dd className="text-text-primary mt-1">{formatTime(job.completed_at)}</dd>
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">Completed</dt>
+            <dd className="text-white mt-1">{formatTime(job.completed_at)}</dd>
           </div>
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">Patches</dt>
-            <dd className="text-text-primary mt-1 tabular-nums">{job.patch_count}</dd>
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">Patches</dt>
+            <dd className="text-white mt-1 tabular-nums">{job.patch_count}</dd>
           </div>
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">Target agents</dt>
-            <dd className="text-text-primary mt-1 tabular-nums">{job.total_agents}</dd>
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">Target agents</dt>
+            <dd className="text-white mt-1 tabular-nums">{job.total_agents}</dd>
           </div>
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">Strategy</dt>
-            <dd className="text-text-primary mt-1 capitalize">
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">Strategy</dt>
+            <dd className="text-white mt-1 capitalize">
               {(job.strategy ?? 'staged').replace('_', ' ')}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-text-muted uppercase tracking-wider">Reboot policy</dt>
-            <dd className="text-text-primary mt-1 capitalize">
+            <dt className="text-xs text-gray-400 uppercase tracking-wider">Reboot policy</dt>
+            <dd className="text-white mt-1 capitalize">
               {(job.reboot_policy ?? 'if_required').replace('_', ' ')}
             </dd>
           </div>
@@ -512,43 +512,43 @@ function PatchJobDetailPage() {
       </div>
 
       {/* Deployment progress (staged rollout) */}
-      <div className="rounded-lg border border-border-subtle bg-surface-secondary/60">
-        <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
-            <GitBranch className="h-4 w-4 text-text-secondary" />
+      <div className="rounded-lg border border-slate-800 bg-slate-900">
+        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+            <GitBranch className="h-4 w-4 text-gray-300" />
             Deployment progress
           </h2>
-          <span className="text-xs text-text-muted tabular-nums">
+          <span className="text-xs text-gray-400 tabular-nums">
             {job.completed_agents} / {job.total_agents} completed
             {job.failed_agents > 0 && (
-              <span className="text-danger ml-2">
+              <span className="text-red-400 ml-2">
                 ({job.failed_agents} failed)
               </span>
             )}
           </span>
         </div>
         <div className="p-5 space-y-4">
-          <div className="h-2 w-full rounded-full bg-surface-tertiary overflow-hidden">
+          <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
             <div
               className={
                 'h-full transition-all ' +
                 (state === 'completed'
-                  ? 'bg-success'
+                  ? 'bg-green-500'
                   : state === 'failed'
-                  ? 'bg-danger'
+                  ? 'bg-red-500'
                   : state === 'cancelled'
-                  ? 'bg-text-muted'
-                  : 'bg-accent')
+                  ? 'bg-slate-500'
+                  : 'bg-blue-600')
               }
               style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
             />
           </div>
           <div className="flex items-center justify-between text-xs">
-            <span className="text-text-muted">0%</span>
-            <span className="text-text-secondary tabular-nums font-medium">
+            <span className="text-gray-400">0%</span>
+            <span className="text-gray-300 tabular-nums font-medium">
               {Math.round(progress)}%
             </span>
-            <span className="text-text-muted">100%</span>
+            <span className="text-gray-400">100%</span>
           </div>
 
           {/* Staged rollout steps */}
@@ -564,34 +564,34 @@ function PatchJobDetailPage() {
                     className={
                       'rounded-md border p-3 ' +
                       (reached
-                        ? 'border-accent/30 bg-accent/5'
-                        : 'border-border-subtle bg-surface-primary/40')
+                        ? 'border-blue-500/30 bg-blue-600/5'
+                        : 'border-slate-800 bg-slate-800')
                     }
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
                         {reached ? (
-                          <CircleCheck className="h-3.5 w-3.5 text-success" />
+                          <CircleCheck className="h-3.5 w-3.5 text-green-400" />
                         ) : (
-                          <div className="h-3.5 w-3.5 rounded-full border border-border-strong" />
+                          <div className="h-3.5 w-3.5 rounded-full border border-slate-700" />
                         )}
                         <span
                           className={
                             'text-xs font-medium ' +
-                            (reached ? 'text-text-primary' : 'text-text-secondary')
+                            (reached ? 'text-white' : 'text-gray-300')
                           }
                         >
                           {s.label}
                         </span>
                       </div>
                       {active && (
-                        <span className="inline-flex items-center gap-1 text-[10px] text-accent">
+                        <span className="inline-flex items-center gap-1 text-[10px] text-blue-400">
                           <CirclePlay className="h-3 w-3 animate-pulse" />
                           <span>active</span>
                         </span>
                       )}
                     </div>
-                    <p className="text-[10px] text-text-muted mt-1 capitalize">
+                    <p className="text-[10px] text-gray-400 mt-1 capitalize">
                       {s.stage}
                       {stageTargets.length > 0 && ` · ${stageTargets.length} agents`}
                     </p>
@@ -604,24 +604,24 @@ function PatchJobDetailPage() {
       </div>
 
       {/* Approvals section */}
-      <div className="rounded-lg border border-border-subtle bg-surface-secondary/60">
-        <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-text-secondary" />
+      <div className="rounded-lg border border-slate-800 bg-slate-900">
+        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-gray-300" />
             Approvals
           </h2>
-          <span className="text-xs text-text-muted">
+          <span className="text-xs text-gray-400">
             {approvals.length} decision{approvals.length === 1 ? '' : 's'}
           </span>
         </div>
         {approvals.length === 0 ? (
-          <p className="text-sm text-text-muted p-5">
+          <p className="text-sm text-gray-400 p-5">
             {state === 'pending_approval'
               ? 'This job is waiting for an approver. Use the buttons above to approve or reject.'
               : 'No approval decisions recorded yet.'}
           </p>
         ) : (
-          <ul className="divide-y divide-border-subtle">
+          <ul className="divide-y divide-slate-800">
             {approvals.map((a) => {
               const decision = (a.decision ?? '').toLowerCase();
               const icon =
@@ -632,10 +632,10 @@ function PatchJobDetailPage() {
                   : AlertCircle;
               const tone =
                 decision === 'approved'
-                  ? 'text-success bg-success/10 border-success/20'
+                  ? 'text-green-400 bg-green-500/10 border-green-800'
                   : decision === 'rejected'
-                  ? 'text-danger bg-danger/10 border-danger/20'
-                  : 'text-warning bg-warning/10 border-warning/20';
+                  ? 'text-red-400 bg-red-500/10 border-red-800'
+                  : 'text-yellow-400 bg-yellow-500/10 border-yellow-800';
               const Icon = icon;
               return (
                 <li key={a.id} className="px-5 py-3 flex items-start gap-3">
@@ -649,18 +649,18 @@ function PatchJobDetailPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-text-primary capitalize">
+                      <span className="text-sm font-medium text-white capitalize">
                         {a.decision.replace('_', ' ')}
                       </span>
-                      <span className="text-xs text-text-muted">
+                      <span className="text-xs text-gray-400">
                         {formatTime(a.created_at)}
                       </span>
                     </div>
                     {a.approver && (
-                      <p className="text-xs text-text-muted">by {a.approver}</p>
+                      <p className="text-xs text-gray-400">by {a.approver}</p>
                     )}
                     {a.note && (
-                      <p className="text-sm text-text-secondary mt-1 break-words">{a.note}</p>
+                      <p className="text-sm text-gray-300 mt-1 break-words">{a.note}</p>
                     )}
                   </div>
                 </li>
@@ -699,20 +699,20 @@ function PatchJobDetailPage() {
       />
 
       {/* Target agents table */}
-      <div className="rounded-lg border border-border-subtle bg-surface-secondary/60">
-        <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
-            <Server className="h-4 w-4 text-text-secondary" />
+      <div className="rounded-lg border border-slate-800 bg-slate-900">
+        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+            <Server className="h-4 w-4 text-gray-300" />
             Target agents
           </h2>
-          <span className="text-xs text-text-muted">
+          <span className="text-xs text-gray-400">
             {targets.length} of {job.total_agents}
           </span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-text-muted border-b border-border-subtle bg-surface-primary/40">
+              <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-slate-800 bg-slate-800">
                 <th className="px-4 py-3">Hostname</th>
                 <th className="px-4 py-3 w-32">OS / Version</th>
                 <th className="px-4 py-3 w-32">Current</th>
@@ -722,10 +722,10 @@ function PatchJobDetailPage() {
                 <th className="px-4 py-3 text-right w-48">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-subtle">
+            <tbody className="divide-y divide-slate-800">
               {targets.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-text-muted">
+                  <td colSpan={7} className="px-4 py-12 text-center text-gray-400">
                     No target agents have been reported yet.
                   </td>
                 </tr>
@@ -801,25 +801,25 @@ function TargetRow({
     needsReboot && !isJobTerminal;
 
   return (
-    <tr className="hover:bg-surface-tertiary/40 transition-colors">
+    <tr className="hover:bg-slate-800/40 transition-colors">
       <td className="px-4 py-3">
         <div className="flex flex-col">
-          <span className="text-text-primary">{t.hostname || t.agent_id}</span>
+          <span className="text-white">{t.hostname || t.agent_id}</span>
           {t.hostname && (
-            <span className="text-[10px] text-text-muted font-mono">{t.agent_id}</span>
+            <span className="text-[10px] text-gray-400 font-mono">{t.agent_id}</span>
           )}
         </div>
       </td>
-      <td className="px-4 py-3 text-text-secondary text-xs">
+      <td className="px-4 py-3 text-gray-300 text-xs">
         {t.os || '—'}
         {t.os_version && (
-          <span className="block text-text-muted">{t.os_version}</span>
+          <span className="block text-gray-400">{t.os_version}</span>
         )}
       </td>
-      <td className="px-4 py-3 text-text-secondary text-xs font-mono">
+      <td className="px-4 py-3 text-gray-300 text-xs font-mono">
         {t.current_version || '—'}
       </td>
-      <td className="px-4 py-3 text-text-secondary text-xs font-mono">
+      <td className="px-4 py-3 text-gray-300 text-xs font-mono">
         {t.target_version || '—'}
       </td>
       <td className="px-4 py-3">
@@ -832,7 +832,7 @@ function TargetRow({
           {installMeta.label}
         </span>
         {t.error_message && (
-          <p className="text-xs text-danger mt-1 max-w-[10rem] truncate" title={t.error_message}>
+          <p className="text-xs text-red-400 mt-1 max-w-[10rem] truncate" title={t.error_message}>
             {t.error_message}
           </p>
         )}
@@ -847,7 +847,7 @@ function TargetRow({
           {rebootMeta.label}
         </span>
         {t.scheduled_reboot_at && t.reboot_status === 'scheduled' && (
-          <p className="text-xs text-text-muted mt-1">{formatTime(t.scheduled_reboot_at)}</p>
+          <p className="text-xs text-gray-400 mt-1">{formatTime(t.scheduled_reboot_at)}</p>
         )}
       </td>
       <td className="px-4 py-3 text-right">
@@ -857,13 +857,13 @@ function TargetRow({
               type="datetime-local"
               value={scheduleValue}
               onChange={(e) => onScheduleChange(e.target.value)}
-              className="h-8 px-2 rounded-md bg-surface-tertiary border border-border-strong text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
+              className="h-8 px-2 rounded-md bg-slate-800 border border-slate-700 text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40"
             />
             <button
               type="button"
               onClick={onScheduleSubmit}
               disabled={busy || !scheduleValue}
-              className="h-8 px-2 rounded-md bg-accent hover:bg-accent border border-accent text-xs text-white disabled:opacity-50"
+              className="h-8 px-2 rounded-md bg-blue-600 hover:bg-blue-600 border border-blue-500 text-xs text-white disabled:opacity-50"
               title="Confirm schedule"
             >
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
@@ -871,7 +871,7 @@ function TargetRow({
             <button
               type="button"
               onClick={onScheduleCancel}
-              className="h-8 px-2 rounded-md bg-surface-tertiary border border-border-strong text-text-secondary text-xs hover:bg-border-strong"
+              className="h-8 px-2 rounded-md bg-slate-800 border border-slate-700 text-gray-300 text-xs hover:bg-slate-700"
               title="Cancel"
             >
               <X className="h-3.5 w-3.5" />
@@ -883,7 +883,7 @@ function TargetRow({
               type="button"
               onClick={onRebootNow}
               disabled={busy}
-              className="inline-flex items-center gap-1 px-2 h-7 rounded-md text-xs bg-warning/10 border border-warning/30 text-warning hover:bg-warning/20 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-1 px-2 h-7 rounded-md text-xs bg-yellow-500/10 border border-yellow-800 text-yellow-400 hover:bg-yellow-500/20 disabled:opacity-50 transition-colors"
               title="Reboot now"
             >
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Power className="h-3.5 w-3.5" />}
@@ -892,7 +892,7 @@ function TargetRow({
             <button
               type="button"
               onClick={onScheduleClick}
-              className="inline-flex items-center gap-1 px-2 h-7 rounded-md text-xs bg-surface-tertiary border border-border-strong text-text-secondary hover:bg-border-strong transition-colors"
+              className="inline-flex items-center gap-1 px-2 h-7 rounded-md text-xs bg-slate-800 border border-slate-700 text-gray-300 hover:bg-slate-700 transition-colors"
               title="Schedule reboot"
             >
               <CalendarClock className="h-3.5 w-3.5" />
@@ -900,7 +900,7 @@ function TargetRow({
             </button>
           </div>
         ) : (
-          <span className="text-xs text-text-muted">—</span>
+          <span className="text-xs text-gray-400">—</span>
         )}
       </td>
     </tr>
@@ -966,22 +966,22 @@ function RebootCoordinationPanel({
   ).length;
 
   return (
-    <div className="rounded-lg border border-border-subtle bg-surface-secondary/60">
-      <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
-          <Power className="h-4 w-4 text-text-secondary" />
+    <div className="rounded-lg border border-slate-800 bg-slate-900">
+      <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+          <Power className="h-4 w-4 text-gray-300" />
           Reboot coordination
         </h2>
-        <span className="text-xs text-text-muted">
+        <span className="text-xs text-gray-400">
           {pendingCount} pending reboot{pendingCount === 1 ? '' : 's'}
         </span>
       </div>
       <div className="p-5">
         {grouped.length === 0 ? (
-          <div className="text-center text-text-muted py-6">
+          <div className="text-center text-gray-400 py-6">
             <ListChecks className="inline h-5 w-5 mb-1" />
             <p className="text-sm">No pending reboots.</p>
-            <p className="text-xs text-text-muted mt-1">
+            <p className="text-xs text-gray-400 mt-1">
               Reboots appear here when the rollout requires a restart.
             </p>
           </div>
@@ -990,28 +990,28 @@ function RebootCoordinationPanel({
             {grouped.map(({ stageIndex, items }) => (
               <div
                 key={stageIndex}
-                className="rounded-md border border-border-subtle bg-surface-primary/40"
+                className="rounded-md border border-slate-800 bg-slate-800"
               >
-                <div className="px-4 py-2 border-b border-border-subtle flex items-center gap-2">
+                <div className="px-4 py-2 border-b border-slate-800 flex items-center gap-2">
                   <span
                     className={
                       'inline-flex items-center gap-1.5 text-xs font-medium ' +
-                      (stageIndex === -1 ? 'text-text-secondary' : 'text-accent')
+                      (stageIndex === -1 ? 'text-gray-300' : 'text-blue-400')
                     }
                   >
                     <Clock className="h-3.5 w-3.5" />
                     {stageIndex === -1 ? 'Unscheduled' : `Stage ${stageIndex + 1}`}
                   </span>
                   {items[0]?.scheduled_at && (
-                    <span className="text-xs text-text-muted">
+                    <span className="text-xs text-gray-400">
                       · target {formatTime(items[0].scheduled_at)}
                     </span>
                   )}
-                  <span className="ml-auto text-xs text-text-muted tabular-nums">
+                  <span className="ml-auto text-xs text-gray-400 tabular-nums">
                     {items.length} agent{items.length === 1 ? '' : 's'}
                   </span>
                 </div>
-                <ul className="divide-y divide-border-subtle">
+                <ul className="divide-y divide-slate-800">
                   {items.map((r) => {
                     const isScheduling = scheduleOpen === r.agent_id;
                     return (
@@ -1019,16 +1019,16 @@ function RebootCoordinationPanel({
                         key={r.id}
                         className="px-4 py-2 flex items-center gap-3 text-sm"
                       >
-                        <Server className="h-4 w-4 text-text-muted shrink-0" />
+                        <Server className="h-4 w-4 text-gray-400 shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-text-primary truncate">{r.hostname || r.agent_id}</p>
-                          <p className="text-xs text-text-muted">
+                          <p className="text-white truncate">{r.hostname || r.agent_id}</p>
+                          <p className="text-xs text-gray-400">
                             {r.status === 'scheduled' && r.scheduled_at
                               ? `Scheduled for ${formatTime(r.scheduled_at)}`
                               : 'Awaiting reboot'}
                           </p>
                           {r.last_error && (
-                            <p className="text-xs text-danger mt-0.5 truncate">
+                            <p className="text-xs text-red-400 mt-0.5 truncate">
                               {r.last_error}
                             </p>
                           )}
@@ -1039,13 +1039,13 @@ function RebootCoordinationPanel({
                               type="datetime-local"
                               value={scheduleValue}
                               onChange={(e) => onScheduleChange(e.target.value)}
-                              className="h-8 px-2 rounded-md bg-surface-tertiary border border-border-strong text-xs text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
+                              className="h-8 px-2 rounded-md bg-slate-800 border border-slate-700 text-xs text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40"
                             />
                             <button
                               type="button"
                               onClick={() => onScheduleSubmit(r.agent_id)}
                               disabled={actionBusy !== null || !scheduleValue}
-                              className="h-8 px-2 rounded-md bg-accent hover:bg-accent border border-accent text-xs text-white disabled:opacity-50"
+                              className="h-8 px-2 rounded-md bg-blue-600 hover:bg-blue-600 border border-blue-500 text-xs text-white disabled:opacity-50"
                             >
                               {actionBusy === `schedule-${r.agent_id}` ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1056,7 +1056,7 @@ function RebootCoordinationPanel({
                             <button
                               type="button"
                               onClick={onScheduleCancel}
-                              className="h-8 px-2 rounded-md bg-surface-tertiary border border-border-strong text-text-secondary text-xs hover:bg-border-strong"
+                              className="h-8 px-2 rounded-md bg-slate-800 border border-slate-700 text-gray-300 text-xs hover:bg-slate-700"
                             >
                               <X className="h-3.5 w-3.5" />
                             </button>
@@ -1067,7 +1067,7 @@ function RebootCoordinationPanel({
                               type="button"
                               onClick={() => onRebootNow(r.agent_id)}
                               disabled={actionBusy !== null || jobStatus === 'cancelled' || jobStatus === 'rejected'}
-                              className="inline-flex items-center gap-1 px-2 h-7 rounded-md text-xs bg-warning/10 border border-warning/30 text-warning hover:bg-warning/20 disabled:opacity-50 transition-colors"
+                              className="inline-flex items-center gap-1 px-2 h-7 rounded-md text-xs bg-yellow-500/10 border border-yellow-800 text-yellow-400 hover:bg-yellow-500/20 disabled:opacity-50 transition-colors"
                             >
                               {actionBusy === `reboot-${r.agent_id}` ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1079,7 +1079,7 @@ function RebootCoordinationPanel({
                             <button
                               type="button"
                               onClick={() => onScheduleClick(r.agent_id)}
-                              className="inline-flex items-center gap-1 px-2 h-7 rounded-md text-xs bg-surface-tertiary border border-border-strong text-text-secondary hover:bg-border-strong transition-colors"
+                              className="inline-flex items-center gap-1 px-2 h-7 rounded-md text-xs bg-slate-800 border border-slate-700 text-gray-300 hover:bg-slate-700 transition-colors"
                             >
                               <CalendarClock className="h-3.5 w-3.5" />
                               <span>Schedule</span>
@@ -1094,13 +1094,13 @@ function RebootCoordinationPanel({
             ))}
 
             {/* Staggered timeline view */}
-            <div className="rounded-md border border-border-subtle bg-surface-primary/40 p-4">
-              <h3 className="text-xs text-text-muted uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <div className="rounded-md border border-slate-800 bg-slate-800 p-4">
+              <h3 className="text-xs text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                 <Activity className="h-3.5 w-3.5" />
                 Staggered timeline
               </h3>
               <div className="relative pl-4">
-                <div className="absolute left-1.5 top-1 bottom-1 w-px bg-surface-tertiary" />
+                <div className="absolute left-1.5 top-1 bottom-1 w-px bg-slate-800" />
                 <ol className="space-y-3">
                   {grouped.map(({ stageIndex, items }) => {
                     const isUnscheduled = stageIndex === -1;
@@ -1109,19 +1109,19 @@ function RebootCoordinationPanel({
                         <span
                           className={
                             'absolute -left-[2px] mt-1.5 h-3 w-3 rounded-full border-2 border-surface-primary ' +
-                            (isUnscheduled ? 'bg-border-strong' : 'bg-accent')
+                            (isUnscheduled ? 'bg-slate-700' : 'bg-blue-600')
                           }
                         />
                         <div className="pl-5">
-                          <p className="text-sm text-text-primary">
+                          <p className="text-sm text-white">
                             {isUnscheduled ? 'Unscheduled bucket' : `Stage ${stageIndex + 1}`}
-                            <ChevronRight className="inline h-3.5 w-3.5 mx-1 text-text-muted" />
-                            <span className="text-text-secondary tabular-nums">
+                            <ChevronRight className="inline h-3.5 w-3.5 mx-1 text-gray-400" />
+                            <span className="text-gray-300 tabular-nums">
                               {items.length} reboot{items.length === 1 ? '' : 's'}
                             </span>
                           </p>
                           {items[0]?.scheduled_at && (
-                            <p className="text-xs text-text-muted">
+                            <p className="text-xs text-gray-400">
                               {formatTime(items[0].scheduled_at)}
                             </p>
                           )}

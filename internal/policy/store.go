@@ -63,10 +63,10 @@ type ComplianceTrend struct {
 type Store interface {
 	// Policy CRUD.
 	InsertPolicy(ctx context.Context, p *models.Policy) error
-	GetPolicy(ctx context.Context, id string) (*models.Policy, error)
+	GetPolicy(ctx context.Context, orgID, id string) (*models.Policy, error)
 	ListPolicies(ctx context.Context, f PolicyFilter) ([]models.Policy, int, error)
 	UpdatePolicy(ctx context.Context, p *models.Policy) error
-	SoftDeletePolicy(ctx context.Context, id string) error
+	SoftDeletePolicy(ctx context.Context, orgID, id string) error
 
 	// Assignments.
 	InsertPolicyAssignment(ctx context.Context, a *models.PolicyAssignment) error
@@ -142,25 +142,33 @@ func (s *pgPolicyStore) InsertPolicy(ctx context.Context, p *models.Policy) erro
 	return nil
 }
 
-// GetPolicy fetches a single policy by id (including its Rego body).
-// Returns ErrPolicyNotFound if the row does not exist or is soft-deleted.
-func (s *pgPolicyStore) GetPolicy(ctx context.Context, id string) (*models.Policy, error) {
+// GetPolicy fetches a single policy by id (including its Rego body),
+// scoped to the given org. If orgID is non-empty, the query enforces org
+// ownership. Returns ErrPolicyNotFound if the row does not exist or is
+// soft-deleted.
+func (s *pgPolicyStore) GetPolicy(ctx context.Context, orgID, id string) (*models.Policy, error) {
 	if s.pool == nil {
 		return nil, errors.New("policy: nil pool")
 	}
-	const q = `
+	args := []any{id}
+	where := []string{"id = $1", "deleted = false"}
+	if orgID != "" {
+		args = append(args, orgID)
+		where = append(where, fmt.Sprintf("org_id = $%d", len(args)))
+	}
+	q := `
 		SELECT id, COALESCE(org_id,''), COALESCE(name,''), COALESCE(description,''),
 		       COALESCE(rego_body,''), COALESCE(enforcement_mode,'monitor'),
 		       COALESCE(severity,'warning'), COALESCE(category,'security'),
 		       COALESCE(enabled,true), COALESCE(deleted,false),
 		       created_at, updated_at
 		FROM policies
-		WHERE id = $1 AND deleted = false
+		WHERE ` + strings.Join(where, " AND ") + `
 		LIMIT 1
 	`
 	var p models.Policy
 	var deleted bool
-	err := s.pool.QueryRow(ctx, q, id).Scan(
+	err := s.pool.QueryRow(ctx, q, args...).Scan(
 		&p.ID, &p.OrgID, &p.Name, &p.Description, &p.RegoBody,
 		&p.EnforcementMode, &p.Severity, &p.Category, &p.Enabled, &deleted,
 		&p.CreatedAt, &p.UpdatedAt,
@@ -292,12 +300,18 @@ func (s *pgPolicyStore) UpdatePolicy(ctx context.Context, p *models.Policy) erro
 
 // SoftDeletePolicy marks a policy as deleted. The row is preserved for
 // audit; queries filter it out via the `deleted = false` clause.
-func (s *pgPolicyStore) SoftDeletePolicy(ctx context.Context, id string) error {
+func (s *pgPolicyStore) SoftDeletePolicy(ctx context.Context, orgID, id string) error {
 	if s.pool == nil {
 		return errors.New("policy: nil pool")
 	}
-	const q = `UPDATE policies SET deleted = true, updated_at = NOW() WHERE id = $1 AND deleted = false`
-	tag, err := s.pool.Exec(ctx, q, id)
+	args := []any{id}
+	where := "id = $1 AND deleted = false"
+	if orgID != "" {
+		args = append(args, orgID)
+		where += fmt.Sprintf(" AND org_id = $%d", len(args))
+	}
+	q := "UPDATE policies SET deleted = true, updated_at = NOW() WHERE " + where
+	tag, err := s.pool.Exec(ctx, q, args...)
 	if err != nil {
 		return fmt.Errorf("policy: soft delete: %w", err)
 	}

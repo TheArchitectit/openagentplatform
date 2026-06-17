@@ -143,9 +143,13 @@ func (s *Server) getAlertRuleChannels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := chi.URLParam(r, "id")
+	orgID := ""
+	if claims, ok := auth.UserFromContext(r.Context()); ok && claims != nil {
+		orgID = claims.OrgID
+	}
 
 	// Verify the rule exists and the caller has access.
-	rules, err := s.alertStore.GetAlertRules(r.Context(), "")
+	rules, err := s.alertStore.GetAlertRules(r.Context(), orgID)
 	if err != nil {
 		s.log.Error("list alert rules for channel lookup failed", "err", err)
 		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)

@@ -22,11 +22,21 @@ import {
   type SSOTestResult,
   type UpdateSSOProviderInput,
 } from '@/lib/useSettings';
-import './settings.css';
 
 export const Route = createFileRoute('/settings/sso')({
   component: SSOPage,
 });
+
+function providerStatusClasses(status: string): string {
+  switch (status) {
+    case 'active':
+      return 'bg-green-500/10 text-green-400 border-green-500/20';
+    case 'error':
+      return 'bg-red-500/10 text-red-400 border-red-500/20';
+    default:
+      return 'bg-slate-500/10 text-gray-300 border-slate-500/20';
+  }
+}
 
 function SSOPage() {
   const {
@@ -86,70 +96,67 @@ function SSOPage() {
   );
 
   return (
-    <>
-      <div className="settings-page-header">
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1>SSO</h1>
-          <p>Configure single sign-on providers for your organization.</p>
+          <h1 className="text-2xl font-bold text-white">SSO</h1>
+          <p className="text-gray-300 text-sm mt-0.5">
+            Configure single sign-on providers for your organization.
+          </p>
         </div>
         <button
           type="button"
-          className="settings-input"
-          style={{
-            width: 'auto',
-            height: '2.25rem',
-            padding: '0 0.75rem',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.375rem',
-            background: 'rgb(99 102 241)',
-            color: 'white',
-            border: 'none',
-            fontWeight: 500,
-          }}
           onClick={() => setShowCreate(true)}
+          className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md bg-blue-600 hover:bg-blue-500 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
         >
           <Plus className="h-4 w-4" />
           Add Provider
         </button>
       </div>
 
-      <div className="settings-table-wrap">
-        <table className="settings-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Type</th>
-              <th>Domain(s)</th>
-              <th>Status</th>
-              <th>Default</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoadingSSO ? (
-              <tr className="empty-row">
-                <td colSpan={6}>Loading providers...</td>
+      {/* Table */}
+      <div className="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-800 text-left text-xs uppercase tracking-wider text-gray-300">
+                <th className="px-4 py-2.5 font-medium">Name</th>
+                <th className="px-4 py-2.5 font-medium">Type</th>
+                <th className="px-4 py-2.5 font-medium">Domain(s)</th>
+                <th className="px-4 py-2.5 font-medium">Status</th>
+                <th className="px-4 py-2.5 font-medium">Default</th>
+                <th className="px-4 py-2.5 font-medium text-right">Actions</th>
               </tr>
-            ) : ssoProviders.length === 0 ? (
-              <tr className="empty-row">
-                <td colSpan={6}>No SSO providers configured.</td>
-              </tr>
-            ) : (
-              ssoProviders.map((p) => (
-                <SSORow
-                  key={p.id}
-                  provider={p}
-                  onEdit={() => setEditing(p)}
-                  onDelete={() => handleDelete(p.id, p.name)}
-                  onTest={() => handleTest(p.id)}
-                  onSetDefault={() => handleSetDefault(p.id)}
-                />
-              ))
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {isLoadingSSO ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-12 text-center text-gray-400" role="status">
+                    Loading providers...
+                  </td>
+                </tr>
+              ) : ssoProviders.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-12 text-center text-gray-400" role="status">
+                    No SSO providers configured.
+                  </td>
+                </tr>
+              ) : (
+                ssoProviders.map((p) => (
+                  <SSORow
+                    key={p.id}
+                    provider={p}
+                    onEdit={() => setEditing(p)}
+                    onDelete={() => handleDelete(p.id, p.name)}
+                    onTest={() => handleTest(p.id)}
+                    onSetDefault={() => handleSetDefault(p.id)}
+                  />
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {showCreate && (
@@ -166,7 +173,7 @@ function SSOPage() {
           onSubmit={(input) => handleUpdate(editing.id, input as UpdateSSOProviderInput)}
         />
       )}
-    </>
+    </div>
   );
 }
 
@@ -205,102 +212,66 @@ function SSORow({
 
   return (
     <>
-      <tr>
-        <td style={{ color: 'rgb(241 245 249)', fontWeight: 500 }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
-            <Plug className="h-3 w-3 text-text-muted" />
+      <tr className="hover:bg-slate-800/40 transition-colors">
+        <td className="px-4 py-2.5 text-white font-medium">
+          <div className="inline-flex items-center gap-1.5">
+            <Plug className="h-3 w-3 text-gray-400" />
             {provider.name}
-          </span>
+          </div>
         </td>
-        <td>
-          <span className="settings-badge settings-badge--built-in">
+        <td className="px-4 py-2.5">
+          <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-full border bg-slate-500/10 text-gray-300 border-slate-500/20">
             {provider.type.toUpperCase()}
           </span>
         </td>
-        <td style={{ fontSize: '0.75rem', color: 'rgb(148 163 184)' }}>
+        <td className="px-4 py-2.5 text-xs text-gray-300">
           {provider.domain_whitelist.length > 0
             ? provider.domain_whitelist.join(', ')
             : 'All domains'}
         </td>
-        <td>
-          <span className={`settings-badge settings-badge--${provider.status === 'active' ? 'active' : provider.status === 'error' ? 'failure' : 'inactive'}`}>
+        <td className="px-4 py-2.5">
+          <span
+            className={`inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-full border ${providerStatusClasses(provider.status)}`}
+          >
             {provider.status}
           </span>
         </td>
-        <td>
+        <td className="px-4 py-2.5">
           {provider.is_default ? (
-            <span className="settings-badge settings-badge--built-in">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-full border bg-slate-500/10 text-gray-300 border-slate-500/20">
               <Star className="h-3 w-3" /> default
             </span>
           ) : (
             <button
               type="button"
-              className="settings-input"
-              style={{
-                width: 'auto',
-                height: '1.75rem',
-                padding: '0 0.5rem',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                fontSize: '0.75rem',
-              }}
               onClick={onSetDefault}
+              className="inline-flex items-center h-7 px-2 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-gray-300 hover:text-white transition-colors"
             >
               Set default
             </button>
           )}
         </td>
-        <td>
-          <div style={{ display: 'flex', gap: '0.375rem' }}>
+        <td className="px-4 py-2.5 text-right">
+          <div className="flex items-center justify-end gap-1.5">
             <button
               type="button"
-              className="settings-input"
-              style={{
-                width: 'auto',
-                height: '1.75rem',
-                padding: '0 0.5rem',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-                fontSize: '0.75rem',
-              }}
               onClick={handleTest}
               disabled={testing}
+              className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-gray-300 hover:text-white disabled:opacity-50 transition-colors"
             >
               <ShieldCheck className="h-3 w-3" /> {testing ? 'Testing...' : 'Test'}
             </button>
             <button
               type="button"
-              className="settings-input"
-              style={{
-                width: 'auto',
-                height: '1.75rem',
-                padding: '0 0.5rem',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                fontSize: '0.75rem',
-              }}
               onClick={onEdit}
+              className="inline-flex items-center h-7 px-2 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-gray-300 hover:text-white transition-colors"
             >
               Edit
             </button>
             <button
               type="button"
-              className="settings-input"
-              style={{
-                width: 'auto',
-                height: '1.75rem',
-                padding: '0 0.5rem',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                fontSize: '0.75rem',
-                color: 'rgb(252 165 165)',
-              }}
               onClick={onDelete}
+              className="inline-flex items-center justify-center h-7 w-7 rounded-md bg-slate-800 hover:bg-red-600 border border-slate-700 text-red-400 hover:text-white transition-colors"
             >
               <Trash2 className="h-3 w-3" />
             </button>
@@ -309,19 +280,22 @@ function SSORow({
       </tr>
       {testResult && (
         <tr>
-          <td colSpan={6} style={{ padding: 0 }}>
+          <td colSpan={6} className="px-4 pb-3">
             <div
-              className={`settings-sso-test ${testResult.success ? 'settings-sso-test--success' : 'settings-sso-test--failure'}`}
-              style={{ margin: '0 0.75rem 0.5rem' }}
+              className={`flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs ${
+                testResult.success
+                  ? 'border-green-500/20 bg-green-500/10 text-green-400'
+                  : 'border-red-500/20 bg-red-500/10 text-red-400'
+              }`}
             >
               {testResult.success ? (
-                <span>
-                  <ShieldCheck className="h-3 w-3 inline" /> Connection successful
+                <span className="inline-flex items-center gap-1.5">
+                  <ShieldCheck className="h-3 w-3" /> Connection successful
                   {testResult.latency_ms != null && ` (${testResult.latency_ms}ms)`}
                 </span>
               ) : (
-                <span>
-                  <AlertCircle className="h-3 w-3 inline" /> {testResult.message}
+                <span className="inline-flex items-center gap-1.5">
+                  <AlertCircle className="h-3 w-3" /> {testResult.message}
                 </span>
               )}
             </div>
@@ -397,145 +371,142 @@ function SSOProviderModal({
   };
 
   return (
-    <div className="settings-modal-backdrop" onClick={onClose}>
-      <div className="settings-modal settings-modal--wide" onClick={(e) => e.stopPropagation()}>
-        <div className="settings-modal-header">
-          <h2>{isEdit ? `Edit Provider: ${provider!.name}` : 'Add SSO Provider'}</h2>
-          <button type="button" className="settings-modal-close" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div
+        className="rounded-xl border border-slate-800 bg-slate-900 p-5 w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-white">
+            {isEdit ? `Edit Provider: ${provider!.name}` : 'Add SSO Provider'}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex items-center justify-center h-7 w-7 rounded-md text-gray-300 hover:bg-slate-800 hover:text-white transition-colors"
+            aria-label="Close"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="space-y-4">
           {!isEdit && (
-            <div className="settings-form-group">
-              <label className="settings-form-label" htmlFor="sso-type">
+            <div>
+              <label htmlFor="sso-type" className="block text-xs text-gray-300 mb-1">
                 Type
               </label>
               <select
                 id="sso-type"
-                className="settings-select"
                 value={type}
                 onChange={(e) => setType(e.target.value as SSOProviderType)}
+                className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
               >
                 <option value="oidc">OIDC</option>
                 <option value="saml">SAML</option>
               </select>
             </div>
           )}
-          <div className="settings-form-group">
-            <label className="settings-form-label" htmlFor="sso-name">
+          <div>
+            <label htmlFor="sso-name" className="block text-xs text-gray-300 mb-1">
               Provider Name
             </label>
             <input
               id="sso-name"
               type="text"
-              className="settings-input"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
+              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <div className="settings-form-group">
-            <label className="settings-form-label" htmlFor="sso-issuer">
+          <div>
+            <label htmlFor="sso-issuer" className="block text-xs text-gray-300 mb-1">
               Issuer URL
             </label>
             <input
               id="sso-issuer"
               type="url"
-              className="settings-input"
               value={issuerUrl}
               onChange={(e) => setIssuerUrl(e.target.value)}
               placeholder="https://accounts.example.com"
               required
+              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <div className="settings-form-group">
-            <label className="settings-form-label" htmlFor="sso-client">
+          <div>
+            <label htmlFor="sso-client" className="block text-xs text-gray-300 mb-1">
               Client ID
             </label>
             <input
               id="sso-client"
               type="text"
-              className="settings-input"
               value={clientId}
               onChange={(e) => setClientId(e.target.value)}
               required
+              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <div className="settings-form-group">
-            <label className="settings-form-label" htmlFor="sso-secret">
+          <div>
+            <label htmlFor="sso-secret" className="block text-xs text-gray-300 mb-1">
               Client Secret
             </label>
             <input
               id="sso-secret"
               type="password"
-              className="settings-input"
               value={clientSecret}
               onChange={(e) => setClientSecret(e.target.value)}
               placeholder={isEdit ? '••••••••  (unchanged)' : ''}
               required={!isEdit}
+              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <div className="settings-form-group">
-            <label className="settings-form-label" htmlFor="sso-domains">
+          <div>
+            <label htmlFor="sso-domains" className="block text-xs text-gray-300 mb-1">
               Domain Whitelist (comma-separated)
             </label>
             <input
               id="sso-domains"
               type="text"
-              className="settings-input"
               value={domains}
               onChange={(e) => setDomains(e.target.value)}
               placeholder="example.com, example.org"
+              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <div className="settings-form-group">
-            <label className="settings-form-label">Attribute Mapping</label>
-            {Object.entries(attrMapping).map(([k, v]) => (
-              <div
-                key={k}
-                style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.375rem', alignItems: 'center' }}
-              >
-                <input
-                  type="text"
-                  className="settings-input"
-                  value={k}
-                  readOnly
-                  style={{ flex: '0 0 7rem' }}
-                />
-                <span style={{ color: 'rgb(100 116 139)' }}>→</span>
-                <input
-                  type="text"
-                  className="settings-input"
-                  value={v}
-                  onChange={(e) => updateAttr(k, e.target.value)}
-                />
-              </div>
-            ))}
+          <div>
+            <label className="block text-xs text-gray-300 mb-1">Attribute Mapping</label>
+            <div className="space-y-1.5">
+              {Object.entries(attrMapping).map(([k, v]) => (
+                <div key={k} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={k}
+                    readOnly
+                    className="w-28 h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white cursor-not-allowed"
+                  />
+                  <span className="text-gray-400">→</span>
+                  <input
+                    type="text"
+                    value={v}
+                    onChange={(e) => updateAttr(k, e.target.value)}
+                    className="flex-1 h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="settings-form-actions">
+          <div className="flex items-center justify-end gap-2 pt-2">
             <button
               type="button"
-              className="settings-input"
-              style={{ width: 'auto', height: '2.25rem', padding: '0 0.75rem', cursor: 'pointer' }}
               onClick={onClose}
+              className="inline-flex items-center px-3 h-9 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-white transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="settings-input"
-              style={{
-                width: 'auto',
-                height: '2.25rem',
-                padding: '0 0.75rem',
-                cursor: 'pointer',
-                background: 'rgb(99 102 241)',
-                color: 'white',
-                border: 'none',
-                fontWeight: 500,
-              }}
               disabled={busy}
+              className="inline-flex items-center px-3 h-9 rounded-md bg-blue-600 hover:bg-blue-500 text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {busy ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Provider'}
             </button>

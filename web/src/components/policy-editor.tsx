@@ -147,11 +147,11 @@ const ENFORCEMENT_OPTIONS: { value: PolicyEnforcement; label: string }[] = [
 ];
 
 function fieldClasses(): string {
-  return 'w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40';
+  return 'w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40';
 }
 
 function labelClasses(): string {
-  return 'block text-xs font-medium text-text-secondary mb-1';
+  return 'block text-xs font-medium text-gray-300 mb-1';
 }
 
 export function PolicyEditor({ policy, onClose, onSave, validateRego }: PolicyEditorProps) {
@@ -278,7 +278,7 @@ deny[result] {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-surface-primary/70 p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
@@ -286,12 +286,12 @@ deny[result] {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-3xl rounded-lg border border-border-subtle bg-surface-secondary shadow-2xl my-8">
+      <div className="w-full max-w-3xl rounded-xl border border-slate-800 bg-slate-900 shadow-2xl my-8">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border-subtle">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800">
           <div className="flex items-center gap-2">
-            <FileCode2 className="h-4 w-4 text-accent" aria-hidden="true" />
-            <h2 id={titleId} className="text-sm font-semibold text-text-primary">
+            <FileCode2 className="h-4 w-4 text-blue-400" aria-hidden="true" />
+            <h2 id={titleId} className="text-sm font-semibold text-white">
               {isEdit ? 'Edit Policy' : 'Create Policy'}
             </h2>
           </div>
@@ -299,7 +299,7 @@ deny[result] {
             type="button"
             onClick={onClose}
             aria-label="Close dialog"
-            className="p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
+            className="p-1.5 rounded-md text-gray-300 hover:text-white hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -324,7 +324,7 @@ deny[result] {
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-text-muted mt-1">
+              <p className="text-xs text-gray-400 mt-1">
                 Templates pre-fill the fields below. You can still edit everything.
               </p>
             </div>
@@ -334,7 +334,7 @@ deny[result] {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor={nameId} className={labelClasses()}>
-                Name <span aria-hidden="true" className="text-danger">*</span>
+                Name <span aria-hidden="true" className="text-red-400">*</span>
               </label>
               <input
                 id={nameId}
@@ -412,9 +412,9 @@ deny[result] {
           <div>
             <div className="flex items-center justify-between mb-1">
               <label htmlFor={regoId} className={labelClasses() + ' mb-0'}>Rego source</label>
-              <span className="text-xs text-text-muted" aria-hidden="true">package policies.&lt;name&gt;</span>
+              <span className="text-xs text-gray-400" aria-hidden="true">package policies.&lt;name&gt;</span>
             </div>
-            <div className="rounded-md border border-border-strong overflow-hidden">
+            <div className="rounded-xl border border-slate-800 overflow-hidden">
               <MonacoEditor
                 value={regoSource}
                 onChange={(v) => {
@@ -440,8 +440,8 @@ deny[result] {
                 className={
                   'mt-2 rounded-md border px-3 py-2 text-xs ' +
                   (validation.valid
-                    ? 'border-success/30 bg-success/5 text-success'
-                    : 'border-danger/30 bg-danger/5 text-danger')
+                    ? 'border-green-500/30 bg-green-500/5 text-green-400'
+                    : 'border-red-500/30 bg-red-500/5 text-red-400')
                 }
               >
                 <div className="flex items-center gap-2 font-medium">
@@ -465,7 +465,7 @@ deny[result] {
                   </ul>
                 )}
                 {validation.warnings && validation.warnings.length > 0 && (
-                  <ul className="mt-1 list-disc list-inside space-y-0.5 text-warning">
+                  <ul className="mt-1 list-disc list-inside space-y-0.5 text-yellow-400">
                     {validation.warnings.map((w, i) => (
                       <li key={i}>{w}</li>
                     ))}
@@ -479,7 +479,7 @@ deny[result] {
             <div
               id={errorId}
               role="alert"
-              className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger"
+              className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400"
             >
               {error}
             </div>
@@ -487,12 +487,12 @@ deny[result] {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-border-subtle bg-surface-secondary/60">
+        <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-slate-800 bg-slate-900/60">
           <button
             type="button"
             onClick={handleValidate}
             disabled={validating || !regoSource.trim()}
-            className="inline-flex items-center gap-2 px-3 h-9 rounded-md border border-border-strong bg-surface-tertiary hover:bg-border-strong text-sm text-text-primary disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-2 px-3 h-9 rounded-md border border-slate-700 bg-slate-800 hover:bg-slate-700 text-sm text-white disabled:opacity-50 transition-colors"
           >
             {validating ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -506,7 +506,7 @@ deny[result] {
             <button
               type="button"
               onClick={onClose}
-              className="px-3 h-9 rounded-md border border-border-strong bg-surface-tertiary hover:bg-border-strong text-sm text-text-primary transition-colors"
+              className="px-3 h-9 rounded-md border border-slate-700 bg-slate-800 hover:bg-slate-700 text-sm text-white transition-colors"
             >
               Cancel
             </button>
@@ -514,7 +514,7 @@ deny[result] {
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-accent hover:bg-accent text-sm text-white disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-blue-600 hover:bg-blue-500 text-sm text-white disabled:opacity-50 transition-colors"
             >
               {saving ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

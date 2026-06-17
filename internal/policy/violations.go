@@ -157,7 +157,7 @@ func (m *ViolationManager) handleFailure(ctx context.Context, policyID, agentID,
 	}
 
 	// Look up the policy so we can map severity, category, and remediation.
-	pol, err := m.store.GetPolicy(ctx, policyID)
+	pol, err := m.store.GetPolicy(ctx, "", policyID)
 	if err != nil {
 		// Policy not found is non-fatal: we still record the violation
 		// with best-effort defaults.
@@ -278,7 +278,7 @@ func (m *ViolationManager) handlePass(ctx context.Context, policyID, agentID, de
 
 	// Fire the recovery alert so notification channels learn that the
 	// issue is gone.
-	pol, _ := m.store.GetPolicy(ctx, policyID)
+	pol, _ := m.store.GetPolicy(ctx, "", policyID)
 	hostname, siteID := m.lookupAgent(ctx, agentID)
 	severity, category := m.severityFor(pol)
 	compliance := map[string]any{

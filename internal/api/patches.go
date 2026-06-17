@@ -42,6 +42,9 @@ func (s *Server) listPatches(w http.ResponseWriter, r *http.Request) {
 		Limit:    limit,
 		Offset:   offset,
 	}
+	if claims, ok := auth.UserFromContext(r.Context()); ok && claims != nil && claims.OrgID != "" {
+		filter.OrgID = claims.OrgID
+	}
 	if from := q.Get("from"); from != "" {
 		if t, err := time.Parse(time.RFC3339, from); err == nil {
 			filter.From = t
@@ -82,7 +85,11 @@ func (s *Server) getPatch(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"missing_id"}`, http.StatusBadRequest)
 		return
 	}
-	job, err := s.patchStore.GetPatchJob(r.Context(), id)
+	orgID := ""
+	if claims, ok := auth.UserFromContext(r.Context()); ok && claims != nil {
+		orgID = claims.OrgID
+	}
+	job, err := s.patchStore.GetPatchJob(r.Context(), orgID, id)
 	if err != nil {
 		if errors.Is(err, patches.ErrPatchJobNotFound) {
 			http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
@@ -236,6 +243,10 @@ func (s *Server) patchTransition(w http.ResponseWriter, r *http.Request, event s
 		http.Error(w, `{"error":"missing_id"}`, http.StatusBadRequest)
 		return
 	}
+	orgID := ""
+	if claims, ok := auth.UserFromContext(r.Context()); ok && claims != nil {
+		orgID = claims.OrgID
+	}
 
 	var req struct {
 		Comment             string     `json:"comment"`
@@ -245,7 +256,7 @@ func (s *Server) patchTransition(w http.ResponseWriter, r *http.Request, event s
 	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
 
-	job, err := s.patchStore.GetPatchJob(r.Context(), id)
+	job, err := s.patchStore.GetPatchJob(r.Context(), orgID, id)
 	if err != nil {
 		if errors.Is(err, patches.ErrPatchJobNotFound) {
 			http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)

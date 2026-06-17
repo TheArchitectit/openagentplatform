@@ -4,27 +4,25 @@ import {
   CircleCheck,
   CircleAlert,
   Bell,
-  Activity,
-  ArrowUpRight,
   CheckCircle2,
   AlertTriangle,
   PauseCircle,
   CheckCheck,
   CalendarDays,
-  ShieldCheck,
   Wrench,
   Shield,
   CirclePlay,
   FileCode2,
-  Terminal,
   Timer,
 } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useChecks } from '@/lib/useChecks';
 import { useAlerts } from '@/lib/useAlerts';
 import { usePolicies, type PolicyCategory } from '@/lib/usePolicies';
 import { usePatches } from '@/lib/usePatches';
 import { useScripts } from '@/lib/useScripts';
+import { useAgents } from '@/lib/useAgents';
+import { apiFetch } from '@/lib/api';
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,
@@ -41,39 +39,18 @@ interface Kpi {
 
 interface ActivityItem {
   id: string;
-  type: 'check' | 'alert' | 'agent' | 'patch';
+  type: 'agent' | 'check' | 'alert' | 'patch' | 'login';
   title: string;
   meta: string;
   time: string;
-  icon: typeof Activity;
-  tone: 'success' | 'warning' | 'info' | 'danger';
+  tone: 'success' | 'warning' | 'danger' | 'info';
+  actor: string;
 }
 
-// Static agent/alert KPIs (checks KPIs are computed live from useChecks).
-const staticKpis: Kpi[] = [
-  { label: 'Total Agents', value: '128', delta: '+12 this week', deltaTone: 'up', icon: Bot, to: '/agents' },
-  { label: 'Online', value: '119', delta: '93% online', deltaTone: 'neutral', icon: CircleCheck, to: '/agents' },
-];
-
-const recentActivity: ActivityItem[] = [
-  { id: '1', type: 'check', title: 'Check "disk-usage" failed on agent prod-web-03', meta: 'Agent prod-web-03', time: '2m ago', icon: Activity, tone: 'danger' },
-  { id: '2', type: 'agent', title: 'Agent prod-db-01 came online', meta: 'Agent prod-db-01', time: '8m ago', icon: Bot, tone: 'success' },
-  { id: '3', type: 'patch', title: 'Patch KB5037000 installed on 14 agents', meta: 'Fleet rollout', time: '34m ago', icon: ArrowUpRight, tone: 'info' },
-  { id: '4', type: 'alert', title: 'High CPU on agent staging-api-02', meta: 'Agent staging-api-02', time: '1h ago', icon: Bell, tone: 'warning' },
-  { id: '5', type: 'check', title: 'Check "tls-cert-expiry" passed on 126 agents', meta: 'Fleet check', time: '2h ago', icon: Activity, tone: 'success' },
-];
-
-const toneClasses: Record<ActivityItem['tone'], string> = {
-  success: 'bg-success/10 text-success border-success/20',
-  warning: 'bg-warning/10 text-warning border-warning/20',
-  danger: 'bg-danger/10 text-danger border-danger/20',
-  info: 'bg-info/10 text-info border-info/20',
-};
-
 const deltaClasses: Record<Kpi['deltaTone'], string> = {
-  up: 'text-success',
-  down: 'text-danger',
-  neutral: 'text-text-secondary',
+  up: 'text-emerald-400',
+  down: 'text-red-400',
+  neutral: 'text-gray-400',
 };
 
 function isToday(iso: string | undefined): boolean {
@@ -88,12 +65,124 @@ function isToday(iso: string | undefined): boolean {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Audit event -> ActivityItem mapping
+// ---------------------------------------------------------------------------
+
+interface AuditEventShape {
+  id: string;
+  actor_id?: string;
+  action: string;
+  resource_type?: string;
+  resource_id?: string;
+  outcome?: string;
+  timestamp?: string;
+  details?: Record<string, unknown>;
+}
+
+function relativeTime(iso: string | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const diffMs = Date.now() - d.getTime();
+  const sec = Math.floor(diffMs / 1000);
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const days = Math.floor(hr / 24);
+  return `${days}d ago`;
+}
+
+function mapAuditToActivity(events: AuditEventShape[]): ActivityItem[] {
+  return events.map((ev) => {
+    const action = (ev.action ?? '').toLowerCase();
+    const outcome = (ev.outcome ?? 'success').toLowerCase();
+
+    // Map action -> ActivityItem type
+    let type: ActivityItem['type'] = 'agent';
+    if (action.includes('login') || action.includes('auth')) {
+      type = 'login';
+    } else if (action.includes('check') || action.includes('api_call')) {
+      type = 'check';
+    } else if (action.includes('alert')) {
+      type = 'alert';
+    } else if (action.includes('patch') || action.includes('deploy')) {
+      type = 'patch';
+    } else {
+      type = 'agent';
+    }
+
+    // Map outcome -> tone
+    let tone: ActivityItem['tone'] = 'info';
+    if (outcome === 'success') tone = 'success';
+    else if (outcome === 'failure' || outcome === 'error') tone = 'danger';
+    else if (outcome === 'denied') tone = 'warning';
+
+    const actor = ev.actor_id ?? 'system';
+    const resource = ev.resource_type
+      ? `${ev.resource_type}${ev.resource_id ? ` (${ev.resource_id})` : ''}`
+      : ev.resource_id ?? '';
+
+    const title = resource
+      ? `${actor} ${ev.action ?? 'unknown'} ${resource}`
+      : `${actor} ${ev.action ?? 'unknown'}`;
+
+    // Meta: extra details from the event if present
+    const detailStr = ev.details
+      ? Object.entries(ev.details)
+          .map(([k, v]) => `${k}: ${String(v)}`)
+          .join(', ')
+      : '';
+
+    return {
+      id: ev.id,
+      type,
+      title,
+      meta: detailStr || ev.resource_type ?? '',
+      time: relativeTime(ev.timestamp),
+      tone,
+      actor,
+    };
+  });
+}
+
 function DashboardPage() {
   const { checks, isLoading: checksLoading } = useChecks();
   const { alerts, isLoading: alertsLoading } = useAlerts('all');
   const { policies, isLoading: policiesLoading, fetchComplianceSummary } = usePolicies();
   const { jobs: patchJobs, isLoading: patchesLoading } = usePatches();
   const { scripts, isLoading: scriptsLoading, total: scriptsTotal } = useScripts();
+  const { agents, total: agentsTotal, isLoading: agentsLoading } = useAgents();
+
+  // Live audit activity feed
+  const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [activityError, setActivityError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setActivityLoading(true);
+    setActivityError(false);
+    apiFetch<{ events?: AuditEventShape[] } | AuditEventShape[]>('/audit/events?limit=10')
+      .then((res) => {
+        if (cancelled) return;
+        const events = Array.isArray(res) ? res : (res.events ?? []);
+        setActivityItems(mapAuditToActivity(events));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setActivityError(true);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setActivityLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Live policy compliance aggregates (computed from the policy list when
   // a per-policy compliance summary endpoint is not available; falls back
@@ -252,9 +341,43 @@ function DashboardPage() {
     ];
   }, [alerts, alertsLoading]);
 
-  // 2 static agent + 4 check + 4 alert + 4 patch = 14 cards. Render in
+  // Live agent KPIs — derived from useAgents.
+  const agentKpis: Kpi[] = useMemo(() => {
+    const online = agents.filter((a) => a.status === 'online').length;
+    const offline = agents.filter((a) => a.status === 'offline').length;
+    const total = agentsTotal;
+    const pct = total > 0 ? Math.round((online / total) * 100) : 0;
+    const dash = agentsLoading && agents.length === 0 ? '—' : null;
+    return [
+      {
+        label: 'Total Agents',
+        value: dash ?? String(total),
+        delta: total === 0 ? 'No agents yet' : `${total} registered`,
+        deltaTone: 'neutral' as const,
+        icon: Bot,
+        to: '/agents',
+      },
+      {
+        label: 'Online',
+        value: dash ?? String(online),
+        delta: total === 0 ? '—' : `${pct}% online`,
+        deltaTone: (pct >= 90 ? 'up' : pct >= 50 ? 'neutral' : 'down') as Kpi['deltaTone'],
+        icon: CircleCheck,
+        to: '/agents',
+      },
+      {
+        label: 'Offline',
+        value: dash ?? String(offline),
+        delta: offline === 0 ? 'All online' : `${offline} need attention`,
+        deltaTone: (offline === 0 ? 'up' : 'down') as Kpi['deltaTone'],
+        icon: CircleAlert,
+        to: '/agents',
+      },
+    ];
+  }, [agents, agentsTotal, agentsLoading]);
+
+  // 3 live agent + 4 check + 4 alert + 4 patch = 15 cards. Render in
   // separate rows so the grid stays readable.
-  const agentRow: Kpi[] = staticKpis;
   const checkRow: Kpi[] = checkKpis;
   const alertRow: Kpi[] = alertKpis;
 
@@ -366,25 +489,35 @@ function DashboardPage() {
     ];
   }, [scripts, scriptsLoading, scriptsTotal]);
 
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 18) return 'Good afternoon';
+    return 'Good evening';
+  }, []);
+
   return (
     <div className="space-y-6" aria-busy={checksLoading || alertsLoading || policiesLoading}>
+      {/* Header row */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Dashboard</h1>
-          <p className="text-text-secondary mt-1">Overview of your fleet, agents, and recent activity.</p>
+          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+          <p className="text-gray-400 text-sm mt-1">
+            {greeting} — overview of your fleet, agents, and recent activity.
+          </p>
         </div>
       </div>
 
-      {/* Agents + Checks KPIs (static agents + live check KPIs) */}
-      <div role="group" aria-label="Agent and check KPIs" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {[...agentRow, ...checkRow].map((kpi) => (
+      {/* Agents + Checks KPIs (live agents + live check KPIs) */}
+      <div role="group" aria-label="Agent and check KPIs" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+        {[...agentKpis, ...checkRow].map((kpi) => (
           <KpiCard key={kpi.label} kpi={kpi} />
         ))}
       </div>
 
       {/* Alert KPIs */}
       <section aria-labelledby="alerts-heading">
-        <h2 id="alerts-heading" className="text-sm font-semibold text-text-secondary mb-3">Alerts</h2>
+        <h2 id="alerts-heading" className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Alerts</h2>
         <div role="group" aria-label="Alert KPIs" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {alertRow.map((kpi) => (
             <KpiCard key={kpi.label} kpi={kpi} />
@@ -395,11 +528,11 @@ function DashboardPage() {
       {/* Patch KPIs */}
       <section aria-labelledby="patches-heading">
         <div className="flex items-center justify-between mb-3">
-          <h2 id="patches-heading" className="text-sm font-semibold text-text-secondary">Patches</h2>
+          <h2 id="patches-heading" className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Patches</h2>
           <Link
             to="/patches"
             aria-label="View all patches"
-            className="text-xs text-text-secondary hover:text-text-primary focus:outline-none focus-visible:underline transition-colors"
+            className="text-xs text-gray-400 hover:text-white focus:outline-none focus-visible:underline transition-colors"
           >
             View all →
           </Link>
@@ -414,11 +547,11 @@ function DashboardPage() {
       {/* Script KPIs */}
       <section aria-labelledby="scripts-heading">
         <div className="flex items-center justify-between mb-3">
-          <h2 id="scripts-heading" className="text-sm font-semibold text-text-secondary">Scripts</h2>
+          <h2 id="scripts-heading" className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Scripts</h2>
           <Link
             to="/scripts"
             aria-label="View all scripts"
-            className="text-xs text-text-secondary hover:text-text-primary focus:outline-none focus-visible:underline transition-colors"
+            className="text-xs text-gray-400 hover:text-white focus:outline-none focus-visible:underline transition-colors"
           >
             View all →
           </Link>
@@ -430,135 +563,175 @@ function DashboardPage() {
         </div>
       </section>
 
-      {/* Policy compliance */}
-      <section aria-labelledby="compliance-heading">
-        <h2 id="compliance-heading" className="text-sm font-semibold text-text-secondary mb-3">Policy compliance</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Overall score card */}
-          <Link
-            to="/policies"
-            aria-label="View policy compliance details"
-            className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-5 hover:border-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors block"
+      {/* Bottom section: 2-column grid - Status Overview + Policy Compliance */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Policy compliance overall score (1/3) */}
+        <Link
+          to="/policies"
+          aria-label="View policy compliance details"
+          className="rounded-xl border border-slate-800 bg-slate-900 p-5 hover:border-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors block"
+        >
+          <p className="text-sm text-gray-400">Overall compliance</p>
+          <p
+            className={
+              'text-3xl font-bold mt-2 tabular-nums ' +
+              (compliance.overallPct === null
+                ? 'text-gray-500'
+                : compliance.overallPct >= 80
+                ? 'text-emerald-400'
+                : compliance.overallPct >= 60
+                ? 'text-amber-400'
+                : 'text-red-400')
+            }
+            role="status"
+            aria-label={
+              compliance.overallPct === null
+                ? 'Overall compliance: no data'
+                : `Overall compliance: ${compliance.overallPct.toFixed(0)} percent`
+            }
           >
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-text-secondary">Overall compliance</p>
-                <p
-                  className={
-                    'text-3xl font-semibold mt-2 tabular-nums ' +
-                    (compliance.overallPct === null
-                      ? 'text-text-muted'
-                      : compliance.overallPct >= 80
-                      ? 'text-success'
-                      : compliance.overallPct >= 60
-                      ? 'text-warning'
-                      : 'text-danger')
-                  }
-                  role="status"
-                  aria-label={
-                    compliance.overallPct === null
-                      ? 'Overall compliance: no data'
-                      : `Overall compliance: ${compliance.overallPct.toFixed(0)} percent`
-                  }
-                >
-                  {policiesLoading && policies.length === 0
-                    ? '—'
-                    : compliance.overallPct === null
-                    ? '—'
-                    : `${compliance.overallPct.toFixed(0)}%`}
-                </p>
-                <p className="text-xs text-text-muted mt-3">
-                  {policies.length} {policies.length === 1 ? 'policy' : 'policies'}
-                  {compliance.totalAgents > 0
-                    ? ` · ${compliance.compliantAgents} of ${compliance.totalAgents} agents compliant`
-                    : ''}
-                </p>
-              </div>
-              <div className="h-9 w-9 rounded-md bg-surface-tertiary border border-border-strong flex items-center justify-center" aria-hidden="true">
-                <ShieldCheck className="h-4 w-4 text-text-secondary" />
-              </div>
-            </div>
-          </Link>
+            {policiesLoading && policies.length === 0
+              ? '—'
+              : compliance.overallPct === null
+              ? '—'
+              : `${compliance.overallPct.toFixed(0)}%`}
+          </p>
+          <p className="text-xs text-gray-500 mt-3">
+            {policies.length} {policies.length === 1 ? 'policy' : 'policies'}
+            {compliance.totalAgents > 0
+              ? ` · ${compliance.compliantAgents} of ${compliance.totalAgents} agents compliant`
+              : ''}
+          </p>
+        </Link>
 
-          {/* Violations by category mini bar chart */}
-          <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-5 lg:col-span-2">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-text-primary">Violations by category</h3>
-              <Link
-                to="/policies"
-                aria-label="View all policy violations"
-                className="text-xs text-text-secondary hover:text-text-primary focus:outline-none focus-visible:underline transition-colors"
-              >
-                View all →
-              </Link>
-            </div>
-            {policies.length === 0 ? (
-              <div className="text-center text-xs text-text-muted py-6" role="status">
-                No policies to chart yet.
-              </div>
-            ) : (
-              <div role="list" aria-label="Violations by policy category" className="space-y-2.5">
-                {(Object.keys(compliance.byCategory) as PolicyCategory[]).map((cat) => {
-                  const { violations, total } = compliance.byCategory[cat];
-                  const pct = total > 0 ? (violations / total) * 100 : 0;
-                  if (total === 0) return null;
-                  return (
-                    <div key={cat} role="listitem" className="flex items-center gap-3">
-                      <div className="w-24 text-xs text-text-secondary capitalize">{cat}</div>
-                      <div
-                        className="flex-1 h-5 rounded bg-surface-tertiary/60 overflow-hidden border border-border-subtle"
-                        role="progressbar"
-                        aria-valuenow={Math.round(pct)}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-label={`${cat} violation rate`}
-                      >
-                        <div
-                          className="h-full bg-danger/70 transition-all"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <div className="w-20 text-right text-xs text-text-secondary tabular-nums" aria-label={`${violations} of ${total} policies with violations`}>
-                        {violations} / {total}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+        {/* Violations by category (2/3) */}
+        <div className="rounded-xl border border-slate-800 bg-slate-900 p-5 lg:col-span-2">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-white">Violations by category</h3>
+            <Link
+              to="/policies"
+              aria-label="View all policy violations"
+              className="text-xs text-gray-400 hover:text-white focus:outline-none focus-visible:underline transition-colors"
+            >
+              View all →
+            </Link>
           </div>
+          {policies.length === 0 ? (
+            <div className="text-center text-xs text-gray-500 py-6" role="status">
+              No policies to chart yet.
+            </div>
+          ) : (
+            <div role="list" aria-label="Violations by policy category" className="space-y-2.5">
+              {(Object.keys(compliance.byCategory) as PolicyCategory[]).map((cat) => {
+                const { violations, total } = compliance.byCategory[cat];
+                const pct = total > 0 ? (violations / total) * 100 : 0;
+                if (total === 0) return null;
+                return (
+                  <div key={cat} role="listitem" className="flex items-center gap-3">
+                    <div className="w-24 text-xs text-gray-400 capitalize">{cat}</div>
+                    <div
+                      className="flex-1 h-5 rounded bg-slate-800 overflow-hidden border border-slate-700"
+                      role="progressbar"
+                      aria-valuenow={Math.round(pct)}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={`${cat} violation rate`}
+                    >
+                      <div
+                        className="h-full bg-red-500/70 transition-all"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <div className="w-20 text-right text-xs text-gray-400 tabular-nums" aria-label={`${violations} of ${total} policies with violations`}>
+                      {violations} / {total}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
-      </section>
+      </div>
 
-      {/* Recent activity */}
-      <section aria-labelledby="activity-heading" className="rounded-lg border border-border-subtle bg-surface-secondary/60">
-        <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
-          <h2 id="activity-heading" className="text-sm font-semibold text-text-primary">Recent activity</h2>
-          <span className="text-xs text-text-muted" aria-label="Time range: last 24 hours">Last 24 hours</span>
+      {/* Recent Activity — live audit events */}
+      <section aria-labelledby="activity-heading" className="rounded-xl border border-slate-800 bg-slate-900 p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 id="activity-heading" className="text-sm font-semibold text-white">
+            Recent Activity
+          </h3>
+          <Link
+            to="/settings/audit-log"
+            aria-label="View full audit log"
+            className="text-xs text-gray-400 hover:text-white focus:outline-none focus-visible:underline transition-colors"
+          >
+            View all →
+          </Link>
         </div>
-        <ul className="divide-y divide-border-subtle" aria-label="Recent activity feed">
-          {recentActivity.map((item) => {
-            const Icon = item.icon;
-            return (
-              <li
-                key={item.id}
-                className="px-5 py-3 flex items-center gap-4 hover:bg-surface-primary transition-colors"
-              >
-                <div
-                  className={`h-8 w-8 rounded-md border flex items-center justify-center shrink-0 ${toneClasses[item.tone]}`}
-                  aria-hidden="true"
+
+        {activityLoading ? (
+          <div role="status" aria-label="Loading recent activity" className="space-y-2.5">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex items-center gap-3 animate-pulse">
+                <div className="h-4 w-4 rounded bg-slate-800" aria-hidden="true" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3 w-2/3 rounded bg-slate-800" aria-hidden="true" />
+                  <div className="h-2.5 w-1/3 rounded bg-slate-800/60" aria-hidden="true" />
+                </div>
+                <div className="h-2.5 w-10 rounded bg-slate-800/60" aria-hidden="true" />
+              </div>
+            ))}
+          </div>
+        ) : activityError ? (
+          <div className="text-center text-xs text-gray-500 py-6" role="status">
+            Activity feed unavailable.
+          </div>
+        ) : activityItems.length === 0 ? (
+          <div className="text-center text-xs text-gray-500 py-6" role="status">
+            No recent activity.
+          </div>
+        ) : (
+          <ul role="list" aria-label="Recent audit events" className="space-y-2.5">
+            {activityItems.map((item) => {
+              const toneColor =
+                item.tone === 'success'
+                  ? 'text-emerald-400'
+                  : item.tone === 'danger'
+                  ? 'text-red-400'
+                  : item.tone === 'warning'
+                  ? 'text-amber-400'
+                  : 'text-blue-400';
+              const dotColor =
+                item.tone === 'success'
+                  ? 'bg-emerald-500'
+                  : item.tone === 'danger'
+                  ? 'bg-red-500'
+                  : item.tone === 'warning'
+                  ? 'bg-amber-500'
+                  : 'bg-blue-500';
+              return (
+                <li
+                  key={item.id}
+                  role="listitem"
+                  className="flex items-center gap-3"
                 >
-                  <Icon className="h-4 w-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-text-primary truncate">{item.title}</p>
-                  <p className="text-xs text-text-muted">{item.meta}</p>
-                </div>
-                <span className="text-xs text-text-muted shrink-0" aria-label={`${item.time}`}>{item.time}</span>
-              </li>
-            );
-          })}
-        </ul>
+                  <span
+                    className={`h-2 w-2 rounded-full shrink-0 ${dotColor}`}
+                    aria-hidden="true"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm truncate ${toneColor}`}>{item.title}</p>
+                    {item.meta ? (
+                      <p className="text-xs text-gray-500 truncate">{item.meta}</p>
+                    ) : null}
+                  </div>
+                  <span className="text-xs text-gray-500 shrink-0 tabular-nums" aria-label={`${item.time}`}>
+                    {item.time}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </section>
     </div>
   );
@@ -570,11 +743,11 @@ function KpiCard({ kpi }: { kpi: Kpi }) {
     <>
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm text-text-secondary">{kpi.label}</p>
-          <p className="text-3xl font-semibold text-text-primary mt-2" aria-label={`${kpi.label}: ${kpi.value}`}>{kpi.value}</p>
+          <p className="text-sm text-gray-400">{kpi.label}</p>
+          <p className="text-3xl font-bold text-white mt-2" aria-label={`${kpi.label}: ${kpi.value}`}>{kpi.value}</p>
         </div>
-        <div className="h-9 w-9 rounded-md bg-surface-tertiary border border-border-strong flex items-center justify-center" aria-hidden="true">
-          <Icon className="h-4 w-4 text-text-secondary" />
+        <div className="h-9 w-9 rounded-lg bg-blue-500/10 p-2 flex items-center justify-center" aria-hidden="true">
+          <Icon className="h-4 w-4 text-blue-500" />
         </div>
       </div>
       <p className={`text-xs mt-3 ${deltaClasses[kpi.deltaTone]}`} aria-label={`Status: ${kpi.delta}`}>{kpi.delta}</p>
@@ -585,14 +758,14 @@ function KpiCard({ kpi }: { kpi: Kpi }) {
       <Link
         to={kpi.to}
         aria-label={`${kpi.label}: ${kpi.value}. ${kpi.delta}. Click for details.`}
-        className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-5 hover:border-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors block"
+        className="rounded-xl border border-slate-800 bg-slate-900 p-5 hover:border-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors block"
       >
         {inner}
       </Link>
     );
   }
   return (
-    <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-5 hover:border-border-strong">
+    <div className="rounded-xl border border-slate-800 bg-slate-900 p-5 hover:border-slate-700">
       {inner}
     </div>
   );

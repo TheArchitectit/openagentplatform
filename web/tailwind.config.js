@@ -6,32 +6,25 @@ export default {
     extend: {
       colors: {
         // Mapped to CSS custom properties from styles/themes.css.
-        // Using the `<alpha-value>` channel format lets Tailwind compose
-        // opacity utilities (e.g. `bg-surface/50`).
-        'surface-primary': 'rgb(var(--color-bg-primary) / <alpha-value>)',
-        'surface-secondary': 'rgb(var(--color-bg-secondary) / <alpha-value>)',
-        'surface-tertiary': 'rgb(var(--color-bg-tertiary) / <alpha-value>)',
-        'text-primary': 'rgb(var(--color-text-primary) / <alpha-value>)',
-        'text-secondary': 'rgb(var(--color-text-secondary) / <alpha-value>)',
-        'text-muted': 'rgb(var(--color-text-muted) / <alpha-value>)',
-        'border-subtle': 'rgb(var(--color-border) / <alpha-value>)',
-        'border-strong': 'rgb(var(--color-border-light) / <alpha-value>)',
-        accent: 'rgb(var(--color-accent) / <alpha-value>)',
-        'accent-hover': 'rgb(var(--color-accent-hover) / <alpha-value>)',
-        success: 'rgb(var(--color-success) / <alpha-value>)',
-        warning: 'rgb(var(--color-warning) / <alpha-value>)',
-        danger: 'rgb(var(--color-danger) / <alpha-value>)',
-        info: 'rgb(var(--color-info) / <alpha-value>)',
-      },
-      boxShadow: {
-        'theme-sm': 'var(--shadow-sm)',
-        'theme-md': 'var(--shadow-md)',
-        'theme-lg': 'var(--shadow-lg)',
+        // Using HSL space-separated channel format with `hsl()` wrapper.
+        'surface-primary': 'hsl(var(--background) / <alpha-value>)',
+        'surface-secondary': 'hsl(var(--card) / <alpha-value>)',
+        'surface-tertiary': 'hsl(var(--secondary) / <alpha-value>)',
+        'text-primary': 'hsl(var(--foreground) / <alpha-value>)',
+        'text-secondary': 'hsl(var(--muted-foreground) / <alpha-value>)',
+        'text-muted': 'hsl(var(--muted-foreground) / <alpha-value>)',
+        'border-subtle': 'hsl(var(--border) / <alpha-value>)',
+        'border-strong': 'hsl(var(--border) / 0.8)',
+        accent: 'hsl(var(--primary) / <alpha-value>)',
+        'accent-hover': 'hsl(var(--primary) / 0.9)',
+        // Semantic status colors
+        success: 'hsl(142 71% 45%)',
+        warning: 'hsl(38 92% 50%)',
+        danger: 'hsl(0 84% 60%)',
+        info: 'hsl(217 91% 60%)',
       },
       borderRadius: {
-        'theme-sm': 'var(--radius-sm)',
-        'theme-md': 'var(--radius-md)',
-        'theme-lg': 'var(--radius-lg)',
+        theme: 'var(--radius)',
       },
     },
   },

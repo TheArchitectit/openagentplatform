@@ -11,7 +11,7 @@ export const Route = createRootRoute({
 function RootLayout() {
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex bg-surface-primary text-text-primary">
+      <div className="min-h-screen flex bg-slate-950 text-white">
         <SkipToContent targetId="main-content" />
         <Sidebar />
         {/* Content column.
@@ -22,8 +22,7 @@ function RootLayout() {
           <Header />
           <main
             id="main-content"
-            className="flex-1 p-4 md:p-6 overflow-auto"
-            tabIndex={-1}
+            className="flex-1 p-6 bg-slate-950 text-white min-w-0"
           >
             <Outlet />
           </main>

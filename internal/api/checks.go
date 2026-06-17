@@ -20,10 +20,10 @@ import (
 // and assignments. The default Postgres implementation is pgCheckStore.
 type checkStore interface {
 	InsertCheck(ctx context.Context, c *models.CheckDefinition) error
-	GetCheck(ctx context.Context, id string) (*models.CheckDefinition, error)
+	GetCheck(ctx context.Context, orgID, id string) (*models.CheckDefinition, error)
 	ListChecks(ctx context.Context, f CheckListFilter) ([]models.CheckDefinition, int, error)
-	UpdateCheck(ctx context.Context, id string, patch CheckPatch) (*models.CheckDefinition, error)
-	DeleteCheck(ctx context.Context, id string) error
+	UpdateCheck(ctx context.Context, orgID, id string, patch CheckPatch) (*models.CheckDefinition, error)
+	DeleteCheck(ctx context.Context, orgID, id string) error
 	CountAssignments(ctx context.Context, checkID string) (int, error)
 	AssignCheck(ctx context.Context, a *models.CheckAssignment) error
 	AssignCheckToSite(ctx context.Context, checkID, siteID, assignedBy string) (int, error)
@@ -296,6 +296,9 @@ func (s *Server) handleListChecks(w http.ResponseWriter, r *http.Request) {
 		Limit:     limit,
 		Offset:    offset,
 	}
+	if claims, ok := authFromCtx(r); ok && claims != nil {
+		filter.OrgID = claims.OrgID
+	}
 	checks, total, err := s.checkStore().ListChecks(r.Context(), filter)
 	if err != nil {
 		s.log.Error("list checks failed", "err", err)
@@ -326,7 +329,11 @@ func (s *Server) handleGetCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	store := s.checkStore()
-	c, err := store.GetCheck(r.Context(), id)
+	orgID := ""
+	if claims, ok := authFromCtx(r); ok && claims != nil {
+		orgID = claims.OrgID
+	}
+	c, err := store.GetCheck(r.Context(), orgID, id)
 	if err != nil {
 		if errors.Is(err, ErrCheckNotFound) {
 			http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
@@ -367,7 +374,11 @@ func (s *Server) handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	store := s.checkStore()
-	existing, err := store.GetCheck(r.Context(), id)
+	orgID := ""
+	if claims, ok := authFromCtx(r); ok && claims != nil {
+		orgID = claims.OrgID
+	}
+	existing, err := store.GetCheck(r.Context(), orgID, id)
 	if err != nil {
 		if errors.Is(err, ErrCheckNotFound) {
 			http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
@@ -410,7 +421,7 @@ func (s *Server) handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
 		}
 		patch.Config = validated
 	}
-	updated, err := store.UpdateCheck(r.Context(), id, patch)
+	updated, err := store.UpdateCheck(r.Context(), orgID, id, patch)
 	if err != nil {
 		if errors.Is(err, ErrCheckNotFound) {
 			http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
@@ -439,7 +450,11 @@ func (s *Server) handleDeleteCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	store := s.checkStore()
-	if _, err := store.GetCheck(r.Context(), id); err != nil {
+	orgID := ""
+	if claims, ok := authFromCtx(r); ok && claims != nil {
+		orgID = claims.OrgID
+	}
+	if _, err := store.GetCheck(r.Context(), orgID, id); err != nil {
 		if errors.Is(err, ErrCheckNotFound) {
 			http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
 			return
@@ -461,7 +476,7 @@ func (s *Server) handleDeleteCheck(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	if err := store.DeleteCheck(r.Context(), id); err != nil {
+	if err := store.DeleteCheck(r.Context(), orgID, id); err != nil {
 		s.log.Error("delete check failed", "err", err)
 		http.Error(w, `{"error":"delete_failed"}`, http.StatusInternalServerError)
 		return
@@ -486,7 +501,11 @@ func (s *Server) handleRunCheckNow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	store := s.checkStore()
-	if _, err := store.GetCheck(r.Context(), id); err != nil {
+	orgID := ""
+	if claims, ok := authFromCtx(r); ok && claims != nil {
+		orgID = claims.OrgID
+	}
+	if _, err := store.GetCheck(r.Context(), orgID, id); err != nil {
 		if errors.Is(err, ErrCheckNotFound) {
 			http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
 			return

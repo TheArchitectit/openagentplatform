@@ -28,7 +28,7 @@ type agentStore interface {
 	siteTokenLookup
 
 	UpsertAgent(ctx context.Context, a *models.Agent) error
-	GetAgent(ctx context.Context, id string) (*models.Agent, error)
+	GetAgent(ctx context.Context, orgID, id string) (*models.Agent, error)
 	ListAgents(ctx context.Context, filter AgentListFilter) ([]models.Agent, int, error)
 	ListCheckResultsByAgent(ctx context.Context, agentID string, limit int) ([]models.CheckResult, error)
 	ListCheckResultsByAgentPaged(ctx context.Context, agentID string, limit, offset int) ([]models.CheckResult, int, error)
@@ -37,6 +37,7 @@ type agentStore interface {
 
 // AgentListFilter is the filter applied to GET /api/v1/agents.
 type AgentListFilter struct {
+	OrgID  string
 	SiteID string
 	Status string
 	Search string
@@ -173,6 +174,9 @@ func (s *Server) handleListAgents(w http.ResponseWriter, r *http.Request) {
 		Limit:  limit,
 		Offset: offset,
 	}
+	if claims, ok := authFromCtx(r); ok && claims != nil {
+		filter.OrgID = claims.OrgID
+	}
 
 	agents, total, err := s.agentStore().ListAgents(r.Context(), filter)
 	if err != nil {
@@ -204,7 +208,11 @@ func (s *Server) handleGetAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	agent, err := s.agentStore().GetAgent(r.Context(), id)
+	orgID := ""
+	if claims, ok := authFromCtx(r); ok && claims != nil {
+		orgID = claims.OrgID
+	}
+	agent, err := s.agentStore().GetAgent(r.Context(), orgID, id)
 	if err != nil {
 		s.log.Warn("agent lookup failed", "id", id, "err", err)
 		http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
