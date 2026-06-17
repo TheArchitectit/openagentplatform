@@ -45,6 +45,14 @@ class CostModel(BaseModel):
 # ---------------------------------------------------------------------------
 
 DEFAULT_COST_MODELS: dict[str, CostModel] = {
+    # Ozore — default hosted LLM agent (account-specific pricing; these
+    # are estimates that should be replaced with actual contract rates).
+    "ozore/custom": CostModel(
+        model_name="ozore/custom",
+        provider="ozore",
+        input_per_1k=0.0015,   # estimated — adjust to actual Ozore pricing
+        output_per_1k=0.0045,  # estimated — adjust to actual Ozore pricing
+    ),
     "claude-opus-4-8": CostModel(
         model_name="claude-opus-4-8",
         provider="anthropic",

@@ -41,3 +41,4 @@ coverage.out
 deploy/nats/certs/*.pem
 deploy/nats/certs/*.key
 deploy/nats/certs/*.crt
+.vite/ 

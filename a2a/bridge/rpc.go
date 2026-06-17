@@ -204,13 +204,17 @@ func (rb *RPCBridge) DispatchTask(ctx context.Context, task *models.Task) error 
 
 // resolveAdapter determines which adapter to use for a task.
 // Checks metadata["preferred_adapter"] first, then AgentID.
+// Falls back to "ozore" (the default hosted LLM agent) if neither is set.
 func (rb *RPCBridge) resolveAdapter(task *models.Task) string {
 	if task.Metadata != nil {
 		if pref := task.Metadata["preferred_adapter"]; pref != "" {
 			return pref
 		}
 	}
-	return task.AgentID
+	if task.AgentID != "" {
+		return task.AgentID
+	}
+	return "ozore" // default adapter
 }
 
 // dispatchSync handles a non-streaming invocation.

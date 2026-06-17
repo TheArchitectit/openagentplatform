@@ -37,6 +37,12 @@ type Config struct {
 	// PolicyEvalInterval is the interval at which the policy engine
 	// runs a full sweep across all agents. Defaults to 5 minutes.
 	PolicyEvalInterval time.Duration
+
+	// OzoreAI — hosted LLM agent provider (OpenAI-compatible).
+	// The API key (OZORE_API_KEY) is read by the Python adapter
+	// directly from the environment and is NOT stored in this struct.
+	OzoreModel   string
+	OzoreBaseURL string
 }
 
 func Load() (*Config, error) {
@@ -60,6 +66,8 @@ func Load() (*Config, error) {
 		CookieSecure:     getEnv("COOKIE_SECURE", "false") == "true",
 		SentryDSN:        os.Getenv("SENTRY_DSN"),
 		PolicyEvalInterval: getDurationEnv("POLICY_EVAL_INTERVAL", 5*time.Minute),
+		OzoreModel:         getEnv("OZORE_MODEL", "ozore/custom"),
+		OzoreBaseURL:       getEnv("OZORE_BASE_URL", "https://ozore.com/v1"),
 	}
 
 	if err := c.validate(); err != nil {

@@ -201,9 +201,9 @@ class OrchestrationService:
         if best_score > 0.0:
             return best_name
 
-        # No skill overlap and no preferred agent — fall back to first
-        # registered adapter.
-        return next(iter(self._adapters))
+        # No skill overlap and no preferred agent — fall back to ozore
+        # (the default hosted LLM agent), or the first registered adapter.
+        return self._adapters.get("ozore", next(iter(self._adapters)))
 
     # -- Public API ---------------------------------------------------------
 
