@@ -287,6 +287,14 @@ func (s *Server) registerRoutes(r chi.Router) {
 				// Cost and budget summary.
 				r.Get("/costs/summary", s.handleA2ACostSummary)
 			})
+
+			// Secrets management endpoints. When no resolver is
+			// configured these return 503.
+			r.Route("/secrets", func(r chi.Router) {
+				r.Get("/health", s.handleSecretsHealth)
+				r.Post("/resolve", s.handleSecretsResolve)
+				r.Get("/backends", s.handleSecretsBackends)
+			})
 		})
 	})
 

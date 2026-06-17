@@ -20,6 +20,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/policy"
 	"github.com/openagentplatform/openagentplatform/internal/remote"
 	"github.com/openagentplatform/openagentplatform/internal/schema"
+	"github.com/openagentplatform/openagentplatform/secrets/resolver"
 )
 
 type Server struct {
@@ -74,6 +75,12 @@ type Server struct {
 	// recorderFactory produces a SessionRecorder for a given live
 	// session id. Optional; when nil, live sessions are not recorded.
 	recorderFactory func(sessionID string) (*remote.SessionRecorder, bool)
+	// secretsResolver resolves OAP secret reference URIs. May be nil;
+	// secrets endpoints return 503 when unset.
+	secretsResolver *resolver.SecretResolver
+	// secretsBackends lists the names of registered secret backends
+	// for the /api/v1/secrets/backends endpoint. May be nil.
+	secretsBackends []string
 }
 
 // Publisher is the subset of the events.Client interface used by API handlers.
@@ -188,6 +195,14 @@ func (s *Server) SetPatchScanner(d *patches.PatchScanDispatcher) {
 // 503 when unset.
 func (s *Server) SetScriptStore(store scriptStore) {
 	s.scriptStore = store
+}
+
+// SetSecretsResolver wires the secret resolver and the list of registered
+// backend names into the API server. When resolver is nil the secrets
+// endpoints return 503.
+func (s *Server) SetSecretsResolver(r *resolver.SecretResolver, backendNames []string) {
+	s.secretsResolver = r
+	s.secretsBackends = backendNames
 }
 
 func (s *Server) buildRouter() chi.Router {

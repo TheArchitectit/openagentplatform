@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -24,6 +25,12 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/patches"
 	"github.com/openagentplatform/openagentplatform/internal/policy"
 	"github.com/openagentplatform/openagentplatform/pkg/models"
+	"github.com/openagentplatform/openagentplatform/secrets"
+	secretsauth "github.com/openagentplatform/openagentplatform/secrets/auth"
+	"github.com/openagentplatform/openagentplatform/secrets/inject"
+	"github.com/openagentplatform/openagentplatform/secrets/infisical"
+	"github.com/openagentplatform/openagentplatform/secrets/resolver"
+	"github.com/openagentplatform/openagentplatform/secrets/vault"
 )
 
 // Server bundles the HTTP server and all background event handlers so
@@ -44,6 +51,11 @@ type Server struct {
 	patchScheduler  *patches.PatchScheduler
 	eventBridge     *bridge.Bridge
 	rpcBridge       *bridge.RPCBridge
+	// secretsSweeper cleans up expired credential injections. nil when
+	// no resolver/injector was configured.
+	secretsSweeper *inject.Sweeper
+	// secretsRevocation holds the JWT revocation list for A2A tokens.
+	secretsRevocation *secretsauth.RevocationList
 }
 
 // NewServer wires all dependencies (DB pool, NATS, API server, background
@@ -174,6 +186,27 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		return nil, errors.New("a2a rpc bridge: " + err.Error())
 	}
 
+	// --- Secrets module wiring ----------------------------------------
+	// Build a registry of secret backends based on environment variables,
+	// create a resolver with an LRU cache, and wire the credential
+	// injector + TTL sweeper. The API server is updated so the
+	// /api/v1/secrets/* endpoints become available.
+	secretRegistry, registeredNames := buildSecretBackends(log)
+	secretResolver := resolver.New(secretRegistry, log, auditSvc)
+
+	// Credential injector and TTL sweeper. The sweeper periodically
+	// removes expired env-var / file / stdin injections.
+	secretsInjector := inject.NewInjector(secretResolver, &resolver.AuthContext{}, log, auditSvc)
+	secretsSweeper := inject.NewSweeper(log, auditSvc, secretResolver)
+	_ = secretsInjector // retained for future handler-level integration
+
+	// JWT revocation list for A2A auth tokens.
+	secretsRevocation := secretsauth.NewRevocationList()
+
+	// Share the resolver and backend list with the API server so the
+	// secrets HTTP endpoints can dispatch to it.
+	apiServer.SetSecretsResolver(secretResolver, registeredNames)
+
 	// --- HTTP server with A2A routes mounted ---------------------------
 	// Build a top-level router that delegates the API to apiServer.Router()
 	// and mounts the A2A gateway handlers under /a2a/.
@@ -186,20 +219,22 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 	}
 
 	return &Server{
-		cfg:            cfg,
-		log:            log,
-		httpServer:     httpServer,
-		apiServer:      apiServer,
-		natsClient:     natsClient,
-		pool:           pool,
-		heartbeat:      heartbeat,
-		dispatcher:     dispatcher,
-		ingestor:       ingestor,
-		alertEngine:    alertEngine,
-		policyEngine:   policyEngine,
-		patchScheduler: patchScheduler,
-		eventBridge:    eventBridge,
-		rpcBridge:      rpcBridge,
+		cfg:               cfg,
+		log:               log,
+		httpServer:        httpServer,
+		apiServer:         apiServer,
+		natsClient:        natsClient,
+		pool:              pool,
+		heartbeat:         heartbeat,
+		dispatcher:        dispatcher,
+		ingestor:          ingestor,
+		alertEngine:       alertEngine,
+		policyEngine:      policyEngine,
+		patchScheduler:    patchScheduler,
+		eventBridge:       eventBridge,
+		rpcBridge:         rpcBridge,
+		secretsSweeper:    secretsSweeper,
+		secretsRevocation: secretsRevocation,
 	}, nil
 }
 
@@ -235,6 +270,12 @@ func (s *Server) Start(ctx context.Context) error {
 		return errors.New("a2a rpc bridge start: " + err.Error())
 	}
 
+	// Start the secrets TTL sweeper so expired credential injections
+	// (env vars, temp files, stdin pipes) are cleaned up automatically.
+	if s.secretsSweeper != nil {
+		s.secretsSweeper.Start(hbCtx)
+	}
+
 	go s.patchScheduler.Run(hbCtx)
 
 	go func() {
@@ -261,6 +302,11 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	s.rpcBridge.Stop()
 	s.patchScheduler.Close()
 
+	// Stop the secrets TTL sweeper.
+	if s.secretsSweeper != nil {
+		s.secretsSweeper.Stop()
+	}
+
 	return s.httpServer.Shutdown(ctx)
 }
 
@@ -268,6 +314,80 @@ func (s *Server) Shutdown(ctx context.Context) error {
 // so NewServer stays self-contained.
 func newAuditService(pool *pgxpool.Pool) *audit.AuditService {
 	return audit.New(pool)
+}
+
+// buildSecretBackends inspects environment variables and registers the
+// appropriate secret backends. Returns the populated registry and the
+// list of backend names that were actually registered.
+func buildSecretBackends(log *slog.Logger) (*secrets.BackendRegistry, []string) {
+	registry := secrets.NewBackendRegistry()
+	var names []string
+
+	// Vault takes precedence when VAULT_ADDR is set.
+	if addr := os.Getenv("VAULT_ADDR"); addr != "" {
+		token := os.Getenv("VAULT_TOKEN")
+		v, err := vault.New(context.Background(), vault.Config{
+			Address:    addr,
+			AuthMethod: vault.AuthToken,
+			Token:      token,
+		})
+		if err != nil {
+			log.Warn("vault backend init failed; skipping", "err", err)
+		} else {
+			registry.Register("vault", v)
+			names = append(names, "vault")
+			log.Info("secrets: registered vault backend", "addr", addr)
+		}
+	}
+
+	// Infisical is registered when INFISICAL_CLIENT_ID is set.
+	if clientID := os.Getenv("INFISICAL_CLIENT_ID"); clientID != "" {
+		clientSecret := os.Getenv("INFISICAL_CLIENT_SECRET")
+		i, err := infisical.New(context.Background(), infisical.Config{
+			SiteURL:      getEnvDefault("INFISICAL_SITE_URL", "https://app.infisical.com"),
+			ProjectID:    os.Getenv("INFISICAL_PROJECT_ID"),
+			Environment:  getEnvDefault("INFISICAL_ENVIRONMENT", "dev"),
+			AuthMethod:   infisical.AuthUniversal,
+			ClientID:     clientID,
+			ClientSecret: clientSecret,
+		})
+		if err != nil {
+			log.Warn("infisical backend init failed; skipping", "err", err)
+		} else {
+			registry.Register("infisical", i)
+			names = append(names, "infisical")
+			log.Info("secrets: registered infisical backend")
+		}
+	}
+
+	// Kubernetes CSI driver when running inside a cluster.
+	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
+		ns := getEnvDefault("OAP_K8S_NAMESPACE", "default")
+		k := secrets.NewK8sCSIBackend(secrets.K8sCSIConfig{
+			Namespace: ns,
+			MountPath: getEnvDefault("OAP_K8S_MOUNT_PATH", "/var/secrets/oap"),
+		})
+		registry.Register("k8s-csi", k)
+		names = append(names, "k8s-csi")
+		log.Info("secrets: registered k8s-csi backend", "namespace", ns)
+	}
+
+	// Default: env-var backend (development / fallback).
+	env := secrets.NewEnvBackend("OAP_SECRET_")
+	registry.Register("env", env)
+	names = append(names, "env")
+	log.Info("secrets: registered env backend (default)")
+
+	return registry, names
+}
+
+// getEnvDefault returns the value of the environment variable named by
+// key, or def if it is empty.
+func getEnvDefault(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return def
 }
 
 // --- Shared adapter types (used by both server.go and main.go) ---
