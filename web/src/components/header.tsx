@@ -1,111 +1,265 @@
 import { useState, useRef, useEffect } from 'react';
-import { Search, Bell, ChevronDown, LogOut, User as UserIcon, Globe } from 'lucide-react';
+import {
+  Search,
+  Bell,
+  ChevronDown,
+  LogOut,
+  User as UserIcon,
+  KeyRound,
+  Sun,
+  Moon,
+  Menu,
+  Settings,
+} from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { getStoredUser, logout } from '@/lib/auth';
+import { useTheme } from '@/lib/theme';
+import { useEscapeKey, visuallyHidden } from '@/lib/a11y';
+import { useSidebar } from '@/lib/sidebar';
 
 export function Header() {
   const navigate = useNavigate();
   const user = getStoredUser();
+  const { resolvedTheme, toggleTheme } = useTheme();
+  const { toggleMobile } = useSidebar();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
       }
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
     }
-    if (menuOpen) {
+    if (menuOpen || notifOpen) {
       document.addEventListener('mousedown', onClick);
       return () => document.removeEventListener('mousedown', onClick);
     }
-  }, [menuOpen]);
+  }, [menuOpen, notifOpen]);
 
-  const initials = user?.name
-    ? user.name.split(' ').map((p) => p.charAt(0).toUpperCase()).slice(0, 2).join('')
-    : user?.email?.charAt(0).toUpperCase() ?? 'U';
+  // Close dropdowns on Escape.
+  useEscapeKey(() => {
+    setMenuOpen(false);
+    setNotifOpen(false);
+  }, menuOpen || notifOpen);
+
+  function handleUserMenuKey(e: React.KeyboardEvent<HTMLButtonElement>) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setMenuOpen((v) => !v);
+    }
+    if (e.key === 'ArrowDown' && !menuOpen) {
+      e.preventDefault();
+      setMenuOpen(true);
+      // Focus first menu item after render.
+      setTimeout(() => {
+        const first = menuRef.current?.querySelector<HTMLButtonElement>(
+          '[role="menuitem"]'
+        );
+        first?.focus();
+      }, 0);
+    }
+  }
+
+  // Placeholder unread notification count — replaced with real data once
+  // the alert inbox API is wired into a dedicated hook.
+  const unreadCount = 0;
 
   return (
-    <header className="h-14 shrink-0 border-b border-slate-800 bg-slate-900/50 backdrop-blur px-6 flex items-center justify-between gap-4">
-      {/* Left: breadcrumbs / site */}
-      <div className="flex items-center gap-2 text-sm text-slate-400">
-        <Globe size={14} className="text-slate-500" />
-        <span>Endpoints</span>
-        <span className="text-slate-600">/</span>
-        <span className="text-slate-200">Default site</span>
-      </div>
+    <header className="sticky top-0 z-30 flex items-center justify-between gap-2 h-14 px-3 md:px-4 border-b border-border bg-surface-secondary/95 backdrop-blur supports-[backdrop-filter]:bg-surface-secondary/80">
+      <div className="flex items-center gap-2 min-w-0">
+        {/* Mobile hamburger */}
+        <button
+          type="button"
+          onClick={toggleMobile}
+          className="md:hidden p-2 -ml-1 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
+          aria-label="Open navigation menu"
+        >
+          <Menu className="w-5 h-5" aria-hidden="true" />
+        </button>
 
-      {/* Center: search */}
-      <div className="flex-1 max-w-md">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+        {/* Search (hidden on small screens to save space) */}
+        <div className="hidden sm:flex relative">
+          <Search
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none"
+            aria-hidden="true"
+          />
           <input
             type="search"
-            placeholder="Search agents, checks, alerts…"
-            className="w-full h-9 pl-9 pr-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40"
+            placeholder="Search…"
+            aria-label="Search"
+            className="w-48 md:w-64 pl-8 pr-3 py-1.5 text-sm rounded-md bg-surface-tertiary border border-border text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
           />
         </div>
       </div>
 
-      {/* Right: actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2">
+        {/* Theme toggle */}
         <button
           type="button"
-          title="Notifications"
-          className="relative h-9 w-9 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors"
+          onClick={toggleTheme}
+          className="p-2 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
+          aria-label={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} mode`}
         >
-          <Bell size={16} />
-          <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-rose-500" />
+          {resolvedTheme === 'dark' ? (
+            <Sun className="w-5 h-5" aria-hidden="true" />
+          ) : (
+            <Moon className="w-5 h-5" aria-hidden="true" />
+          )}
         </button>
 
-        {/* User menu */}
-        <div className="relative" ref={menuRef}>
+        {/* Notification bell */}
+        <div ref={notifRef} className="relative">
           <button
             type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            className="flex items-center gap-2 h-9 pl-1.5 pr-2 rounded-md hover:bg-slate-800 transition-colors"
+            onClick={() => setNotifOpen((v) => !v)}
+            className="p-2 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary focus:outline-none focus:ring-2 focus:ring-accent relative"
+            aria-label={
+              unreadCount > 0
+                ? `Notifications, ${unreadCount} unread`
+                : 'Notifications'
+            }
+            aria-haspopup="true"
+            aria-expanded={notifOpen}
           >
-            <div className="h-7 w-7 rounded-full bg-indigo-600 flex items-center justify-center text-xs font-medium text-white">
-              {initials}
+            <Bell className="w-5 h-5" aria-hidden="true" />
+            {unreadCount > 0 && (
+              <span
+                className="absolute top-1 right-1 inline-flex items-center justify-center min-w-[1rem] h-4 px-1 text-[0.625rem] font-bold rounded-full bg-red-500 text-white"
+                aria-hidden="true"
+              >
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </button>
+
+          {notifOpen && (
+            <div
+              role="dialog"
+              aria-label="Notifications"
+              className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-1rem)] rounded-md border border-border bg-surface-secondary shadow-lg overflow-hidden"
+            >
+              <div className="px-4 py-3 border-b border-border">
+                <h3 className="text-sm font-semibold">Notifications</h3>
+              </div>
+              <div className="p-4 text-sm text-text-muted text-center">
+                No new notifications.
+              </div>
             </div>
-            <span className="hidden sm:block text-sm text-slate-200 max-w-[120px] truncate">
-              {user?.name ?? user?.email ?? 'Account'}
+          )}
+        </div>
+
+        {/* User menu */}
+        <div ref={menuRef} className="relative">
+          <button
+            ref={menuButtonRef}
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            onKeyDown={handleUserMenuKey}
+            className="flex items-center gap-1.5 p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            aria-label="User menu"
+          >
+            <span
+              className="w-7 h-7 rounded-full bg-accent/20 text-accent flex items-center justify-center text-xs font-semibold"
+              aria-hidden="true"
+            >
+              {user?.name
+                ? user.name.charAt(0).toUpperCase()
+                : user?.email?.charAt(0).toUpperCase() ?? '?'}
             </span>
-            <ChevronDown size={14} className="text-slate-400" />
+            <ChevronDown
+              className={
+                'w-3.5 h-3.5 hidden sm:block transition-transform ' +
+                (menuOpen ? 'rotate-180' : '')
+              }
+              aria-hidden="true"
+            />
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-56 rounded-md border border-slate-800 bg-slate-900 shadow-xl py-1 z-50">
-              <div className="px-3 py-2 border-b border-slate-800">
-                <p className="text-sm text-slate-100 truncate">{user?.name ?? 'User'}</p>
-                <p className="text-xs text-slate-500 truncate">{user?.email ?? ''}</p>
-              </div>
+            <div
+              role="menu"
+              aria-label="User menu"
+              className="absolute right-0 mt-2 w-56 rounded-md border border-border bg-surface-secondary shadow-lg py-1"
+            >
+              {user && (
+                <div className="px-3 py-2 border-b border-border">
+                  <div className="text-sm font-medium truncate">
+                    {user.name ?? user.email}
+                  </div>
+                  <div className="text-xs text-text-muted truncate">
+                    {user.email}
+                  </div>
+                </div>
+              )}
+
               <button
                 type="button"
+                role="menuitem"
                 onClick={() => {
                   setMenuOpen(false);
-                  navigate({ to: '/settings' });
+                  void navigate({ to: '/settings' });
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-surface-tertiary hover:text-text-primary focus:bg-surface-tertiary focus:outline-none"
               >
-                <UserIcon size={14} />
-                <span>Profile</span>
+                <UserIcon className="w-4 h-4" aria-hidden="true" />
+                Profile
               </button>
+
               <button
                 type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  void navigate({ to: '/settings' });
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-surface-tertiary hover:text-text-primary focus:bg-surface-tertiary focus:outline-none"
+              >
+                <Settings className="w-4 h-4" aria-hidden="true" />
+                Settings
+              </button>
+
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  void navigate({ to: '/settings/api-keys' });
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-surface-tertiary hover:text-text-primary focus:bg-surface-tertiary focus:outline-none"
+              >
+                <KeyRound className="w-4 h-4" aria-hidden="true" />
+                API Keys
+              </button>
+
+              <div className="my-1 border-t border-border" />
+
+              <button
+                type="button"
+                role="menuitem"
                 onClick={() => {
                   setMenuOpen(false);
                   logout();
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-rose-400 hover:bg-slate-800 transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 focus:bg-red-500/10 focus:outline-none"
               >
-                <LogOut size={14} />
-                <span>Logout</span>
+                <LogOut className="w-4 h-4" aria-hidden="true" />
+                Logout
               </button>
             </div>
           )}
         </div>
       </div>
+
+      <span className={visuallyHidden}>End of header</span>
     </header>
   );
 }

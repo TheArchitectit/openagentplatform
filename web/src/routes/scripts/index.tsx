@@ -50,22 +50,22 @@ const RUNTIME_META: Record<ScriptRuntime, { label: string; icon: typeof Terminal
   bash: {
     label: 'Bash',
     icon: Terminal,
-    classes: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20',
+    classes: 'bg-success/10 text-success border-success/20',
   },
   powershell: {
     label: 'PowerShell',
     icon: Terminal,
-    classes: 'bg-sky-500/10 text-sky-300 border-sky-500/20',
+    classes: 'bg-info/10 text-info border-info/20',
   },
   python: {
     label: 'Python',
     icon: Code2,
-    classes: 'bg-amber-500/10 text-amber-300 border-amber-500/20',
+    classes: 'bg-warning/10 text-warning border-warning/20',
   },
   node: {
     label: 'Node',
     icon: Braces,
-    classes: 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20',
+    classes: 'bg-accent/10 text-accent border-accent/20',
   },
 };
 
@@ -75,32 +75,32 @@ const STATUS_META: Record<
 > = {
   pending: {
     label: 'Pending',
-    classes: 'bg-slate-500/10 text-slate-300 border-slate-500/20',
+    classes: 'bg-text-muted/10 text-text-secondary border-text-muted/20',
     icon: CircleDashed,
   },
   in_progress: {
     label: 'Running',
-    classes: 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20',
+    classes: 'bg-accent/10 text-accent border-accent/20',
     icon: CirclePlay,
   },
   completed: {
     label: 'Success',
-    classes: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20',
+    classes: 'bg-success/10 text-success border-success/20',
     icon: CircleCheck,
   },
   failed: {
     label: 'Failed',
-    classes: 'bg-rose-500/10 text-rose-300 border-rose-500/20',
+    classes: 'bg-danger/10 text-danger border-danger/20',
     icon: CircleX,
   },
   cancelled: {
     label: 'Cancelled',
-    classes: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+    classes: 'bg-text-muted/10 text-text-secondary border-text-muted/20',
     icon: CircleDashed,
   },
   timeout: {
     label: 'Timeout',
-    classes: 'bg-amber-500/10 text-amber-300 border-amber-500/20',
+    classes: 'bg-warning/10 text-warning border-warning/20',
     icon: CircleAlert,
   },
 };
@@ -189,16 +189,16 @@ function ScriptsListPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" aria-busy={isLoading}>
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-md bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-            <FileCode2 className="h-4 w-4 text-indigo-400" />
+          <div className="h-9 w-9 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center" aria-hidden="true">
+            <FileCode2 className="h-4 w-4 text-accent" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-100">Scripts</h1>
-            <p className="text-slate-400 text-sm mt-0.5">
+            <h1 className="text-2xl font-bold text-text-primary">Scripts</h1>
+            <p className="text-text-secondary text-sm mt-0.5">
               Reusable script library for on-demand execution across the fleet.
             </p>
           </div>
@@ -207,9 +207,10 @@ function ScriptsListPage() {
           <span
             className={
               'inline-flex h-2 w-2 rounded-full ' +
-              (status === 'open' ? 'bg-emerald-500' : status === 'connecting' ? 'bg-amber-500' : 'bg-slate-500')
+              (status === 'open' ? 'bg-success' : status === 'connecting' ? 'bg-warning' : 'bg-text-muted')
             }
-            title={`WebSocket: ${status}`}
+            role="status"
+            aria-label={`WebSocket connection: ${status}`}
           />
           <button
             type="button"
@@ -217,9 +218,10 @@ function ScriptsListPage() {
               void refresh();
             }}
             disabled={isLoading}
-            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-slate-200 disabled:opacity-50 transition-colors"
+            aria-label="Refresh scripts"
+            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-surface-tertiary hover:bg-border-strong border border-border-strong text-sm text-text-primary disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
           >
-            <RefreshCw className={'h-4 w-4 ' + (isLoading ? 'animate-spin' : '')} />
+            <RefreshCw className={'h-4 w-4 ' + (isLoading ? 'animate-spin' : '')} aria-hidden="true" />
             <span>Refresh</span>
           </button>
           <button
@@ -227,9 +229,9 @@ function ScriptsListPage() {
             onClick={() => {
               void navigate({ to: '/scripts/new' });
             }}
-            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-indigo-600 hover:bg-indigo-500 text-sm text-white transition-colors"
+            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-accent hover:bg-accent-hover text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4" aria-hidden="true" />
             <span>Create Script</span>
           </button>
         </div>
@@ -237,70 +239,79 @@ function ScriptsListPage() {
 
       {/* Tabs + search */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-1 p-1 rounded-md bg-slate-900 border border-slate-800 flex-wrap">
+        <div
+          role="tablist"
+          aria-label="Filter scripts by runtime"
+          className="flex items-center gap-1 p-1 rounded-md bg-surface-secondary border border-border-subtle flex-wrap"
+        >
           {RUNTIME_TABS.map((t) => (
             <button
               key={t.id}
               type="button"
+              role="tab"
+              aria-selected={filter === t.id}
               onClick={() => setFilter(t.id)}
               className={
-                'px-3 h-8 rounded text-sm transition-colors ' +
+                'px-3 h-8 rounded text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ' +
                 (filter === t.id
-                  ? 'bg-slate-800 text-slate-100'
-                  : 'text-slate-400 hover:text-slate-200')
+                  ? 'bg-surface-tertiary text-text-primary'
+                  : 'text-text-secondary hover:text-text-primary')
               }
             >
               {t.label}
-              <span className="ml-2 text-xs text-slate-500">{counts[t.id]}</span>
+              <span className="ml-2 text-xs text-text-muted" aria-hidden="true">{counts[t.id]}</span>
+              <span className="sr-only">({counts[t.id]} scripts)</span>
             </button>
           ))}
         </div>
 
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+        <div className="relative w-full sm:w-72" role="search">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" aria-hidden="true" />
           <input
             type="search"
+            role="searchbox"
+            aria-label="Search scripts"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search scripts…"
-            className="w-full h-9 pl-9 pr-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40"
+            className="w-full h-9 pl-9 pr-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus:border-accent"
           />
         </div>
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-slate-800 bg-slate-900/60 overflow-hidden">
+      <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table role="table" aria-label="Scripts" className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-slate-500 border-b border-slate-800 bg-slate-900/40">
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3 w-32">Runtime</th>
-                <th className="px-4 py-3">Description</th>
-                <th className="px-4 py-3 w-32">Last Run</th>
-                <th className="px-4 py-3 w-28">Status</th>
-                <th className="px-4 py-3 text-right w-32">Actions</th>
+              <tr className="text-left text-xs uppercase tracking-wider text-text-muted border-b border-border-subtle bg-surface-primary/40">
+                <th className="px-4 py-3" scope="col">Name</th>
+                <th className="px-4 py-3 w-32" scope="col">Runtime</th>
+                <th className="px-4 py-3" scope="col">Description</th>
+                <th className="px-4 py-3 w-32" scope="col">Last Run</th>
+                <th className="px-4 py-3 w-28" scope="col">Status</th>
+                <th className="px-4 py-3 text-right w-32" scope="col">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-border-subtle">
               {isLoading && scripts.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan={6} className="px-4 py-12 text-center text-text-muted" role="status" aria-live="polite">
                     <div className="inline-flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                       <span>Loading scripts…</span>
                     </div>
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-rose-400">
+                  <td colSpan={6} className="px-4 py-12 text-center text-danger" role="alert">
                     Failed to load scripts: {error.message}
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan={6} className="px-4 py-12 text-center text-text-muted" role="status">
                     No scripts match the current filter.
                   </td>
                 </tr>
@@ -316,17 +327,25 @@ function ScriptsListPage() {
                       onClick={() => {
                         void navigate({ to: '/scripts/$scriptId', params: { scriptId: s.id } });
                       }}
-                      className="hover:bg-slate-800/40 cursor-pointer transition-colors"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void navigate({ to: '/scripts/$scriptId', params: { scriptId: s.id } });
+                        }
+                      }}
+                      tabIndex={0}
+                      aria-label={`Script: ${s.name}. Press Enter to view details.`}
+                      className="hover:bg-surface-tertiary/40 cursor-pointer transition-colors focus:outline-none focus-visible:bg-surface-tertiary/60"
                     >
                       <td className="px-4 py-3">
                         <div className="flex flex-col">
-                          <span className="text-slate-100 font-medium">{s.name}</span>
+                          <span className="text-text-primary font-medium">{s.name}</span>
                           {s.tags && s.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-1">
                               {s.tags.slice(0, 3).map((tag) => (
                                 <span
                                   key={tag}
-                                  className="inline-flex px-1.5 py-0.5 rounded text-[10px] bg-slate-800 border border-slate-700 text-slate-400"
+                                  className="inline-flex px-1.5 py-0.5 rounded text-[10px] bg-surface-tertiary border border-border-strong text-text-secondary"
                                 >
                                   {tag}
                                 </span>
@@ -346,10 +365,10 @@ function ScriptsListPage() {
                           {runtimeMeta.label}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-slate-400 max-w-xs truncate">
+                      <td className="px-4 py-3 text-text-secondary max-w-xs truncate">
                         {s.description ?? '—'}
                       </td>
-                      <td className="px-4 py-3 text-slate-400">
+                      <td className="px-4 py-3 text-text-secondary">
                         {formatRelative(s.last_run, now)}
                       </td>
                       <td className="px-4 py-3">
@@ -359,29 +378,31 @@ function ScriptsListPage() {
                               'inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs ' +
                               meta.classes
                             }
+                            role="status"
+                            aria-label={`Status: ${meta.label}`}
                           >
-                            <meta.icon className="h-3 w-3" />
+                            <meta.icon className="h-3 w-3" aria-hidden="true" />
                             {meta.label}
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-500">—</span>
+                          <span className="text-xs text-text-muted">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="inline-flex items-center gap-1">
+                        <div className="inline-flex items-center gap-1" role="group" aria-label={`Actions for script ${s.name}`}>
                           <button
                             type="button"
                             disabled={isBusy}
                             onClick={() => {
                               void onRunNow(s);
                             }}
-                            className="inline-flex items-center gap-1 px-2 h-7 rounded text-xs text-slate-300 hover:bg-slate-700 border border-slate-700 disabled:opacity-50 transition-colors"
-                            title="Run now"
+                            className="inline-flex items-center gap-1 px-2 h-7 rounded text-xs text-text-secondary hover:bg-border-strong border border-border-strong disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
+                            aria-label={`Run script ${s.name} now`}
                           >
                             {isBusy ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
                             ) : (
-                              <Globe className="h-3.5 w-3.5" />
+                              <Globe className="h-3.5 w-3.5" aria-hidden="true" />
                             )}
                             <span>Run</span>
                           </button>
@@ -391,10 +412,10 @@ function ScriptsListPage() {
                             onClick={() => {
                               void onDelete(s);
                             }}
-                            className="inline-flex items-center gap-1 px-2 h-7 rounded text-xs text-rose-300 hover:bg-rose-500/10 border border-rose-500/30 disabled:opacity-50 transition-colors"
-                            title="Delete"
+                            className="inline-flex items-center gap-1 px-2 h-7 rounded text-xs text-danger hover:bg-danger/10 border border-danger/30 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
+                            aria-label={`Delete script ${s.name}`}
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                           </button>
                         </div>
                       </td>

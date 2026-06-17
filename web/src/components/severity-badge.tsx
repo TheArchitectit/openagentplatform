@@ -9,7 +9,7 @@
 // The component is intentionally a pure presentational primitive so it
 // can be used in tables, detail pages, KPIs, and timeline rows alike.
 
-import { CircleInfo, TriangleAlert, CircleX, Flame } from 'lucide-react';
+import { Info, TriangleAlert, CircleX, Flame } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 export type Severity = 'info' | 'warning' | 'critical' | 'emergency';
@@ -23,22 +23,22 @@ export interface SeverityMeta {
 export const SEVERITY_META: Record<Severity, SeverityMeta> = {
   info: {
     label: 'Info',
-    classes: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
-    icon: CircleInfo,
+    classes: 'bg-info/10 text-info border-info/20',
+    icon: Info,
   },
   warning: {
     label: 'Warning',
-    classes: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    classes: 'bg-warning/10 text-warning border-warning/20',
     icon: TriangleAlert,
   },
   critical: {
     label: 'Critical',
-    classes: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+    classes: 'bg-danger/10 text-danger border-danger/20',
     icon: CircleX,
   },
   emergency: {
     label: 'Emergency',
-    classes: 'bg-red-600/15 text-red-400 border-red-500/30',
+    classes: 'bg-danger/15 text-danger border-danger/30',
     icon: Flame,
   },
 };
@@ -75,7 +75,8 @@ export function SeverityBadge({
 
   return (
     <span
-      title={title ?? meta.label}
+      role="status"
+      aria-label={title ?? `Severity: ${meta.label}`}
       className={
         'inline-flex items-center rounded-full border font-medium ' +
         sizing +
@@ -83,7 +84,7 @@ export function SeverityBadge({
         meta.classes
       }
     >
-      {showIcon && <Icon className={size === 'md' ? 'h-3.5 w-3.5' : 'h-3 w-3'} />}
+      {showIcon && <Icon className={size === 'md' ? 'h-3.5 w-3.5' : 'h-3 w-3'} aria-hidden="true" />}
       {showLabel && <span>{meta.label}</span>}
     </span>
   );

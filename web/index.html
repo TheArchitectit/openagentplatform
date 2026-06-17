@@ -5,6 +5,15 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>OpenAgentPlatform</title>
+    <!--
+      Monaco code editor (scripts, policies, checks) is loaded lazily from
+      the jsDelivr CDN at runtime by src/components/monaco-editor.tsx — no
+      <script> tag is needed here. The loader script
+      (https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js)
+      is injected on first mount, followed by the main editor bundle from
+      the same CDN. If the CDN is unreachable, the component falls back to
+      a plain <textarea> automatically.
+    -->
   </head>
   <body class="bg-slate-950 text-slate-100">
     <div id="root"></div>

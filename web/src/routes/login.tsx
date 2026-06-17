@@ -17,28 +17,29 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-surface-primary via-surface-secondary to-surface-primary p-4">
       <div className="w-full max-w-md">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/80 backdrop-blur p-8 shadow-2xl">
-          <div className="flex items-center justify-center mb-6">
-            <div className="h-12 w-12 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
-              <ShieldCheck className="h-6 w-6 text-indigo-400" />
+        <div className="rounded-xl border border-border-subtle bg-surface-secondary/80 backdrop-blur p-8 shadow-2xl">
+          <div className="flex items-center justify-center mb-6" aria-hidden="true">
+            <div className="h-12 w-12 rounded-xl bg-accent/20 border border-accent/30 flex items-center justify-center">
+              <ShieldCheck className="h-6 w-6 text-accent" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-center text-slate-100">
+          <h1 className="text-2xl font-bold text-center text-text-primary">
             OpenAgentPlatform
           </h1>
-          <p className="text-slate-400 text-center mt-2 mb-8">
+          <p className="text-text-secondary text-center mt-2 mb-8">
             Sign in to manage your endpoints, agents, and alerts.
           </p>
           <button
             type="button"
             onClick={handleLogin}
-            className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+            autoFocus
+            className="w-full py-3 px-4 bg-accent hover:bg-accent-hover active:bg-accent-hover text-white rounded-md font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface-secondary"
           >
             Sign in with OIDC
           </button>
-          <p className="text-xs text-slate-500 text-center mt-6">
+          <p className="text-xs text-text-muted text-center mt-6">
             You will be redirected to your identity provider to authenticate.
           </p>
         </div>

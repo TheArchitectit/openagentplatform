@@ -30,13 +30,13 @@ function shortId(id: string): string {
 function healthDot(h: A2AAdapter['health']): string {
   switch (h) {
     case 'healthy':
-      return 'bg-emerald-500';
+      return 'bg-success';
     case 'degraded':
-      return 'bg-amber-500';
+      return 'bg-warning';
     case 'unhealthy':
-      return 'bg-rose-500';
+      return 'bg-danger';
     default:
-      return 'bg-slate-500';
+      return 'bg-text-muted';
   }
 }
 
@@ -101,18 +101,18 @@ function A2ADashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-100 flex items-center gap-2">
-            <Radio className="h-6 w-6 text-indigo-400" />
+          <h1 className="text-2xl font-semibold text-text-primary flex items-center gap-2">
+            <Radio className="h-6 w-6 text-accent" />
             A2A Dashboard
           </h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-text-secondary mt-1">
             Agent-to-Agent protocol — adapters, tasks, and cost analytics
           </p>
         </div>
         <button
           type="button"
           onClick={() => void refresh()}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md border border-border-strong bg-surface-tertiary hover:bg-border-strong text-text-primary"
         >
           <RefreshCw className="h-4 w-4" />
           Refresh
@@ -153,28 +153,28 @@ function A2ADashboardPage() {
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
         <input
           type="text"
           placeholder="Search adapters, skills, or providers..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full pl-9 pr-3 py-2 rounded-md bg-surface-tertiary border border-border-strong text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent"
         />
       </div>
 
       {/* State messages */}
       {error && (
-        <div className="p-3 rounded-md border border-rose-500/30 bg-rose-500/10 text-rose-300 text-sm">
+        <div className="p-3 rounded-md border border-danger/30 bg-danger/10 text-danger text-sm">
           Failed to load adapters: {error.message}
         </div>
       )}
 
       {/* Card grid */}
       {isLoading ? (
-        <div className="text-center py-12 text-slate-400 text-sm">Loading adapters...</div>
+        <div className="text-center py-12 text-text-secondary text-sm">Loading adapters...</div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-slate-500 text-sm">No adapters found.</div>
+        <div className="text-center py-12 text-text-muted text-sm">No adapters found.</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filtered.map((a) => (
@@ -204,19 +204,19 @@ function KpiCard({
   accent: 'indigo' | 'sky' | 'emerald' | 'amber';
 }) {
   const accentMap: Record<typeof accent, string> = {
-    indigo: 'text-indigo-400 bg-indigo-500/10',
-    sky: 'text-sky-400 bg-sky-500/10',
-    emerald: 'text-emerald-400 bg-emerald-500/10',
-    amber: 'text-amber-400 bg-amber-500/10',
+    indigo: 'text-accent bg-accent/10',
+    sky: 'text-info bg-info/10',
+    emerald: 'text-success bg-success/10',
+    amber: 'text-warning bg-warning/10',
   };
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+    <div className="rounded-lg border border-border-subtle bg-surface-secondary p-4">
       <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wider text-slate-400">{label}</span>
+        <span className="text-xs uppercase tracking-wider text-text-secondary">{label}</span>
         <span className={`p-1.5 rounded-md ${accentMap[accent]}`}>{icon}</span>
       </div>
-      <div className="mt-2 text-2xl font-semibold text-slate-100">{value}</div>
-      <div className="text-xs text-slate-500 mt-1">{sub}</div>
+      <div className="mt-2 text-2xl font-semibold text-text-primary">{value}</div>
+      <div className="text-xs text-text-muted mt-1">{sub}</div>
     </div>
   );
 }
@@ -227,11 +227,11 @@ function AdapterCard({ adapter }: { adapter: A2AAdapter }) {
     <Link
       to="/a2a/agents/$name"
       params={{ name: adapter.name }}
-      className="block rounded-lg border border-slate-800 bg-slate-900 hover:border-indigo-500/50 hover:bg-slate-800/80 transition-colors p-4"
+      className="block rounded-lg border border-border-subtle bg-surface-secondary hover:border-accent/50 hover:bg-surface-tertiary/80 transition-colors p-4"
     >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">
-          <div className="h-9 w-9 rounded-md bg-slate-800 flex items-center justify-center text-indigo-400">
+          <div className="h-9 w-9 rounded-md bg-surface-tertiary flex items-center justify-center text-accent">
             {adapter.icon ? (
               <span className="text-lg">{adapter.icon}</span>
             ) : (
@@ -239,33 +239,33 @@ function AdapterCard({ adapter }: { adapter: A2AAdapter }) {
             )}
           </div>
           <div>
-            <div className="text-sm font-medium text-slate-100">
+            <div className="text-sm font-medium text-text-primary">
               {adapter.display_name ?? adapter.name}
             </div>
-            <div className="text-xs text-slate-500">v{adapter.version}</div>
+            <div className="text-xs text-text-muted">v{adapter.version}</div>
           </div>
         </div>
         <span className={`h-2.5 w-2.5 rounded-full ${dot} flex-shrink-0 mt-1`} title={adapter.health} />
       </div>
       {adapter.description && (
-        <p className="mt-2 text-xs text-slate-400 line-clamp-2">{adapter.description}</p>
+        <p className="mt-2 text-xs text-text-secondary line-clamp-2">{adapter.description}</p>
       )}
       <div className="mt-3 flex flex-wrap gap-1">
         {adapter.skills?.slice(0, 4).map((s) => (
           <span
             key={s.name}
-            className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-800 text-slate-300"
+            className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface-tertiary text-text-secondary"
           >
             {s.name}
           </span>
         ))}
         {(adapter.skills?.length ?? 0) > 4 && (
-          <span className="text-[10px] px-1.5 py-0.5 text-slate-500">
+          <span className="text-[10px] px-1.5 py-0.5 text-text-muted">
             +{adapter.skills!.length - 4}
           </span>
         )}
       </div>
-      <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500">
+      <div className="mt-3 flex items-center justify-between text-[11px] text-text-muted">
         <span className="flex items-center gap-1">
           <Zap className="h-3 w-3" />
           {adapter.streaming ? 'Streaming' : 'Sync only'}

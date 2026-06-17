@@ -143,15 +143,15 @@ function RecordingsListPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-100">Shell Recordings</h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <h1 className="text-2xl font-semibold text-text-primary">Shell Recordings</h1>
+          <p className="text-sm text-text-secondary mt-1">
             Searchable archive of recorded remote shell sessions. {isAdmin ? 'Admin view — all sessions.' : 'Your sessions only.'}
           </p>
         </div>
         <button
           type="button"
           onClick={fetchList}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-sm text-slate-200"
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-surface-tertiary hover:bg-border-strong text-sm text-text-primary"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           Refresh
@@ -159,11 +159,11 @@ function RecordingsListPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-wrap gap-3 items-end">
+      <div className="bg-surface-secondary border border-border-subtle rounded-lg p-4 flex flex-wrap gap-3 items-end">
         <label className="flex flex-col gap-1 flex-1 min-w-[200px]">
-          <span className="text-xs text-slate-400">Search (session id / agent / user)</span>
+          <span className="text-xs text-text-secondary">Search (session id / agent / user)</span>
           <div className="relative">
-            <Search size={14} className="absolute left-2.5 top-2.5 text-slate-500" />
+            <Search size={14} className="absolute left-2.5 top-2.5 text-text-muted" />
             <input
               type="text"
               value={search}
@@ -172,14 +172,14 @@ function RecordingsListPage() {
                 setPage(0);
               }}
               placeholder="filter…"
-              className="w-full pl-8 pr-3 py-1.5 rounded-md bg-slate-950 border border-slate-700 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+              className="w-full pl-8 pr-3 py-1.5 rounded-md bg-surface-primary border border-border-strong text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent"
             />
           </div>
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-xs text-slate-400">From</span>
+          <span className="text-xs text-text-secondary">From</span>
           <div className="relative">
-            <Calendar size={14} className="absolute left-2.5 top-2.5 text-slate-500" />
+            <Calendar size={14} className="absolute left-2.5 top-2.5 text-text-muted" />
             <input
               type="date"
               value={fromDate}
@@ -187,14 +187,14 @@ function RecordingsListPage() {
                 setFromDate(e.target.value);
                 setPage(0);
               }}
-              className="pl-8 pr-3 py-1.5 rounded-md bg-slate-950 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
+              className="pl-8 pr-3 py-1.5 rounded-md bg-surface-primary border border-border-strong text-sm text-text-primary focus:outline-none focus:border-accent"
             />
           </div>
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-xs text-slate-400">To</span>
+          <span className="text-xs text-text-secondary">To</span>
           <div className="relative">
-            <Calendar size={14} className="absolute left-2.5 top-2.5 text-slate-500" />
+            <Calendar size={14} className="absolute left-2.5 top-2.5 text-text-muted" />
             <input
               type="date"
               value={toDate}
@@ -202,19 +202,19 @@ function RecordingsListPage() {
                 setToDate(e.target.value);
                 setPage(0);
               }}
-              className="pl-8 pr-3 py-1.5 rounded-md bg-slate-950 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
+              className="pl-8 pr-3 py-1.5 rounded-md bg-surface-primary border border-border-strong text-sm text-text-primary focus:outline-none focus:border-accent"
             />
           </div>
         </label>
-        <div className="text-xs text-slate-500 ml-auto">
+        <div className="text-xs text-text-muted ml-auto">
           {total} recording{total === 1 ? '' : 's'}
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
+      <div className="bg-surface-secondary border border-border-subtle rounded-lg overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-slate-800/50 text-slate-400 text-xs uppercase">
+          <thead className="bg-surface-tertiary/50 text-text-secondary text-xs uppercase">
             <tr>
               <th className="text-left px-4 py-2">Session</th>
               <th className="text-left px-4 py-2">User</th>
@@ -229,14 +229,14 @@ function RecordingsListPage() {
           <tbody>
             {error && (
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-rose-400">
+                <td colSpan={8} className="px-4 py-6 text-center text-danger">
                   {error}
                 </td>
               </tr>
             )}
             {!error && items.length === 0 && !loading && (
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={8} className="px-4 py-6 text-center text-text-muted">
                   No recordings match the current filters.
                 </td>
               </tr>
@@ -250,23 +250,23 @@ function RecordingsListPage() {
                     params: { sessionId: r.session_id },
                   })
                 }
-                className="border-t border-slate-800 hover:bg-slate-800/40 cursor-pointer"
+                className="border-t border-border-subtle hover:bg-surface-tertiary/40 cursor-pointer"
               >
-                <td className="px-4 py-2 font-mono text-xs text-slate-200 max-w-[180px] truncate">
+                <td className="px-4 py-2 font-mono text-xs text-text-primary max-w-[180px] truncate">
                   {r.session_id}
                 </td>
-                <td className="px-4 py-2 text-slate-300">{r.user_id}</td>
-                <td className="px-4 py-2 text-slate-300">{r.agent_id}</td>
+                <td className="px-4 py-2 text-text-secondary">{r.user_id}</td>
+                <td className="px-4 py-2 text-text-secondary">{r.agent_id}</td>
                 <td className="px-4 py-2">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-accent/10 border border-accent/20 text-xs text-accent">
                     {r.protocol}
                   </span>
                 </td>
-                <td className="px-4 py-2 text-slate-300">{formatDuration(r.duration)}</td>
-                <td className="px-4 py-2 text-slate-400 text-xs">
+                <td className="px-4 py-2 text-text-secondary">{formatDuration(r.duration)}</td>
+                <td className="px-4 py-2 text-text-secondary text-xs">
                   {formatBytes(r.bytes_in)} / {formatBytes(r.bytes_out)}
                 </td>
-                <td className="px-4 py-2 text-slate-400 text-xs">{formatDate(r.started_at)}</td>
+                <td className="px-4 py-2 text-text-secondary text-xs">{formatDate(r.started_at)}</td>
                 <td className="px-4 py-2 text-right">
                   <div className="inline-flex gap-1">
                     <button
@@ -279,7 +279,7 @@ function RecordingsListPage() {
                           params: { sessionId: r.session_id },
                         });
                       }}
-                      className="p-1.5 rounded-md hover:bg-slate-700 text-slate-300"
+                      className="p-1.5 rounded-md hover:bg-border-strong text-text-secondary"
                     >
                       <Terminal size={14} />
                     </button>
@@ -287,7 +287,7 @@ function RecordingsListPage() {
                       title="Download .cast"
                       href={`/api/v1/shell/recordings/${r.session_id}/export`}
                       onClick={(e) => e.stopPropagation()}
-                      className="p-1.5 rounded-md hover:bg-slate-700 text-slate-300"
+                      className="p-1.5 rounded-md hover:bg-border-strong text-text-secondary"
                     >
                       <Download size={14} />
                     </a>
@@ -301,7 +301,7 @@ function RecordingsListPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-slate-400">
+        <div className="flex items-center justify-between text-sm text-text-secondary">
           <div>
             Page {page + 1} of {totalPages}
           </div>
@@ -310,7 +310,7 @@ function RecordingsListPage() {
               type="button"
               disabled={page === 0}
               onClick={() => setPage((p) => Math.max(0, p - 1))}
-              className="px-3 py-1 rounded-md bg-slate-800 hover:bg-slate-700 disabled:opacity-50"
+              className="px-3 py-1 rounded-md bg-surface-tertiary hover:bg-border-strong disabled:opacity-50"
             >
               Previous
             </button>
@@ -318,7 +318,7 @@ function RecordingsListPage() {
               type="button"
               disabled={page >= totalPages - 1}
               onClick={() => setPage((p) => p + 1)}
-              className="px-3 py-1 rounded-md bg-slate-800 hover:bg-slate-700 disabled:opacity-50"
+              className="px-3 py-1 rounded-md bg-surface-tertiary hover:bg-border-strong disabled:opacity-50"
             >
               Next
             </button>

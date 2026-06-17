@@ -64,16 +64,16 @@ const recentActivity: ActivityItem[] = [
 ];
 
 const toneClasses: Record<ActivityItem['tone'], string> = {
-  success: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  warning: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  danger: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-  info: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
+  success: 'bg-success/10 text-success border-success/20',
+  warning: 'bg-warning/10 text-warning border-warning/20',
+  danger: 'bg-danger/10 text-danger border-danger/20',
+  info: 'bg-info/10 text-info border-info/20',
 };
 
 const deltaClasses: Record<Kpi['deltaTone'], string> = {
-  up: 'text-emerald-400',
-  down: 'text-rose-400',
-  neutral: 'text-slate-400',
+  up: 'text-success',
+  down: 'text-danger',
+  neutral: 'text-text-secondary',
 };
 
 function isToday(iso: string | undefined): boolean {
@@ -367,89 +367,98 @@ function DashboardPage() {
   }, [scripts, scriptsLoading, scriptsTotal]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" aria-busy={checksLoading || alertsLoading || policiesLoading}>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Dashboard</h1>
-          <p className="text-slate-400 mt-1">Overview of your fleet, agents, and recent activity.</p>
+          <h1 className="text-2xl font-bold text-text-primary">Dashboard</h1>
+          <p className="text-text-secondary mt-1">Overview of your fleet, agents, and recent activity.</p>
         </div>
       </div>
 
       {/* Agents + Checks KPIs (static agents + live check KPIs) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div role="group" aria-label="Agent and check KPIs" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {[...agentRow, ...checkRow].map((kpi) => (
           <KpiCard key={kpi.label} kpi={kpi} />
         ))}
       </div>
 
       {/* Alert KPIs */}
-      <div>
-        <h2 className="text-sm font-semibold text-slate-300 mb-3">Alerts</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <section aria-labelledby="alerts-heading">
+        <h2 id="alerts-heading" className="text-sm font-semibold text-text-secondary mb-3">Alerts</h2>
+        <div role="group" aria-label="Alert KPIs" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {alertRow.map((kpi) => (
             <KpiCard key={kpi.label} kpi={kpi} />
           ))}
         </div>
-      </div>
+      </section>
 
       {/* Patch KPIs */}
-      <div>
+      <section aria-labelledby="patches-heading">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-slate-300">Patches</h2>
+          <h2 id="patches-heading" className="text-sm font-semibold text-text-secondary">Patches</h2>
           <Link
             to="/patches"
-            className="text-xs text-slate-400 hover:text-slate-100 transition-colors"
+            aria-label="View all patches"
+            className="text-xs text-text-secondary hover:text-text-primary focus:outline-none focus-visible:underline transition-colors"
           >
             View all →
           </Link>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div role="group" aria-label="Patch KPIs" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {patchKpis.map((kpi) => (
             <KpiCard key={kpi.label} kpi={kpi} />
           ))}
         </div>
-      </div>
+      </section>
 
       {/* Script KPIs */}
-      <div>
+      <section aria-labelledby="scripts-heading">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-slate-300">Scripts</h2>
+          <h2 id="scripts-heading" className="text-sm font-semibold text-text-secondary">Scripts</h2>
           <Link
             to="/scripts"
-            className="text-xs text-slate-400 hover:text-slate-100 transition-colors"
+            aria-label="View all scripts"
+            className="text-xs text-text-secondary hover:text-text-primary focus:outline-none focus-visible:underline transition-colors"
           >
             View all →
           </Link>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div role="group" aria-label="Script KPIs" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {scriptKpis.map((kpi) => (
             <KpiCard key={kpi.label} kpi={kpi} />
           ))}
         </div>
-      </div>
+      </section>
 
       {/* Policy compliance */}
-      <div>
-        <h2 className="text-sm font-semibold text-slate-300 mb-3">Policy compliance</h2>
+      <section aria-labelledby="compliance-heading">
+        <h2 id="compliance-heading" className="text-sm font-semibold text-text-secondary mb-3">Policy compliance</h2>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Overall score card */}
           <Link
             to="/policies"
-            className="rounded-lg border border-slate-800 bg-slate-900/60 p-5 hover:border-slate-700 transition-colors block"
+            aria-label="View policy compliance details"
+            className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-5 hover:border-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors block"
           >
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-slate-400">Overall compliance</p>
+                <p className="text-sm text-text-secondary">Overall compliance</p>
                 <p
                   className={
                     'text-3xl font-semibold mt-2 tabular-nums ' +
                     (compliance.overallPct === null
-                      ? 'text-slate-500'
+                      ? 'text-text-muted'
                       : compliance.overallPct >= 80
-                      ? 'text-emerald-400'
+                      ? 'text-success'
                       : compliance.overallPct >= 60
-                      ? 'text-amber-400'
-                      : 'text-rose-400')
+                      ? 'text-warning'
+                      : 'text-danger')
+                  }
+                  role="status"
+                  aria-label={
+                    compliance.overallPct === null
+                      ? 'Overall compliance: no data'
+                      : `Overall compliance: ${compliance.overallPct.toFixed(0)} percent`
                   }
                 >
                   {policiesLoading && policies.length === 0
@@ -458,50 +467,58 @@ function DashboardPage() {
                     ? '—'
                     : `${compliance.overallPct.toFixed(0)}%`}
                 </p>
-                <p className="text-xs text-slate-500 mt-3">
+                <p className="text-xs text-text-muted mt-3">
                   {policies.length} {policies.length === 1 ? 'policy' : 'policies'}
                   {compliance.totalAgents > 0
                     ? ` · ${compliance.compliantAgents} of ${compliance.totalAgents} agents compliant`
                     : ''}
                 </p>
               </div>
-              <div className="h-9 w-9 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center">
-                <ShieldCheck className="h-4 w-4 text-slate-300" />
+              <div className="h-9 w-9 rounded-md bg-surface-tertiary border border-border-strong flex items-center justify-center" aria-hidden="true">
+                <ShieldCheck className="h-4 w-4 text-text-secondary" />
               </div>
             </div>
           </Link>
 
           {/* Violations by category mini bar chart */}
-          <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-5 lg:col-span-2">
+          <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-5 lg:col-span-2">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-slate-100">Violations by category</h3>
+              <h3 className="text-sm font-semibold text-text-primary">Violations by category</h3>
               <Link
                 to="/policies"
-                className="text-xs text-slate-400 hover:text-slate-100 transition-colors"
+                aria-label="View all policy violations"
+                className="text-xs text-text-secondary hover:text-text-primary focus:outline-none focus-visible:underline transition-colors"
               >
                 View all →
               </Link>
             </div>
             {policies.length === 0 ? (
-              <div className="text-center text-xs text-slate-500 py-6">
+              <div className="text-center text-xs text-text-muted py-6" role="status">
                 No policies to chart yet.
               </div>
             ) : (
-              <div className="space-y-2.5">
+              <div role="list" aria-label="Violations by policy category" className="space-y-2.5">
                 {(Object.keys(compliance.byCategory) as PolicyCategory[]).map((cat) => {
                   const { violations, total } = compliance.byCategory[cat];
                   const pct = total > 0 ? (violations / total) * 100 : 0;
                   if (total === 0) return null;
                   return (
-                    <div key={cat} className="flex items-center gap-3">
-                      <div className="w-24 text-xs text-slate-400 capitalize">{cat}</div>
-                      <div className="flex-1 h-5 rounded bg-slate-800/60 overflow-hidden border border-slate-800">
+                    <div key={cat} role="listitem" className="flex items-center gap-3">
+                      <div className="w-24 text-xs text-text-secondary capitalize">{cat}</div>
+                      <div
+                        className="flex-1 h-5 rounded bg-surface-tertiary/60 overflow-hidden border border-border-subtle"
+                        role="progressbar"
+                        aria-valuenow={Math.round(pct)}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-label={`${cat} violation rate`}
+                      >
                         <div
-                          className="h-full bg-rose-500/70 transition-all"
+                          className="h-full bg-danger/70 transition-all"
                           style={{ width: `${pct}%` }}
                         />
                       </div>
-                      <div className="w-20 text-right text-xs text-slate-300 tabular-nums">
+                      <div className="w-20 text-right text-xs text-text-secondary tabular-nums" aria-label={`${violations} of ${total} policies with violations`}>
                         {violations} / {total}
                       </div>
                     </div>
@@ -511,37 +528,38 @@ function DashboardPage() {
             )}
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Recent activity */}
-      <div className="rounded-lg border border-slate-800 bg-slate-900/60">
-        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-100">Recent activity</h2>
-          <span className="text-xs text-slate-500">Last 24 hours</span>
+      <section aria-labelledby="activity-heading" className="rounded-lg border border-border-subtle bg-surface-secondary/60">
+        <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
+          <h2 id="activity-heading" className="text-sm font-semibold text-text-primary">Recent activity</h2>
+          <span className="text-xs text-text-muted" aria-label="Time range: last 24 hours">Last 24 hours</span>
         </div>
-        <ul className="divide-y divide-slate-800">
+        <ul className="divide-y divide-border-subtle" aria-label="Recent activity feed">
           {recentActivity.map((item) => {
             const Icon = item.icon;
             return (
               <li
                 key={item.id}
-                className="px-5 py-3 flex items-center gap-4 hover:bg-slate-900 transition-colors"
+                className="px-5 py-3 flex items-center gap-4 hover:bg-surface-primary transition-colors"
               >
                 <div
                   className={`h-8 w-8 rounded-md border flex items-center justify-center shrink-0 ${toneClasses[item.tone]}`}
+                  aria-hidden="true"
                 >
                   <Icon className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-200 truncate">{item.title}</p>
-                  <p className="text-xs text-slate-500">{item.meta}</p>
+                  <p className="text-sm text-text-primary truncate">{item.title}</p>
+                  <p className="text-xs text-text-muted">{item.meta}</p>
                 </div>
-                <span className="text-xs text-slate-500 shrink-0">{item.time}</span>
+                <span className="text-xs text-text-muted shrink-0" aria-label={`${item.time}`}>{item.time}</span>
               </li>
             );
           })}
         </ul>
-      </div>
+      </section>
     </div>
   );
 }
@@ -552,28 +570,29 @@ function KpiCard({ kpi }: { kpi: Kpi }) {
     <>
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm text-slate-400">{kpi.label}</p>
-          <p className="text-3xl font-semibold text-slate-100 mt-2">{kpi.value}</p>
+          <p className="text-sm text-text-secondary">{kpi.label}</p>
+          <p className="text-3xl font-semibold text-text-primary mt-2" aria-label={`${kpi.label}: ${kpi.value}`}>{kpi.value}</p>
         </div>
-        <div className="h-9 w-9 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center">
-          <Icon className="h-4 w-4 text-slate-300" />
+        <div className="h-9 w-9 rounded-md bg-surface-tertiary border border-border-strong flex items-center justify-center" aria-hidden="true">
+          <Icon className="h-4 w-4 text-text-secondary" />
         </div>
       </div>
-      <p className={`text-xs mt-3 ${deltaClasses[kpi.deltaTone]}`}>{kpi.delta}</p>
+      <p className={`text-xs mt-3 ${deltaClasses[kpi.deltaTone]}`} aria-label={`Status: ${kpi.delta}`}>{kpi.delta}</p>
     </>
   );
   if (kpi.to) {
     return (
       <Link
         to={kpi.to}
-        className="rounded-lg border border-slate-800 bg-slate-900/60 p-5 hover:border-slate-700 transition-colors block"
+        aria-label={`${kpi.label}: ${kpi.value}. ${kpi.delta}. Click for details.`}
+        className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-5 hover:border-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors block"
       >
         {inner}
       </Link>
     );
   }
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-5 hover:border-slate-700 transition-colors">
+    <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-5 hover:border-border-strong">
       {inner}
     </div>
   );

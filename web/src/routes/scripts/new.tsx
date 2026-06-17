@@ -2,9 +2,9 @@
 //
 // Provides:
 //   • Metadata form: name, description, runtime dropdown, timeout, tags
-//   • Lightweight code editor: textarea + line numbers, monospace font
-//     (Monaco is heavy and not part of the bundle; we use a simple
-//     textarea with a paired line-number gutter for the same UX shape.)
+//   • Monaco code editor (loaded from jsDelivr CDN at runtime) with
+//     language auto-detection from the runtime dropdown. Falls back to a
+//     plain <textarea> if the CDN is unreachable.
 //   • Runtime-specific syntax mode stored in component state
 //   • Save → POST /api/v1/scripts
 //   • Test Run → selects a target agent and POSTs /api/v1/scripts/{id}/run
@@ -27,6 +27,7 @@ import {
 import { toast } from 'sonner';
 import { useScripts, type ScriptRuntime } from '@/lib/useScripts';
 import { useAgents } from '@/lib/useAgents';
+import { MonacoEditor, type MonacoLanguage } from '@/components/monaco-editor';
 
 export const Route = createFileRoute('/scripts/new')({
   component: NewScriptPage,
@@ -62,6 +63,14 @@ const RUNTIME_OPTIONS: { value: ScriptRuntime; label: string; icon: typeof Termi
 function defaultTemplate(rt: ScriptRuntime): string {
   return RUNTIME_OPTIONS.find((o) => o.value === rt)?.placeholder ?? '';
 }
+
+/** Map a script runtime to the Monaco language id we want for syntax highlighting. */
+const RUNTIME_TO_MONACO: Record<ScriptRuntime, MonacoLanguage> = {
+  bash: 'bash',
+  powershell: 'powershell',
+  python: 'python',
+  node: 'javascript',
+};
 
 function NewScriptPage() {
   const navigate = useNavigate();
@@ -192,16 +201,16 @@ function NewScriptPage() {
         <div className="flex items-center gap-3">
           <Link
             to="/scripts"
-            className="p-2 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <div className="h-9 w-9 rounded-md bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-            <FileCode2 className="h-4 w-4 text-indigo-400" />
+          <div className="h-9 w-9 rounded-md bg-accent/10 border border-accent/20 flex items-center justify-center">
+            <FileCode2 className="h-4 w-4 text-accent" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-100">New Script</h1>
-            <p className="text-slate-400 text-sm mt-0.5">
+            <h1 className="text-2xl font-bold text-text-primary">New Script</h1>
+            <p className="text-text-secondary text-sm mt-0.5">
               Compose a reusable script and save it to your library.
             </p>
           </div>
@@ -212,38 +221,38 @@ function NewScriptPage() {
         {/* Metadata form */}
         <form
           onSubmit={handleSave}
-          className="lg:col-span-1 space-y-4 rounded-lg border border-slate-800 bg-slate-900/60 p-5"
+          className="lg:col-span-1 space-y-4 rounded-lg border border-border-subtle bg-surface-secondary/60 p-5"
         >
-          <h2 className="text-sm font-semibold text-slate-100">Metadata</h2>
+          <h2 className="text-sm font-semibold text-text-primary">Metadata</h2>
 
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Name *</label>
+            <label className="block text-xs text-text-secondary mb-1">Name *</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Restart nginx service"
-              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40"
+              className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
             />
           </div>
 
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Description</label>
+            <label className="block text-xs text-text-secondary mb-1">Description</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               placeholder="What does this script do?"
-              className="w-full px-3 py-2 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40 resize-none"
+              className="w-full px-3 py-2 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40 resize-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Runtime *</label>
+            <label className="block text-xs text-text-secondary mb-1">Runtime *</label>
             <select
               value={runtime}
               onChange={(e) => setRuntime(e.target.value as ScriptRuntime)}
-              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40"
+              className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
             >
               {RUNTIME_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -254,20 +263,20 @@ function NewScriptPage() {
           </div>
 
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Timeout (seconds)</label>
+            <label className="block text-xs text-text-secondary mb-1">Timeout (seconds)</label>
             <input
               type="number"
               min={5}
               max={3600}
               value={timeoutSecs}
               onChange={(e) => setTimeoutSecs(Math.max(5, Number(e.target.value) || 60))}
-              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40"
+              className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
             />
-            <p className="text-xs text-slate-500 mt-1">5 – 3600 seconds</p>
+            <p className="text-xs text-text-muted mt-1">5 – 3600 seconds</p>
           </div>
 
           <div>
-            <label className="block text-xs text-slate-400 mb-1">
+            <label className="block text-xs text-text-secondary mb-1">
               <Tag className="inline h-3 w-3 mr-1" />
               Tags (comma-separated)
             </label>
@@ -276,14 +285,14 @@ function NewScriptPage() {
               value={tagsInput}
               onChange={(e) => setTagsInput(e.target.value)}
               placeholder="maintenance, restart, nginx"
-              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40"
+              className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
             />
             {tags.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">
                 {tags.map((t) => (
                   <span
                     key={t}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-slate-800 border border-slate-700 text-slate-300"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-surface-tertiary border border-border-strong text-text-secondary"
                   >
                     {t}
                   </span>
@@ -293,7 +302,7 @@ function NewScriptPage() {
           </div>
 
           {error && (
-            <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+            <div className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
               {error}
             </div>
           )}
@@ -302,18 +311,18 @@ function NewScriptPage() {
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center justify-center gap-2 px-3 h-9 rounded-md bg-indigo-600 hover:bg-indigo-500 text-sm text-white disabled:opacity-50 transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-3 h-9 rounded-md bg-accent hover:bg-accent text-sm text-white disabled:opacity-50 transition-colors"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               <span>{saving ? 'Saving…' : 'Save Script'}</span>
             </button>
 
-            <div className="rounded-md border border-slate-800 p-3 space-y-2">
-              <label className="block text-xs text-slate-400">Test Run target</label>
+            <div className="rounded-md border border-border-subtle p-3 space-y-2">
+              <label className="block text-xs text-text-secondary">Test Run target</label>
               <select
                 value={targetAgentId}
                 onChange={(e) => setTargetAgentId(e.target.value)}
-                className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40"
+                className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
               >
                 <option value="">Select an agent…</option>
                 {agents.map((a) => (
@@ -326,7 +335,7 @@ function NewScriptPage() {
                 type="button"
                 disabled={running || !targetAgentId}
                 onClick={() => void handleTestRun()}
-                className="inline-flex items-center justify-center gap-2 w-full px-3 h-9 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-slate-200 disabled:opacity-50 transition-colors"
+                className="inline-flex items-center justify-center gap-2 w-full px-3 h-9 rounded-md bg-surface-tertiary hover:bg-border-strong border border-border-strong text-sm text-text-primary disabled:opacity-50 transition-colors"
               >
                 {running ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -335,7 +344,7 @@ function NewScriptPage() {
                 )}
                 <span>{running ? 'Starting…' : 'Test Run'}</span>
               </button>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-text-muted">
                 Saves the script (if needed) and executes it on the selected agent.
               </p>
             </div>
@@ -343,24 +352,25 @@ function NewScriptPage() {
         </form>
 
         {/* Code editor */}
-        <div className="lg:col-span-2 rounded-lg border border-slate-800 bg-slate-900/60 overflow-hidden flex flex-col">
-          <div className="px-5 py-3 border-b border-slate-800 flex items-center justify-between">
+        <div className="lg:col-span-2 rounded-lg border border-border-subtle bg-surface-secondary/60 overflow-hidden flex flex-col">
+          <div className="px-5 py-3 border-b border-border-subtle flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <FileCode2 className="h-4 w-4 text-slate-400" />
-              <h2 className="text-sm font-semibold text-slate-100">Code</h2>
-              <span className="text-xs text-slate-500">
+              <FileCode2 className="h-4 w-4 text-text-secondary" />
+              <h2 className="text-sm font-semibold text-text-primary">Code</h2>
+              <span className="text-xs text-text-muted">
                 · {RUNTIME_OPTIONS.find((o) => o.value === runtime)?.label}
               </span>
             </div>
-            <span className="text-xs text-slate-500 font-mono">
+            <span className="text-xs text-text-muted font-mono">
               {content.split('\n').length} lines · {content.length} chars
             </span>
           </div>
-          <CodeEditor
+          <MonacoEditor
             value={content}
             onChange={setContent}
-            language={runtime}
-            rows={24}
+            language={RUNTIME_TO_MONACO[runtime]}
+            height={520}
+            theme="vs-dark"
           />
         </div>
       </div>
@@ -368,85 +378,6 @@ function NewScriptPage() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Lightweight code editor
-// ---------------------------------------------------------------------------
-//
-// A paired line-number gutter + textarea. This avoids pulling Monaco into
-// the bundle (which is hundreds of KBs and not a dependency today). The
-// gutter and textarea scroll together via a shared scroll handler.
-
-interface CodeEditorProps {
-  value: string;
-  onChange: (next: string) => void;
-  language: ScriptRuntime;
-  rows?: number;
-}
-
-function CodeEditor({ value, onChange, language, rows = 20 }: CodeEditorProps) {
-  const gutterRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const lineCount = useMemo(() => value.split('\n').length, [value]);
-  const lineNumbers = useMemo(
-    () => Array.from({ length: Math.max(lineCount, rows) }, (_, i) => i + 1),
-    [lineCount, rows]
-  );
-
-  const onScroll = useCallback(() => {
-    if (gutterRef.current && textareaRef.current) {
-      gutterRef.current.scrollTop = textareaRef.current.scrollTop;
-    }
-  }, []);
-
-  // Tab key inserts spaces rather than changing focus.
-  const onKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        const el = e.currentTarget;
-        const start = el.selectionStart;
-        const end = el.selectionEnd;
-        const next = value.substring(0, start) + '  ' + value.substring(end);
-        onChange(next);
-        requestAnimationFrame(() => {
-          el.selectionStart = el.selectionEnd = start + 2;
-        });
-      }
-    },
-    [value, onChange]
-  );
-
-  return (
-    <div className="flex-1 flex bg-slate-950 font-mono text-sm min-h-0">
-      {/* Line-number gutter */}
-      <div
-        ref={gutterRef}
-        className="select-none text-right text-slate-600 bg-slate-950 border-r border-slate-800 py-3 px-2 overflow-hidden shrink-0"
-        style={{ width: '3.5rem' }}
-        aria-hidden
-      >
-        {lineNumbers.map((n) => (
-          <div key={n} className="leading-6 text-xs">
-            {n}
-          </div>
-        ))}
-      </div>
-
-      {/* Textarea */}
-      <textarea
-        ref={textareaRef}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onScroll={onScroll}
-        onKeyDown={onKeyDown}
-        spellCheck={false}
-        rows={rows}
-        data-language={language}
-        className="flex-1 bg-slate-950 text-slate-100 py-3 px-3 resize-none outline-none leading-6 whitespace-pre overflow-auto min-h-0"
-        style={{ tabSize: 2 }}
-        placeholder={`Write your ${language} script here…`}
-      />
-    </div>
-  );
-}
+// (Lightweight textarea-based CodeEditor removed in favor of MonacoEditor,
+//  which is loaded from CDN at runtime and falls back to a textarea if the
+//  CDN is unavailable.)

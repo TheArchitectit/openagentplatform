@@ -36,6 +36,7 @@ import {
   type CheckType,
   type AgentAssignment,
 } from '@/lib/useChecks';
+import { MonacoEditor } from '@/components/monaco-editor';
 
 export const Route = createFileRoute('/checks/$checkId')({
   component: CheckDetailPage,
@@ -53,17 +54,17 @@ const statusIcon: Record<CheckStatus, typeof CircleCheck> = {
 };
 
 const statusColor: Record<CheckStatus, string> = {
-  ok: 'text-emerald-500',
-  warning: 'text-amber-500',
-  critical: 'text-rose-500',
-  disabled: 'text-slate-500',
+  ok: 'text-success',
+  warning: 'text-warning',
+  critical: 'text-danger',
+  disabled: 'text-text-muted',
 };
 
 const statusBg: Record<CheckStatus, string> = {
-  ok: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  warning: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  critical: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-  disabled: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+  ok: 'bg-success/10 text-success border-success/20',
+  warning: 'bg-warning/10 text-warning border-warning/20',
+  critical: 'bg-danger/10 text-danger border-danger/20',
+  disabled: 'bg-text-muted/10 text-text-secondary border-text-muted/20',
 };
 
 const typeIcon: Record<CheckType, typeof Globe> = {
@@ -279,16 +280,16 @@ function CheckDetailPage() {
         <div className="flex items-center gap-3">
           <Link
             to="/checks"
-            className="p-2 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <div className="h-9 w-9 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center">
-            <TypeIcon className="h-4 w-4 text-slate-300" />
+          <div className="h-9 w-9 rounded-md bg-surface-tertiary border border-border-strong flex items-center justify-center">
+            <TypeIcon className="h-4 w-4 text-text-secondary" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-slate-100">
+              <h1 className="text-2xl font-bold text-text-primary">
                 {isLoading && !check ? 'Loading…' : check?.name ?? 'Unknown check'}
               </h1>
               {check && (
@@ -298,13 +299,13 @@ function CheckDetailPage() {
                 </span>
               )}
             </div>
-            <p className="text-slate-400 text-sm mt-0.5">
+            <p className="text-text-secondary text-sm mt-0.5">
               {check ? (
                 <>
-                  <span className="text-slate-300">{typeLabel[check.type]}</span>
-                  <span className="mx-2 text-slate-600">•</span>
+                  <span className="text-text-secondary">{typeLabel[check.type]}</span>
+                  <span className="mx-2 text-text-muted">•</span>
                   Runs every {formatInterval(check.interval_secs)}
-                  <span className="mx-2 text-slate-600">•</span>
+                  <span className="mx-2 text-text-muted">•</span>
                   Last run {formatTime(check.last_run, now)}
                 </>
               ) : (
@@ -323,8 +324,8 @@ function CheckDetailPage() {
               className={
                 'inline-flex items-center gap-2 px-3 h-9 rounded-md border text-sm transition-colors disabled:opacity-50 ' +
                 (check.enabled
-                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
-                  : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700')
+                  ? 'border-success/30 bg-success/10 text-success hover:bg-success/20'
+                  : 'border-border-strong bg-surface-tertiary text-text-secondary hover:bg-border-strong')
               }
             >
               <Power className="h-4 w-4" />
@@ -334,7 +335,7 @@ function CheckDetailPage() {
               type="button"
               onClick={onRunNow}
               disabled={busy}
-              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-slate-200 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-surface-tertiary hover:bg-border-strong border border-border-strong text-sm text-text-primary disabled:opacity-50 transition-colors"
             >
               <Play className="h-4 w-4" />
               <span>Run Now</span>
@@ -343,7 +344,7 @@ function CheckDetailPage() {
               type="button"
               onClick={() => setShowEdit(true)}
               disabled={busy}
-              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-slate-200 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-surface-tertiary hover:bg-border-strong border border-border-strong text-sm text-text-primary disabled:opacity-50 transition-colors"
             >
               <Save className="h-4 w-4" />
               <span>Edit</span>
@@ -352,7 +353,7 @@ function CheckDetailPage() {
               type="button"
               onClick={() => setShowAssign(true)}
               disabled={busy}
-              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-indigo-600 hover:bg-indigo-500 text-sm text-white disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-accent hover:bg-accent text-sm text-white disabled:opacity-50 transition-colors"
             >
               <Plus className="h-4 w-4" />
               <span>Assign Agent</span>
@@ -361,7 +362,7 @@ function CheckDetailPage() {
               type="button"
               onClick={onDelete}
               disabled={busy}
-              className="inline-flex items-center gap-2 px-3 h-9 rounded-md border border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 text-sm disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 px-3 h-9 rounded-md border border-danger/30 bg-danger/10 text-danger hover:bg-danger/20 text-sm disabled:opacity-50 transition-colors"
             >
               <Trash2 className="h-4 w-4" />
               <span>Delete</span>
@@ -371,66 +372,66 @@ function CheckDetailPage() {
       </div>
 
       {error && (
-        <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+        <div className="rounded-md border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}
 
       {isLoading && !check ? (
-        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-12 text-center text-slate-500">
+        <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-12 text-center text-text-muted">
           <Loader2 className="inline h-5 w-5 animate-spin mr-2" />
           Loading check…
         </div>
       ) : !check ? (
-        <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-12 text-center text-slate-500">
+        <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-12 text-center text-text-muted">
           Check not found.
         </div>
       ) : (
         <>
           {/* Info card */}
-          <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-5">
+          <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-5">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <p className="text-xs uppercase tracking-wider text-slate-500">Name</p>
-                <p className="text-sm text-slate-100 mt-1">{check.name}</p>
+                <p className="text-xs uppercase tracking-wider text-text-muted">Name</p>
+                <p className="text-sm text-text-primary mt-1">{check.name}</p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wider text-slate-500">Type</p>
-                <p className="text-sm text-slate-100 mt-1">{typeLabel[check.type]}</p>
+                <p className="text-xs uppercase tracking-wider text-text-muted">Type</p>
+                <p className="text-sm text-text-primary mt-1">{typeLabel[check.type]}</p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wider text-slate-500">Interval</p>
-                <p className="text-sm text-slate-100 mt-1">{formatInterval(check.interval_secs)}</p>
+                <p className="text-xs uppercase tracking-wider text-text-muted">Interval</p>
+                <p className="text-sm text-text-primary mt-1">{formatInterval(check.interval_secs)}</p>
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-slate-800">
-              <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">Configuration</p>
-              <pre className="rounded-md bg-slate-950/60 border border-slate-800 p-3 text-xs text-slate-300 overflow-x-auto">
+            <div className="mt-4 pt-4 border-t border-border-subtle">
+              <p className="text-xs uppercase tracking-wider text-text-muted mb-2">Configuration</p>
+              <pre className="rounded-md bg-surface-primary/60 border border-border-subtle p-3 text-xs text-text-secondary overflow-x-auto">
 {JSON.stringify(check.config ?? {}, null, 2)}
               </pre>
             </div>
           </div>
 
           {/* Assigned agents */}
-          <div className="rounded-lg border border-slate-800 bg-slate-900/60">
-            <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-100">Assigned Agents</h2>
-              <span className="text-xs text-slate-500">{assignments.length} agent{assignments.length === 1 ? '' : 's'}</span>
+          <div className="rounded-lg border border-border-subtle bg-surface-secondary/60">
+            <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-text-primary">Assigned Agents</h2>
+              <span className="text-xs text-text-muted">{assignments.length} agent{assignments.length === 1 ? '' : 's'}</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs uppercase tracking-wider text-slate-500 border-b border-slate-800 bg-slate-900/40">
+                  <tr className="text-left text-xs uppercase tracking-wider text-text-muted border-b border-border-subtle bg-surface-primary/40">
                     <th className="px-4 py-3">Agent</th>
                     <th className="px-4 py-3">Last Result</th>
                     <th className="px-4 py-3">Last Run</th>
                     <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800">
+                <tbody className="divide-y divide-border-subtle">
                   {assignments.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
+                      <td colSpan={4} className="px-4 py-8 text-center text-text-muted">
                         No agents assigned yet.
                       </td>
                     </tr>
@@ -439,29 +440,29 @@ function CheckDetailPage() {
                       const sk = (a.last_status as CheckStatus) ?? 'disabled';
                       const SIcon = statusIcon[sk] ?? CircleDashed;
                       return (
-                        <tr key={a.id ?? a.agent_id} className="hover:bg-slate-800/40">
+                        <tr key={a.id ?? a.agent_id} className="hover:bg-surface-tertiary/40">
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
-                              <Bot className="h-4 w-4 text-slate-500" />
-                              <span className="text-slate-100 font-medium">
+                              <Bot className="h-4 w-4 text-text-muted" />
+                              <span className="text-text-primary font-medium">
                                 {a.hostname ?? a.agent_id}
                               </span>
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={'inline-flex items-center gap-1.5 text-xs ' + (statusColor[sk] ?? 'text-slate-400')}>
+                            <span className={'inline-flex items-center gap-1.5 text-xs ' + (statusColor[sk] ?? 'text-text-secondary')}>
                               <SIcon className="h-3.5 w-3.5" />
                               <span className="capitalize">{sk}</span>
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-slate-400">{formatTime(a.last_run, now)}</td>
+                          <td className="px-4 py-3 text-text-secondary">{formatTime(a.last_run, now)}</td>
                           <td className="px-4 py-3 text-right">
                             <button
                               type="button"
                               onClick={() => {
                                 void onUnassign(a.agent_id);
                               }}
-                              className="px-2 h-7 rounded text-xs text-rose-300 hover:bg-rose-500/10 border border-rose-500/30"
+                              className="px-2 h-7 rounded text-xs text-danger hover:bg-danger/10 border border-danger/30"
                             >
                               Remove
                             </button>
@@ -476,24 +477,24 @@ function CheckDetailPage() {
           </div>
 
           {/* Result history bar chart */}
-          <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-5">
+          <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-5">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-slate-100">Result History</h2>
-              <span className="text-xs text-slate-500">Last 20 results</span>
+              <h2 className="text-sm font-semibold text-text-primary">Result History</h2>
+              <span className="text-xs text-text-muted">Last 20 results</span>
             </div>
             <ResultBarChart results={results} />
           </div>
 
           {/* Recent results table */}
-          <div className="rounded-lg border border-slate-800 bg-slate-900/60">
-            <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-100">Recent Results</h2>
-              <span className="text-xs text-slate-500">Last 20</span>
+          <div className="rounded-lg border border-border-subtle bg-surface-secondary/60">
+            <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-text-primary">Recent Results</h2>
+              <span className="text-xs text-text-muted">Last 20</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs uppercase tracking-wider text-slate-500 border-b border-slate-800 bg-slate-900/40">
+                  <tr className="text-left text-xs uppercase tracking-wider text-text-muted border-b border-border-subtle bg-surface-primary/40">
                     <th className="px-4 py-3">Time</th>
                     <th className="px-4 py-3">Agent</th>
                     <th className="px-4 py-3">Status</th>
@@ -502,10 +503,10 @@ function CheckDetailPage() {
                     <th className="px-4 py-3">Message</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800">
+                <tbody className="divide-y divide-border-subtle">
                   {results.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                      <td colSpan={6} className="px-4 py-8 text-center text-text-muted">
                         No results yet.
                       </td>
                     </tr>
@@ -514,30 +515,30 @@ function CheckDetailPage() {
                       const sk = (r.status as CheckStatus) ?? 'disabled';
                       const SIcon = statusIcon[sk] ?? CircleDashed;
                       return (
-                        <tr key={r.id ?? `${r.timestamp}-${idx}`} className="hover:bg-slate-800/40">
-                          <td className="px-4 py-3 text-slate-400">{formatDateTime(r.timestamp)}</td>
+                        <tr key={r.id ?? `${r.timestamp}-${idx}`} className="hover:bg-surface-tertiary/40">
+                          <td className="px-4 py-3 text-text-secondary">{formatDateTime(r.timestamp)}</td>
                           <td className="px-4 py-3">
                             <Link
                               to="/agents/$agentId"
                               params={{ agentId: r.agent_id }}
-                              className="text-slate-200 hover:text-indigo-300"
+                              className="text-text-primary hover:text-accent"
                             >
                               {r.agent_id}
                             </Link>
                           </td>
                           <td className="px-4 py-3">
-                            <span className={'inline-flex items-center gap-1.5 text-xs ' + (statusColor[sk] ?? 'text-slate-400')}>
+                            <span className={'inline-flex items-center gap-1.5 text-xs ' + (statusColor[sk] ?? 'text-text-secondary')}>
                               <SIcon className="h-3.5 w-3.5" />
                               <span className="capitalize">{sk}</span>
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-right tabular-nums text-slate-200">
+                          <td className="px-4 py-3 text-right tabular-nums text-text-primary">
                             {r.value !== undefined && r.value !== null ? String(r.value) : '—'}
                           </td>
-                          <td className="px-4 py-3 text-right tabular-nums text-slate-400">
+                          <td className="px-4 py-3 text-right tabular-nums text-text-secondary">
                             {r.duration_ms !== undefined ? `${r.duration_ms}ms` : '—'}
                           </td>
-                          <td className="px-4 py-3 text-slate-300 truncate max-w-md">{r.message ?? '—'}</td>
+                          <td className="px-4 py-3 text-text-secondary truncate max-w-md">{r.message ?? '—'}</td>
                         </tr>
                       );
                     })
@@ -597,7 +598,7 @@ function ResultBarChart({ results }: { results: CheckResult[] }) {
 
   if (bars.length === 0) {
     return (
-      <div className="text-center text-slate-500 text-sm py-8">No results to chart yet.</div>
+      <div className="text-center text-text-muted text-sm py-8">No results to chart yet.</div>
     );
   }
 
@@ -606,12 +607,12 @@ function ResultBarChart({ results }: { results: CheckResult[] }) {
       {bars.map((b, i) => {
         const color =
           b.status === 'ok'
-            ? 'bg-emerald-500'
+            ? 'bg-success'
             : b.status === 'warning'
-            ? 'bg-amber-500'
+            ? 'bg-warning'
             : b.status === 'critical'
-            ? 'bg-rose-500'
-            : 'bg-slate-600';
+            ? 'bg-danger'
+            : 'bg-border-strong';
         // Show timestamp labels only on first, middle, and last to avoid clutter.
         const showLabel = bars.length <= 6 || i === 0 || i === Math.floor(bars.length / 2) || i === bars.length - 1;
         return (
@@ -622,7 +623,7 @@ function ResultBarChart({ results }: { results: CheckResult[] }) {
               title={b.status}
             />
             {showLabel && (
-              <span className="text-[10px] text-slate-500 truncate w-full text-center">{b.label}</span>
+              <span className="text-[10px] text-text-muted truncate w-full text-center">{b.label}</span>
             )}
           </div>
         );
@@ -670,13 +671,13 @@ function AssignAgentModal({ agents, assignedIds, onClose, onAssign }: AssignAgen
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-md rounded-lg border border-slate-800 bg-slate-900 shadow-xl">
-        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-100">Assign Agent</h2>
+      <div className="w-full max-w-md rounded-lg border border-border-subtle bg-surface-secondary shadow-xl">
+        <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-text-primary">Assign Agent</h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-800"
+            className="p-1 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary"
           >
             <X className="h-4 w-4" />
           </button>
@@ -687,17 +688,17 @@ function AssignAgentModal({ agents, assignedIds, onClose, onAssign }: AssignAgen
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search agents…"
-            className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40 mb-3"
+            className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40 mb-3"
           />
-          <ul className="max-h-80 overflow-y-auto divide-y divide-slate-800 rounded-md border border-slate-800">
+          <ul className="max-h-80 overflow-y-auto divide-y divide-border-subtle rounded-md border border-border-subtle">
             {candidates.length === 0 ? (
-              <li className="px-3 py-6 text-center text-slate-500 text-sm">No agents available.</li>
+              <li className="px-3 py-6 text-center text-text-muted text-sm">No agents available.</li>
             ) : (
               candidates.map((a) => (
-                <li key={a.id} className="px-3 py-2 flex items-center justify-between hover:bg-slate-800/40">
+                <li key={a.id} className="px-3 py-2 flex items-center justify-between hover:bg-surface-tertiary/40">
                   <div className="flex items-center gap-2 min-w-0">
-                    <Bot className="h-4 w-4 text-slate-500 shrink-0" />
-                    <span className="text-sm text-slate-200 truncate">{a.hostname || a.id}</span>
+                    <Bot className="h-4 w-4 text-text-muted shrink-0" />
+                    <span className="text-sm text-text-primary truncate">{a.hostname || a.id}</span>
                   </div>
                   <button
                     type="button"
@@ -705,7 +706,7 @@ function AssignAgentModal({ agents, assignedIds, onClose, onAssign }: AssignAgen
                       void handleAssign(a.id);
                     }}
                     disabled={busy}
-                    className="px-2 h-7 rounded text-xs text-indigo-300 hover:bg-indigo-500/10 border border-indigo-500/30 disabled:opacity-50"
+                    className="px-2 h-7 rounded text-xs text-accent hover:bg-accent/10 border border-accent/30 disabled:opacity-50"
                   >
                     Assign
                   </button>
@@ -775,48 +776,56 @@ function EditCheckModal({ check, onClose, onSubmit }: EditCheckModalProps) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-lg rounded-lg border border-slate-800 bg-slate-900 shadow-xl">
-        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-100">Edit Check</h2>
+      <div className="w-full max-w-lg rounded-lg border border-border-subtle bg-surface-secondary shadow-xl">
+        <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-text-primary">Edit Check</h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-800"
+            className="p-1 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Name</label>
+            <label className="block text-xs text-text-secondary mb-1">Name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40"
+              className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Interval (seconds, min 10)</label>
+            <label className="block text-xs text-text-secondary mb-1">Interval (seconds, min 10)</label>
             <input
               type="number"
               value={interval}
               min={10}
               onChange={(e) => setInterval(Number(e.target.value) || 60)}
-              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40"
+              className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40"
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Config (JSON)</label>
-            <textarea
+            <label className="block text-xs text-text-secondary mb-1">Config (JSON)</label>
+            <MonacoEditor
               value={configJson}
-              onChange={(e) => setConfigJson(e.target.value)}
-              rows={8}
-              className="w-full px-3 py-2 rounded-md bg-slate-800/60 border border-slate-700 text-xs text-slate-200 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40"
+              onChange={(v) => setConfigJson(v)}
+              language="json"
+              height={220}
+              theme="vs-dark"
+              options={{
+                fontSize: 12,
+                minimap: { enabled: false },
+                lineNumbers: 'on',
+                tabSize: 2,
+                formatOnPaste: true,
+              }}
             />
           </div>
           {error && (
-            <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+            <div className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
               {error}
             </div>
           )}
@@ -824,14 +833,14 @@ function EditCheckModal({ check, onClose, onSubmit }: EditCheckModalProps) {
             <button
               type="button"
               onClick={onClose}
-              className="px-3 h-9 rounded-md border border-slate-700 bg-slate-800 text-sm text-slate-200 hover:bg-slate-700 transition-colors"
+              className="px-3 h-9 rounded-md border border-border-strong bg-surface-tertiary text-sm text-text-primary hover:bg-border-strong transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={busy}
-              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-indigo-600 hover:bg-indigo-500 text-sm text-white disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-accent hover:bg-accent text-sm text-white disabled:opacity-50 transition-colors"
             >
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               <span>{busy ? 'Saving…' : 'Save'}</span>

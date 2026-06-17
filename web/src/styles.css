@@ -1,18 +1,49 @@
+@import './styles/themes.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --bg-app: 2 6 23;          /* slate-950 */
-    --bg-surface: 15 23 42;    /* slate-900 */
-    --bg-elevated: 30 41 59;   /* slate-800 */
-    --border: 30 41 59;        /* slate-800 */
-    --text-primary: 241 245 249;   /* slate-100 */
-    --text-secondary: 148 163 184; /* slate-400 */
-    --text-muted: 100 116 139;     /* slate-500 */
-    --accent: 99 102 241;          /* indigo-500 */
-    --accent-hover: 129 140 248;   /* indigo-400 */
+    --bg-app: var(--color-bg-primary);
+    --bg-surface: var(--color-bg-secondary);
+    --bg-elevated: var(--color-bg-tertiary);
+    --border: var(--color-border);
+    --text-primary: var(--color-text-primary);
+    --text-secondary: var(--color-text-secondary);
+    --text-muted: var(--color-text-muted);
+    --accent: var(--color-accent);
+    --accent-hover: var(--color-accent-hover);
+  }
+
+  /* Smooth colour / background transitions when toggling theme.
+   * Disabled for users who prefer reduced motion. */
+  html.light,
+  html.dark {
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease,
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html.light,
+    html.dark {
+      transition: none;
+    }
+  }
+
+  /* Focus-visible: keyboard-only focus indicator.
+   * Outline appears on keyboard navigation, not on mouse click.
+   * This complements the per-component focus-visible:ring-2 utilities. */
+  *:focus {
+    outline: none;
+  }
+  *:focus-visible {
+    outline: 2px solid rgb(var(--color-accent) / 0.7);
+    outline-offset: 2px;
   }
 
   html,
@@ -42,23 +73,119 @@
     border-radius: 5px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgb(51 65 85); /* slate-700 */
+    background: rgb(var(--color-border-light));
+  }
+
+  /* ---------------------------------------------------------------
+   * Responsive layout primitives — mobile-first
+   *
+   * Breakpoints (matching Tailwind defaults):
+   *   sm  >=  640px   — small tablet / large phone landscape
+   *   md  >=  768px   — tablet / sidebar becomes inline
+   *   lg  >= 1024px   — desktop
+   *   xl  >= 1280px   — wide desktop
+   *
+   * Mobile-first: styles below apply at ALL widths; overrides inside
+   * the media queries kick in at the listed breakpoint.
+   * ------------------------------------------------------------- */
+
+  /* Prevent horizontal overflow on small screens — tables, pre, and
+   * long line-content in cards can otherwise cause sideways scrolling
+   * on phones. */
+  body {
+    overflow-x: hidden;
+  }
+
+  /* On mobile the main content is padded less aggressively. */
+  main {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Touch targets: on coarse pointers (touch screens) ensure buttons
+   * are at least 44x44 px per WCAG 2.5.5 / Apple HIG. */
+  @media (pointer: coarse) {
+    button,
+    [role='button'],
+    a {
+      min-height: 2.5rem;
+    }
+  }
+
+  /* Sidebar drawer animation — transform-based for GPU acceleration.
+   * The .translate-x-full class hides the drawer off-screen left. */
+  @media (max-width: 767.98px) {
+    aside[aria-label='Primary navigation'] {
+      will-change: transform;
+    }
+  }
+
+  /* Reduced motion: strip the slide transition entirely. */
+  @media (prefers-reduced-motion: reduce) {
+    aside[aria-label='Primary navigation'],
+    aside[aria-label='Primary navigation'] + .fixed {
+      transition: none !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Container-aware sidebar width: collapses to auto on narrow viewports. */
+  .sidebar-shell {
+    width: 16rem; /* 256px — matches w-64 */
+  }
+  @media (max-width: 767.98px) {
+    .sidebar-shell {
+      width: 16rem;
+      position: fixed;
+      inset-block: 0;
+      inset-inline-start: 0;
+    }
+  }
+
+  /* Responsive content padding — mobile gets p-4, tablet/desktop get p-6. */
+  .content-pad {
+    padding: 1rem;
+  }
+  @media (min-width: 768px) {
+    .content-pad {
+      padding: 1.5rem;
+    }
+  }
+
+  /* Hide on mobile, show on tablet+ */
+  .show-md {
+    display: none;
+  }
+  @media (min-width: 768px) {
+    .show-md {
+      display: initial;
+    }
+  }
+
+  /* Show on mobile only */
+  .show-mobile {
+    display: initial;
+  }
+  @media (min-width: 768px) {
+    .show-mobile {
+      display: none;
+    }
   }
 }
 
 @layer components {
   .card {
-    @apply p-4 rounded-lg border bg-slate-900/60;
+    @apply p-4 rounded-lg border bg-surface-secondary/60;
     border-color: rgb(var(--border));
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface-secondary;
   }
   .btn-primary {
-    @apply btn bg-indigo-600 hover:bg-indigo-500 text-white focus:ring-indigo-500;
+    @apply btn bg-accent hover:bg-accent-hover text-white focus:ring-accent;
   }
   .btn-secondary {
-    @apply btn bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 focus:ring-slate-500;
+    @apply btn bg-surface-tertiary hover:bg-border-strong text-text-primary border border-border-strong focus:ring-text-muted;
   }
 }

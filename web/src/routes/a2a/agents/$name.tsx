@@ -51,13 +51,13 @@ function formatUptime(secs: number): string {
 function statusBadgeClasses(status: HealthInfo['status']): string {
   switch (status) {
     case 'healthy':
-      return 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20';
+      return 'bg-success/10 text-success border-success/20';
     case 'degraded':
-      return 'bg-amber-500/10 text-amber-300 border-amber-500/20';
+      return 'bg-warning/10 text-warning border-warning/20';
     case 'unhealthy':
-      return 'bg-rose-500/10 text-rose-300 border-rose-500/20';
+      return 'bg-danger/10 text-danger border-danger/20';
     default:
-      return 'bg-slate-500/10 text-slate-300 border-slate-500/20';
+      return 'bg-text-muted/10 text-text-secondary border-text-muted/20';
   }
 }
 
@@ -129,7 +129,7 @@ function AgentDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="text-center py-12 text-slate-400 text-sm">Loading adapter...</div>
+      <div className="text-center py-12 text-text-secondary text-sm">Loading adapter...</div>
     );
   }
   if (error || !card) {
@@ -137,11 +137,11 @@ function AgentDetailPage() {
       <div className="space-y-3">
         <Link
           to="/a2a"
-          className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-slate-200"
+          className="inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary"
         >
           <ArrowLeft className="h-4 w-4" /> Back to dashboard
         </Link>
-        <div className="p-3 rounded-md border border-rose-500/30 bg-rose-500/10 text-rose-300 text-sm">
+        <div className="p-3 rounded-md border border-danger/30 bg-danger/10 text-danger text-sm">
           {error ?? 'Adapter not found'}
         </div>
       </div>
@@ -154,13 +154,13 @@ function AgentDetailPage() {
       <div className="flex items-center gap-3">
         <Link
           to="/a2a"
-          className="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-slate-200"
+          className="p-1.5 rounded-md hover:bg-surface-tertiary text-text-secondary hover:text-text-primary"
         >
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-semibold text-slate-100">{card.display_name ?? card.name}</h1>
-          <p className="text-sm text-slate-400 mt-0.5">
+          <h1 className="text-2xl font-semibold text-text-primary">{card.display_name ?? card.name}</h1>
+          <p className="text-sm text-text-secondary mt-0.5">
             {card.name} · v{card.version}
             {card.provider && ` · ${card.provider}`}
           </p>
@@ -170,7 +170,7 @@ function AgentDetailPage() {
             href={card.url}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-1 text-xs text-slate-400 hover:text-indigo-400"
+            className="flex items-center gap-1 text-xs text-text-secondary hover:text-accent"
           >
             <ExternalLink className="h-3.5 w-3.5" /> Endpoint
           </a>
@@ -178,11 +178,11 @@ function AgentDetailPage() {
       </div>
 
       {/* Agent card summary */}
-      <div className="rounded-lg border border-slate-800 bg-slate-900 p-5">
-        <h2 className="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-2">
+      <div className="rounded-lg border border-border-subtle bg-surface-secondary p-5">
+        <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-2">
           Agent Card
         </h2>
-        {card.description && <p className="text-sm text-slate-300 mb-3">{card.description}</p>}
+        {card.description && <p className="text-sm text-text-secondary mb-3">{card.description}</p>}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
           <Field label="Name" value={card.name} />
           <Field label="Version" value={card.version} />
@@ -193,13 +193,13 @@ function AgentDetailPage() {
 
       {/* Health */}
       {health && (
-        <div className="rounded-lg border border-slate-800 bg-slate-900 p-5">
-          <h2 className="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-3 flex items-center gap-2">
+        <div className="rounded-lg border border-border-subtle bg-surface-secondary p-5">
+          <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-3 flex items-center gap-2">
             <Activity className="h-4 w-4" /> Health
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
             <div>
-              <div className="text-xs text-slate-500 mb-1">Status</div>
+              <div className="text-xs text-text-muted mb-1">Status</div>
               <span
                 className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border ${statusBadgeClasses(health.status)}`}
               >
@@ -215,15 +215,15 @@ function AgentDetailPage() {
       )}
 
       {/* Skills */}
-      <div className="rounded-lg border border-slate-800 bg-slate-900 p-5">
-        <h2 className="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-3 flex items-center gap-2">
+      <div className="rounded-lg border border-border-subtle bg-surface-secondary p-5">
+        <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-3 flex items-center gap-2">
           <Layers className="h-4 w-4" /> Skills
         </h2>
         {card.skills && card.skills.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs uppercase text-slate-500 border-b border-slate-800">
+                <tr className="text-left text-xs uppercase text-text-muted border-b border-border-subtle">
                   <th className="py-2 pr-3">Skill</th>
                   <th className="py-2 pr-3">Description</th>
                   <th className="py-2 pr-3">Tags</th>
@@ -232,22 +232,22 @@ function AgentDetailPage() {
               </thead>
               <tbody>
                 {card.skills.map((s) => (
-                  <tr key={s.name} className="border-b border-slate-800/50">
-                    <td className="py-2 pr-3 font-mono text-indigo-300">{s.name}</td>
-                    <td className="py-2 pr-3 text-slate-300 max-w-xs truncate">{s.description}</td>
+                  <tr key={s.name} className="border-b border-border-subtle/50">
+                    <td className="py-2 pr-3 font-mono text-accent">{s.name}</td>
+                    <td className="py-2 pr-3 text-text-secondary max-w-xs truncate">{s.description}</td>
                     <td className="py-2 pr-3">
                       <div className="flex flex-wrap gap-1">
                         {s.tags.map((t) => (
                           <span
                             key={t}
-                            className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300"
+                            className="text-[10px] px-1.5 py-0.5 rounded bg-surface-tertiary text-text-secondary"
                           >
                             {t}
                           </span>
                         ))}
                       </div>
                     </td>
-                    <td className="py-2 text-xs text-slate-500">
+                    <td className="py-2 text-xs text-text-muted">
                       {s.input_schema && <span className="mr-2">in</span>}
                       {s.output_schema && <span>out</span>}
                     </td>
@@ -257,20 +257,20 @@ function AgentDetailPage() {
             </table>
           </div>
         ) : (
-          <p className="text-sm text-slate-500">No skills declared.</p>
+          <p className="text-sm text-text-muted">No skills declared.</p>
         )}
       </div>
 
       {/* Models */}
-      <div className="rounded-lg border border-slate-800 bg-slate-900 p-5">
-        <h2 className="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-3 flex items-center gap-2">
+      <div className="rounded-lg border border-border-subtle bg-surface-secondary p-5">
+        <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-3 flex items-center gap-2">
           <Cpu className="h-4 w-4" /> Supported Models
         </h2>
         {card.models && card.models.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs uppercase text-slate-500 border-b border-slate-800">
+                <tr className="text-left text-xs uppercase text-text-muted border-b border-border-subtle">
                   <th className="py-2 pr-3">Model</th>
                   <th className="py-2 pr-3 text-right">Input / 1K</th>
                   <th className="py-2 text-right">Output / 1K</th>
@@ -278,12 +278,12 @@ function AgentDetailPage() {
               </thead>
               <tbody>
                 {card.models.map((m) => (
-                  <tr key={m.name} className="border-b border-slate-800/50">
-                    <td className="py-2 pr-3 font-mono text-slate-200">{m.name}</td>
-                    <td className="py-2 pr-3 text-right text-slate-300">
+                  <tr key={m.name} className="border-b border-border-subtle/50">
+                    <td className="py-2 pr-3 font-mono text-text-primary">{m.name}</td>
+                    <td className="py-2 pr-3 text-right text-text-secondary">
                       ${m.input_cost_per_1k.toFixed(4)}
                     </td>
-                    <td className="py-2 text-right text-slate-300">
+                    <td className="py-2 text-right text-text-secondary">
                       ${m.output_cost_per_1k.toFixed(4)}
                     </td>
                   </tr>
@@ -292,13 +292,13 @@ function AgentDetailPage() {
             </table>
           </div>
         ) : (
-          <p className="text-sm text-slate-500">No model pricing available.</p>
+          <p className="text-sm text-text-muted">No model pricing available.</p>
         )}
       </div>
 
       {/* Test Invoke */}
-      <div className="rounded-lg border border-slate-800 bg-slate-900 p-5">
-        <h2 className="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-3 flex items-center gap-2">
+      <div className="rounded-lg border border-border-subtle bg-surface-secondary p-5">
+        <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-3 flex items-center gap-2">
           <Send className="h-4 w-4" /> Test Invoke
         </h2>
         <textarea
@@ -306,14 +306,14 @@ function AgentDetailPage() {
           onChange={(e) => setInvokeInput(e.target.value)}
           placeholder="Enter a message to send to this adapter..."
           rows={4}
-          className="w-full rounded-md bg-slate-800 border border-slate-700 text-sm text-slate-100 p-3 focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder-slate-500 font-mono"
+          className="w-full rounded-md bg-surface-tertiary border border-border-strong text-sm text-text-primary p-3 focus:outline-none focus:ring-1 focus:ring-accent placeholder:text-text-muted font-mono"
         />
         <div className="mt-3 flex items-center justify-end">
           <button
             type="button"
             onClick={handleInvoke}
             disabled={isInvoking || !invokeInput.trim()}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-md bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-md bg-accent hover:bg-accent text-white disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isInvoking ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -324,19 +324,19 @@ function AgentDetailPage() {
           </button>
         </div>
         {invokeError && (
-          <div className="mt-3 p-3 rounded border border-rose-500/30 bg-rose-500/10 text-rose-300 text-sm">
+          <div className="mt-3 p-3 rounded border border-danger/30 bg-danger/10 text-danger text-sm">
             {invokeError}
           </div>
         )}
         {invokeResult && (
-          <div className="mt-3 p-3 rounded border border-slate-700 bg-slate-950">
+          <div className="mt-3 p-3 rounded border border-border-strong bg-surface-primary">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-slate-400">Task: {invokeResult.task_id}</span>
-              <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+              <span className="text-xs text-text-secondary">Task: {invokeResult.task_id}</span>
+              <span className="text-xs px-2 py-0.5 rounded bg-surface-tertiary text-text-secondary">
                 {invokeResult.status}
               </span>
             </div>
-            <pre className="text-xs text-slate-200 font-mono whitespace-pre-wrap overflow-x-auto max-h-64 overflow-y-auto">
+            <pre className="text-xs text-text-primary font-mono whitespace-pre-wrap overflow-x-auto max-h-64 overflow-y-auto">
               {JSON.stringify(invokeResult, null, 2)}
             </pre>
           </div>
@@ -349,11 +349,11 @@ function AgentDetailPage() {
 function Field({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
   return (
     <div>
-      <div className="text-xs text-slate-500 mb-1 flex items-center gap-1">
+      <div className="text-xs text-text-muted mb-1 flex items-center gap-1">
         {icon}
         {label}
       </div>
-      <div className="text-slate-200 break-all">{value}</div>
+      <div className="text-text-primary break-all">{value}</div>
     </div>
   );
 }

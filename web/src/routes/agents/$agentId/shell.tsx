@@ -295,23 +295,23 @@ function RemoteShellPage() {
   }, [isFullscreen, sendResize]);
 
   return (
-    <div className={isFullscreen ? 'fixed inset-0 z-50 bg-slate-950 flex flex-col' : 'space-y-4'}>
+    <div className={isFullscreen ? 'fixed inset-0 z-50 bg-surface-primary flex flex-col' : 'space-y-4'}>
       {/* Header / toolbar */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <Link
             to="/agents/$agentId"
             params={{ agentId }}
-            className="h-9 w-9 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center hover:bg-slate-700"
+            className="h-9 w-9 rounded-md bg-surface-tertiary border border-border-strong flex items-center justify-center hover:bg-border-strong"
           >
-            <ArrowLeft className="h-4 w-4 text-slate-300" />
+            <ArrowLeft className="h-4 w-4 text-text-secondary" />
           </Link>
-          <div className="h-9 w-9 rounded-md bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
-            <TerminalIcon className="h-4 w-4 text-indigo-400" />
+          <div className="h-9 w-9 rounded-md bg-accent/20 border border-accent/30 flex items-center justify-center">
+            <TerminalIcon className="h-4 w-4 text-accent" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-100">Remote shell</h1>
-            <p className="text-slate-400 text-xs font-mono">{agentId}</p>
+            <h1 className="text-xl font-bold text-text-primary">Remote shell</h1>
+            <p className="text-text-secondary text-xs font-mono">{agentId}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -320,7 +320,7 @@ function RemoteShellPage() {
             type="button"
             onClick={reconnect}
             disabled={status === 'creating' || status === 'connecting'}
-            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-slate-800 border border-slate-700 text-sm text-slate-200 hover:bg-slate-700 disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-surface-tertiary border border-border-strong text-sm text-text-primary hover:bg-border-strong disabled:opacity-50"
             title="Reconnect"
           >
             <RefreshCw className="h-4 w-4" />
@@ -329,7 +329,7 @@ function RemoteShellPage() {
           <button
             type="button"
             onClick={toggleFs}
-            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-slate-800 border border-slate-700 text-sm text-slate-200 hover:bg-slate-700"
+            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-surface-tertiary border border-border-strong text-sm text-text-primary hover:bg-border-strong"
             title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
           >
             {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
@@ -337,7 +337,7 @@ function RemoteShellPage() {
           <button
             type="button"
             onClick={closeSession}
-            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-rose-600/20 border border-rose-500/40 text-sm text-rose-200 hover:bg-rose-600/30"
+            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-danger/20 border border-danger/40 text-sm text-danger hover:bg-danger/30"
             title="Close session"
           >
             <X className="h-4 w-4" />
@@ -348,8 +348,8 @@ function RemoteShellPage() {
 
       {/* Disconnect banner */}
       {(status === 'closed' || status === 'error') && (
-        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-amber-200 text-sm">
+        <div className="rounded-md border border-warning/30 bg-warning/10 p-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-warning text-sm">
             <AlertCircle className="h-4 w-4" />
             <span>
               {status === 'error' && error ? `Connection error: ${error}` : 'Session closed.'}
@@ -358,7 +358,7 @@ function RemoteShellPage() {
           <button
             type="button"
             onClick={reconnect}
-            className="inline-flex items-center gap-1 px-3 h-8 rounded-md bg-amber-500/20 border border-amber-400/40 text-sm text-amber-100 hover:bg-amber-500/30"
+            className="inline-flex items-center gap-1 px-3 h-8 rounded-md bg-warning/20 border border-warning/40 text-sm text-warning hover:bg-warning/30"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             Reconnect
@@ -370,8 +370,8 @@ function RemoteShellPage() {
       <div
         className={
           isFullscreen
-            ? 'flex-1 bg-slate-950 p-2'
-            : 'rounded-lg border border-slate-800 bg-slate-950 p-2'
+            ? 'flex-1 bg-surface-primary p-2'
+            : 'rounded-lg border border-border-subtle bg-surface-primary p-2'
         }
         style={isFullscreen ? { minHeight: 0 } : { height: '60vh', minHeight: 360 }}
       >
@@ -389,12 +389,12 @@ function RemoteShellPage() {
 
 function StatusPill({ status }: { status: Status }) {
   const map: Record<Status, { label: string; cls: string }> = {
-    idle: { label: 'idle', cls: 'bg-slate-700/40 text-slate-300 border-slate-600' },
-    creating: { label: 'creating', cls: 'bg-amber-500/20 text-amber-200 border-amber-500/40' },
-    connecting: { label: 'connecting', cls: 'bg-amber-500/20 text-amber-200 border-amber-500/40' },
-    open: { label: 'connected', cls: 'bg-emerald-500/20 text-emerald-200 border-emerald-500/40' },
-    closed: { label: 'closed', cls: 'bg-slate-700/40 text-slate-300 border-slate-600' },
-    error: { label: 'error', cls: 'bg-rose-500/20 text-rose-200 border-rose-500/40' },
+    idle: { label: 'idle', cls: 'bg-border-strong/40 text-text-secondary border-border-strong' },
+    creating: { label: 'creating', cls: 'bg-warning/20 text-warning border-warning/40' },
+    connecting: { label: 'connecting', cls: 'bg-warning/20 text-warning border-warning/40' },
+    open: { label: 'connected', cls: 'bg-success/20 text-success border-success/40' },
+    closed: { label: 'closed', cls: 'bg-border-strong/40 text-text-secondary border-border-strong' },
+    error: { label: 'error', cls: 'bg-danger/20 text-danger border-danger/40' },
   };
   const v = map[status];
   return (

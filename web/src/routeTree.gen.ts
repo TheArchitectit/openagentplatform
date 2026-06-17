@@ -9,18 +9,24 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ShellRecordingsIndexRouteImport } from './routes/shell-recordings/index'
+import { Route as SettingsIndexRouteImport } from './routes/settings/index'
 import { Route as ScriptsIndexRouteImport } from './routes/scripts/index'
 import { Route as PoliciesIndexRouteImport } from './routes/policies/index'
 import { Route as PatchesIndexRouteImport } from './routes/patches/index'
 import { Route as ChecksIndexRouteImport } from './routes/checks/index'
 import { Route as AlertsIndexRouteImport } from './routes/alerts/index'
 import { Route as AgentsIndexRouteImport } from './routes/agents/index'
+import { Route as A2aIndexRouteImport } from './routes/a2a/index'
 import { Route as ShellRecordingsSessionIdRouteImport } from './routes/shell-recordings/$sessionId'
+import { Route as SettingsUsersRouteImport } from './routes/settings/users'
+import { Route as SettingsSsoRouteImport } from './routes/settings/sso'
+import { Route as SettingsRolesRouteImport } from './routes/settings/roles'
+import { Route as SettingsAuditLogRouteImport } from './routes/settings/audit-log'
+import { Route as SettingsApiKeysRouteImport } from './routes/settings/api-keys'
 import { Route as ScriptsNewRouteImport } from './routes/scripts/new'
 import { Route as ScriptsScriptIdRouteImport } from './routes/scripts/$scriptId'
 import { Route as PoliciesPolicyIdRouteImport } from './routes/policies/$policyId'
@@ -28,14 +34,13 @@ import { Route as PatchesJobIdRouteImport } from './routes/patches/$jobId'
 import { Route as ChecksCheckIdRouteImport } from './routes/checks/$checkId'
 import { Route as AlertsAlertIdRouteImport } from './routes/alerts/$alertId'
 import { Route as AgentsAgentIdRouteImport } from './routes/agents/$agentId'
+import { Route as A2aTasksRouteImport } from './routes/a2a/tasks'
+import { Route as A2aCostsRouteImport } from './routes/a2a/costs'
 import { Route as AgentsAgentIdShellRouteImport } from './routes/agents/$agentId/shell'
+import { Route as A2aTasksTaskIdRouteImport } from './routes/a2a/tasks/$taskId'
+import { Route as A2aAgentsNameRouteImport } from './routes/a2a/agents/$name'
 import { Route as ScriptsScriptIdRunsRunIdRouteImport } from './routes/scripts/$scriptId/runs/$runId'
 
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -54,6 +59,11 @@ const IndexRoute = IndexRouteImport.update({
 const ShellRecordingsIndexRoute = ShellRecordingsIndexRouteImport.update({
   id: '/shell-recordings/',
   path: '/shell-recordings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ScriptsIndexRoute = ScriptsIndexRouteImport.update({
@@ -86,12 +96,42 @@ const AgentsIndexRoute = AgentsIndexRouteImport.update({
   path: '/agents/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const A2aIndexRoute = A2aIndexRouteImport.update({
+  id: '/a2a/',
+  path: '/a2a/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ShellRecordingsSessionIdRoute =
   ShellRecordingsSessionIdRouteImport.update({
     id: '/shell-recordings/$sessionId',
     path: '/shell-recordings/$sessionId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const SettingsUsersRoute = SettingsUsersRouteImport.update({
+  id: '/settings/users',
+  path: '/settings/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsSsoRoute = SettingsSsoRouteImport.update({
+  id: '/settings/sso',
+  path: '/settings/sso',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRolesRoute = SettingsRolesRouteImport.update({
+  id: '/settings/roles',
+  path: '/settings/roles',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsAuditLogRoute = SettingsAuditLogRouteImport.update({
+  id: '/settings/audit-log',
+  path: '/settings/audit-log',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsApiKeysRoute = SettingsApiKeysRouteImport.update({
+  id: '/settings/api-keys',
+  path: '/settings/api-keys',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ScriptsNewRoute = ScriptsNewRouteImport.update({
   id: '/scripts/new',
   path: '/scripts/new',
@@ -127,10 +167,30 @@ const AgentsAgentIdRoute = AgentsAgentIdRouteImport.update({
   path: '/agents/$agentId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const A2aTasksRoute = A2aTasksRouteImport.update({
+  id: '/a2a/tasks',
+  path: '/a2a/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const A2aCostsRoute = A2aCostsRouteImport.update({
+  id: '/a2a/costs',
+  path: '/a2a/costs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AgentsAgentIdShellRoute = AgentsAgentIdShellRouteImport.update({
   id: '/shell',
   path: '/shell',
   getParentRoute: () => AgentsAgentIdRoute,
+} as any)
+const A2aTasksTaskIdRoute = A2aTasksTaskIdRouteImport.update({
+  id: '/$taskId',
+  path: '/$taskId',
+  getParentRoute: () => A2aTasksRoute,
+} as any)
+const A2aAgentsNameRoute = A2aAgentsNameRouteImport.update({
+  id: '/a2a/agents/$name',
+  path: '/a2a/agents/$name',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ScriptsScriptIdRunsRunIdRoute =
   ScriptsScriptIdRunsRunIdRouteImport.update({
@@ -143,7 +203,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/settings': typeof SettingsRoute
+  '/a2a/costs': typeof A2aCostsRoute
+  '/a2a/tasks': typeof A2aTasksRouteWithChildren
   '/agents/$agentId': typeof AgentsAgentIdRouteWithChildren
   '/alerts/$alertId': typeof AlertsAlertIdRoute
   '/checks/$checkId': typeof ChecksCheckIdRoute
@@ -151,14 +212,23 @@ export interface FileRoutesByFullPath {
   '/policies/$policyId': typeof PoliciesPolicyIdRoute
   '/scripts/$scriptId': typeof ScriptsScriptIdRouteWithChildren
   '/scripts/new': typeof ScriptsNewRoute
+  '/settings/api-keys': typeof SettingsApiKeysRoute
+  '/settings/audit-log': typeof SettingsAuditLogRoute
+  '/settings/roles': typeof SettingsRolesRoute
+  '/settings/sso': typeof SettingsSsoRoute
+  '/settings/users': typeof SettingsUsersRoute
   '/shell-recordings/$sessionId': typeof ShellRecordingsSessionIdRoute
+  '/a2a/': typeof A2aIndexRoute
   '/agents/': typeof AgentsIndexRoute
   '/alerts/': typeof AlertsIndexRoute
   '/checks/': typeof ChecksIndexRoute
   '/patches/': typeof PatchesIndexRoute
   '/policies/': typeof PoliciesIndexRoute
   '/scripts/': typeof ScriptsIndexRoute
+  '/settings/': typeof SettingsIndexRoute
   '/shell-recordings/': typeof ShellRecordingsIndexRoute
+  '/a2a/agents/$name': typeof A2aAgentsNameRoute
+  '/a2a/tasks/$taskId': typeof A2aTasksTaskIdRoute
   '/agents/$agentId/shell': typeof AgentsAgentIdShellRoute
   '/scripts/$scriptId/runs/$runId': typeof ScriptsScriptIdRunsRunIdRoute
 }
@@ -166,7 +236,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/settings': typeof SettingsRoute
+  '/a2a/costs': typeof A2aCostsRoute
+  '/a2a/tasks': typeof A2aTasksRouteWithChildren
   '/agents/$agentId': typeof AgentsAgentIdRouteWithChildren
   '/alerts/$alertId': typeof AlertsAlertIdRoute
   '/checks/$checkId': typeof ChecksCheckIdRoute
@@ -174,14 +245,23 @@ export interface FileRoutesByTo {
   '/policies/$policyId': typeof PoliciesPolicyIdRoute
   '/scripts/$scriptId': typeof ScriptsScriptIdRouteWithChildren
   '/scripts/new': typeof ScriptsNewRoute
+  '/settings/api-keys': typeof SettingsApiKeysRoute
+  '/settings/audit-log': typeof SettingsAuditLogRoute
+  '/settings/roles': typeof SettingsRolesRoute
+  '/settings/sso': typeof SettingsSsoRoute
+  '/settings/users': typeof SettingsUsersRoute
   '/shell-recordings/$sessionId': typeof ShellRecordingsSessionIdRoute
+  '/a2a': typeof A2aIndexRoute
   '/agents': typeof AgentsIndexRoute
   '/alerts': typeof AlertsIndexRoute
   '/checks': typeof ChecksIndexRoute
   '/patches': typeof PatchesIndexRoute
   '/policies': typeof PoliciesIndexRoute
   '/scripts': typeof ScriptsIndexRoute
+  '/settings': typeof SettingsIndexRoute
   '/shell-recordings': typeof ShellRecordingsIndexRoute
+  '/a2a/agents/$name': typeof A2aAgentsNameRoute
+  '/a2a/tasks/$taskId': typeof A2aTasksTaskIdRoute
   '/agents/$agentId/shell': typeof AgentsAgentIdShellRoute
   '/scripts/$scriptId/runs/$runId': typeof ScriptsScriptIdRunsRunIdRoute
 }
@@ -190,7 +270,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/settings': typeof SettingsRoute
+  '/a2a/costs': typeof A2aCostsRoute
+  '/a2a/tasks': typeof A2aTasksRouteWithChildren
   '/agents/$agentId': typeof AgentsAgentIdRouteWithChildren
   '/alerts/$alertId': typeof AlertsAlertIdRoute
   '/checks/$checkId': typeof ChecksCheckIdRoute
@@ -198,14 +279,23 @@ export interface FileRoutesById {
   '/policies/$policyId': typeof PoliciesPolicyIdRoute
   '/scripts/$scriptId': typeof ScriptsScriptIdRouteWithChildren
   '/scripts/new': typeof ScriptsNewRoute
+  '/settings/api-keys': typeof SettingsApiKeysRoute
+  '/settings/audit-log': typeof SettingsAuditLogRoute
+  '/settings/roles': typeof SettingsRolesRoute
+  '/settings/sso': typeof SettingsSsoRoute
+  '/settings/users': typeof SettingsUsersRoute
   '/shell-recordings/$sessionId': typeof ShellRecordingsSessionIdRoute
+  '/a2a/': typeof A2aIndexRoute
   '/agents/': typeof AgentsIndexRoute
   '/alerts/': typeof AlertsIndexRoute
   '/checks/': typeof ChecksIndexRoute
   '/patches/': typeof PatchesIndexRoute
   '/policies/': typeof PoliciesIndexRoute
   '/scripts/': typeof ScriptsIndexRoute
+  '/settings/': typeof SettingsIndexRoute
   '/shell-recordings/': typeof ShellRecordingsIndexRoute
+  '/a2a/agents/$name': typeof A2aAgentsNameRoute
+  '/a2a/tasks/$taskId': typeof A2aTasksTaskIdRoute
   '/agents/$agentId/shell': typeof AgentsAgentIdShellRoute
   '/scripts/$scriptId/runs/$runId': typeof ScriptsScriptIdRunsRunIdRoute
 }
@@ -215,7 +305,8 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/login'
-    | '/settings'
+    | '/a2a/costs'
+    | '/a2a/tasks'
     | '/agents/$agentId'
     | '/alerts/$alertId'
     | '/checks/$checkId'
@@ -223,14 +314,23 @@ export interface FileRouteTypes {
     | '/policies/$policyId'
     | '/scripts/$scriptId'
     | '/scripts/new'
+    | '/settings/api-keys'
+    | '/settings/audit-log'
+    | '/settings/roles'
+    | '/settings/sso'
+    | '/settings/users'
     | '/shell-recordings/$sessionId'
+    | '/a2a/'
     | '/agents/'
     | '/alerts/'
     | '/checks/'
     | '/patches/'
     | '/policies/'
     | '/scripts/'
+    | '/settings/'
     | '/shell-recordings/'
+    | '/a2a/agents/$name'
+    | '/a2a/tasks/$taskId'
     | '/agents/$agentId/shell'
     | '/scripts/$scriptId/runs/$runId'
   fileRoutesByTo: FileRoutesByTo
@@ -238,7 +338,8 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/login'
-    | '/settings'
+    | '/a2a/costs'
+    | '/a2a/tasks'
     | '/agents/$agentId'
     | '/alerts/$alertId'
     | '/checks/$checkId'
@@ -246,14 +347,23 @@ export interface FileRouteTypes {
     | '/policies/$policyId'
     | '/scripts/$scriptId'
     | '/scripts/new'
+    | '/settings/api-keys'
+    | '/settings/audit-log'
+    | '/settings/roles'
+    | '/settings/sso'
+    | '/settings/users'
     | '/shell-recordings/$sessionId'
+    | '/a2a'
     | '/agents'
     | '/alerts'
     | '/checks'
     | '/patches'
     | '/policies'
     | '/scripts'
+    | '/settings'
     | '/shell-recordings'
+    | '/a2a/agents/$name'
+    | '/a2a/tasks/$taskId'
     | '/agents/$agentId/shell'
     | '/scripts/$scriptId/runs/$runId'
   id:
@@ -261,7 +371,8 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/login'
-    | '/settings'
+    | '/a2a/costs'
+    | '/a2a/tasks'
     | '/agents/$agentId'
     | '/alerts/$alertId'
     | '/checks/$checkId'
@@ -269,14 +380,23 @@ export interface FileRouteTypes {
     | '/policies/$policyId'
     | '/scripts/$scriptId'
     | '/scripts/new'
+    | '/settings/api-keys'
+    | '/settings/audit-log'
+    | '/settings/roles'
+    | '/settings/sso'
+    | '/settings/users'
     | '/shell-recordings/$sessionId'
+    | '/a2a/'
     | '/agents/'
     | '/alerts/'
     | '/checks/'
     | '/patches/'
     | '/policies/'
     | '/scripts/'
+    | '/settings/'
     | '/shell-recordings/'
+    | '/a2a/agents/$name'
+    | '/a2a/tasks/$taskId'
     | '/agents/$agentId/shell'
     | '/scripts/$scriptId/runs/$runId'
   fileRoutesById: FileRoutesById
@@ -285,7 +405,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
-  SettingsRoute: typeof SettingsRoute
+  A2aCostsRoute: typeof A2aCostsRoute
+  A2aTasksRoute: typeof A2aTasksRouteWithChildren
   AgentsAgentIdRoute: typeof AgentsAgentIdRouteWithChildren
   AlertsAlertIdRoute: typeof AlertsAlertIdRoute
   ChecksCheckIdRoute: typeof ChecksCheckIdRoute
@@ -293,25 +414,26 @@ export interface RootRouteChildren {
   PoliciesPolicyIdRoute: typeof PoliciesPolicyIdRoute
   ScriptsScriptIdRoute: typeof ScriptsScriptIdRouteWithChildren
   ScriptsNewRoute: typeof ScriptsNewRoute
+  SettingsApiKeysRoute: typeof SettingsApiKeysRoute
+  SettingsAuditLogRoute: typeof SettingsAuditLogRoute
+  SettingsRolesRoute: typeof SettingsRolesRoute
+  SettingsSsoRoute: typeof SettingsSsoRoute
+  SettingsUsersRoute: typeof SettingsUsersRoute
   ShellRecordingsSessionIdRoute: typeof ShellRecordingsSessionIdRoute
+  A2aIndexRoute: typeof A2aIndexRoute
   AgentsIndexRoute: typeof AgentsIndexRoute
   AlertsIndexRoute: typeof AlertsIndexRoute
   ChecksIndexRoute: typeof ChecksIndexRoute
   PatchesIndexRoute: typeof PatchesIndexRoute
   PoliciesIndexRoute: typeof PoliciesIndexRoute
   ScriptsIndexRoute: typeof ScriptsIndexRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
   ShellRecordingsIndexRoute: typeof ShellRecordingsIndexRoute
+  A2aAgentsNameRoute: typeof A2aAgentsNameRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -338,6 +460,13 @@ declare module '@tanstack/react-router' {
       path: '/shell-recordings'
       fullPath: '/shell-recordings/'
       preLoaderRoute: typeof ShellRecordingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/': {
+      id: '/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/scripts/': {
@@ -382,11 +511,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AgentsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/a2a/': {
+      id: '/a2a/'
+      path: '/a2a'
+      fullPath: '/a2a/'
+      preLoaderRoute: typeof A2aIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/shell-recordings/$sessionId': {
       id: '/shell-recordings/$sessionId'
       path: '/shell-recordings/$sessionId'
       fullPath: '/shell-recordings/$sessionId'
       preLoaderRoute: typeof ShellRecordingsSessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/users': {
+      id: '/settings/users'
+      path: '/settings/users'
+      fullPath: '/settings/users'
+      preLoaderRoute: typeof SettingsUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/sso': {
+      id: '/settings/sso'
+      path: '/settings/sso'
+      fullPath: '/settings/sso'
+      preLoaderRoute: typeof SettingsSsoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/roles': {
+      id: '/settings/roles'
+      path: '/settings/roles'
+      fullPath: '/settings/roles'
+      preLoaderRoute: typeof SettingsRolesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/audit-log': {
+      id: '/settings/audit-log'
+      path: '/settings/audit-log'
+      fullPath: '/settings/audit-log'
+      preLoaderRoute: typeof SettingsAuditLogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/api-keys': {
+      id: '/settings/api-keys'
+      path: '/settings/api-keys'
+      fullPath: '/settings/api-keys'
+      preLoaderRoute: typeof SettingsApiKeysRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/scripts/new': {
@@ -438,12 +609,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AgentsAgentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/a2a/tasks': {
+      id: '/a2a/tasks'
+      path: '/a2a/tasks'
+      fullPath: '/a2a/tasks'
+      preLoaderRoute: typeof A2aTasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/a2a/costs': {
+      id: '/a2a/costs'
+      path: '/a2a/costs'
+      fullPath: '/a2a/costs'
+      preLoaderRoute: typeof A2aCostsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/agents/$agentId/shell': {
       id: '/agents/$agentId/shell'
       path: '/shell'
       fullPath: '/agents/$agentId/shell'
       preLoaderRoute: typeof AgentsAgentIdShellRouteImport
       parentRoute: typeof AgentsAgentIdRoute
+    }
+    '/a2a/tasks/$taskId': {
+      id: '/a2a/tasks/$taskId'
+      path: '/$taskId'
+      fullPath: '/a2a/tasks/$taskId'
+      preLoaderRoute: typeof A2aTasksTaskIdRouteImport
+      parentRoute: typeof A2aTasksRoute
+    }
+    '/a2a/agents/$name': {
+      id: '/a2a/agents/$name'
+      path: '/a2a/agents/$name'
+      fullPath: '/a2a/agents/$name'
+      preLoaderRoute: typeof A2aAgentsNameRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/scripts/$scriptId/runs/$runId': {
       id: '/scripts/$scriptId/runs/$runId'
@@ -454,6 +653,18 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface A2aTasksRouteChildren {
+  A2aTasksTaskIdRoute: typeof A2aTasksTaskIdRoute
+}
+
+const A2aTasksRouteChildren: A2aTasksRouteChildren = {
+  A2aTasksTaskIdRoute: A2aTasksTaskIdRoute,
+}
+
+const A2aTasksRouteWithChildren = A2aTasksRoute._addFileChildren(
+  A2aTasksRouteChildren,
+)
 
 interface AgentsAgentIdRouteChildren {
   AgentsAgentIdShellRoute: typeof AgentsAgentIdShellRoute
@@ -483,7 +694,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
-  SettingsRoute: SettingsRoute,
+  A2aCostsRoute: A2aCostsRoute,
+  A2aTasksRoute: A2aTasksRouteWithChildren,
   AgentsAgentIdRoute: AgentsAgentIdRouteWithChildren,
   AlertsAlertIdRoute: AlertsAlertIdRoute,
   ChecksCheckIdRoute: ChecksCheckIdRoute,
@@ -491,14 +703,22 @@ const rootRouteChildren: RootRouteChildren = {
   PoliciesPolicyIdRoute: PoliciesPolicyIdRoute,
   ScriptsScriptIdRoute: ScriptsScriptIdRouteWithChildren,
   ScriptsNewRoute: ScriptsNewRoute,
+  SettingsApiKeysRoute: SettingsApiKeysRoute,
+  SettingsAuditLogRoute: SettingsAuditLogRoute,
+  SettingsRolesRoute: SettingsRolesRoute,
+  SettingsSsoRoute: SettingsSsoRoute,
+  SettingsUsersRoute: SettingsUsersRoute,
   ShellRecordingsSessionIdRoute: ShellRecordingsSessionIdRoute,
+  A2aIndexRoute: A2aIndexRoute,
   AgentsIndexRoute: AgentsIndexRoute,
   AlertsIndexRoute: AlertsIndexRoute,
   ChecksIndexRoute: ChecksIndexRoute,
   PatchesIndexRoute: PatchesIndexRoute,
   PoliciesIndexRoute: PoliciesIndexRoute,
   ScriptsIndexRoute: ScriptsIndexRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
   ShellRecordingsIndexRoute: ShellRecordingsIndexRoute,
+  A2aAgentsNameRoute: A2aAgentsNameRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

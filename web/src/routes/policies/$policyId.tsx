@@ -46,35 +46,35 @@ function enforcementIcon(mode: string) {
 function enforcementClasses(mode: string): string {
   switch (mode) {
     case 'enforce':
-      return 'bg-rose-500/10 text-rose-300 border-rose-500/20';
+      return 'bg-danger/10 text-danger border-danger/20';
     case 'audit':
-      return 'bg-amber-500/10 text-amber-300 border-amber-500/20';
+      return 'bg-warning/10 text-warning border-warning/20';
     case 'report':
     default:
-      return 'bg-sky-500/10 text-sky-300 border-sky-500/20';
+      return 'bg-info/10 text-info border-info/20';
   }
 }
 
 function categoryClasses(cat: string): string {
   switch (cat) {
     case 'security':
-      return 'bg-rose-500/10 text-rose-300 border-rose-500/20';
+      return 'bg-danger/10 text-danger border-danger/20';
     case 'compliance':
-      return 'bg-sky-500/10 text-sky-300 border-sky-500/20';
+      return 'bg-info/10 text-info border-info/20';
     case 'configuration':
-      return 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20';
+      return 'bg-accent/10 text-accent border-accent/20';
     case 'performance':
-      return 'bg-amber-500/10 text-amber-300 border-amber-500/20';
+      return 'bg-warning/10 text-warning border-warning/20';
     default:
-      return 'bg-slate-500/10 text-slate-300 border-slate-500/20';
+      return 'bg-text-muted/10 text-text-secondary border-text-muted/20';
   }
 }
 
 function complianceColor(pct: number | undefined): string {
-  if (pct === undefined || pct === null) return 'text-slate-500';
-  if (pct >= 80) return 'text-emerald-400';
-  if (pct >= 60) return 'text-amber-400';
-  return 'text-rose-400';
+  if (pct === undefined || pct === null) return 'text-text-muted';
+  if (pct >= 80) return 'text-success';
+  if (pct >= 60) return 'text-warning';
+  return 'text-danger';
 }
 
 // Highlight Rego keywords with simple regex-based highlighting — no full
@@ -328,7 +328,7 @@ function PolicyDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-12 text-center text-slate-500">
+      <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-12 text-center text-text-muted">
         Loading policy…
       </div>
     );
@@ -339,12 +339,12 @@ function PolicyDetailPage() {
       <div className="space-y-4">
         <Link
           to="/policies"
-          className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-slate-100 transition-colors"
+          className="inline-flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to policies
         </Link>
-        <div className="rounded-lg border border-rose-500/30 bg-rose-500/5 p-12 text-center text-rose-300">
+        <div className="rounded-lg border border-danger/30 bg-danger/5 p-12 text-center text-danger">
           Failed to load policy: {loadError}
         </div>
       </div>
@@ -353,7 +353,7 @@ function PolicyDetailPage() {
 
   if (!policy) {
     return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-12 text-center text-slate-500">
+      <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-12 text-center text-text-muted">
         Policy not found.
       </div>
     );
@@ -367,7 +367,7 @@ function PolicyDetailPage() {
       <div>
         <Link
           to="/policies"
-          className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-slate-100 transition-colors mb-3"
+          className="inline-flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary transition-colors mb-3"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to policies
@@ -375,13 +375,13 @@ function PolicyDetailPage() {
 
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div className="flex items-start gap-3 flex-1 min-w-0">
-            <div className="h-10 w-10 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0">
-              <ShieldCheck className="h-5 w-5 text-indigo-400" />
+            <div className="h-10 w-10 rounded-md bg-surface-tertiary border border-border-strong flex items-center justify-center shrink-0">
+              <ShieldCheck className="h-5 w-5 text-accent" />
             </div>
             <div className="flex-1 min-w-0">
-              <h1 className="text-2xl font-bold text-slate-100 truncate">{policy.name}</h1>
+              <h1 className="text-2xl font-bold text-text-primary truncate">{policy.name}</h1>
               {policy.description && (
-                <p className="text-slate-400 text-sm mt-1">{policy.description}</p>
+                <p className="text-text-secondary text-sm mt-1">{policy.description}</p>
               )}
               <div className="flex flex-wrap items-center gap-2 mt-3">
                 <span
@@ -407,13 +407,13 @@ function PolicyDetailPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <label className="inline-flex items-center gap-2 px-3 h-9 rounded-md border border-slate-700 bg-slate-800 text-sm text-slate-200 cursor-pointer select-none">
+            <label className="inline-flex items-center gap-2 px-3 h-9 rounded-md border border-border-strong bg-surface-tertiary text-sm text-text-primary cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={enabled}
                 onChange={handleToggleEnabled}
                 disabled={savingToggle}
-                className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-indigo-500 focus:ring-indigo-500/40"
+                className="h-4 w-4 rounded border-border-strong bg-surface-tertiary text-accent focus:ring-accent/40"
               />
               <span>{enabled ? 'Enabled' : 'Disabled'}</span>
             </label>
@@ -421,7 +421,7 @@ function PolicyDetailPage() {
               type="button"
               onClick={handleEvaluate}
               disabled={evaluating || !enabled}
-              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-emerald-600 hover:bg-emerald-500 text-sm text-white disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-success hover:bg-success text-sm text-white disabled:opacity-50 transition-colors"
             >
               {evaluating ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -433,7 +433,7 @@ function PolicyDetailPage() {
             <button
               type="button"
               onClick={() => setEditorOpen(true)}
-              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-slate-200 transition-colors"
+              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-surface-tertiary hover:bg-border-strong border border-border-strong text-sm text-text-primary transition-colors"
             >
               <Edit3 className="h-4 w-4" />
               <span>Edit</span>
@@ -441,7 +441,7 @@ function PolicyDetailPage() {
             <button
               type="button"
               onClick={handleDelete}
-              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-sm text-rose-300 transition-colors"
+              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-danger/20 hover:bg-danger/30 border border-danger/30 text-sm text-danger transition-colors"
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -450,7 +450,7 @@ function PolicyDetailPage() {
       </div>
 
       {loadError && (
-        <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+        <div className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
           {loadError}
         </div>
       )}
@@ -459,14 +459,14 @@ function PolicyDetailPage() {
         {/* Left column */}
         <div className="lg:col-span-2 space-y-5">
           {/* Rego source */}
-          <div className="rounded-lg border border-slate-800 bg-slate-900/60">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800">
-              <h2 className="text-sm font-semibold text-slate-100">Rego source</h2>
+          <div className="rounded-lg border border-border-subtle bg-surface-secondary/60">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border-subtle">
+              <h2 className="text-sm font-semibold text-text-primary">Rego source</h2>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setEditMode((m) => !m)}
-                  className="inline-flex items-center gap-1.5 px-2 h-7 rounded text-xs border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-2 h-7 rounded text-xs border border-border-strong bg-surface-tertiary hover:bg-border-strong text-text-secondary transition-colors"
                 >
                   {editMode ? (
                     <>
@@ -484,7 +484,7 @@ function PolicyDetailPage() {
                   <button
                     type="button"
                     onClick={() => setEditorOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-2 h-7 rounded text-xs border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-2 h-7 rounded text-xs border border-border-strong bg-surface-tertiary hover:bg-border-strong text-text-secondary transition-colors"
                   >
                     <Edit3 className="h-3 w-3" />
                     <span>Open editor</span>
@@ -495,7 +495,7 @@ function PolicyDetailPage() {
             {editMode ? (
               <textarea
                 defaultValue={policy.rego_source}
-                className="w-full p-4 bg-slate-950 text-xs font-mono text-slate-200 leading-5 focus:outline-none min-h-[280px]"
+                className="w-full p-4 bg-surface-primary text-xs font-mono text-text-primary leading-5 focus:outline-none min-h-[280px]"
                 spellCheck={false}
                 onBlur={async (e) => {
                   if (e.target.value !== policy.rego_source) {
@@ -513,22 +513,22 @@ function PolicyDetailPage() {
                 }}
               />
             ) : (
-              <pre className="p-4 text-xs font-mono text-slate-200 leading-5 overflow-x-auto whitespace-pre">
+              <pre className="p-4 text-xs font-mono text-text-primary leading-5 overflow-x-auto whitespace-pre">
                 {highlightRego(policy.rego_source)}
               </pre>
             )}
           </div>
 
           {/* Assignments */}
-          <div className="rounded-lg border border-slate-800 bg-slate-900/60">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800">
-              <h2 className="text-sm font-semibold text-slate-100">
-                Assignments <span className="text-xs text-slate-500 ml-1">({assignments.length})</span>
+          <div className="rounded-lg border border-border-subtle bg-surface-secondary/60">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border-subtle">
+              <h2 className="text-sm font-semibold text-text-primary">
+                Assignments <span className="text-xs text-text-muted ml-1">({assignments.length})</span>
               </h2>
               <button
                 type="button"
                 onClick={() => setShowAssignPicker(true)}
-                className="inline-flex items-center gap-1.5 px-2 h-7 rounded text-xs border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                className="inline-flex items-center gap-1.5 px-2 h-7 rounded text-xs border border-border-strong bg-surface-tertiary hover:bg-border-strong text-text-secondary transition-colors"
               >
                 <Plus className="h-3 w-3" />
                 <span>Add</span>
@@ -536,58 +536,58 @@ function PolicyDetailPage() {
             </div>
 
             {assignments.length === 0 ? (
-              <div className="px-5 py-8 text-center text-sm text-slate-500">
+              <div className="px-5 py-8 text-center text-sm text-text-muted">
                 No agents assigned. Click "Add" to assign this policy.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left text-xs uppercase tracking-wider text-slate-500 border-b border-slate-800 bg-slate-900/40">
+                    <tr className="text-left text-xs uppercase tracking-wider text-text-muted border-b border-border-subtle bg-surface-primary/40">
                       <th className="px-4 py-2.5">Agent</th>
                       <th className="px-4 py-2.5">Status</th>
                       <th className="px-4 py-2.5">Last evaluated</th>
                       <th className="px-4 py-2.5 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800">
+                  <tbody className="divide-y divide-border-subtle">
                     {assignments.map((a) => (
-                      <tr key={a.id ?? a.agent_id} className="hover:bg-slate-800/40">
+                      <tr key={a.id ?? a.agent_id} className="hover:bg-surface-tertiary/40">
                         <td className="px-4 py-2.5">
                           <Link
                             to="/agents/$agentId"
                             params={{ agentId: a.agent_id }}
-                            className="text-slate-200 hover:text-indigo-300 transition-colors"
+                            className="text-text-primary hover:text-accent transition-colors"
                           >
                             {a.hostname ?? a.agent_id}
                           </Link>
                         </td>
                         <td className="px-4 py-2.5">
                           {a.compliant === true ? (
-                            <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
+                            <span className="inline-flex items-center gap-1 text-xs text-success">
                               <CircleCheck className="h-3.5 w-3.5" />
                               Compliant
                             </span>
                           ) : a.compliant === false ? (
-                            <span className="inline-flex items-center gap-1 text-xs text-rose-400">
+                            <span className="inline-flex items-center gap-1 text-xs text-danger">
                               <CircleX className="h-3.5 w-3.5" />
                               Non-compliant
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                            <span className="inline-flex items-center gap-1 text-xs text-text-muted">
                               <CircleAlert className="h-3.5 w-3.5" />
                               Unknown
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-2.5 text-slate-400 text-xs">
+                        <td className="px-4 py-2.5 text-text-secondary text-xs">
                           {formatTimestamp(a.last_evaluated, now)}
                         </td>
                         <td className="px-4 py-2.5 text-right">
                           <button
                             type="button"
                             onClick={() => void handleRemoveAssignment(a.agent_id)}
-                            className="p-1 rounded text-slate-500 hover:text-rose-400 transition-colors"
+                            className="p-1 rounded text-text-muted hover:text-danger transition-colors"
                             title="Remove assignment"
                           >
                             <X className="h-4 w-4" />
@@ -602,22 +602,22 @@ function PolicyDetailPage() {
           </div>
 
           {/* Violations */}
-          <div className="rounded-lg border border-slate-800 bg-slate-900/60">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800">
-              <h2 className="text-sm font-semibold text-slate-100">
+          <div className="rounded-lg border border-border-subtle bg-surface-secondary/60">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border-subtle">
+              <h2 className="text-sm font-semibold text-text-primary">
                 Recent violations{' '}
-                <span className="text-xs text-slate-500 ml-1">({violations.length})</span>
+                <span className="text-xs text-text-muted ml-1">({violations.length})</span>
               </h2>
             </div>
             {violations.length === 0 ? (
-              <div className="px-5 py-8 text-center text-sm text-slate-500">
+              <div className="px-5 py-8 text-center text-sm text-text-muted">
                 No violations recorded.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left text-xs uppercase tracking-wider text-slate-500 border-b border-slate-800 bg-slate-900/40">
+                    <tr className="text-left text-xs uppercase tracking-wider text-text-muted border-b border-border-subtle bg-surface-primary/40">
                       <th className="px-4 py-2.5">Status</th>
                       <th className="px-4 py-2.5">Severity</th>
                       <th className="px-4 py-2.5">Agent</th>
@@ -626,20 +626,20 @@ function PolicyDetailPage() {
                       <th className="px-4 py-2.5 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800">
+                  <tbody className="divide-y divide-border-subtle">
                     {violations.map((v) => (
-                      <tr key={v.id} className="hover:bg-slate-800/40">
+                      <tr key={v.id} className="hover:bg-surface-tertiary/40">
                         <td className="px-4 py-2.5">
                           <span
                             className={
                               'inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-full border capitalize ' +
                               (v.status === 'open'
-                                ? 'bg-rose-500/10 text-rose-300 border-rose-500/20'
+                                ? 'bg-danger/10 text-danger border-danger/20'
                                 : v.status === 'dismissed'
-                                ? 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                                ? 'bg-text-muted/10 text-text-secondary border-text-muted/20'
                                 : v.status === 'resolved'
-                                ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'
-                                : 'bg-amber-500/10 text-amber-300 border-amber-500/20')
+                                ? 'bg-success/10 text-success border-success/20'
+                                : 'bg-warning/10 text-warning border-warning/20')
                             }
                           >
                             {v.status}
@@ -653,7 +653,7 @@ function PolicyDetailPage() {
                             <Link
                               to="/agents/$agentId"
                               params={{ agentId: v.agent_id }}
-                              className="text-slate-200 hover:text-indigo-300 transition-colors"
+                              className="text-text-primary hover:text-accent transition-colors"
                             >
                               {v.hostname ?? v.agent_id}
                             </Link>
@@ -661,10 +661,10 @@ function PolicyDetailPage() {
                             '—'
                           )}
                         </td>
-                        <td className="px-4 py-2.5 text-slate-300 text-xs max-w-xs truncate">
+                        <td className="px-4 py-2.5 text-text-secondary text-xs max-w-xs truncate">
                           {v.message ?? '—'}
                         </td>
-                        <td className="px-4 py-2.5 text-slate-400 text-xs">
+                        <td className="px-4 py-2.5 text-text-secondary text-xs">
                           {formatTimestamp(v.detected_at, now)}
                         </td>
                         <td className="px-4 py-2.5 text-right">
@@ -672,7 +672,7 @@ function PolicyDetailPage() {
                             <button
                               type="button"
                               onClick={() => void handleDismissViolation(v.id)}
-                              className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
+                              className="text-xs text-text-secondary hover:text-text-primary transition-colors"
                             >
                               Dismiss
                             </button>
@@ -689,8 +689,8 @@ function PolicyDetailPage() {
 
         {/* Right column: compliance donut */}
         <div className="space-y-5">
-          <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-5">
-            <h2 className="text-sm font-semibold text-slate-100 mb-4">Compliance score</h2>
+          <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-5">
+            <h2 className="text-sm font-semibold text-text-primary mb-4">Compliance score</h2>
             <div className="flex flex-col items-center">
               <svg
                 width={donutSize}
@@ -735,32 +735,32 @@ function PolicyDetailPage() {
                 >
                   {compliancePct !== undefined ? `${compliancePct.toFixed(0)}%` : '—'}
                 </div>
-                <div className="text-xs text-slate-500">compliant</div>
+                <div className="text-xs text-text-muted">compliant</div>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 text-center mt-2">
               <div>
-                <div className="text-2xl font-semibold text-emerald-400 tabular-nums">
+                <div className="text-2xl font-semibold text-success tabular-nums">
                   {complianceCounts.compliant}
                 </div>
-                <div className="text-xs text-slate-500">Compliant</div>
+                <div className="text-xs text-text-muted">Compliant</div>
               </div>
               <div>
-                <div className="text-2xl font-semibold text-rose-400 tabular-nums">
+                <div className="text-2xl font-semibold text-danger tabular-nums">
                   {complianceCounts.nonCompliant}
                 </div>
-                <div className="text-xs text-slate-500">Non-compliant</div>
+                <div className="text-xs text-text-muted">Non-compliant</div>
               </div>
             </div>
             {compliance && (
-              <div className="mt-4 pt-4 border-t border-slate-800 text-xs text-slate-400 space-y-1">
+              <div className="mt-4 pt-4 border-t border-border-subtle text-xs text-text-secondary space-y-1">
                 <div className="flex items-center justify-between">
                   <span>Total agents</span>
-                  <span className="text-slate-200">{compliance.total_agents}</span>
+                  <span className="text-text-primary">{compliance.total_agents}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Enabled policies</span>
-                  <span className="text-slate-200">
+                  <span className="text-text-primary">
                     {compliance.enabled_policies} / {compliance.total_policies}
                   </span>
                 </div>
@@ -769,20 +769,20 @@ function PolicyDetailPage() {
           </div>
 
           {/* Quick info */}
-          <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-5">
-            <h2 className="text-sm font-semibold text-slate-100 mb-3">Info</h2>
+          <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 p-5">
+            <h2 className="text-sm font-semibold text-text-primary mb-3">Info</h2>
             <dl className="text-xs space-y-2">
               <div className="flex justify-between">
-                <dt className="text-slate-500">ID</dt>
-                <dd className="text-slate-300 font-mono">{policy.id}</dd>
+                <dt className="text-text-muted">ID</dt>
+                <dd className="text-text-secondary font-mono">{policy.id}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-slate-500">Created</dt>
-                <dd className="text-slate-300">{formatTimestamp(policy.created_at, now)}</dd>
+                <dt className="text-text-muted">Created</dt>
+                <dd className="text-text-secondary">{formatTimestamp(policy.created_at, now)}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-slate-500">Updated</dt>
-                <dd className="text-slate-300">{formatTimestamp(policy.updated_at, now)}</dd>
+                <dt className="text-text-muted">Updated</dt>
+                <dd className="text-text-secondary">{formatTimestamp(policy.updated_at, now)}</dd>
               </div>
             </dl>
           </div>
@@ -792,45 +792,45 @@ function PolicyDetailPage() {
       {/* Agent picker modal */}
       {showAssignPicker && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-surface-primary/70 p-4"
           role="dialog"
           aria-modal="true"
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowAssignPicker(false);
           }}
         >
-          <div className="w-full max-w-md rounded-lg border border-slate-800 bg-slate-900 shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800">
-              <h2 className="text-sm font-semibold text-slate-100 inline-flex items-center gap-2">
-                <Users className="h-4 w-4 text-indigo-400" />
+          <div className="w-full max-w-md rounded-lg border border-border-subtle bg-surface-secondary shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border-subtle">
+              <h2 className="text-sm font-semibold text-text-primary inline-flex items-center gap-2">
+                <Users className="h-4 w-4 text-accent" />
                 Assign agent
               </h2>
               <button
                 type="button"
                 onClick={() => setShowAssignPicker(false)}
-                className="p-1.5 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors"
+                className="p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
             <div className="max-h-80 overflow-y-auto">
               {availableAgents.length === 0 ? (
-                <div className="px-5 py-8 text-center text-sm text-slate-500">
+                <div className="px-5 py-8 text-center text-sm text-text-muted">
                   All agents are already assigned.
                 </div>
               ) : (
-                <ul className="divide-y divide-slate-800">
+                <ul className="divide-y divide-border-subtle">
                   {availableAgents.map((a: Agent) => (
                     <li key={a.id}>
                       <button
                         type="button"
                         onClick={() => void handleAddAssignment(a.id)}
-                        className="w-full text-left px-5 py-2.5 hover:bg-slate-800/50 transition-colors flex items-center gap-3"
+                        className="w-full text-left px-5 py-2.5 hover:bg-surface-tertiary/50 transition-colors flex items-center gap-3"
                       >
-                        <span className="text-sm text-slate-200 flex-1 truncate">
+                        <span className="text-sm text-text-primary flex-1 truncate">
                           {a.hostname || a.id}
                         </span>
-                        <span className="text-xs text-slate-500">{a.site_id || '—'}</span>
+                        <span className="text-xs text-text-muted">{a.site_id || '—'}</span>
                       </button>
                     </li>
                   ))}
@@ -855,7 +855,7 @@ function PolicyDetailPage() {
         />
       )}
       {savingEditorError && editorOpen && (
-        <div className="fixed bottom-4 right-4 z-[60] rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300 shadow-lg">
+        <div className="fixed bottom-4 right-4 z-[60] rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger shadow-lg">
           {savingEditorError}
         </div>
       )}

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   RefreshCw,
@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useChecks, type Check, type CheckStatus, type CheckType } from '@/lib/useChecks';
+import { useFocusTrap, useEscapeKey } from '@/lib/a11y';
 
 export const Route = createFileRoute('/checks/')({
   component: ChecksListPage,
@@ -43,17 +44,17 @@ const statusIcon: Record<CheckStatus, typeof CircleCheck> = {
 };
 
 const statusColor: Record<CheckStatus, string> = {
-  ok: 'text-emerald-500',
-  warning: 'text-amber-500',
-  critical: 'text-rose-500',
-  disabled: 'text-slate-500',
+  ok: 'text-success',
+  warning: 'text-warning',
+  critical: 'text-danger',
+  disabled: 'text-text-muted',
 };
 
 const statusBg: Record<CheckStatus, string> = {
-  ok: 'bg-emerald-500/10 border-emerald-500/30',
-  warning: 'bg-amber-500/10 border-amber-500/30',
-  critical: 'bg-rose-500/10 border-rose-500/30',
-  disabled: 'bg-slate-500/10 border-slate-500/30',
+  ok: 'bg-success/10 border-success/30',
+  warning: 'bg-warning/10 border-warning/30',
+  critical: 'bg-danger/10 border-danger/30',
+  disabled: 'bg-text-muted/10 border-text-muted/30',
 };
 
 const typeIcon: Record<CheckType, typeof Globe> = {
@@ -163,25 +164,26 @@ function ChecksListPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" aria-busy={isLoading}>
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center">
-            <Activity className="h-4 w-4 text-slate-300" />
+          <div className="h-9 w-9 rounded-md bg-surface-tertiary border border-border-strong flex items-center justify-center" aria-hidden="true">
+            <Activity className="h-4 w-4 text-text-secondary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-100">Checks</h1>
-            <p className="text-slate-400 text-sm mt-0.5">Health checks running across your fleet.</p>
+            <h1 className="text-2xl font-bold text-text-primary">Checks</h1>
+            <p className="text-text-secondary text-sm mt-0.5">Health checks running across your fleet.</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <span
             className={
               'inline-flex h-2 w-2 rounded-full ' +
-              (status === 'open' ? 'bg-emerald-500' : status === 'connecting' ? 'bg-amber-500' : 'bg-slate-500')
+              (status === 'open' ? 'bg-success' : status === 'connecting' ? 'bg-warning' : 'bg-text-muted')
             }
-            title={`WebSocket: ${status}`}
+            role="status"
+            aria-label={`WebSocket connection: ${status}`}
           />
           <button
             type="button"
@@ -189,17 +191,18 @@ function ChecksListPage() {
               void refresh();
             }}
             disabled={isLoading}
-            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-slate-200 disabled:opacity-50 transition-colors"
+            aria-label="Refresh checks"
+            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-surface-tertiary hover:bg-border-strong border border-border-strong text-sm text-text-primary disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
           >
-            <RefreshCw className={'h-4 w-4 ' + (isLoading ? 'animate-spin' : '')} />
+            <RefreshCw className={'h-4 w-4 ' + (isLoading ? 'animate-spin' : '')} aria-hidden="true" />
             <span>Refresh</span>
           </button>
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-indigo-600 hover:bg-indigo-500 text-sm text-white transition-colors"
+            className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-accent hover:bg-accent-hover text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4" aria-hidden="true" />
             <span>Create Check</span>
           </button>
         </div>
@@ -207,71 +210,80 @@ function ChecksListPage() {
 
       {/* Tabs + search */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-1 p-1 rounded-md bg-slate-900 border border-slate-800 flex-wrap">
+        <div
+          role="tablist"
+          aria-label="Filter checks by status"
+          className="flex items-center gap-1 p-1 rounded-md bg-surface-secondary border border-border-subtle flex-wrap"
+        >
           {(['all', 'ok', 'warning', 'critical', 'disabled'] as Filter[]).map((f) => (
             <button
               key={f}
               type="button"
+              role="tab"
+              aria-selected={filter === f}
               onClick={() => setFilter(f)}
               className={
-                'px-3 h-8 rounded text-sm capitalize transition-colors ' +
+                'px-3 h-8 rounded text-sm capitalize transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ' +
                 (filter === f
-                  ? 'bg-slate-800 text-slate-100'
-                  : 'text-slate-400 hover:text-slate-200')
+                  ? 'bg-surface-tertiary text-text-primary'
+                  : 'text-text-secondary hover:text-text-primary')
               }
             >
               {f}
-              <span className="ml-2 text-xs text-slate-500">{counts[f]}</span>
+              <span className="ml-2 text-xs text-text-muted" aria-hidden="true">{counts[f]}</span>
+              <span className="sr-only">({counts[f]} checks)</span>
             </button>
           ))}
         </div>
 
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+        <div className="relative w-full sm:w-72" role="search">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" aria-hidden="true" />
           <input
             type="search"
+            role="searchbox"
+            aria-label="Search check name"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search check name…"
-            className="w-full h-9 pl-9 pr-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40"
+            className="w-full h-9 pl-9 pr-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus:border-accent"
           />
         </div>
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-slate-800 bg-slate-900/60 overflow-hidden">
+      <div className="rounded-lg border border-border-subtle bg-surface-secondary/60 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table role="table" aria-label="Health checks" className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-slate-500 border-b border-slate-800 bg-slate-900/40">
-                <th className="px-4 py-3 w-10">Status</th>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Type</th>
-                <th className="px-4 py-3 text-right">Agents</th>
-                <th className="px-4 py-3">Last Run</th>
-                <th className="px-4 py-3">Interval</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+              <tr className="text-left text-xs uppercase tracking-wider text-text-muted border-b border-border-subtle bg-surface-primary/40">
+                <th className="px-4 py-3 w-10" scope="col">Status</th>
+                <th className="px-4 py-3" scope="col">Name</th>
+                <th className="px-4 py-3" scope="col">Type</th>
+                <th className="px-4 py-3 text-right" scope="col">Agents</th>
+                <th className="px-4 py-3" scope="col">Last Run</th>
+                <th className="px-4 py-3" scope="col">Interval</th>
+                <th className="px-4 py-3 text-right" scope="col">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-border-subtle">
               {isLoading && checks.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-text-muted" role="status" aria-live="polite">
                     <div className="inline-flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                       <span>Loading checks…</span>
                     </div>
                   </td>
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-rose-400">
+                  <td colSpan={7} className="px-4 py-12 text-center text-danger" role="alert">
                     Failed to load checks: {error.message}
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-text-muted" role="status">
                     No checks match the current filter.
                   </td>
                 </tr>
@@ -286,34 +298,41 @@ function ChecksListPage() {
                       onClick={() => {
                         void navigate({ to: '/checks/$checkId', params: { checkId: c.id } });
                       }}
-                      className="hover:bg-slate-800/40 cursor-pointer transition-colors"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void navigate({ to: '/checks/$checkId', params: { checkId: c.id } });
+                        }
+                      }}
+                      tabIndex={0}
+                      className="hover:bg-surface-tertiary/40 cursor-pointer transition-colors focus:outline-none focus-visible:bg-surface-tertiary/60"
                     >
                       <td className="px-4 py-3">
-                        <Icon className={'h-4 w-4 ' + statusColor[k]} title={k} />
+                        <Icon className={'h-4 w-4 ' + statusColor[k]} aria-label={`Status: ${k}`} />
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-slate-100 font-medium">{c.name}</span>
+                        <span className="text-text-primary font-medium">{c.name}</span>
                       </td>
                       <td className="px-4 py-3">
                         <span className={'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-xs ' + statusBg[k]}>
-                          <TypeIcon className="h-3 w-3" />
+                          <TypeIcon className="h-3 w-3" aria-hidden="true" />
                           {typeLabel[c.type] ?? c.type}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-slate-200">
+                      <td className="px-4 py-3 text-right tabular-nums text-text-primary">
                         {c.assigned_agents ?? 0}
                       </td>
-                      <td className="px-4 py-3 text-slate-400">{formatTime(c.last_run, now)}</td>
-                      <td className="px-4 py-3 text-slate-300">{formatInterval(c.interval_secs)}</td>
+                      <td className="px-4 py-3 text-text-secondary">{formatTime(c.last_run, now)}</td>
+                      <td className="px-4 py-3 text-text-secondary">{formatInterval(c.interval_secs)}</td>
                       <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="inline-flex items-center gap-1">
+                        <div className="inline-flex items-center gap-1" role="group" aria-label={`Actions for check ${c.name}`}>
                           <button
                             type="button"
                             onClick={() => {
                               void onRunNow(c);
                             }}
-                            className="px-2 h-7 rounded text-xs text-slate-300 hover:bg-slate-700 border border-slate-700"
-                            title="Run now"
+                            className="px-2 h-7 rounded text-xs text-text-secondary hover:bg-border-strong border border-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                            aria-label={`Run check ${c.name} now`}
                           >
                             Run
                           </button>
@@ -322,8 +341,8 @@ function ChecksListPage() {
                             onClick={() => {
                               void onDelete(c);
                             }}
-                            className="px-2 h-7 rounded text-xs text-rose-300 hover:bg-rose-500/10 border border-rose-500/30"
-                            title="Delete"
+                            className="px-2 h-7 rounded text-xs text-danger hover:bg-danger/10 border border-danger/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                            aria-label={`Delete check ${c.name}`}
                           >
                             Delete
                           </button>
@@ -510,6 +529,17 @@ function CreateCheckModal({ onClose, onSubmit }: CreateCheckModalProps) {
   const [config, setConfig] = useState<Record<string, unknown>>({ ...checkTypeDefs.http.defaults });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const baseId = useId();
+  const nameId = `${baseId}-name`;
+  const typeId = `${baseId}-type`;
+  const intervalId = `${baseId}-interval`;
+  const errorId = `${baseId}-error`;
+  const titleId = `${baseId}-title`;
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Trap focus and handle Escape.  useFocusTrap restores focus on unmount.
+  useFocusTrap(dialogRef);
+  useEscapeKey(onClose);
 
   const onChangeType = (next: CheckType) => {
     setType(next);
@@ -550,35 +580,49 @@ function CreateCheckModal({ onClose, onSubmit }: CreateCheckModalProps) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-lg rounded-lg border border-slate-800 bg-slate-900 shadow-xl">
-        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-100">Create Check</h2>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={error ? errorId : undefined}
+        className="w-full max-w-lg rounded-lg border border-border-subtle bg-surface-secondary shadow-xl"
+      >
+        <div className="px-5 py-4 border-b border-border-subtle flex items-center justify-between">
+          <h2 id={titleId} className="text-sm font-semibold text-text-primary">Create Check</h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-800"
+            aria-label="Close dialog"
+            className="p-1 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4" noValidate>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Name</label>
+            <label htmlFor={nameId} className="block text-xs text-text-secondary mb-1">
+              Name <span aria-hidden="true" className="text-danger">*</span>
+            </label>
             <input
+              id={nameId}
               type="text"
+              required
+              aria-required="true"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Disk usage on prod"
-              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40"
+              className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus:border-accent"
             />
           </div>
 
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Type</label>
+            <label htmlFor={typeId} className="block text-xs text-text-secondary mb-1">Type</label>
             <select
+              id={typeId}
               value={type}
               onChange={(e) => onChangeType(e.target.value as CheckType)}
-              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40"
+              className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus:border-accent"
             >
               {allCheckTypes.map((t) => (
                 <option key={t} value={t}>
@@ -589,48 +633,66 @@ function CreateCheckModal({ onClose, onSubmit }: CreateCheckModalProps) {
           </div>
 
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Interval (seconds, min 10)</label>
+            <label htmlFor={intervalId} className="block text-xs text-text-secondary mb-1">Interval (seconds, min 10)</label>
             <input
+              id={intervalId}
               type="number"
               value={interval}
               min={10}
+              aria-required="true"
               onChange={(e) => setInterval(Number(e.target.value) || 60)}
-              className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40"
+              className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus:border-accent"
             />
           </div>
 
-          <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 space-y-3">
-            <p className="text-xs text-slate-500 uppercase tracking-wider">Config ({def.label})</p>
-            {def.fields.map((f) => (
-              <div key={f.key}>
-                <label className="block text-xs text-slate-400 mb-1">{f.label}</label>
-                {f.type === 'select' ? (
-                  <select
-                    value={String(config[f.key] ?? '')}
-                    onChange={(e) => setField(f.key, e.target.value)}
-                    className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40"
-                  >
-                    {f.options?.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type={f.type}
-                    value={String(config[f.key] ?? '')}
-                    placeholder={f.placeholder}
-                    onChange={(e) => setField(f.key, f.type === 'number' ? Number(e.target.value) : e.target.value)}
-                    className="w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40"
-                  />
-                )}
-              </div>
-            ))}
+          <div className="rounded-md border border-border-subtle bg-surface-primary/40 p-3 space-y-3">
+            <p className="text-xs text-text-muted uppercase tracking-wider">Config ({def.label})</p>
+            {def.fields.map((f) => {
+              const fieldId = `${baseId}-field-${f.key}`;
+              return (
+                <div key={f.key}>
+                  <label htmlFor={fieldId} className="block text-xs text-text-secondary mb-1">
+                    {f.label}
+                    {f.required && <span aria-hidden="true" className="text-danger ml-0.5">*</span>}
+                  </label>
+                  {f.type === 'select' ? (
+                    <select
+                      id={fieldId}
+                      value={String(config[f.key] ?? '')}
+                      required={f.required}
+                      aria-required={f.required ? 'true' : undefined}
+                      onChange={(e) => setField(f.key, e.target.value)}
+                      className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus:border-accent"
+                    >
+                      {f.options?.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      id={fieldId}
+                      type={f.type}
+                      value={String(config[f.key] ?? '')}
+                      placeholder={f.placeholder}
+                      required={f.required}
+                      aria-required={f.required ? 'true' : undefined}
+                      onChange={(e) => setField(f.key, f.type === 'number' ? Number(e.target.value) : e.target.value)}
+                      className="w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus:border-accent"
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {error && (
-            <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+            <div
+              id={errorId}
+              role="alert"
+              className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger"
+            >
               {error}
             </div>
           )}
@@ -639,16 +701,16 @@ function CreateCheckModal({ onClose, onSubmit }: CreateCheckModalProps) {
             <button
               type="button"
               onClick={onClose}
-              className="px-3 h-9 rounded-md border border-slate-700 bg-slate-800 text-sm text-slate-200 hover:bg-slate-700 transition-colors"
+              className="px-3 h-9 rounded-md border border-border-strong bg-surface-tertiary text-sm text-text-primary hover:bg-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-indigo-600 hover:bg-indigo-500 text-sm text-white disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-accent hover:bg-accent-hover text-sm text-white disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
             >
-              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              {submitting && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
               <span>{submitting ? 'Creating…' : 'Create Check'}</span>
             </button>
           </div>

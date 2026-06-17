@@ -1,12 +1,13 @@
 // PolicyEditor — modal form for creating or editing a policy.
 //
 // Allows the user to set metadata (name, description, category, severity,
-// enforcement mode) and edit the Rego policy body. The Rego body textarea
-// includes line numbers and supports a "Validate" syntax check (via the
-// policies validate endpoint) and a "Save" action (create or update).
-// A template picker lets the user load a built-in Rego template.
+// enforcement mode) and edit the Rego policy body using a Monaco editor
+// (loaded from jsDelivr CDN at runtime, with a textarea fallback). The
+// editor supports a "Validate" syntax check (via the policies validate
+// endpoint) and a "Save" action (create or update). A template picker
+// lets the user load a built-in Rego template.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import {
   X,
   Save,
@@ -24,6 +25,7 @@ import type {
   PolicySeverity,
   PolicyEnforcement,
 } from '@/lib/usePolicies';
+import { MonacoEditor } from '@/components/monaco-editor';
 
 // ---------------------------------------------------------------------------
 // Built-in templates
@@ -145,18 +147,11 @@ const ENFORCEMENT_OPTIONS: { value: PolicyEnforcement; label: string }[] = [
 ];
 
 function fieldClasses(): string {
-  return 'w-full h-9 px-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/40';
+  return 'w-full h-9 px-3 rounded-md bg-surface-tertiary/60 border border-border-strong text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/40';
 }
 
 function labelClasses(): string {
-  return 'block text-xs font-medium text-slate-300 mb-1';
-}
-
-function buildLineNumbers(text: string): string {
-  const count = text.split('\n').length;
-  let out = '';
-  for (let i = 1; i <= count; i += 1) out += `${i}\n`;
-  return out;
+  return 'block text-xs font-medium text-text-secondary mb-1';
 }
 
 export function PolicyEditor({ policy, onClose, onSave, validateRego }: PolicyEditorProps) {
@@ -270,33 +265,43 @@ deny[result] {
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  const lineNumbers = useMemo(() => buildLineNumbers(regoSource), [regoSource]);
+  const baseId = useId();
+  const titleId = `${baseId}-title`;
+  const templateFieldId = `${baseId}-template`;
+  const nameId = `${baseId}-name`;
+  const categoryId = `${baseId}-category`;
+  const severityId = `${baseId}-severity`;
+  const enforcementId = `${baseId}-enforcement`;
+  const descriptionId = `${baseId}-description`;
+  const regoId = `${baseId}-rego`;
+  const errorId = `${baseId}-error`;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-surface-primary/70 p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"
+      aria-labelledby={titleId}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-3xl rounded-lg border border-slate-800 bg-slate-900 shadow-2xl my-8">
+      <div className="w-full max-w-3xl rounded-lg border border-border-subtle bg-surface-secondary shadow-2xl my-8">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border-subtle">
           <div className="flex items-center gap-2">
-            <FileCode2 className="h-4 w-4 text-indigo-400" />
-            <h2 className="text-sm font-semibold text-slate-100">
+            <FileCode2 className="h-4 w-4 text-accent" aria-hidden="true" />
+            <h2 id={titleId} className="text-sm font-semibold text-text-primary">
               {isEdit ? 'Edit Policy' : 'Create Policy'}
             </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors"
-            title="Close"
+            aria-label="Close dialog"
+            className="p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-tertiary focus:outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
@@ -305,8 +310,9 @@ deny[result] {
           {/* Template picker */}
           {!isEdit && (
             <div>
-              <label className={labelClasses()}>Template</label>
+              <label htmlFor={templateFieldId} className={labelClasses()}>Template</label>
               <select
+                id={templateFieldId}
                 value={templateId}
                 onChange={(e) => applyTemplate(e.target.value)}
                 className={fieldClasses()}
@@ -318,7 +324,7 @@ deny[result] {
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-text-muted mt-1">
                 Templates pre-fill the fields below. You can still edit everything.
               </p>
             </div>
@@ -327,9 +333,16 @@ deny[result] {
           {/* Metadata grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className={labelClasses()}>Name</label>
+              <label htmlFor={nameId} className={labelClasses()}>
+                Name <span aria-hidden="true" className="text-danger">*</span>
+              </label>
               <input
+                id={nameId}
                 type="text"
+                required
+                aria-required="true"
+                aria-invalid={error === 'Name is required' ? 'true' : undefined}
+                aria-describedby={error === 'Name is required' ? errorId : undefined}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Disable SSH root login"
@@ -337,8 +350,9 @@ deny[result] {
               />
             </div>
             <div>
-              <label className={labelClasses()}>Category</label>
+              <label htmlFor={categoryId} className={labelClasses()}>Category</label>
               <select
+                id={categoryId}
                 value={category}
                 onChange={(e) => setCategory(e.target.value as PolicyCategory)}
                 className={fieldClasses()}
@@ -351,8 +365,9 @@ deny[result] {
               </select>
             </div>
             <div>
-              <label className={labelClasses()}>Severity</label>
+              <label htmlFor={severityId} className={labelClasses()}>Severity</label>
               <select
+                id={severityId}
                 value={severity}
                 onChange={(e) => setSeverity(e.target.value as PolicySeverity)}
                 className={fieldClasses()}
@@ -365,8 +380,9 @@ deny[result] {
               </select>
             </div>
             <div>
-              <label className={labelClasses()}>Enforcement</label>
+              <label htmlFor={enforcementId} className={labelClasses()}>Enforcement</label>
               <select
+                id={enforcementId}
                 value={enforcement}
                 onChange={(e) => setEnforcement(e.target.value as PolicyEnforcement)}
                 className={fieldClasses()}
@@ -381,8 +397,9 @@ deny[result] {
           </div>
 
           <div>
-            <label className={labelClasses()}>Description</label>
+            <label htmlFor={descriptionId} className={labelClasses()}>Description</label>
             <input
+              id={descriptionId}
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -394,28 +411,28 @@ deny[result] {
           {/* Rego editor */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className={labelClasses() + ' mb-0'}>Rego source</label>
-              <span className="text-xs text-slate-500">package policies.&lt;name&gt;</span>
+              <label htmlFor={regoId} className={labelClasses() + ' mb-0'}>Rego source</label>
+              <span className="text-xs text-text-muted" aria-hidden="true">package policies.&lt;name&gt;</span>
             </div>
-            <div className="rounded-md border border-slate-700 bg-slate-950 overflow-hidden">
-              <div className="flex">
-                <pre
-                  className="select-none text-right pr-3 pl-2 py-3 text-xs font-mono text-slate-600 leading-5 border-r border-slate-800"
-                  aria-hidden="true"
-                >
-                  {lineNumbers}
-                </pre>
-                <textarea
-                  value={regoSource}
-                  onChange={(e) => {
-                    setRegoSource(e.target.value);
-                    setValidation(null);
-                  }}
-                  spellCheck={false}
-                  rows={14}
-                  className="flex-1 w-full p-3 bg-slate-950 text-xs font-mono text-slate-200 leading-5 resize-y focus:outline-none"
-                />
-              </div>
+            <div className="rounded-md border border-border-strong overflow-hidden">
+              <MonacoEditor
+                value={regoSource}
+                onChange={(v) => {
+                  setRegoSource(v);
+                  setValidation(null);
+                }}
+                language="rego"
+                height={320}
+                theme="vs-dark"
+                ariaLabel="Rego policy source code editor"
+                ariaDescribedBy={errorId}
+                options={{
+                  fontSize: 12,
+                  minimap: { enabled: false },
+                  lineNumbers: 'on',
+                  folding: true,
+                }}
+              />
             </div>
             {/* Validation result */}
             {validation && (
@@ -423,8 +440,8 @@ deny[result] {
                 className={
                   'mt-2 rounded-md border px-3 py-2 text-xs ' +
                   (validation.valid
-                    ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-300'
-                    : 'border-rose-500/30 bg-rose-500/5 text-rose-300')
+                    ? 'border-success/30 bg-success/5 text-success'
+                    : 'border-danger/30 bg-danger/5 text-danger')
                 }
               >
                 <div className="flex items-center gap-2 font-medium">
@@ -448,7 +465,7 @@ deny[result] {
                   </ul>
                 )}
                 {validation.warnings && validation.warnings.length > 0 && (
-                  <ul className="mt-1 list-disc list-inside space-y-0.5 text-amber-300">
+                  <ul className="mt-1 list-disc list-inside space-y-0.5 text-warning">
                     {validation.warnings.map((w, i) => (
                       <li key={i}>{w}</li>
                     ))}
@@ -459,19 +476,23 @@ deny[result] {
           </div>
 
           {error && (
-            <div className="rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+            <div
+              id={errorId}
+              role="alert"
+              className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger"
+            >
               {error}
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-slate-800 bg-slate-900/60">
+        <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-border-subtle bg-surface-secondary/60">
           <button
             type="button"
             onClick={handleValidate}
             disabled={validating || !regoSource.trim()}
-            className="inline-flex items-center gap-2 px-3 h-9 rounded-md border border-slate-700 bg-slate-800 hover:bg-slate-700 text-sm text-slate-200 disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-2 px-3 h-9 rounded-md border border-border-strong bg-surface-tertiary hover:bg-border-strong text-sm text-text-primary disabled:opacity-50 transition-colors"
           >
             {validating ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -485,7 +506,7 @@ deny[result] {
             <button
               type="button"
               onClick={onClose}
-              className="px-3 h-9 rounded-md border border-slate-700 bg-slate-800 hover:bg-slate-700 text-sm text-slate-200 transition-colors"
+              className="px-3 h-9 rounded-md border border-border-strong bg-surface-tertiary hover:bg-border-strong text-sm text-text-primary transition-colors"
             >
               Cancel
             </button>
@@ -493,7 +514,7 @@ deny[result] {
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-indigo-600 hover:bg-indigo-500 text-sm text-white disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-accent hover:bg-accent text-sm text-white disabled:opacity-50 transition-colors"
             >
               {saving ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

@@ -297,17 +297,17 @@ function RecordingPlaybackPage() {
 
   if (loading) {
     return (
-      <div className="text-slate-400 text-sm p-6">Loading recording…</div>
+      <div className="text-text-secondary text-sm p-6">Loading recording…</div>
     );
   }
   if (error) {
     return (
       <div className="space-y-3">
-        <div className="text-rose-400 text-sm">{error}</div>
+        <div className="text-danger text-sm">{error}</div>
         <button
           type="button"
           onClick={() => navigate({ to: '/shell-recordings' })}
-          className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-sm text-slate-200"
+          className="px-3 py-1.5 rounded-md bg-surface-tertiary hover:bg-border-strong text-sm text-text-primary"
         >
           Back to list
         </button>
@@ -315,28 +315,28 @@ function RecordingPlaybackPage() {
     );
   }
   if (!meta) {
-    return <div className="text-slate-400 text-sm">Recording not found.</div>;
+    return <div className="text-text-secondary text-sm">Recording not found.</div>;
   }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr,280px] gap-4 h-[calc(100vh-7rem)]">
       {/* Main playback area */}
-      <div className="flex flex-col bg-slate-950 border border-slate-800 rounded-lg overflow-hidden">
+      <div className="flex flex-col bg-surface-primary border border-border-subtle rounded-lg overflow-hidden">
         {/* Header bar */}
-        <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-800">
+        <div className="flex items-center justify-between px-4 py-2 bg-surface-secondary border-b border-border-subtle">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => navigate({ to: '/shell-recordings' })}
-              className="p-1.5 rounded-md hover:bg-slate-800 text-slate-300"
+              className="p-1.5 rounded-md hover:bg-surface-tertiary text-text-secondary"
               title="Back to list"
             >
               <ChevronLeft size={16} />
             </button>
-            <div className="font-mono text-xs text-slate-300 truncate max-w-[300px]">
+            <div className="font-mono text-xs text-text-secondary truncate max-w-[300px]">
               {meta.session_id}
             </div>
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-text-muted">
               {meta.terminal_size.cols}×{meta.terminal_size.rows} {meta.protocol}
             </span>
           </div>
@@ -344,7 +344,7 @@ function RecordingPlaybackPage() {
             <button
               type="button"
               onClick={() => setPlaying((p) => !p)}
-              className="p-1.5 rounded-md hover:bg-slate-800 text-slate-200"
+              className="p-1.5 rounded-md hover:bg-surface-tertiary text-text-primary"
               title={playing ? 'Pause (space)' : 'Play (space)'}
             >
               {playing ? <Pause size={16} /> : <Play size={16} />}
@@ -352,14 +352,14 @@ function RecordingPlaybackPage() {
             <button
               type="button"
               onClick={reset}
-              className="p-1.5 rounded-md hover:bg-slate-800 text-slate-200"
+              className="p-1.5 rounded-md hover:bg-surface-tertiary text-text-primary"
               title="Reset"
             >
               <RotateCcw size={16} />
             </button>
             <a
               href={`/api/v1/shell/recordings/${meta.session_id}/export`}
-              className="p-1.5 rounded-md hover:bg-slate-800 text-slate-200"
+              className="p-1.5 rounded-md hover:bg-surface-tertiary text-text-primary"
               title="Download .cast"
             >
               <Download size={16} />
@@ -369,7 +369,7 @@ function RecordingPlaybackPage() {
                 type="button"
                 onClick={handleDelete}
                 disabled={deleting}
-                className="p-1.5 rounded-md hover:bg-rose-700/30 text-rose-300 disabled:opacity-50"
+                className="p-1.5 rounded-md hover:bg-danger/30 text-danger disabled:opacity-50"
                 title="Delete recording (admin only)"
               >
                 <Trash2 size={16} />
@@ -381,7 +381,7 @@ function RecordingPlaybackPage() {
         {/* Terminal viewport */}
         <pre
           ref={viewportRef}
-          className="flex-1 overflow-auto p-3 text-xs text-slate-100 font-mono whitespace-pre"
+          className="flex-1 overflow-auto p-3 text-xs text-text-primary font-mono whitespace-pre"
           style={{
             fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
             lineHeight: '1.2',
@@ -392,8 +392,8 @@ function RecordingPlaybackPage() {
         </pre>
 
         {/* Timeline + speed controls */}
-        <div className="border-t border-slate-800 bg-slate-900 px-4 py-2 flex items-center gap-3">
-          <span className="text-xs text-slate-500 font-mono w-32">
+        <div className="border-t border-border-subtle bg-surface-secondary px-4 py-2 flex items-center gap-3">
+          <span className="text-xs text-text-muted font-mono w-32">
             {formatOffset(currentMS)} / {formatOffset(totalDurationMS)}
           </span>
           <input
@@ -402,9 +402,9 @@ function RecordingPlaybackPage() {
             max={Math.max(1, totalDurationMS)}
             value={Math.min(currentMS, totalDurationMS)}
             onChange={(e) => seek(Number(e.target.value))}
-            className="flex-1 accent-indigo-500"
+            className="flex-1 accent-accent"
           />
-          <div className="flex items-center gap-1 text-xs text-slate-400">
+          <div className="flex items-center gap-1 text-xs text-text-secondary">
             <Gauge size={14} />
             {SPEED_PRESETS.map((s) => (
               <button
@@ -414,8 +414,8 @@ function RecordingPlaybackPage() {
                 className={
                   'px-2 py-0.5 rounded ' +
                   (s === speed
-                    ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300')
+                    ? 'bg-accent/20 text-accent border border-accent/30'
+                    : 'bg-surface-tertiary hover:bg-border-strong text-text-secondary')
                 }
               >
                 {s}x
@@ -426,9 +426,9 @@ function RecordingPlaybackPage() {
       </div>
 
       {/* Sidebar metadata */}
-      <aside className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-4 overflow-auto">
+      <aside className="bg-surface-secondary border border-border-subtle rounded-lg p-4 space-y-4 overflow-auto">
         <div>
-          <h2 className="text-sm font-semibold text-slate-200 mb-2">Session</h2>
+          <h2 className="text-sm font-semibold text-text-primary mb-2">Session</h2>
           <dl className="text-xs space-y-1.5">
             <Row k="User" v={meta.user_id} />
             <Row k="Agent" v={meta.agent_id} />
@@ -444,18 +444,18 @@ function RecordingPlaybackPage() {
           </dl>
         </div>
         <div>
-          <h2 className="text-sm font-semibold text-slate-200 mb-2">Integrity</h2>
-          <div className="text-[10px] font-mono text-slate-500 break-all bg-slate-950 border border-slate-800 rounded p-2">
+          <h2 className="text-sm font-semibold text-text-primary mb-2">Integrity</h2>
+          <div className="text-[10px] font-mono text-text-muted break-all bg-surface-primary border border-border-subtle rounded p-2">
             {meta.content_hash || '(empty)'}
           </div>
         </div>
         <div>
-          <h2 className="text-sm font-semibold text-slate-200 mb-2">Keyboard</h2>
-          <ul className="text-xs text-slate-400 space-y-1">
-            <li><kbd className="text-slate-200">Space</kbd> play / pause</li>
-            <li><kbd className="text-slate-200">← →</kbd> seek ±5 s</li>
-            <li><kbd className="text-slate-200">↑ ↓</kbd> speed up / down</li>
-            <li><kbd className="text-slate-200">R</kbd> reset</li>
+          <h2 className="text-sm font-semibold text-text-primary mb-2">Keyboard</h2>
+          <ul className="text-xs text-text-secondary space-y-1">
+            <li><kbd className="text-text-primary">Space</kbd> play / pause</li>
+            <li><kbd className="text-text-primary">← →</kbd> seek ±5 s</li>
+            <li><kbd className="text-text-primary">↑ ↓</kbd> speed up / down</li>
+            <li><kbd className="text-text-primary">R</kbd> reset</li>
           </ul>
         </div>
       </aside>
@@ -466,8 +466,8 @@ function RecordingPlaybackPage() {
 function Row({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex justify-between gap-2">
-      <dt className="text-slate-500">{k}</dt>
-      <dd className="text-slate-200 text-right truncate" title={v}>
+      <dt className="text-text-muted">{k}</dt>
+      <dd className="text-text-primary text-right truncate" title={v}>
         {v}
       </dd>
     </div>
