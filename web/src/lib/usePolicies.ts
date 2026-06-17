@@ -215,13 +215,13 @@ export function usePolicies(): UsePoliciesResult {
 
   const fetchAssignments = useCallback(async (policyId: string): Promise<PolicyAssignment[]> => {
     const res = await apiFetch<{ assignments: PolicyAssignment[] } | PolicyAssignment[]>(
-      `/policies/${encodeURIComponent(policyId)}/agents`
+      `/policies/${encodeURIComponent(policyId)}/assign`
     );
     return Array.isArray(res) ? res : (res.assignments ?? []);
   }, []);
 
   const assignAgent = useCallback(async (policyId: string, agentId: string): Promise<void> => {
-    await apiFetch<void>(`/policies/${encodeURIComponent(policyId)}/agents`, {
+    await apiFetch<void>(`/policies/${encodeURIComponent(policyId)}/assign`, {
       method: 'POST',
       json: { agent_id: agentId },
     });
@@ -230,7 +230,7 @@ export function usePolicies(): UsePoliciesResult {
   const unassignAgent = useCallback(
     async (policyId: string, agentId: string): Promise<void> => {
       await apiFetch<void>(
-        `/policies/${encodeURIComponent(policyId)}/agents/${encodeURIComponent(agentId)}`,
+        `/policies/${encodeURIComponent(policyId)}/assign/${encodeURIComponent(agentId)}`,
         { method: 'DELETE' }
       );
     },
@@ -259,7 +259,7 @@ export function usePolicies(): UsePoliciesResult {
   );
 
   const fetchComplianceSummary = useCallback(async (): Promise<ComplianceSummary> => {
-    return apiFetch<ComplianceSummary>('/policies/compliance/summary');
+    return apiFetch<ComplianceSummary>('/compliance/summary');
   }, []);
 
   return {

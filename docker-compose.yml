@@ -1,0 +1,15 @@
+# Root-level docker-compose.yml
+# This file exists so tooling at the repo root finds a compose file.
+# For the full deployment stack, use deploy/docker-compose.yml directly:
+#   docker compose -f deploy/docker-compose.yml up -d
+#
+# For the MCP server stack, use mcp-server/deploy/podman-compose.yml:
+#   docker compose -f mcp-server/deploy/podman-compose.yml up -d
+
+services:
+  # Placeholder — add shared services here when needed.
+  # See deploy/docker-compose.yml for the full project deployment.
+  _placeholder:
+    image: alpine:latest
+    restart: "no"
+    command: ["echo", "Use deploy/docker-compose.yml or mcp-server/deploy/podman-compose.yml"]

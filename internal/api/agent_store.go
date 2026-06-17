@@ -65,7 +65,7 @@ func (p *pgAgentStore) UpsertAgent(ctx context.Context, a *models.Agent) error {
 			updated_at      = EXCLUDED.updated_at
 	`
 	_, err := p.pool.Exec(ctx, q,
-		a.ID, a.SiteID, a.OrgID, a.Hostname, a.OS, a.Arch, a.Platform,
+		a.ID, a.SiteID, a.OrgID, a.Hostname, a.OperatingSystem, a.Arch, a.Platform,
 		a.CPUCount, a.TotalMemoryMB, a.TotalDiskGB, a.AgentVersion,
 		a.Status, a.LastSeen, a.Tags, a.CreatedAt, a.UpdatedAt,
 	)
@@ -91,7 +91,7 @@ func (p *pgAgentStore) GetAgent(ctx context.Context, id string) (*models.Agent, 
 	`
 	a := &models.Agent{}
 	err := p.pool.QueryRow(ctx, q, id).Scan(
-		&a.ID, &a.SiteID, &a.OrgID, &a.Hostname, &a.OS, &a.Arch, &a.Platform,
+		&a.ID, &a.SiteID, &a.OrgID, &a.Hostname, &a.OperatingSystem, &a.Arch, &a.Platform,
 		&a.CPUCount, &a.TotalMemoryMB, &a.TotalDiskGB, &a.AgentVersion, &a.Status,
 		&a.LastSeen, &a.Tags, &a.CreatedAt, &a.UpdatedAt,
 	)
@@ -161,7 +161,7 @@ func (p *pgAgentStore) ListAgents(ctx context.Context, f AgentListFilter) ([]mod
 	for rows.Next() {
 		var a models.Agent
 		if err := rows.Scan(
-			&a.ID, &a.SiteID, &a.OrgID, &a.Hostname, &a.OS, &a.Arch, &a.Platform,
+			&a.ID, &a.SiteID, &a.OrgID, &a.Hostname, &a.OperatingSystem, &a.Arch, &a.Platform,
 			&a.CPUCount, &a.TotalMemoryMB, &a.TotalDiskGB, &a.AgentVersion, &a.Status,
 			&a.LastSeen, &a.Tags, &a.CreatedAt, &a.UpdatedAt,
 		); err != nil {

@@ -46,16 +46,25 @@ func (p *pgCheckStore) InsertCheck(ctx context.Context, c *models.CheckDefinitio
 	const q = `
 		INSERT INTO check_definitions (
 			id, org_id, name, description, check_type, config,
-			interval_seconds, timeout_seconds, enabled, created_at, updated_at
+			interval_seconds, timeout_seconds, enabled,
+			fail_threshold, warn_threshold, error_threshold,
+			alert_severity, is_template, last_status,
+			created_at, updated_at
 		) VALUES (
 			$1, COALESCE(NULLIF($2,''), ''), $3, $4, $5, $6,
-			$7, $8, $9, COALESCE($10, NOW()), COALESCE($10, NOW())
+			$7, $8, $9,
+			$10, $11, $12,
+			$13, $14, $15,
+			COALESCE($16, NOW()), COALESCE($16, NOW())
 		)
 		RETURNING created_at, updated_at
 	`
 	row := p.pool.QueryRow(ctx, q,
 		c.ID, c.OrgID, c.Name, c.Description, c.CheckType, cfgJSON,
-		c.IntervalSeconds, c.TimeoutSeconds, c.Enabled, c.CreatedAt,
+		c.IntervalSeconds, c.TimeoutSeconds, c.Enabled,
+		c.FailThreshold, c.WarnThreshold, c.ErrorThreshold,
+		c.AlertSeverity, c.IsTemplate, c.LastStatus,
+		c.CreatedAt,
 	)
 	if err := row.Scan(&c.CreatedAt, &c.UpdatedAt); err != nil {
 		return fmt.Errorf("check_store: insert: %w", err)
@@ -72,7 +81,10 @@ func (p *pgCheckStore) GetCheck(ctx context.Context, id string) (*models.CheckDe
 		SELECT id, COALESCE(org_id,''), name, COALESCE(description,''),
 		       check_type, config,
 		       COALESCE(interval_seconds, 60), COALESCE(timeout_seconds, 30),
-		       COALESCE(enabled, true), created_at, updated_at
+		       COALESCE(enabled, true),
+		       COALESCE(fail_threshold, 0), COALESCE(warn_threshold, 0), COALESCE(error_threshold, 0),
+		       COALESCE(alert_severity, ''), COALESCE(is_template, false), COALESCE(last_status, ''),
+		       created_at, updated_at
 		FROM check_definitions
 		WHERE id = $1
 		LIMIT 1
@@ -81,7 +93,10 @@ func (p *pgCheckStore) GetCheck(ctx context.Context, id string) (*models.CheckDe
 	var cfgRaw []byte
 	err := p.pool.QueryRow(ctx, q, id).Scan(
 		&c.ID, &c.OrgID, &c.Name, &c.Description, &c.CheckType, &cfgRaw,
-		&c.IntervalSeconds, &c.TimeoutSeconds, &c.Enabled, &c.CreatedAt, &c.UpdatedAt,
+		&c.IntervalSeconds, &c.TimeoutSeconds, &c.Enabled,
+		&c.FailThreshold, &c.WarnThreshold, &c.ErrorThreshold,
+		&c.AlertSeverity, &c.IsTemplate, &c.LastStatus,
+		&c.CreatedAt, &c.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -136,7 +151,10 @@ func (p *pgCheckStore) ListChecks(ctx context.Context, f CheckListFilter) ([]mod
 		SELECT id, COALESCE(org_id,''), name, COALESCE(description,''),
 		       check_type, config,
 		       COALESCE(interval_seconds, 60), COALESCE(timeout_seconds, 30),
-		       COALESCE(enabled, true), created_at, updated_at
+		       COALESCE(enabled, true),
+		       COALESCE(fail_threshold, 0), COALESCE(warn_threshold, 0), COALESCE(error_threshold, 0),
+		       COALESCE(alert_severity, ''), COALESCE(is_template, false), COALESCE(last_status, ''),
+		       created_at, updated_at
 		FROM check_definitions
 		%s
 		ORDER BY created_at DESC
@@ -155,7 +173,10 @@ func (p *pgCheckStore) ListChecks(ctx context.Context, f CheckListFilter) ([]mod
 		var cfgRaw []byte
 		if err := rows.Scan(
 			&c.ID, &c.OrgID, &c.Name, &c.Description, &c.CheckType, &cfgRaw,
-			&c.IntervalSeconds, &c.TimeoutSeconds, &c.Enabled, &c.CreatedAt, &c.UpdatedAt,
+			&c.IntervalSeconds, &c.TimeoutSeconds, &c.Enabled,
+			&c.FailThreshold, &c.WarnThreshold, &c.ErrorThreshold,
+			&c.AlertSeverity, &c.IsTemplate, &c.LastStatus,
+			&c.CreatedAt, &c.UpdatedAt,
 		); err != nil {
 			return nil, 0, fmt.Errorf("check_store: scan: %w", err)
 		}
@@ -210,6 +231,24 @@ func (p *pgCheckStore) UpdateCheck(ctx context.Context, id string, patch CheckPa
 	if patch.Enabled != nil {
 		add("enabled", *patch.Enabled)
 	}
+	if patch.FailThreshold != nil {
+		add("fail_threshold", *patch.FailThreshold)
+	}
+	if patch.WarnThreshold != nil {
+		add("warn_threshold", *patch.WarnThreshold)
+	}
+	if patch.ErrorThreshold != nil {
+		add("error_threshold", *patch.ErrorThreshold)
+	}
+	if patch.AlertSeverity != nil {
+		add("alert_severity", *patch.AlertSeverity)
+	}
+	if patch.IsTemplate != nil {
+		add("is_template", *patch.IsTemplate)
+	}
+	if patch.LastStatus != nil {
+		add("last_status", *patch.LastStatus)
+	}
 	if len(sets) == 0 {
 		// Nothing to update — just return the current row.
 		return p.GetCheck(ctx, id)
@@ -241,6 +280,12 @@ type CheckPatch struct {
 	IntervalSeconds *int
 	TimeoutSeconds  *int
 	Enabled         *bool
+	FailThreshold   *float64
+	WarnThreshold   *float64
+	ErrorThreshold  *float64
+	AlertSeverity   *string
+	IsTemplate      *bool
+	LastStatus      *string
 }
 
 // DeleteCheck hard-deletes a check definition row. Caller is responsible

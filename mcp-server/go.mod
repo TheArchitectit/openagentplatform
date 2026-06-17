@@ -1,3 +1,4 @@
+// mcp-server is a separate deployable module (not part of the main OpenAgentPlatform Go module).
 module github.com/thearchitectit/guardrail-mcp
 
 go 1.23.2

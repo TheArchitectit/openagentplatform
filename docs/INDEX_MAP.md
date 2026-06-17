@@ -90,6 +90,14 @@
 
 ---
 
+## QA REVIEW
+
+| Keyword | Document | Location |
+|---------|----------|----------|
+| QA review, quality audit, code quality | [QA_REVIEW.md](QA_REVIEW.md) | docs/ |
+
+---
+
 ## MCP SERVER
 
 | Keyword | Document | Location |

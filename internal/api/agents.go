@@ -94,7 +94,7 @@ func (s *Server) handleRegisterAgent(w http.ResponseWriter, r *http.Request) {
 		SiteID:        req.SiteID,
 		OrgID:         orgID,
 		Hostname:      req.Hostname,
-		OS:            req.OS,
+		OperatingSystem: req.OS,
 		Arch:          req.Arch,
 		Platform:      req.Platform,
 		CPUCount:      req.CPUCount,

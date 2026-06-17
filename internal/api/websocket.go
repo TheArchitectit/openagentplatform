@@ -33,6 +33,8 @@ const (
 	wsChannelAgents  wsChannel = "agents"
 	wsChannelChecks  wsChannel = "checks"
 	wsChannelAlerts  wsChannel = "alerts"
+	wsChannelPatches wsChannel = "patches"
+	wsChannelScripts wsChannel = "scripts"
 )
 
 // wsMessage is the wire envelope used in both directions.
@@ -334,7 +336,8 @@ func (c *wsClient) writePump() {
 
 func validChannel(ch wsChannel) bool {
 	switch ch {
-	case wsChannelAgents, wsChannelChecks, wsChannelAlerts:
+	case wsChannelAgents, wsChannelChecks, wsChannelAlerts,
+		wsChannelPatches, wsChannelScripts:
 		return true
 	}
 	return false
@@ -367,4 +370,22 @@ func (s *Server) PublishAlert(ctx context.Context, a any) {
 		return
 	}
 	s.wsHub.Broadcast(wsChannelAlerts, "alert", a)
+}
+
+// PublishPatchEvent broadcasts a patch lifecycle event to all clients
+// on the "patches" channel (approved, deployed, rolled back, etc.).
+func (s *Server) PublishPatchEvent(ctx context.Context, event string, data any) {
+	if s.wsHub == nil {
+		return
+	}
+	s.wsHub.Broadcast(wsChannelPatches, event, data)
+}
+
+// PublishScriptEvent broadcasts a script execution event to all clients
+// on the "scripts" channel (started, completed, failed, etc.).
+func (s *Server) PublishScriptEvent(ctx context.Context, event string, data any) {
+	if s.wsHub == nil {
+		return
+	}
+	s.wsHub.Broadcast(wsChannelScripts, event, data)
 }

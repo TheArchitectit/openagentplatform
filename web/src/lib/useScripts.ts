@@ -290,7 +290,7 @@ export function useScripts(): UseScriptsResult {
   );
 
   const cancelRun = useCallback(async (runId: string): Promise<void> => {
-    await apiFetch<void>(`/script-runs/${encodeURIComponent(runId)}/cancel`, {
+    await apiFetch<void>(`/scripts/runs/${encodeURIComponent(runId)}/cancel`, {
       method: 'POST',
     });
   }, []);

@@ -1,6 +1,8 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
 type User struct {
 	ID        string    `json:"id"`
@@ -20,24 +22,25 @@ type Site struct {
 }
 
 type Agent struct {
-	ID           string    `json:"id"`
-	SiteID       string    `json:"site_id"`
-	OrgID        string    `json:"org_id"`
-	Hostname     string    `json:"hostname"`
-	OS           string    `json:"os"`
-	Arch         string    `json:"arch"`
-	Platform     string    `json:"platform"`
-	CPUCount     int       `json:"cpu_count"`
-	TotalMemoryMB int64    `json:"total_memory_mb"`
-	TotalDiskGB  int64     `json:"total_disk_gb"`
-	AgentVersion string    `json:"agent_version"`
-	Version      string    `json:"version"`
-	Status       string    `json:"status"`
-	LastSeen     time.Time `json:"last_seen"`
-	Tags         []string  `json:"tags"`
-	Metadata     map[string]any `json:"metadata,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID            string          `json:"id"`
+	AgentID       string          `json:"agent_id"`
+	SiteID        string          `json:"site_id"`
+	OrgID         string          `json:"org_id"`
+	Hostname      string          `json:"hostname"`
+	OperatingSystem string        `json:"os" db:"operating_system"`
+	Arch          string          `json:"arch"`
+	Platform      string          `json:"platform"`
+	CPUCount      int             `json:"cpu_count"`
+	TotalMemoryMB int64           `json:"total_memory_mb"`
+	TotalDiskGB   int64           `json:"total_disk_gb"`
+	Tags          []string        `json:"tags"`
+	Metadata      map[string]any  `json:"metadata,omitempty"`
+	AgentVersion  string          `json:"agent_version"`
+	Version       string          `json:"version"`
+	Status        string          `json:"status"`
+	LastSeen      time.Time       `json:"last_seen"`
+	CreatedAt     time.Time       `json:"created_at"`
+	UpdatedAt     time.Time       `json:"updated_at"`
 }
 
 // Heartbeat is the payload published by agents on oap.agents.<id>.heartbeat.
@@ -75,6 +78,12 @@ type CheckDefinition struct {
 	IntervalSeconds int            `json:"interval_seconds"`
 	TimeoutSeconds  int            `json:"timeout_seconds"`
 	Enabled         bool           `json:"enabled"`
+	FailThreshold   float64        `json:"fail_threshold,omitempty"`
+	WarnThreshold   float64        `json:"warn_threshold,omitempty"`
+	ErrorThreshold  float64        `json:"error_threshold,omitempty"`
+	AlertSeverity   string         `json:"alert_severity,omitempty"`
+	IsTemplate      bool           `json:"is_template"`
+	LastStatus      string         `json:"last_status,omitempty"`
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
 }

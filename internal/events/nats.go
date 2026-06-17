@@ -45,6 +45,18 @@ const (
 	// hub subscribes here to broadcast live result updates to connected
 	// dashboards.
 	SubjectCheckResultEvent = "oap.events.checks.result"
+
+	// SubjectPatchEvents is the wildcard subject the patch management
+	// subsystem publishes to whenever a patch is approved, deployed,
+	// rolled back, or its status changes. The WebSocket hub subscribes
+	// here to broadcast live patch updates to connected dashboards.
+	SubjectPatchEvents = "oap.events.patches"
+
+	// SubjectScriptEvents is the wildcard subject the script execution
+	// subsystem publishes to whenever a script is run, completes, or
+	// its status changes. The WebSocket hub subscribes here to broadcast
+	// live script updates to connected dashboards.
+	SubjectScriptEvents = "oap.events.scripts"
 )
 
 // HeartbeatStaleThreshold is the duration after which a silent agent is

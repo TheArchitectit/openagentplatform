@@ -274,7 +274,7 @@ export function useChecks(): UseChecksResult {
   const updateCheck = useCallback(
     async (id: string, input: UpdateCheckInput): Promise<Check> => {
       const c = await apiFetch<Check>(`/checks/${encodeURIComponent(id)}`, {
-        method: 'PATCH',
+        method: 'PUT',
         json: input,
       });
       setChecks((prev) => prev.map((p) => (p.id === id ? { ...p, ...c } : p)));
@@ -293,7 +293,7 @@ export function useChecks(): UseChecksResult {
   }, []);
 
   const assignAgent = useCallback(async (checkId: string, agentId: string): Promise<void> => {
-    await apiFetch<void>(`/checks/${encodeURIComponent(checkId)}/agents`, {
+    await apiFetch<void>(`/checks/${encodeURIComponent(checkId)}/assign`, {
       method: 'POST',
       json: { agent_id: agentId },
     });
@@ -306,7 +306,7 @@ export function useChecks(): UseChecksResult {
   }, []);
 
   const unassignAgent = useCallback(async (checkId: string, agentId: string): Promise<void> => {
-    await apiFetch<void>(`/checks/${encodeURIComponent(checkId)}/agents/${encodeURIComponent(agentId)}`, {
+    await apiFetch<void>(`/checks/${encodeURIComponent(checkId)}/assign/${encodeURIComponent(agentId)}`, {
       method: 'DELETE',
     });
     setChecks((prev) =>
@@ -327,7 +327,7 @@ export function useChecks(): UseChecksResult {
 
   const fetchAssignments = useCallback(async (checkId: string): Promise<AgentAssignment[]> => {
     const res = await apiFetch<{ agents: AgentAssignment[] } | AgentAssignment[]>(
-      `/checks/${encodeURIComponent(checkId)}/agents`
+      `/checks/${encodeURIComponent(checkId)}/assignments`
     );
     return Array.isArray(res) ? res : (res.agents ?? []);
   }, []);

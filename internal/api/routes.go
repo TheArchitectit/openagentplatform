@@ -49,12 +49,14 @@ func (s *Server) registerRoutes(r chi.Router) {
 			r.Route("/agents", func(r chi.Router) {
 				r.Get("/", s.listAgents)
 				r.Post("/", s.createAgent)
-				// New agent registration + detail routes. Registration is
-				// the only agent-side endpoint that uses the site
-				// registration token in the body; it does NOT require the
-				// session cookie. We mount it outside the verifier group
-				// further down so the auth middleware doesn't reject the
-				// agent's first contact with the platform.
+				// Agent registration is mounted here for routing
+				// convenience, but it does its own auth via the
+				// per-site registration token in the request body
+				// (see handleRegisterAgent). The session-cookie
+				// verifier middleware will be invoked, but the
+				// handler accepts requests without a cookie as long
+				// as the registration token validates.
+				r.Post("/register", s.handleRegisterAgent)
 				r.Route("/{id}", func(r chi.Router) {
 					r.Get("/", s.handleGetAgent)
 					// Per-agent check-result history. Supports limit,
@@ -272,16 +274,13 @@ func (s *Server) registerRoutes(r chi.Router) {
 		r.Get("/api/v1/shell/{session_id}/ws", s.remote.HandleShellWebSocket)
 	}
 
-	// Public agent-side endpoint: registration. Validated by the per-site
-	// registration token carried in the body, not by a session cookie.
-	r.Route("/api/v1", func(r chi.Router) {
-		r.Route("/agents", func(r chi.Router) {
-			r.Post("/register", s.handleRegisterAgent)
-		})
-	})
+	// Public agent-side endpoint: registration. This is mounted inside
+	// the protected group above (see /api/v1/agents/register) because
+	// chi does not allow two Route() calls to register the same prefix
+	// on the same mux. The registration handler performs its own auth
+	// via the per-site registration token in the request body.
 }
 
-// handleLogin redirects the user-agent to the OIDC provider's auth endpoint.
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if s.oidcVerifier == nil {
 		http.Error(w, `{"error":"oidc_not_configured"}`, http.StatusServiceUnavailable)

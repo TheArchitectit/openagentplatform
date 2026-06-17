@@ -8,260 +8,498 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { createFileRoute } from '@tanstack/react-router';
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as ShellRecordingsIndexRouteImport } from './routes/shell-recordings/index'
+import { Route as ScriptsIndexRouteImport } from './routes/scripts/index'
+import { Route as PoliciesIndexRouteImport } from './routes/policies/index'
+import { Route as PatchesIndexRouteImport } from './routes/patches/index'
+import { Route as ChecksIndexRouteImport } from './routes/checks/index'
+import { Route as AlertsIndexRouteImport } from './routes/alerts/index'
+import { Route as AgentsIndexRouteImport } from './routes/agents/index'
+import { Route as ShellRecordingsSessionIdRouteImport } from './routes/shell-recordings/$sessionId'
+import { Route as ScriptsNewRouteImport } from './routes/scripts/new'
+import { Route as ScriptsScriptIdRouteImport } from './routes/scripts/$scriptId'
+import { Route as PoliciesPolicyIdRouteImport } from './routes/policies/$policyId'
+import { Route as PatchesJobIdRouteImport } from './routes/patches/$jobId'
+import { Route as ChecksCheckIdRouteImport } from './routes/checks/$checkId'
+import { Route as AlertsAlertIdRouteImport } from './routes/alerts/$alertId'
+import { Route as AgentsAgentIdRouteImport } from './routes/agents/$agentId'
+import { Route as AgentsAgentIdShellRouteImport } from './routes/agents/$agentId/shell'
+import { Route as ScriptsScriptIdRunsRunIdRouteImport } from './routes/scripts/$scriptId/runs/$runId'
 
-// Import Routes
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShellRecordingsIndexRoute = ShellRecordingsIndexRouteImport.update({
+  id: '/shell-recordings/',
+  path: '/shell-recordings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScriptsIndexRoute = ScriptsIndexRouteImport.update({
+  id: '/scripts/',
+  path: '/scripts/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PoliciesIndexRoute = PoliciesIndexRouteImport.update({
+  id: '/policies/',
+  path: '/policies/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PatchesIndexRoute = PatchesIndexRouteImport.update({
+  id: '/patches/',
+  path: '/patches/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChecksIndexRoute = ChecksIndexRouteImport.update({
+  id: '/checks/',
+  path: '/checks/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AlertsIndexRoute = AlertsIndexRouteImport.update({
+  id: '/alerts/',
+  path: '/alerts/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgentsIndexRoute = AgentsIndexRouteImport.update({
+  id: '/agents/',
+  path: '/agents/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShellRecordingsSessionIdRoute =
+  ShellRecordingsSessionIdRouteImport.update({
+    id: '/shell-recordings/$sessionId',
+    path: '/shell-recordings/$sessionId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ScriptsNewRoute = ScriptsNewRouteImport.update({
+  id: '/scripts/new',
+  path: '/scripts/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScriptsScriptIdRoute = ScriptsScriptIdRouteImport.update({
+  id: '/scripts/$scriptId',
+  path: '/scripts/$scriptId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PoliciesPolicyIdRoute = PoliciesPolicyIdRouteImport.update({
+  id: '/policies/$policyId',
+  path: '/policies/$policyId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PatchesJobIdRoute = PatchesJobIdRouteImport.update({
+  id: '/patches/$jobId',
+  path: '/patches/$jobId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChecksCheckIdRoute = ChecksCheckIdRouteImport.update({
+  id: '/checks/$checkId',
+  path: '/checks/$checkId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AlertsAlertIdRoute = AlertsAlertIdRouteImport.update({
+  id: '/alerts/$alertId',
+  path: '/alerts/$alertId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgentsAgentIdRoute = AgentsAgentIdRouteImport.update({
+  id: '/agents/$agentId',
+  path: '/agents/$agentId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgentsAgentIdShellRoute = AgentsAgentIdShellRouteImport.update({
+  id: '/shell',
+  path: '/shell',
+  getParentRoute: () => AgentsAgentIdRoute,
+} as any)
+const ScriptsScriptIdRunsRunIdRoute =
+  ScriptsScriptIdRunsRunIdRouteImport.update({
+    id: '/runs/$runId',
+    path: '/runs/$runId',
+    getParentRoute: () => ScriptsScriptIdRoute,
+  } as any)
 
-import { Route as rootRoute } from './routes/__root';
-import { Route as LoginRoute } from './routes/login';
-import { Route as IndexRoute } from './routes/index';
-import { Route as SettingsRoute } from './routes/settings';
-import { Route as DashboardRoute } from './routes/dashboard';
-import { Route as AlertsIndexRoute } from './routes/alerts/index';
-import { Route as AgentsIndexRoute } from './routes/agents/index';
-import { Route as ChecksIndexRoute } from './routes/checks/index';
-import { Route as PatchesIndexRoute } from './routes/patches/index';
-import { Route as PoliciesIndexRoute } from './routes/policies/index';
-import { Route as ScriptsIndexRoute } from './routes/scripts/index';
-import { Route as ScriptsNewRoute } from './routes/scripts/new';
-import { Route as AlertsAlertIdRoute } from './routes/alerts/$alertId';
-import { Route as AgentsAgentIdRoute } from './routes/agents/$agentId';
-import { Route as ChecksCheckIdRoute } from './routes/checks/$checkId';
-import { Route as PatchesJobIdRoute } from './routes/patches/$jobId';
-import { Route as PoliciesPolicyIdRoute } from './routes/policies/$policyId';
-import { Route as ScriptsScriptIdRoute } from './routes/scripts/$scriptId';
-import { Route as ScriptsScriptIdRunsRunIdRoute } from './routes/scripts/$scriptId/runs/$runId';
-
-// Create/Update Routes
-
-const LoginRouteRoute = createFileRoute('/login')({
-  component: LoginRoute,
-});
-
-const IndexRouteRoute = createFileRoute('/')({
-  component: IndexRoute,
-});
-
-const SettingsRouteRoute = createFileRoute('/settings')({
-  component: SettingsRoute,
-});
-
-const DashboardRouteRoute = createFileRoute('/dashboard')({
-  component: DashboardRoute,
-});
-
-const AlertsIndexRouteRoute = createFileRoute('/alerts/')({
-  component: AlertsIndexRoute,
-});
-
-const AgentsIndexRouteRoute = createFileRoute('/agents/')({
-  component: AgentsIndexRoute,
-});
-
-const ChecksIndexRouteRoute = createFileRoute('/checks/')({
-  component: ChecksIndexRoute,
-});
-
-const PatchesIndexRouteRoute = createFileRoute('/patches/')({
-  component: PatchesIndexRoute,
-});
-
-const PoliciesIndexRouteRoute = createFileRoute('/policies/')({
-  component: PoliciesIndexRoute,
-});
-
-const ScriptsIndexRouteRoute = createFileRoute('/scripts/')({
-  component: ScriptsIndexRoute,
-});
-
-const ScriptsNewRouteRoute = createFileRoute('/scripts/new')({
-  component: ScriptsNewRoute,
-});
-
-const AlertsAlertIdRouteRoute = createFileRoute('/alerts/$alertId')({
-  component: AlertsAlertIdRoute,
-});
-
-const AgentsAgentIdRouteRoute = createFileRoute('/agents/$agentId')({
-  component: AgentsAgentIdRoute,
-});
-
-const ChecksCheckIdRouteRoute = createFileRoute('/checks/$checkId')({
-  component: ChecksCheckIdRoute,
-});
-
-const PatchesJobIdRouteRoute = createFileRoute('/patches/$jobId')({
-  component: PatchesJobIdRoute,
-});
-
-const PoliciesPolicyIdRouteRoute = createFileRoute('/policies/$policyId')({
-  component: PoliciesPolicyIdRoute,
-});
-
-const ScriptsScriptIdRouteRoute = createFileRoute('/scripts/$scriptId')({
-  component: ScriptsScriptIdRoute,
-});
-
-const ScriptsScriptIdRunsRunIdRouteRoute = createFileRoute(
-  '/scripts/$scriptId/runs/$runId'
-)({
-  component: ScriptsScriptIdRunsRunIdRoute,
-});
-
-// Populate the FileRoutesByPath interface
+export interface FileRoutesByFullPath {
+  '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
+  '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
+  '/agents/$agentId': typeof AgentsAgentIdRouteWithChildren
+  '/alerts/$alertId': typeof AlertsAlertIdRoute
+  '/checks/$checkId': typeof ChecksCheckIdRoute
+  '/patches/$jobId': typeof PatchesJobIdRoute
+  '/policies/$policyId': typeof PoliciesPolicyIdRoute
+  '/scripts/$scriptId': typeof ScriptsScriptIdRouteWithChildren
+  '/scripts/new': typeof ScriptsNewRoute
+  '/shell-recordings/$sessionId': typeof ShellRecordingsSessionIdRoute
+  '/agents/': typeof AgentsIndexRoute
+  '/alerts/': typeof AlertsIndexRoute
+  '/checks/': typeof ChecksIndexRoute
+  '/patches/': typeof PatchesIndexRoute
+  '/policies/': typeof PoliciesIndexRoute
+  '/scripts/': typeof ScriptsIndexRoute
+  '/shell-recordings/': typeof ShellRecordingsIndexRoute
+  '/agents/$agentId/shell': typeof AgentsAgentIdShellRoute
+  '/scripts/$scriptId/runs/$runId': typeof ScriptsScriptIdRunsRunIdRoute
+}
+export interface FileRoutesByTo {
+  '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
+  '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
+  '/agents/$agentId': typeof AgentsAgentIdRouteWithChildren
+  '/alerts/$alertId': typeof AlertsAlertIdRoute
+  '/checks/$checkId': typeof ChecksCheckIdRoute
+  '/patches/$jobId': typeof PatchesJobIdRoute
+  '/policies/$policyId': typeof PoliciesPolicyIdRoute
+  '/scripts/$scriptId': typeof ScriptsScriptIdRouteWithChildren
+  '/scripts/new': typeof ScriptsNewRoute
+  '/shell-recordings/$sessionId': typeof ShellRecordingsSessionIdRoute
+  '/agents': typeof AgentsIndexRoute
+  '/alerts': typeof AlertsIndexRoute
+  '/checks': typeof ChecksIndexRoute
+  '/patches': typeof PatchesIndexRoute
+  '/policies': typeof PoliciesIndexRoute
+  '/scripts': typeof ScriptsIndexRoute
+  '/shell-recordings': typeof ShellRecordingsIndexRoute
+  '/agents/$agentId/shell': typeof AgentsAgentIdShellRoute
+  '/scripts/$scriptId/runs/$runId': typeof ScriptsScriptIdRunsRunIdRoute
+}
+export interface FileRoutesById {
+  __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
+  '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
+  '/agents/$agentId': typeof AgentsAgentIdRouteWithChildren
+  '/alerts/$alertId': typeof AlertsAlertIdRoute
+  '/checks/$checkId': typeof ChecksCheckIdRoute
+  '/patches/$jobId': typeof PatchesJobIdRoute
+  '/policies/$policyId': typeof PoliciesPolicyIdRoute
+  '/scripts/$scriptId': typeof ScriptsScriptIdRouteWithChildren
+  '/scripts/new': typeof ScriptsNewRoute
+  '/shell-recordings/$sessionId': typeof ShellRecordingsSessionIdRoute
+  '/agents/': typeof AgentsIndexRoute
+  '/alerts/': typeof AlertsIndexRoute
+  '/checks/': typeof ChecksIndexRoute
+  '/patches/': typeof PatchesIndexRoute
+  '/policies/': typeof PoliciesIndexRoute
+  '/scripts/': typeof ScriptsIndexRoute
+  '/shell-recordings/': typeof ShellRecordingsIndexRoute
+  '/agents/$agentId/shell': typeof AgentsAgentIdShellRoute
+  '/scripts/$scriptId/runs/$runId': typeof ScriptsScriptIdRunsRunIdRoute
+}
+export interface FileRouteTypes {
+  fileRoutesByFullPath: FileRoutesByFullPath
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/settings'
+    | '/agents/$agentId'
+    | '/alerts/$alertId'
+    | '/checks/$checkId'
+    | '/patches/$jobId'
+    | '/policies/$policyId'
+    | '/scripts/$scriptId'
+    | '/scripts/new'
+    | '/shell-recordings/$sessionId'
+    | '/agents/'
+    | '/alerts/'
+    | '/checks/'
+    | '/patches/'
+    | '/policies/'
+    | '/scripts/'
+    | '/shell-recordings/'
+    | '/agents/$agentId/shell'
+    | '/scripts/$scriptId/runs/$runId'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/settings'
+    | '/agents/$agentId'
+    | '/alerts/$alertId'
+    | '/checks/$checkId'
+    | '/patches/$jobId'
+    | '/policies/$policyId'
+    | '/scripts/$scriptId'
+    | '/scripts/new'
+    | '/shell-recordings/$sessionId'
+    | '/agents'
+    | '/alerts'
+    | '/checks'
+    | '/patches'
+    | '/policies'
+    | '/scripts'
+    | '/shell-recordings'
+    | '/agents/$agentId/shell'
+    | '/scripts/$scriptId/runs/$runId'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/settings'
+    | '/agents/$agentId'
+    | '/alerts/$alertId'
+    | '/checks/$checkId'
+    | '/patches/$jobId'
+    | '/policies/$policyId'
+    | '/scripts/$scriptId'
+    | '/scripts/new'
+    | '/shell-recordings/$sessionId'
+    | '/agents/'
+    | '/alerts/'
+    | '/checks/'
+    | '/patches/'
+    | '/policies/'
+    | '/scripts/'
+    | '/shell-recordings/'
+    | '/agents/$agentId/shell'
+    | '/scripts/$scriptId/runs/$runId'
+  fileRoutesById: FileRoutesById
+}
+export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
+  DashboardRoute: typeof DashboardRoute
+  LoginRoute: typeof LoginRoute
+  SettingsRoute: typeof SettingsRoute
+  AgentsAgentIdRoute: typeof AgentsAgentIdRouteWithChildren
+  AlertsAlertIdRoute: typeof AlertsAlertIdRoute
+  ChecksCheckIdRoute: typeof ChecksCheckIdRoute
+  PatchesJobIdRoute: typeof PatchesJobIdRoute
+  PoliciesPolicyIdRoute: typeof PoliciesPolicyIdRoute
+  ScriptsScriptIdRoute: typeof ScriptsScriptIdRouteWithChildren
+  ScriptsNewRoute: typeof ScriptsNewRoute
+  ShellRecordingsSessionIdRoute: typeof ShellRecordingsSessionIdRoute
+  AgentsIndexRoute: typeof AgentsIndexRoute
+  AlertsIndexRoute: typeof AlertsIndexRoute
+  ChecksIndexRoute: typeof ChecksIndexRoute
+  PatchesIndexRoute: typeof PatchesIndexRoute
+  PoliciesIndexRoute: typeof PoliciesIndexRoute
+  ScriptsIndexRoute: typeof ScriptsIndexRoute
+  ShellRecordingsIndexRoute: typeof ShellRecordingsIndexRoute
+}
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/';
-      path: '/';
-      fullPath: '/';
-      preLoaderRoute: typeof IndexRoute;
-      parentRoute: typeof rootRoute;
-    };
-    '/login': {
-      id: '/login';
-      path: '/login';
-      fullPath: '/login';
-      preLoaderRoute: typeof LoginRoute;
-      parentRoute: typeof rootRoute;
-    };
-    '/dashboard': {
-      id: '/dashboard';
-      path: '/dashboard';
-      fullPath: '/dashboard';
-      preLoaderRoute: typeof DashboardRoute;
-      parentRoute: typeof rootRoute;
-    };
     '/settings': {
-      id: '/settings';
-      path: '/settings';
-      fullPath: '/settings';
-      preLoaderRoute: typeof SettingsRoute;
-      parentRoute: typeof rootRoute;
-    };
-    '/agents/$agentId': {
-      id: '/agents/$agentId';
-      path: '/agents/$agentId';
-      fullPath: '/agents/$agentId';
-      preLoaderRoute: typeof AgentsAgentIdRoute;
-      parentRoute: typeof rootRoute;
-    };
-    '/alerts/$alertId': {
-      id: '/alerts/$alertId';
-      path: '/alerts/$alertId';
-      fullPath: '/alerts/$alertId';
-      preLoaderRoute: typeof AlertsAlertIdRoute;
-      parentRoute: typeof rootRoute;
-    };
-    '/scripts/$scriptId': {
-      id: '/scripts/$scriptId';
-      path: '/scripts/$scriptId';
-      fullPath: '/scripts/$scriptId';
-      preLoaderRoute: typeof ScriptsScriptIdRoute;
-      parentRoute: typeof rootRoute;
-    };
-    '/policies/$policyId': {
-      id: '/policies/$policyId';
-      path: '/policies/$policyId';
-      fullPath: '/policies/$policyId';
-      preLoaderRoute: typeof PoliciesPolicyIdRoute;
-      parentRoute: typeof rootRoute;
-    };
-    '/patches/$jobId': {
-      id: '/patches/$jobId';
-      path: '/patches/$jobId';
-      fullPath: '/patches/$jobId';
-      preLoaderRoute: typeof PatchesJobIdRoute;
-      parentRoute: typeof rootRoute;
-    };
-    '/checks/$checkId': {
-      id: '/checks/$checkId';
-      path: '/checks/$checkId';
-      fullPath: '/checks/$checkId';
-      preLoaderRoute: typeof ChecksCheckIdRoute;
-      parentRoute: typeof rootRoute;
-    };
-    '/scripts/new': {
-      id: '/scripts/new';
-      path: '/scripts/new';
-      fullPath: '/scripts/new';
-      preLoaderRoute: typeof ScriptsNewRoute;
-      parentRoute: typeof rootRoute;
-    };
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/shell-recordings/': {
+      id: '/shell-recordings/'
+      path: '/shell-recordings'
+      fullPath: '/shell-recordings/'
+      preLoaderRoute: typeof ShellRecordingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/scripts/': {
-      id: '/scripts/';
-      path: '/scripts';
-      fullPath: '/scripts';
-      preLoaderRoute: typeof ScriptsIndexRoute;
-      parentRoute: typeof rootRoute;
-    };
+      id: '/scripts/'
+      path: '/scripts'
+      fullPath: '/scripts/'
+      preLoaderRoute: typeof ScriptsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/policies/': {
-      id: '/policies/';
-      path: '/policies';
-      fullPath: '/policies';
-      preLoaderRoute: typeof PoliciesIndexRoute;
-      parentRoute: typeof rootRoute;
-    };
+      id: '/policies/'
+      path: '/policies'
+      fullPath: '/policies/'
+      preLoaderRoute: typeof PoliciesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/patches/': {
-      id: '/patches/';
-      path: '/patches';
-      fullPath: '/patches';
-      preLoaderRoute: typeof PatchesIndexRoute;
-      parentRoute: typeof rootRoute;
-    };
+      id: '/patches/'
+      path: '/patches'
+      fullPath: '/patches/'
+      preLoaderRoute: typeof PatchesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/checks/': {
-      id: '/checks/';
-      path: '/checks';
-      fullPath: '/checks';
-      preLoaderRoute: typeof ChecksIndexRoute;
-      parentRoute: typeof rootRoute;
-    };
-    '/agents/': {
-      id: '/agents/';
-      path: '/agents';
-      fullPath: '/agents';
-      preLoaderRoute: typeof AgentsIndexRoute;
-      parentRoute: typeof rootRoute;
-    };
+      id: '/checks/'
+      path: '/checks'
+      fullPath: '/checks/'
+      preLoaderRoute: typeof ChecksIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/alerts/': {
-      id: '/alerts/';
-      path: '/alerts';
-      fullPath: '/alerts';
-      preLoaderRoute: typeof AlertsIndexRoute;
-      parentRoute: typeof rootRoute;
-    };
+      id: '/alerts/'
+      path: '/alerts'
+      fullPath: '/alerts/'
+      preLoaderRoute: typeof AlertsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agents/': {
+      id: '/agents/'
+      path: '/agents'
+      fullPath: '/agents/'
+      preLoaderRoute: typeof AgentsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/shell-recordings/$sessionId': {
+      id: '/shell-recordings/$sessionId'
+      path: '/shell-recordings/$sessionId'
+      fullPath: '/shell-recordings/$sessionId'
+      preLoaderRoute: typeof ShellRecordingsSessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scripts/new': {
+      id: '/scripts/new'
+      path: '/scripts/new'
+      fullPath: '/scripts/new'
+      preLoaderRoute: typeof ScriptsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scripts/$scriptId': {
+      id: '/scripts/$scriptId'
+      path: '/scripts/$scriptId'
+      fullPath: '/scripts/$scriptId'
+      preLoaderRoute: typeof ScriptsScriptIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/policies/$policyId': {
+      id: '/policies/$policyId'
+      path: '/policies/$policyId'
+      fullPath: '/policies/$policyId'
+      preLoaderRoute: typeof PoliciesPolicyIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/patches/$jobId': {
+      id: '/patches/$jobId'
+      path: '/patches/$jobId'
+      fullPath: '/patches/$jobId'
+      preLoaderRoute: typeof PatchesJobIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checks/$checkId': {
+      id: '/checks/$checkId'
+      path: '/checks/$checkId'
+      fullPath: '/checks/$checkId'
+      preLoaderRoute: typeof ChecksCheckIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/alerts/$alertId': {
+      id: '/alerts/$alertId'
+      path: '/alerts/$alertId'
+      fullPath: '/alerts/$alertId'
+      preLoaderRoute: typeof AlertsAlertIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agents/$agentId': {
+      id: '/agents/$agentId'
+      path: '/agents/$agentId'
+      fullPath: '/agents/$agentId'
+      preLoaderRoute: typeof AgentsAgentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agents/$agentId/shell': {
+      id: '/agents/$agentId/shell'
+      path: '/shell'
+      fullPath: '/agents/$agentId/shell'
+      preLoaderRoute: typeof AgentsAgentIdShellRouteImport
+      parentRoute: typeof AgentsAgentIdRoute
+    }
     '/scripts/$scriptId/runs/$runId': {
-      id: '/scripts/$scriptId/runs/$runId';
-      path: '/scripts/$scriptId/runs/$runId';
-      fullPath: '/scripts/$scriptId/runs/$runId';
-      preLoaderRoute: typeof ScriptsScriptIdRunsRunIdRoute;
-      parentRoute: typeof rootRoute;
-    };
+      id: '/scripts/$scriptId/runs/$runId'
+      path: '/runs/$runId'
+      fullPath: '/scripts/$scriptId/runs/$runId'
+      preLoaderRoute: typeof ScriptsScriptIdRunsRunIdRouteImport
+      parentRoute: typeof ScriptsScriptIdRoute
+    }
   }
 }
 
-// Create and export the route tree
+interface AgentsAgentIdRouteChildren {
+  AgentsAgentIdShellRoute: typeof AgentsAgentIdShellRoute
+}
 
-export const routeTree = rootRoute
-  ._addFileChildren({
-    ...IndexRouteRoute,
-    ...LoginRouteRoute,
-    ...DashboardRouteRoute,
-    ...SettingsRouteRoute,
-    ...AgentsIndexRouteRoute,
-    ...AlertsIndexRouteRoute,
-    ...ChecksIndexRouteRoute,
-    ...PatchesIndexRouteRoute,
-    ...PoliciesIndexRouteRoute,
-    ...ScriptsIndexRouteRoute,
-    ...ScriptsNewRouteRoute,
-    ...AgentsAgentIdRouteRoute,
-    ...AlertsAlertIdRouteRoute,
-    ...ScriptsScriptIdRouteRoute,
-    ...PoliciesPolicyIdRouteRoute,
-    ...PatchesJobIdRouteRoute,
-    ...ChecksCheckIdRouteRoute,
-    ...ScriptsScriptIdRunsRunIdRouteRoute,
-  })
-  ._addFileTypes<any>();
+const AgentsAgentIdRouteChildren: AgentsAgentIdRouteChildren = {
+  AgentsAgentIdShellRoute: AgentsAgentIdShellRoute,
+}
+
+const AgentsAgentIdRouteWithChildren = AgentsAgentIdRoute._addFileChildren(
+  AgentsAgentIdRouteChildren,
+)
+
+interface ScriptsScriptIdRouteChildren {
+  ScriptsScriptIdRunsRunIdRoute: typeof ScriptsScriptIdRunsRunIdRoute
+}
+
+const ScriptsScriptIdRouteChildren: ScriptsScriptIdRouteChildren = {
+  ScriptsScriptIdRunsRunIdRoute: ScriptsScriptIdRunsRunIdRoute,
+}
+
+const ScriptsScriptIdRouteWithChildren = ScriptsScriptIdRoute._addFileChildren(
+  ScriptsScriptIdRouteChildren,
+)
+
+const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
+  DashboardRoute: DashboardRoute,
+  LoginRoute: LoginRoute,
+  SettingsRoute: SettingsRoute,
+  AgentsAgentIdRoute: AgentsAgentIdRouteWithChildren,
+  AlertsAlertIdRoute: AlertsAlertIdRoute,
+  ChecksCheckIdRoute: ChecksCheckIdRoute,
+  PatchesJobIdRoute: PatchesJobIdRoute,
+  PoliciesPolicyIdRoute: PoliciesPolicyIdRoute,
+  ScriptsScriptIdRoute: ScriptsScriptIdRouteWithChildren,
+  ScriptsNewRoute: ScriptsNewRoute,
+  ShellRecordingsSessionIdRoute: ShellRecordingsSessionIdRoute,
+  AgentsIndexRoute: AgentsIndexRoute,
+  AlertsIndexRoute: AlertsIndexRoute,
+  ChecksIndexRoute: ChecksIndexRoute,
+  PatchesIndexRoute: PatchesIndexRoute,
+  PoliciesIndexRoute: PoliciesIndexRoute,
+  ScriptsIndexRoute: ScriptsIndexRoute,
+  ShellRecordingsIndexRoute: ShellRecordingsIndexRoute,
+}
+export const routeTree = rootRouteImport
+  ._addFileChildren(rootRouteChildren)
+  ._addFileTypes<FileRouteTypes>()

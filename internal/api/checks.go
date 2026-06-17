@@ -39,6 +39,12 @@ func (s *Server) checkStore() checkStore {
 }
 
 // Valid check types. The config schema is validated against this list.
+// validCheckTypes lists the check types the API accepts.
+// Note: "custom" is intentionally absent — there is no handler for it
+// in pkg/agent/checkers/registry.go. Custom checks should be expressed
+// as "script" (with a script body in the config) or as a new dedicated
+// checker that is registered in the registry. Re-introduce "custom"
+// only once a corresponding checker implementation exists.
 var validCheckTypes = map[string]bool{
 	"ping":    true,
 	"http":    true,
@@ -49,7 +55,6 @@ var validCheckTypes = map[string]bool{
 	"disk":    true,
 	"service": true,
 	"script":  true,
-	"custom":  true,
 }
 
 // validateCheckConfig applies the per-type schema and defaults from the
@@ -156,26 +161,6 @@ func validateCheckConfig(checkType string, raw map[string]any) (map[string]any, 
 		return map[string]any{
 			"runtime":         rt,
 			"script_body":     body,
-			"timeout_seconds": getIntDefault(raw, "timeout_seconds", 30),
-		}, nil
-	case "custom":
-		cmd, _ := raw["command"].(string)
-		if cmd == "" {
-			return nil, errors.New("custom: command is required")
-		}
-		var args []string
-		if v, ok := raw["args"]; ok {
-			if as, ok := v.([]any); ok {
-				for _, a := range as {
-					if s, ok := a.(string); ok {
-						args = append(args, s)
-					}
-				}
-			}
-		}
-		return map[string]any{
-			"command":         cmd,
-			"args":            args,
 			"timeout_seconds": getIntDefault(raw, "timeout_seconds", 30),
 		}, nil
 	}

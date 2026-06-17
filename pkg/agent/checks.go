@@ -47,7 +47,7 @@ func ChecksSubject(agentID string) string {
 
 // ChecksResultSubject returns the NATS subject for check results.
 func ChecksResultSubject(agentID string) string {
-	return fmt.Sprintf("oap.agents.%s.checks.result", agentID)
+	return fmt.Sprintf("oap.agents.%s.results", agentID)
 }
 
 // --- Exported expvar metrics ---

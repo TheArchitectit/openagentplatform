@@ -504,7 +504,7 @@ export function usePatches(): UsePatchesResult {
         params.set('limit', '500');
         const res = await apiFetch<
           { scans?: PatchScanResult[] } | PatchScanResult[]
-        >(`/patches/scans?${params.toString()}`);
+        >(`/patches/catalog/scan?${params.toString()}`);
 
         const list = Array.isArray(res) ? res : res.scans ?? [];
         if (!mountedRef.current) return list;
@@ -524,7 +524,7 @@ export function usePatches(): UsePatchesResult {
     async (agentIds?: string[]): Promise<PatchScanResult[]> => {
       const res = await apiFetch<
         { scans?: PatchScanResult[] } | PatchScanResult[]
-      >('/patches/scans', {
+      >('/patches/catalog/scan', {
         method: 'POST',
         json: agentIds && agentIds.length > 0 ? { agent_ids: agentIds } : undefined,
       });
@@ -575,7 +575,7 @@ export function usePatches(): UsePatchesResult {
 
   const cancelJob = useCallback(
     async (id: string): Promise<PatchJob> => {
-      const j = await apiFetch<PatchJob>(`/patches/jobs/${encodeURIComponent(id)}/cancel`, {
+      const j = await apiFetch<PatchJob>(`/patches/${encodeURIComponent(id)}/cancel`, {
         method: 'POST',
       });
       return applyJobMutation(j);
@@ -585,7 +585,7 @@ export function usePatches(): UsePatchesResult {
 
   const rollbackJob = useCallback(
     async (id: string): Promise<PatchJob> => {
-      const j = await apiFetch<PatchJob>(`/patches/jobs/${encodeURIComponent(id)}/rollback`, {
+      const j = await apiFetch<PatchJob>(`/patches/${encodeURIComponent(id)}/rollback`, {
         method: 'POST',
       });
       return applyJobMutation(j);
@@ -595,7 +595,7 @@ export function usePatches(): UsePatchesResult {
 
   const retryJob = useCallback(
     async (id: string): Promise<PatchJob> => {
-      const j = await apiFetch<PatchJob>(`/patches/jobs/${encodeURIComponent(id)}/retry`, {
+      const j = await apiFetch<PatchJob>(`/patches/${encodeURIComponent(id)}/retry`, {
         method: 'POST',
       });
       return applyJobMutation(j);
@@ -605,7 +605,7 @@ export function usePatches(): UsePatchesResult {
 
   const approveJob = useCallback(
     async (id: string, note?: string): Promise<PatchJob> => {
-      const j = await apiFetch<PatchJob>(`/patches/jobs/${encodeURIComponent(id)}/approve`, {
+      const j = await apiFetch<PatchJob>(`/patches/${encodeURIComponent(id)}/approve`, {
         method: 'POST',
         json: note ? { note } : undefined,
       });
@@ -616,7 +616,7 @@ export function usePatches(): UsePatchesResult {
 
   const rejectJob = useCallback(
     async (id: string, note?: string): Promise<PatchJob> => {
-      const j = await apiFetch<PatchJob>(`/patches/jobs/${encodeURIComponent(id)}/reject`, {
+      const j = await apiFetch<PatchJob>(`/patches/${encodeURIComponent(id)}/reject`, {
         method: 'POST',
         json: note ? { note } : undefined,
       });
