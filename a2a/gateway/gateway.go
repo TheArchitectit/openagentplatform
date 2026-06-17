@@ -387,3 +387,34 @@ func (g *Gateway) checkRate(id *Identity) error {
 	}
 	return nil
 }
+
+// ============================================================
+// Internal bridge-facing operations
+// ============================================================
+//
+// These methods are used by internal components (such as the RPC bridge
+// in a2a/bridge/rpc.go) that have already been authenticated and
+// authorized at the transport layer. They skip the per-call auth
+// and rate-limit checks.
+
+// UpdateTaskStatus transitions a task to a new status via an event.
+// Used by the RPC bridge to drive task lifecycle after adapter calls.
+func (g *Gateway) UpdateTaskStatus(ctx context.Context, taskID, event string, version int) (*models.Task, error) {
+	return g.tasks.UpdateStatus(ctx, taskID, event, version)
+}
+
+// AddMessage appends a message to a task's conversation history.
+func (g *Gateway) AddMessage(ctx context.Context, taskID string, msg models.Message, version int) (*models.Task, error) {
+	return g.tasks.AddMessage(ctx, taskID, msg, version)
+}
+
+// AddArtifact attaches an artifact to a task.
+func (g *Gateway) AddArtifact(ctx context.Context, taskID, name, description, mimeType string, parts []models.Part) (*models.Artifact, error) {
+	return g.tasks.AddArtifact(ctx, taskID, name, description, mimeType, parts)
+}
+
+// GetTaskInternal retrieves a task by ID without auth/rate checks.
+// Intended for internal bridge use.
+func (g *Gateway) GetTaskInternal(ctx context.Context, taskID string) (*models.Task, error) {
+	return g.tasks.GetTask(ctx, taskID)
+}

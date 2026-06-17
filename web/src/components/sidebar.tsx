@@ -16,6 +16,10 @@ import {
   Settings,
   LogOut,
   Terminal,
+  Radio,
+  ListChecks,
+  CircleDollarSign,
+  Network,
 } from 'lucide-react';
 import { logout, getStoredUser } from '@/lib/auth';
 import { useAlerts } from '@/lib/useAlerts';
@@ -37,6 +41,10 @@ const navItems: NavItem[] = [
   { to: '/policies', label: 'Policies', icon: ShieldCheck },
   { to: '/patches', label: 'Patches', icon: Wrench, showPatchBadge: true },
   { to: '/scripts', label: 'Scripts', icon: FileCode2 },
+  { to: '/a2a', label: 'A2A Dashboard', icon: Radio },
+  { to: '/a2a/agents', label: 'Agent Cards', icon: Network },
+  { to: '/a2a/tasks', label: 'A2A Tasks', icon: ListChecks },
+  { to: '/a2a/costs', label: 'A2A Costs', icon: CircleDollarSign },
   { to: '/settings', label: 'Settings', icon: Settings },
   // Admin-only items are appended dynamically below; we keep the
   // static list above so the dashboard link renders for everyone.

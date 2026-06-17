@@ -2,8 +2,8 @@
 FastAPI application factory for the OAP adapter subsystem.
 
 Provides lifespan-managed startup/shutdown that warms the process pool and
-registers all installed adapters, plus endpoints for adapter discovery and
-health checks.
+registers all installed adapters, plus the full REST API for adapter
+discovery, invocation, streaming, cancellation, and cost management.
 """
 
 from __future__ import annotations
@@ -11,8 +11,11 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
+from oap.adapters.api import router as adapters_router
+from oap.adapters.cost import CostManager
 from oap.adapters.orchestrator import AdapterInfo, OrchestrationService
 from oap.adapters.types import HealthStatus
 
@@ -26,13 +29,16 @@ def create_app() -> FastAPI:
     """Build and return a configured FastAPI application.
 
     The returned app owns a single ``OrchestrationService`` instance stored
-    on ``app.state.orchestrator``.
+    on ``app.state.orchestrator`` and a ``CostManager`` on
+    ``app.state.cost_manager``.
     """
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         orchestrator = OrchestrationService()
+        cost_manager = CostManager()
         app.state.orchestrator = orchestrator
+        app.state.cost_manager = cost_manager
         await orchestrator.start()
         try:
             yield
@@ -41,7 +47,21 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="OAP Adapter Service", version="0.1.0", lifespan=lifespan)
 
-    # -- Endpoints ----------------------------------------------------------
+    # -- CORS middleware ----------------------------------------------------
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:5173"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # -- Register API routes ------------------------------------------------
+
+    app.include_router(adapters_router)
+
+    # -- Legacy / non-versioned aliases for backwards compatibility ---------
 
     @app.get("/adapters", response_model=list[AdapterInfo])
     async def list_adapters() -> list[AdapterInfo]:
@@ -76,5 +96,5 @@ def create_app() -> FastAPI:
     return app
 
 
-# Module-level app for ``uvicorn oap.app:app``.
+# Module-level app for ``uvicorn oap.app:app --port 8001``.
 app = create_app()

@@ -43,6 +43,7 @@ type Server struct {
 	policyEngine    *policy.PolicyEngine
 	patchScheduler  *patches.PatchScheduler
 	eventBridge     *bridge.Bridge
+	rpcBridge       *bridge.RPCBridge
 }
 
 // NewServer wires all dependencies (DB pool, NATS, API server, background
@@ -133,12 +134,6 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 	scriptStore := api.NewPGScriptStore(pool)
 	apiServer.SetScriptStore(scriptStore)
 
-	httpServer := &http.Server{
-		Addr:              ":" + cfg.HTTPPort,
-		Handler:           apiServer.Router(),
-		ReadHeaderTimeout: 10 * time.Second,
-	}
-
 	// --- A2A Event-to-Task bridge ---------------------------------------
 	// Build the A2A gateway components and the bridge that converts
 	// internal NATS events into A2A tasks. The bridge runs as an
@@ -164,6 +159,32 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		return nil, errors.New("a2a bridge: " + err.Error())
 	}
 
+	// --- A2A RPC Bridge (Python adapter service) -----------------------
+	// Create the HTTP client for the Python adapter service and wire it
+	// to the A2A Gateway via the RPCBridge. The RPC bridge handles task
+	// dispatch, response streaming, cancellation, and periodic AgentCard
+	// refresh.
+	adapterClient := bridge.NewAdapterClient(bridge.ClientConfig{
+		BaseURL: "http://localhost:8001",
+	})
+	rpcBridge, err := bridge.NewRPCBridge(adapterClient, a2aGw, bridge.RPCConfig{
+		Logger: log,
+	})
+	if err != nil {
+		return nil, errors.New("a2a rpc bridge: " + err.Error())
+	}
+
+	// --- HTTP server with A2A routes mounted ---------------------------
+	// Build a top-level router that delegates the API to apiServer.Router()
+	// and mounts the A2A gateway handlers under /a2a/.
+	rootHandler := newA2ARouter(apiServer.Router(), a2aGw)
+
+	httpServer := &http.Server{
+		Addr:              ":" + cfg.HTTPPort,
+		Handler:           rootHandler,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
 	return &Server{
 		cfg:            cfg,
 		log:            log,
@@ -178,6 +199,7 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		policyEngine:   policyEngine,
 		patchScheduler: patchScheduler,
 		eventBridge:    eventBridge,
+		rpcBridge:      rpcBridge,
 	}, nil
 }
 
@@ -209,6 +231,9 @@ func (s *Server) Start(ctx context.Context) error {
 	if err := s.eventBridge.Start(); err != nil {
 		return errors.New("a2a event bridge start: " + err.Error())
 	}
+	if err := s.rpcBridge.Start(); err != nil {
+		return errors.New("a2a rpc bridge start: " + err.Error())
+	}
 
 	go s.patchScheduler.Run(hbCtx)
 
@@ -233,6 +258,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	s.alertEngine.Stop()
 	s.policyEngine.Stop()
 	s.eventBridge.Stop()
+	s.rpcBridge.Stop()
 	s.patchScheduler.Close()
 
 	return s.httpServer.Shutdown(ctx)

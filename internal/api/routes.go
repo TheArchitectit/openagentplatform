@@ -263,6 +263,26 @@ func (s *Server) registerRoutes(r chi.Router) {
 			r.Route("/agents/{id}/shell", func(r chi.Router) {
 				r.Post("/", s.handleRemoteCreateSession)
 			})
+
+			// A2A (Agent-to-Agent) proxy routes. These forward requests
+			// from the frontend to the Python adapter service and the
+			// A2A gateway, so the UI can discover agents, inspect
+			// cards, check health, list tasks, and view cost summaries
+			// without needing a direct connection to the adapter
+			// service.
+			r.Route("/a2a", func(r chi.Router) {
+				// Adapter discovery and inspection.
+				r.Get("/adapters", s.handleA2AListAdapters)
+				r.Get("/adapters/{name}/card", s.handleA2AAdapterCard)
+				r.Get("/adapters/{name}/health", s.handleA2AAdapterHealth)
+
+				// A2A task browser.
+				r.Get("/tasks", s.handleA2AListTasks)
+				r.Get("/tasks/{id}", s.handleA2AGetTask)
+
+				// Cost and budget summary.
+				r.Get("/costs/summary", s.handleA2ACostSummary)
+			})
 		})
 	})
 

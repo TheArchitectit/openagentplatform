@@ -1,5 +1,10 @@
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api/v1';
 
+// A2A protocol base path. The A2A (Agent-to-Agent) protocol endpoints
+// live under /a2a/ on the gateway. This constant is exported for use
+// by the A2A dashboard, task monitor, and cost analytics pages.
+export const A2A_API_BASE = '/a2a';
+
 export interface FetchOptions extends RequestInit {
   json?: unknown;
 }
