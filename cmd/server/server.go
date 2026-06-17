@@ -10,6 +10,11 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/openagentplatform/openagentplatform/a2a/bridge"
+	"github.com/openagentplatform/openagentplatform/a2a/gateway"
+	"github.com/openagentplatform/openagentplatform/a2a/manager"
+	"github.com/openagentplatform/openagentplatform/a2a/registry"
+	"github.com/openagentplatform/openagentplatform/a2a/router"
 	"github.com/openagentplatform/openagentplatform/internal/alerts"
 	"github.com/openagentplatform/openagentplatform/internal/api"
 	"github.com/openagentplatform/openagentplatform/internal/audit"
@@ -37,6 +42,7 @@ type Server struct {
 	alertEngine     *alerts.AlertEngine
 	policyEngine    *policy.PolicyEngine
 	patchScheduler  *patches.PatchScheduler
+	eventBridge     *bridge.Bridge
 }
 
 // NewServer wires all dependencies (DB pool, NATS, API server, background
@@ -133,6 +139,31 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
+	// --- A2A Event-to-Task bridge ---------------------------------------
+	// Build the A2A gateway components and the bridge that converts
+	// internal NATS events into A2A tasks. The bridge runs as an
+	// internal service and does not require an HTTP identity.
+	taskMgr := manager.NewTaskManager(pool)
+	cardStore := registry.NewPGCardStore(pool)
+	agentReg, err := registry.NewRegistry(context.Background(), cardStore, registry.Config{})
+	if err != nil {
+		return nil, errors.New("a2a registry: " + err.Error())
+	}
+	a2aRouter, err := router.NewRouter(agentReg)
+	if err != nil {
+		return nil, errors.New("a2a router: " + err.Error())
+	}
+	a2aGw, err := gateway.NewGateway(taskMgr, agentReg, a2aRouter, gateway.Config{})
+	if err != nil {
+		return nil, errors.New("a2a gateway: " + err.Error())
+	}
+	eventBridge, err := bridge.NewBridge(natsClient.Conn(), a2aGw, log, bridge.Config{
+		QueueGroup: "a2a-bridge",
+	})
+	if err != nil {
+		return nil, errors.New("a2a bridge: " + err.Error())
+	}
+
 	return &Server{
 		cfg:            cfg,
 		log:            log,
@@ -146,6 +177,7 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		alertEngine:    alertEngine,
 		policyEngine:   policyEngine,
 		patchScheduler: patchScheduler,
+		eventBridge:    eventBridge,
 	}, nil
 }
 
@@ -174,6 +206,9 @@ func (s *Server) Start(ctx context.Context) error {
 	if err := s.policyEngine.Start(hbCtx); err != nil {
 		return errors.New("policy engine start: " + err.Error())
 	}
+	if err := s.eventBridge.Start(); err != nil {
+		return errors.New("a2a event bridge start: " + err.Error())
+	}
 
 	go s.patchScheduler.Run(hbCtx)
 
@@ -197,6 +232,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	s.ingestor.Stop()
 	s.alertEngine.Stop()
 	s.policyEngine.Stop()
+	s.eventBridge.Stop()
 	s.patchScheduler.Close()
 
 	return s.httpServer.Shutdown(ctx)

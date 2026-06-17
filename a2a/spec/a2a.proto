@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+package a2a.v1;
+
+option go_package = "github.com/openagentplatform/openagentplatform/a2a/spec";
+
+// ============================================================
+// Enums
+// ============================================================
+
+enum TaskStatus {
+  TASK_STATUS_UNSPECIFIED     = 0;
+  TASK_STATUS_PENDING         = 1;
+  TASK_STATUS_WORKING         = 2;
+  TASK_STATUS_INPUT_REQUIRED  = 3;
+  TASK_STATUS_OUTPUT_AVAILABLE = 4;
+  TASK_STATUS_COMPLETED       = 5;
+  TASK_STATUS_FAILED          = 6;
+  TASK_STATUS_CANCELLED       = 7;
+}
+
+// ============================================================
+// Messages
+// ============================================================
+
+message AgentCard {
+  string id            = 1;
+  string name          = 2;
+  string description   = 3;
+  string version       = 4;
+  string framework     = 5;
+  string endpoint      = 6;
+  repeated string capabilities = 7;
+  repeated string tags         = 8;
+  repeated Skill skills        = 9;
+  AuthScheme authentication   = 10;
+}
+
+message Skill {
+  string id          = 1;
+  string name        = 2;
+  string description = 3;
+  repeated string tags = 4;
+}
+
+message AuthScheme {
+  string type = 1; // bearer, mtls, oauth2
+  map<string, string> config = 2;
+}
+
+message Part {
+  oneof content {
+    string text  = 1;
+    FileRef file = 2;
+    bytes  data  = 3;
+  }
+}
+
+message FileRef {
+  string name     = 1;
+  string mime_type = 2;
+  string uri      = 3;
+}
+
+message Message {
+  string id    = 1;
+  string role  = 2; // user, agent, system
+  repeated Part parts = 3;
+}
+
+message Artifact {
+  string id          = 1;
+  string task_id     = 2;
+  string name        = 3;
+  string description = 4;
+  repeated Part parts = 5;
+  string mime_type   = 6;
+  string created_at  = 7;
+}
+
+message Task {
+  string id         = 1;
+  string context_id = 2;
+  string agent_id   = 3;
+  TaskStatus status = 4;
+  Message message   = 5;
+  repeated Artifact artifacts = 6;
+  map<string, string> metadata = 7;
+  int32  version    = 8;
+  string created_at = 9;
+  string updated_at = 10;
+}
+
+message TaskStatusUpdate {
+  string task_id  = 1;
+  TaskStatus status = 2;
+  string message  = 3;
+  string updated_at = 4;
+}
