@@ -46,6 +46,7 @@ import { useAlerts } from '@/lib/useAlerts';
 import { usePatches } from '@/lib/usePatches';
 import { useRovingTabIndex, useAriaAnnounce, AriaLiveRegion, useEscapeKey } from '@/lib/a11y';
 import { useSidebar } from '@/lib/sidebar';
+import { usePermission, type Permission } from '@/lib/org';
 
 interface NavItem {
   to: string;
@@ -53,12 +54,16 @@ interface NavItem {
   icon: typeof LayoutDashboard;
   showAlertBadge?: boolean;
   showPatchBadge?: boolean;
+  /** If set, this item is only shown when the user has this permission. */
+  requiredPermission?: Permission;
 }
 
 interface NavSection {
   id: string;
   label: string;
   defaultExpanded?: boolean;
+  /** If set, the entire section is only shown when the user has this permission. */
+  requiredPermission?: Permission;
   items: NavItem[];
 }
 
@@ -82,13 +87,14 @@ const NAV_SECTIONS: NavSection[] = [
       { to: '/policies', label: 'Policies', icon: ShieldCheck },
       { to: '/patches', label: 'Patches', icon: Wrench, showPatchBadge: true },
       { to: '/scripts', label: 'Scripts', icon: FileCode2 },
-      { to: '/shell-recordings', label: 'Shell Recordings', icon: Terminal },
+      { to: '/shell-recordings', label: 'Shell Recordings', icon: Terminal, requiredPermission: 'shell:read' },
     ],
   },
   {
     id: 'a2a',
     label: 'A2A',
     defaultExpanded: true,
+    requiredPermission: 'a2a:read',
     items: [
       { to: '/a2a', label: 'Dashboard', icon: LayoutDashboard },
       { to: '/a2a/agents', label: 'Agent Cards', icon: Radio },
@@ -100,6 +106,7 @@ const NAV_SECTIONS: NavSection[] = [
     id: 'settings',
     label: 'Settings',
     defaultExpanded: false,
+    requiredPermission: 'settings:read',
     items: [
       { to: '/settings', label: 'Organization', icon: Building2 },
       { to: '/settings/users', label: 'Users', icon: Users },
@@ -239,20 +246,17 @@ export function Sidebar() {
           aria-label="Sections"
           className="flex-1 overflow-y-auto py-3 px-2 space-y-1"
         >
-          {NAV_SECTIONS.map((section) => {
-            const isCollapsed = collapsed[section.id] ?? false;
-            return (
-              <SidebarSection
-                key={section.id}
-                section={section}
-                collapsed={isCollapsed}
-                onToggle={() => toggleSection(section.id)}
-                criticalAlertCount={criticalAlertCount}
-                pendingApprovalCount={pendingApprovalCount}
-                onNavClick={handleNavClick}
-              />
-            );
-          })}
+          {NAV_SECTIONS.map((section) => (
+            <GatedNavSection
+              key={section.id}
+              section={section}
+              collapsed={collapsed[section.id] ?? false}
+              onToggle={() => toggleSection(section.id)}
+              criticalAlertCount={criticalAlertCount}
+              pendingApprovalCount={pendingApprovalCount}
+              onNavClick={handleNavClick}
+            />
+          ))}
         </nav>
 
         {/* Footer: user info + logout */}
@@ -340,45 +344,112 @@ function SidebarSection({
 
       {!collapsed && (
         <ul id={contentId} role="list" className="mt-0.5 space-y-0.5">
-          {section.items.map((item, index) => {
-            const badge =
-              item.showAlertBadge && criticalAlertCount > 0
-                ? criticalAlertCount
-                : item.showPatchBadge && pendingApprovalCount > 0
-                ? pendingApprovalCount
-                : null;
-
-            return (
-              <li key={item.to}>
-                <Link
-                  to={item.to}
-                  onClick={onNavClick}
-                  activeProps={{
-                    className:
-                      'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600/20 text-blue-400',
-                  }}
-                  inactiveProps={{
-                    className:
-                      'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:bg-slate-800/50 hover:text-gray-200',
-                  }}
-                  {...getItemProps(index)}
-                >
-                  <item.icon className="w-4 h-4 shrink-0" aria-hidden="true" />
-                  <span className="flex-1 truncate">{item.label}</span>
-                  {badge !== null && (
-                    <span
-                      className="ml-auto inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-bold rounded-full bg-red-500/20 text-red-400"
-                      aria-label={`${badge} pending`}
-                    >
-                      {badge}
-                    </span>
-                  )}
-                </Link>
-              </li>
-            );
-          })}
+          {section.items.map((item, index) => (
+            <GatedNavItem
+              key={item.to}
+              item={item}
+              index={index}
+              criticalAlertCount={criticalAlertCount}
+              pendingApprovalCount={pendingApprovalCount}
+              onNavClick={onNavClick}
+              tabIndexProps={getItemProps(index)}
+            />
+          ))}
         </ul>
       )}
     </div>
+  );
+}
+
+/**
+ * GatedNavSection — wrapper that conditionally renders a nav section
+ * based on a required permission. Separated from the parent component
+ * so that usePermission() can be called unconditionally (Rules of Hooks).
+ */
+function GatedNavSection({
+  section,
+  collapsed,
+  onToggle,
+  criticalAlertCount,
+  pendingApprovalCount,
+  onNavClick,
+}: SidebarSectionProps) {
+  const hasPermission = usePermission(section.requiredPermission ?? 'dashboard:read');
+  // If the section has no required permission, always show it.
+  if (section.requiredPermission && !hasPermission) {
+    return null;
+  }
+  return (
+    <SidebarSection
+      section={section}
+      collapsed={collapsed}
+      onToggle={onToggle}
+      criticalAlertCount={criticalAlertCount}
+      pendingApprovalCount={pendingApprovalCount}
+      onNavClick={onNavClick}
+    />
+  );
+}
+
+/**
+ * GatedNavItem — renders a single nav link, gated by a required permission.
+ * Wrapped in its own component so usePermission() can be called unconditionally
+ * (React Rules of Hooks).
+ */
+function GatedNavItem({
+  item,
+  index,
+  criticalAlertCount,
+  pendingApprovalCount,
+  onNavClick,
+  tabIndexProps,
+}: {
+  item: NavItem;
+  index: number;
+  criticalAlertCount: number;
+  pendingApprovalCount: number;
+  onNavClick: () => void;
+  tabIndexProps: Record<string, unknown>;
+}) {
+  const hasPermission = usePermission(item.requiredPermission ?? 'dashboard:read');
+  if (item.requiredPermission && !hasPermission) {
+    return null;
+  }
+
+  const badge =
+    item.showAlertBadge && criticalAlertCount > 0
+      ? criticalAlertCount
+      : item.showPatchBadge && pendingApprovalCount > 0
+      ? pendingApprovalCount
+      : null;
+
+  return (
+    <li>
+      <Link
+        to={item.to}
+        onClick={onNavClick}
+        activeProps={{
+          className:
+            'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600/20 text-blue-400',
+        }}
+        inactiveProps={{
+          className:
+            'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:bg-slate-800/50 hover:text-gray-200',
+        }}
+        {...tabIndexProps}
+        data-index={index}
+      >
+        <item.icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+        <span className="flex-1 truncate">{item.label}</span>
+        {badge !== null && (
+          <span
+            className="ml-auto inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-bold rounded-full bg-red-500/20 text-red-400"
+            aria-label={`${badge} pending`}
+          >
+            {badge}
+          </span>
+        )}
+      </Link>
+    </li>
   );
 }

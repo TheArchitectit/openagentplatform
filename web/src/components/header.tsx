@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Search,
   Bell,
@@ -10,23 +10,37 @@ import {
   Moon,
   Menu,
   Settings,
+  Building2,
+  Check,
 } from 'lucide-react';
 import { useNavigate } from '@tanstack/react-router';
 import { getStoredUser, logout } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
 import { useEscapeKey, visuallyHidden } from '@/lib/a11y';
 import { useSidebar } from '@/lib/sidebar';
+import { useOrg, type Role } from '@/lib/org';
+
+// Role badge color mapping
+const ROLE_BADGE_STYLES: Record<Role, string> = {
+  admin: 'bg-purple-500/20 text-purple-300 ring-purple-500/30',
+  operator: 'bg-blue-500/20 text-blue-300 ring-blue-500/30',
+  technician: 'bg-emerald-500/20 text-emerald-300 ring-emerald-500/30',
+  viewer: 'bg-gray-500/20 text-gray-300 ring-gray-500/30',
+};
 
 export function Header() {
   const navigate = useNavigate();
   const user = getStoredUser();
   const { resolvedTheme, toggleTheme } = useTheme();
   const { toggleMobile } = useSidebar();
+  const { orgId, orgName, orgs, role, switchOrg } = useOrg();
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [orgSwitcherOpen, setOrgSwitcherOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const orgSwitcherRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -36,18 +50,22 @@ export function Header() {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setNotifOpen(false);
       }
+      if (orgSwitcherRef.current && !orgSwitcherRef.current.contains(e.target as Node)) {
+        setOrgSwitcherOpen(false);
+      }
     }
-    if (menuOpen || notifOpen) {
+    if (menuOpen || notifOpen || orgSwitcherOpen) {
       document.addEventListener('mousedown', onClick);
       return () => document.removeEventListener('mousedown', onClick);
     }
-  }, [menuOpen, notifOpen]);
+  }, [menuOpen, notifOpen, orgSwitcherOpen]);
 
   // Close dropdowns on Escape.
   useEscapeKey(() => {
     setMenuOpen(false);
     setNotifOpen(false);
-  }, menuOpen || notifOpen);
+    setOrgSwitcherOpen(false);
+  }, menuOpen || notifOpen || orgSwitcherOpen);
 
   function handleUserMenuKey(e: React.KeyboardEvent<HTMLButtonElement>) {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -67,9 +85,20 @@ export function Header() {
     }
   }
 
+  const handleOrgSwitch = useCallback(
+    (newOrgId: string) => {
+      switchOrg(newOrgId);
+      setOrgSwitcherOpen(false);
+    },
+    [switchOrg]
+  );
+
   // Placeholder unread notification count — replaced with real data once
   // the alert inbox API is wired into a dedicated hook.
   const unreadCount = 0;
+
+  const hasMultipleOrgs = orgs.length > 1;
+  const roleBadgeClass = role ? ROLE_BADGE_STYLES[role] : '';
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-6 border-b border-slate-800 bg-slate-950/80 backdrop-blur-xl">
@@ -83,6 +112,66 @@ export function Header() {
         >
           <Menu className="w-5 h-5" aria-hidden="true" />
         </button>
+
+        {/* Org display / selector */}
+        {orgId && (
+          <div ref={orgSwitcherRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setOrgSwitcherOpen((v) => !v)}
+              className="flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              aria-label={
+                hasMultipleOrgs
+                  ? `Current organization: ${orgName ?? orgId}. Click to switch.`
+                  : `Organization: ${orgName ?? orgId}`
+              }
+              aria-haspopup={hasMultipleOrgs ? 'listbox' : undefined}
+              aria-expanded={hasMultipleOrgs ? orgSwitcherOpen : undefined}
+            >
+              <Building2 className="w-4 h-4 text-gray-500" aria-hidden="true" />
+              <span className="font-medium truncate max-w-[160px]">
+                {orgName ?? orgId}
+              </span>
+              {hasMultipleOrgs && (
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-gray-500 transition-transform ${
+                    orgSwitcherOpen ? 'rotate-180' : ''
+                  }`}
+                  aria-hidden="true"
+                />
+              )}
+            </button>
+
+            {hasMultipleOrgs && orgSwitcherOpen && (
+              <div
+                role="listbox"
+                aria-label="Switch organization"
+                className="absolute left-0 mt-1 w-56 rounded-lg border border-slate-700 bg-slate-800 shadow-2xl py-1 z-40"
+              >
+                <p className="px-3 py-1.5 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Switch Organization
+                </p>
+                {orgs.map((org) => (
+                  <button
+                    key={org.id}
+                    type="button"
+                    role="option"
+                    aria-selected={org.id === orgId}
+                    onClick={() => handleOrgSwitch(org.id)}
+                    className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-slate-700 ${
+                      org.id === orgId ? 'text-white' : 'text-gray-300'
+                    }`}
+                  >
+                    <span className="truncate">{org.name}</span>
+                    {org.id === orgId && (
+                      <Check className="w-4 h-4 text-blue-400 shrink-0" aria-hidden="true" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Page title / breadcrumb */}
         <h1 className="text-sm font-medium text-gray-300 truncate hidden sm:block">
@@ -180,6 +269,14 @@ export function Header() {
                 ? user.name.charAt(0).toUpperCase()
                 : user?.email?.charAt(0).toUpperCase() ?? '?'}
             </span>
+            {role && (
+              <span
+                className={`inline-flex items-center px-1.5 h-5 rounded text-[0.625rem] font-semibold uppercase tracking-wider ring-1 ring-inset ${roleBadgeClass}`}
+                aria-label={`Role: ${role}`}
+              >
+                {role}
+              </span>
+            )}
             <ChevronDown
               className={
                 'w-3.5 h-3.5 hidden sm:block transition-transform text-gray-400 ' +
