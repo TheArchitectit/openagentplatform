@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/nats-io/nats.go"
 	"github.com/openagentplatform/openagentplatform/internal/alerts"
 	"github.com/openagentplatform/openagentplatform/internal/audit"
 	"github.com/openagentplatform/openagentplatform/internal/auth"
@@ -31,6 +32,7 @@ type Server struct {
 	sessionMinter *auth.SessionMinter
 	db            *pgxpool.Pool
 	audit         *audit.AuditService
+	startedAt     time.Time
 	// eventBus is an optional publisher used to emit platform events
 	// (e.g. AgentOnline, AgentOffline) from API handlers. May be nil.
 	eventBus Publisher
@@ -81,11 +83,17 @@ type Server struct {
 	// secretsBackends lists the names of registered secret backends
 	// for the /api/v1/secrets/backends endpoint. May be nil.
 	secretsBackends []string
+	// adapters is an optional registry of adapter health probes used
+	// by /api/v1/diagnostics. May be any type that can be type-asserted
+	// to map[string]adapterProbe; a nil value is treated as
+	// "not_configured".
+	adapters any
 }
 
 // Publisher is the subset of the events.Client interface used by API handlers.
 type Publisher interface {
 	Publish(ctx context.Context, subject string, payload []byte) error
+	Conn() *nats.Conn
 }
 
 // NewServer constructs the HTTP server. If OIDC_ISSUER_URL is configured,
@@ -93,7 +101,7 @@ type Publisher interface {
 // db, eventBus, and audit may be nil; when nil, endpoints that require them
 // return 503 Service Unavailable.
 func NewServer(cfg *config.Config, log *slog.Logger, db *pgxpool.Pool, eventBus Publisher, auditSvc *audit.AuditService) *Server {
-	s := &Server{cfg: cfg, log: log, db: db, eventBus: eventBus, audit: auditSvc}
+	s := &Server{cfg: cfg, log: log, db: db, eventBus: eventBus, audit: auditSvc, startedAt: time.Now()}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -212,6 +220,11 @@ func (s *Server) buildRouter() chi.Router {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Heartbeat("/healthz"))
+	// Metrics middleware records request count and latency for every
+	// request.  It is installed before audit so it sees the final status
+	// code and response size; the middleware itself skips /metrics to
+	// avoid polluting the request rate.
+	r.Use(metricsMiddleware)
 	// Audit middleware wraps the whole router so it captures every API
 	// call regardless of whether the request was authenticated. The
 	// middleware itself filters out /health, /docs, and /ws paths.

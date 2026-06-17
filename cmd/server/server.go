@@ -9,6 +9,8 @@ import (
 	"os"
 	"time"
 
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/openagentplatform/openagentplatform/a2a/bridge"
@@ -24,6 +26,8 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/events"
 	"github.com/openagentplatform/openagentplatform/internal/patches"
 	"github.com/openagentplatform/openagentplatform/internal/policy"
+	"github.com/openagentplatform/openagentplatform/internal/resilience"
+	"github.com/openagentplatform/openagentplatform/internal/telemetry"
 	"github.com/openagentplatform/openagentplatform/pkg/models"
 	"github.com/openagentplatform/openagentplatform/secrets"
 	secretsauth "github.com/openagentplatform/openagentplatform/secrets/auth"
@@ -43,6 +47,7 @@ type Server struct {
 	apiServer       *api.Server
 	natsClient      *events.Client
 	pool            *pgxpool.Pool
+	tracerProvider  *sdktrace.TracerProvider
 	heartbeat       *events.HeartbeatHandler
 	dispatcher      *events.CheckDispatcher
 	ingestor        *checks.ResultIngestor
@@ -56,6 +61,16 @@ type Server struct {
 	secretsSweeper *inject.Sweeper
 	// secretsRevocation holds the JWT revocation list for A2A tokens.
 	secretsRevocation *secretsauth.RevocationList
+
+	// --- Resilience layer ----------------------------------------------
+	// rateLimiter throttles per-IP and per-user request rates.
+	rateLimiter *resilience.RateLimiter
+	// adapterBreaker protects downstream adapter calls with a circuit
+	// breaker.  Failures in the adapter service trip the breaker and
+	// short-circuit subsequent calls until it recovers.
+	adapterBreaker *resilience.CircuitBreaker
+	// graceful orchestrates an ordered, timeout-bounded teardown.
+	graceful *resilience.GracefulShutdown
 }
 
 // NewServer wires all dependencies (DB pool, NATS, API server, background
@@ -73,6 +88,31 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 	}
 	if natsClient == nil {
 		return nil, errors.New("server: nil nats client")
+	}
+
+	// --- Tracing ------------------------------------------------------
+	// Initialise the global TracerProvider.  If OTEL_EXPORTER_OTLP_ENDPOINT
+	// is not set, telemetry.InitTracer installs a no-op provider and returns
+	// a SDK provider so Shutdown is always safe to call.
+	otlpEndpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	tp, err := telemetry.InitTracer(context.Background(), "openagentplatform", otlpEndpoint)
+	if err != nil {
+		log.Warn("tracing init failed, continuing without tracing", "error", err)
+	}
+	if tp != nil {
+		pool = telemetry.TraceDB(pool)
+	}
+
+	// --- Metrics ------------------------------------------------------
+	// Initialise the Prometheus exporter.  InitMeter returns a handler
+	// that the API layer serves at /metrics.  If initialisation fails
+	// (e.g. registry conflict in tests) we log a warning and continue –
+	// the /metrics endpoint will return 503 until the handler is set.
+	promHandler, mErr := telemetry.InitMeter(context.Background(), "openagentplatform")
+	if mErr != nil {
+		log.Warn("metrics init failed, /metrics will return 503", "error", mErr)
+	} else if promHandler != nil {
+		api.SetPrometheusHandler(promHandler)
 	}
 
 	auditSvc := newAuditService(pool)
@@ -207,14 +247,55 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 	// secrets HTTP endpoints can dispatch to it.
 	apiServer.SetSecretsResolver(secretResolver, registeredNames)
 
+	// --- Resilience layer wiring -----------------------------------------
+	// Rate limiter: 100 req/s sustained, 200 burst, with health and
+	// metrics endpoints exempted from throttling.
+	rateLimiter := resilience.NewRateLimiter(resilience.RateLimitConfig{
+		Rate:            100,
+		Burst:           200,
+		Enabled:         true,
+		IdleTTL:         5 * time.Minute,
+		CleanupInterval: 1 * time.Minute,
+		SkipPaths:       []string{"/healthz", "/readyz", "/metrics"},
+	})
+	log.Info("resilience: rate limiter enabled", "rate", 100, "burst", 200)
+
+	// Circuit breaker for the Python adapter service.  Trips after 5
+	// consecutive failures, stays open for 30s, then allows a single
+	// half-open probe.
+	adapterBreaker := resilience.NewCircuitBreaker(resilience.BreakerConfig{
+		Name:         "adapter",
+		MaxFailures:  5,
+		OpenDuration: 30 * time.Second,
+		HalfOpenMax:  1,
+		Logger:       log,
+	})
+	log.Info("resilience: adapter circuit breaker enabled",
+		"max_failures", 5, "open_duration", "30s")
+
+	// Graceful shutdown coordinator.  All dependencies are registered
+	// here so that Shutdown() can drain them in order.
+	graceful := resilience.NewGracefulShutdown(resilience.ShutdownConfig{
+		Timeout: 30 * time.Second,
+		Logger:  log,
+	})
+
 	// --- HTTP server with A2A routes mounted ---------------------------
 	// Build a top-level router that delegates the API to apiServer.Router()
 	// and mounts the A2A gateway handlers under /a2a/.
 	rootHandler := newA2ARouter(apiServer.Router(), a2aGw)
 
+	// Wrap with the OpenTelemetry HTTP middleware so every request gets a
+	// server span.  Health-check endpoints are skipped inside the middleware.
+	tracedHandler := withTracing(rootHandler)
+
+	// Wrap with the rate-limit middleware (outermost).  This is applied
+	// after tracing so 429 responses still receive a span.
+	rateLimitedHandler := rateLimiter.Middleware()(tracedHandler)
+
 	httpServer := &http.Server{
 		Addr:              ":" + cfg.HTTPPort,
-		Handler:           rootHandler,
+		Handler:           rateLimitedHandler,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
@@ -225,6 +306,7 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		apiServer:         apiServer,
 		natsClient:        natsClient,
 		pool:              pool,
+		tracerProvider:    tp,
 		heartbeat:         heartbeat,
 		dispatcher:        dispatcher,
 		ingestor:          ingestor,
@@ -235,6 +317,9 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		rpcBridge:         rpcBridge,
 		secretsSweeper:    secretsSweeper,
 		secretsRevocation: secretsRevocation,
+		rateLimiter:       rateLimiter,
+		adapterBreaker:    adapterBreaker,
+		graceful:          graceful,
 	}, nil
 }
 
@@ -290,24 +375,90 @@ func (s *Server) Start(ctx context.Context) error {
 
 // Shutdown gracefully stops all background handlers and the HTTP server.
 // It blocks until the shutdown completes or the context is cancelled.
+//
+// The shutdown sequence is:
+//  1. Stop accepting new HTTP requests and wait for in-flight ones to
+//     drain (delegated to the resilience.GracefulShutdown coordinator).
+//  2. Stop background handlers in reverse-initialisation order.
+//  3. Close the NATS client (drains subscriptions).
+//  4. Close the database pool.
+//  5. Shut down the OpenTelemetry tracer provider.
 func (s *Server) Shutdown(ctx context.Context) error {
-	// Stop background handlers first so they don't try to write to a
-	// closed pool.
-	s.heartbeat.Stop()
-	s.dispatcher.Stop()
-	s.ingestor.Stop()
-	s.alertEngine.Stop()
-	s.policyEngine.Stop()
-	s.eventBridge.Stop()
-	s.rpcBridge.Stop()
-	s.patchScheduler.Close()
+	// Register all closers with the graceful shutdown coordinator.
+	// They are closed in LIFO order after the HTTP server has drained.
+	//
+	// 1. Background workers and engines.
+	s.graceful.Register("heartbeat", resilience.CloserFunc(func(_ context.Context) error {
+		s.heartbeat.Stop()
+		return nil
+	}))
+	s.graceful.Register("dispatcher", resilience.CloserFunc(func(_ context.Context) error {
+		s.dispatcher.Stop()
+		return nil
+	}))
+	s.graceful.Register("ingestor", resilience.CloserFunc(func(_ context.Context) error {
+		s.ingestor.Stop()
+		return nil
+	}))
+	s.graceful.Register("alert-engine", resilience.CloserFunc(func(_ context.Context) error {
+		s.alertEngine.Stop()
+		return nil
+	}))
+	s.graceful.Register("policy-engine", resilience.CloserFunc(func(_ context.Context) error {
+		s.policyEngine.Stop()
+		return nil
+	}))
+	s.graceful.Register("event-bridge", resilience.CloserFunc(func(_ context.Context) error {
+		s.eventBridge.Stop()
+		return nil
+	}))
+	s.graceful.Register("rpc-bridge", resilience.CloserFunc(func(_ context.Context) error {
+		s.rpcBridge.Stop()
+		return nil
+	}))
+	s.graceful.Register("patch-scheduler", resilience.CloserFunc(func(_ context.Context) error {
+		s.patchScheduler.Close()
+		return nil
+	}))
 
-	// Stop the secrets TTL sweeper.
+	// 2. Secrets sweeper.
 	if s.secretsSweeper != nil {
-		s.secretsSweeper.Stop()
+		s.graceful.Register("secrets-sweeper", resilience.CloserFunc(func(_ context.Context) error {
+			s.secretsSweeper.Stop()
+			return nil
+		}))
 	}
 
-	return s.httpServer.Shutdown(ctx)
+	// 3. Rate limiter janitor.
+	s.graceful.Register("rate-limiter", resilience.CloserFunc(func(_ context.Context) error {
+		s.rateLimiter.Stop()
+		return nil
+	}))
+
+	// 4. NATS client (drains subscriptions internally).
+	if s.natsClient != nil {
+		s.graceful.Register("nats-client", resilience.CloserFunc(func(_ context.Context) error {
+			s.natsClient.Close()
+			return nil
+		}))
+	}
+
+	// 5. Database pool.
+	if s.pool != nil {
+		s.graceful.Register("db-pool", resilience.CloserFunc(func(_ context.Context) error {
+			s.pool.Close()
+			return nil
+		}))
+	}
+
+	// 6. Tracer provider (flushes spans).
+	s.graceful.Register("tracer-provider", resilience.CloserFunc(func(_ context.Context) error {
+		_ = telemetry.Shutdown(ctx, s.tracerProvider)
+		return nil
+	}))
+
+	// Execute the full shutdown sequence: HTTP drain, then dependency teardown.
+	return s.graceful.ShutdownAll(s.httpServer)
 }
 
 // newAuditService is a thin constructor for the audit service. Kept here

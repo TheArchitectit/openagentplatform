@@ -34,6 +34,10 @@ type Config struct {
 
 	SentryDSN     string
 
+	// DebugMode enables sensitive diagnostic endpoints (pprof, config
+	// dump). Must never be true in production.
+	DebugMode bool
+
 	// PolicyEvalInterval is the interval at which the policy engine
 	// runs a full sweep across all agents. Defaults to 5 minutes.
 	PolicyEvalInterval time.Duration
@@ -65,6 +69,7 @@ func Load() (*Config, error) {
 		CookieDomain:     getEnv("COOKIE_DOMAIN", "localhost"),
 		CookieSecure:     getEnv("COOKIE_SECURE", "false") == "true",
 		SentryDSN:        os.Getenv("SENTRY_DSN"),
+		DebugMode:        getEnv("DEBUG_MODE", "false") == "true",
 		PolicyEvalInterval: getDurationEnv("POLICY_EVAL_INTERVAL", 5*time.Minute),
 		OzoreModel:         getEnv("OZORE_MODEL", "ozore/custom"),
 		OzoreBaseURL:       getEnv("OZORE_BASE_URL", "https://ozore.com/v1"),

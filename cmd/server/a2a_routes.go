@@ -4,7 +4,16 @@ import (
 	"net/http"
 
 	"github.com/openagentplatform/openagentplatform/a2a/gateway"
+	"github.com/openagentplatform/openagentplatform/internal/telemetry"
 )
+
+// withTracing wraps the top-level HTTP handler with the OpenTelemetry HTTP
+// middleware.  Every request receives a server span, with health-check
+// endpoints skipped.  Trace context is extracted from incoming request
+// headers and X-Request-ID is propagated via baggage.
+func withTracing(next http.Handler) http.Handler {
+	return telemetry.HTTPMiddleware()(next)
+}
 
 // newA2ARouter builds a top-level HTTP handler that delegates all requests
 // to the API server and mounts the A2A gateway handlers under /a2a/.

@@ -1,0 +1,25 @@
+# Prometheus scrape configuration for openagentplatform.
+#
+# Targets:
+#   oap-server:2112/metrics  - Go server Prometheus exposition endpoint
+#
+# Adjust the targets list if you run oap-server on a different host or
+# port.  The scrape interval is 15s, matching the default Prometheus
+# global scrape_interval.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: oap-dev
+
+scrape_configs:
+  - job_name: oap-server
+    metrics_path: /metrics
+    scheme: http
+    static_configs:
+      - targets:
+          - oap-server:2112
+        labels:
+          service: oap-server
+          env: dev

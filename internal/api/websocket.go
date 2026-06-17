@@ -170,6 +170,24 @@ func (h *wsHub) ClientCount() int {
 	return len(h.clients)
 }
 
+// clientCount is a package-local alias used by the diagnostics
+// handler. Keeping it unexported makes it clear the method is only
+// meant for internal observability endpoints.
+func (h *wsHub) clientCount() int { return h.ClientCount() }
+
+// subscriptionCount returns the total number of active channel
+// subscriptions across all clients. It is a useful indicator of how
+// busy the event bus is.
+func (h *wsHub) subscriptionCount() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	total := 0
+	for _, set := range h.byChan {
+		total += len(set)
+	}
+	return total
+}
+
 // Hub returns the server's WebSocket hub, creating it on first use.
 // It is safe to call from any goroutine.
 func (s *Server) Hub() *wsHub {

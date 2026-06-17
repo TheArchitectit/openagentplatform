@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/audit"
 	"github.com/openagentplatform/openagentplatform/internal/auth"
 	"github.com/openagentplatform/openagentplatform/internal/checklib"
+	"github.com/openagentplatform/openagentplatform/internal/telemetry"
 	"github.com/openagentplatform/openagentplatform/pkg/models"
 )
 
@@ -26,6 +28,24 @@ func (s *Server) registerRoutes(r chi.Router) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"service":"openagentplatform","version":"0.1.0"}`))
 	})
+
+	// Prometheus scrape and JSON summary endpoints.  These are mounted
+	// before auth so scrapers do not need credentials; restrict them at
+	// the network layer in production.
+	s.metricsRouter(r)
+
+	// Health, readiness, and version probes.  These are mounted
+	// before auth so Kubernetes, load balancers, and CI smoke tests
+	// can reach them without credentials.  The /debug/* routes are
+	// only mounted when DEBUG_MODE is enabled.
+	r.Get("/healthz", s.handleHealthz)
+	r.Get("/readyz", s.handleReadyz)
+	r.Get("/status", s.handleStatus)
+	r.Get("/version", s.handleVersion)
+	if s.cfg != nil && s.cfg.DebugMode {
+		r.Get("/debug/config", s.handleDebugConfig)
+		s.mountPprofRoutes(r)
+	}
 
 	// Public auth endpoints.
 	r.Route("/auth", func(r chi.Router) {
@@ -46,6 +66,12 @@ func (s *Server) registerRoutes(r chi.Router) {
 		r.Use(orgContextMiddleware)
 		r.Route("/api/v1", func(r chi.Router) {
 			r.Get("/health", s.healthz)
+
+			// Admin diagnostics dashboard endpoints.
+			r.Route("/diagnostics", func(r chi.Router) {
+				r.Get("/", s.handleDiagnostics)
+				r.Get("/connections", s.handleDiagnosticsConnections)
+			})
 
 			r.Route("/agents", func(r chi.Router) {
 				r.Get("/", s.listAgents)
@@ -1009,5 +1035,64 @@ func orgContextMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		next.ServeHTTP(w, r)
+	})
+}
+
+// statusRecorder wraps http.ResponseWriter so we can capture the status
+// code for metrics emission.  The default http.ResponseWriter does not
+// expose the status once it has been written.
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+	bytes  int
+}
+
+func (s *statusRecorder) WriteHeader(code int) {
+	s.status = code
+	s.ResponseWriter.WriteHeader(code)
+}
+
+func (s *statusRecorder) Write(b []byte) (int, error) {
+	if s.status == 0 {
+		s.status = http.StatusOK
+	}
+	n, err := s.ResponseWriter.Write(b)
+	s.bytes += n
+	return n, err
+}
+
+// routeLabel returns the chi route pattern for the current request, or
+// "unmatched" when the request did not match a registered route.  This is
+// what we expose as the "path" label on api_requests_total so we avoid
+// high-cardinality URL explosions.
+func routeLabel(r *http.Request) string {
+	if rctx := chi.RouteContext(r.Context()); rctx != nil {
+		if p := rctx.RoutePattern(); p != "" {
+			return p
+		}
+	}
+	return "unmatched"
+}
+
+// metricsMiddleware records request count and duration for every request
+// handled by the API.  It should be installed near the top of the
+// middleware stack so it captures all responses, including 401s and
+// 500s.  The /metrics endpoint itself is excluded to keep the scrape
+// from polluting the request rate.
+func metricsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Don't count scrapes of the metrics endpoint itself.
+		if r.URL.Path == "/metrics" || strings.HasPrefix(r.URL.Path, "/api/v1/metrics") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		start := time.Now()
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(rec, r)
+
+		path := routeLabel(r)
+		status := strconv.Itoa(rec.status)
+		telemetry.RecordAPIRequest(r.Method, path, status)
+		telemetry.ObserveHTTPRequestDuration(r.Method, path, time.Since(start).Seconds())
 	})
 }
