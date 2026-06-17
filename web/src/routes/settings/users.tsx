@@ -22,7 +22,7 @@ import {
   type User,
   type UserRole,
 } from '@/lib/useSettings';
-import '../settings.css';
+import './settings.css';
 
 export const Route = createFileRoute('/settings/users')({
   component: UsersPage,

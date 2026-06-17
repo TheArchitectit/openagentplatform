@@ -22,7 +22,7 @@ import {
   type SSOTestResult,
   type UpdateSSOProviderInput,
 } from '@/lib/useSettings';
-import '../settings.css';
+import './settings.css';
 
 export const Route = createFileRoute('/settings/sso')({
   component: SSOPage,

@@ -13,7 +13,7 @@ import {
   type AuditFilter,
   type AuditOutcome,
 } from '@/lib/useSettings';
-import '../settings.css';
+import './settings.css';
 
 export const Route = createFileRoute('/settings/audit-log')({
   component: AuditLogPage,

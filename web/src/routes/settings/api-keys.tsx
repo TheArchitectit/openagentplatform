@@ -21,7 +21,7 @@ import {
   type APIKeyExpiry,
   type CreateAPIKeyResult,
 } from '@/lib/useSettings';
-import '../settings.css';
+import './settings.css';
 
 export const Route = createFileRoute('/settings/api-keys')({
   component: APIKeysPage,

@@ -13,7 +13,7 @@ import {
   type Role,
   type UpdateRoleInput,
 } from '@/lib/useSettings';
-import '../settings.css';
+import './settings.css';
 
 export const Route = createFileRoute('/settings/roles')({
   component: RolesPage,
