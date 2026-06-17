@@ -15,11 +15,14 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/alerts"
 	"github.com/openagentplatform/openagentplatform/internal/audit"
 	"github.com/openagentplatform/openagentplatform/internal/auth"
+	"github.com/openagentplatform/openagentplatform/internal/billing"
 	"github.com/openagentplatform/openagentplatform/internal/config"
+	"github.com/openagentplatform/openagentplatform/internal/license"
 	"github.com/openagentplatform/openagentplatform/internal/notify"
 	"github.com/openagentplatform/openagentplatform/internal/patches"
 	"github.com/openagentplatform/openagentplatform/internal/policy"
 	"github.com/openagentplatform/openagentplatform/internal/remote"
+	"github.com/openagentplatform/openagentplatform/internal/reports"
 	"github.com/openagentplatform/openagentplatform/internal/schema"
 	"github.com/openagentplatform/openagentplatform/secrets/resolver"
 )
@@ -88,6 +91,22 @@ type Server struct {
 	// to map[string]adapterProbe; a nil value is treated as
 	// "not_configured".
 	adapters any
+	// BillingService is the commercial-tier billing façade. May be nil;
+	// billing endpoints return 503 when unset.
+	BillingService *billing.BillingService
+	// MeteringService tracks per-org usage and reports to Stripe meters.
+	// May be nil; usage endpoints return 503 when unset.
+	MeteringService *billing.MeteringService
+	// StripeClient wraps the Stripe SDK for direct API calls (e.g.
+	// webhook signature verification). May be nil; webhook endpoint
+	// returns 503 when unset.
+	StripeClient *billing.StripeClient
+	// reportsStore is the enterprise reporting persistence interface.
+	// May be nil; report endpoints return 503 when unset.
+	reportsStore reports.Store
+	// reportsScheduler triggers scheduled report runs. May be nil;
+	// report generation/scheduling endpoints return 503 when unset.
+	reportsScheduler *reports.Scheduler
 }
 
 // Publisher is the subset of the events.Client interface used by API handlers.
@@ -135,6 +154,21 @@ func NewServer(cfg *config.Config, log *slog.Logger, db *pgxpool.Pool, eventBus 
 
 func (s *Server) Router() http.Handler {
 	return s.router
+}
+
+// resolveOrgTier returns the commercial tier for the given org ID.
+// It is used by the tenancy middleware to populate the TenantContext
+// with quota limits and feature flags.  The default returns Community
+// (the most permissive-free tier).  In production the license engine
+// resolves the tier from the org's license key; this method can be
+// extended to look up the tier from a database or license service.
+func (s *Server) resolveOrgTier(orgID string) license.Tier {
+	if orgID == "" {
+		return license.TierCommunity
+	}
+	// Future: query the license service or org_tiers table.
+	// For now all orgs default to Community unless overridden.
+	return license.TierCommunity
 }
 
 // SetAlertStore wires the alert persistence interface into the server.
@@ -211,6 +245,18 @@ func (s *Server) SetScriptStore(store scriptStore) {
 func (s *Server) SetSecretsResolver(r *resolver.SecretResolver, backendNames []string) {
 	s.secretsResolver = r
 	s.secretsBackends = backendNames
+}
+
+// SetReportsStore wires the reports Store into the API server.
+// When nil the reports endpoints return 503.
+func (s *Server) SetReportsStore(store reports.Store) {
+	s.reportsStore = store
+}
+
+// SetReportsScheduler wires the reports Scheduler into the API server.
+// When nil the generation/scheduling endpoints return 503.
+func (s *Server) SetReportsScheduler(sched *reports.Scheduler) {
+	s.reportsScheduler = sched
 }
 
 func (s *Server) buildRouter() chi.Router {

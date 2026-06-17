@@ -18,6 +18,23 @@
 
 ---
 
+## PLATFORM CORE (OpenAgentPlatform)
+
+| Keyword | Document | Location |
+|---------|----------|----------|
+| setup, local install, 5-minute, quickstart | [SETUP.md](SETUP.md) | docs/ |
+| architecture, ADRs, component diagram, data flow | [ARCHITECTURE.md](ARCHITECTURE.md) | docs/ |
+| deployment, docker compose, k8s, helm, tls, monitoring | [DEPLOYMENT.md](DEPLOYMENT.md) | docs/ |
+| security, auth, RBAC, secrets, audit, vulnerability | [SECURITY.md](SECURITY.md) | docs/ |
+| commercial, BSL, tiers, stripe, SSO, support SLA | [COMMERCIAL.md](COMMERCIAL.md) | docs/ |
+| REST API, endpoints | [API.md](API.md) | docs/ |
+| changelog, sprint history, release notes | [CHANGELOG.md](CHANGELOG.md) | docs/ |
+| contributing, PR process, coding standards | [CONTRIBUTING.md](CONTRIBUTING.md) | docs/ |
+| Ozore AI, LLM agents, API key | [SETUP.md](SETUP.md) | docs/ -- Ozore section |
+| Stripe billing, webhooks, subscription | [COMMERCIAL.md](COMMERCIAL.md) | docs/ -- Stripe section |
+
+---
+
 ## 2026 UI/UX GAME DESIGN
 
 **New Section:** Game Design & UI/UX 2026 Standards
@@ -193,10 +210,15 @@
 ## QUICK NAVIGATION
 
 1. **New to guardrails?** → Start with [AGENT_GUARDRAILS.md](AGENT_GUARDRAILS.md)
-2. **Game/UI development?** → [2026_GAME_DESIGN.md](game-design/2026_GAME_DESIGN.md)
-3. **Accessibility?** → [ACCESSIBILITY_GUIDE.md](accessibility/ACCESSIBILITY_GUIDE.md)
-4. **Spatial computing?** → [SPATIAL_COMPUTING_UI.md](spatial/SPATIAL_COMPUTING_UI.md)
-5. **Ethical review?** → [ETHICAL_ENGAGEMENT.md](ethical/ETHICAL_ENGAGEMENT.md)
+2. **New to OAP?** → [SETUP.md](SETUP.md)
+3. **Game/UI development?** → [2026_GAME_DESIGN.md](game-design/2026_GAME_DESIGN.md)
+4. **Accessibility?** → [ACCESSIBILITY_GUIDE.md](accessibility/ACCESSIBILITY_GUIDE.md)
+5. **Spatial computing?** → [SPATIAL_COMPUTING_UI.md](spatial/SPATIAL_COMPUTING_UI.md)
+6. **Ethical review?** → [ETHICAL_ENGAGEMENT.md](ethical/ETHICAL_ENGAGEMENT.md)
+7. **Production deployment?** → [DEPLOYMENT.md](DEPLOYMENT.md)
+8. **Security questions?** → [SECURITY.md](SECURITY.md)
+9. **Licensing/billing?** → [COMMERCIAL.md](COMMERCIAL.md)
+10. **API reference?** → [API.md](API.md)
 6. **UI components?** → [2026_UI_UX_STANDARD.md](ui-ux/2026_UI_UX_STANDARD.md)
 7. **Workflow?** → [workflows/INDEX.md](workflows/INDEX.md)
 8. **Standards?** → [standards/INDEX.md](standards/INDEX.md)

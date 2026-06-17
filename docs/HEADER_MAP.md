@@ -246,6 +246,107 @@
 
 ---
 
+## OPENAGENTPLATFORM CORE
+
+### SETUP.md (docs/SETUP.md)
+
+| Section | Line | Offset |
+|---------|------|--------|
+| Prerequisites | 7 | 0 |
+| Step 1: Clone & configure | 23 | 16 |
+| Step 2: Start the stack | 35 | 28 |
+| Step 3: Verify health | 46 | 39 |
+| Step 4: Login to the dashboard | 56 | 49 |
+| Step 5: Build and register the agent | 65 | 58 |
+| Step 6: Start the agent daemon | 71 | 64 |
+| Step 7: See your agent in the dashboard | 77 | 70 |
+| Development mode (hot reload) | 84 | 77 |
+| Useful commands | 93 | 86 |
+| Ozore AI configuration (LLM agents) | 106 | 99 |
+| Stripe billing (optional, commercial tiers) | 130 | 123 |
+| TLS setup | 153 | 146 |
+| Troubleshooting | 189 | 182 |
+| Next steps | 228 | 221 |
+
+### ARCHITECTURE.md (docs/ARCHITECTURE.md)
+
+| Section | Line | Offset |
+|---------|------|--------|
+| High-level | 9 | 0 |
+| Component diagram (all phases) | 36 | 27 |
+| Component table (all phases) | 92 | 83 |
+| Data flow diagram | 116 | 107 |
+| Event flow (detailed) | 147 | 138 |
+| Data model | 156 | 147 |
+| Security model | 174 | 165 |
+| ADR-001: Go as primary server language | 186 | 177 |
+| ADR-002: NATS as message broker | 204 | 195 |
+| ADR-003: Postgres + TimescaleDB for storage | 222 | 213 |
+| ADR-004: React 19 + TanStack for frontend | 242 | 233 |
+| ADR-005: A2A protocol for inter-agent communication | 260 | 251 |
+| ADR-006: Encrypted secret vault with envelope encryption | 280 | 271 |
+| ADR-007: Business Source License 1.1 | 298 | 289 |
+
+### DEPLOYMENT.md (docs/DEPLOYMENT.md)
+
+| Section | Line | Offset |
+|---------|------|--------|
+| Docker Compose quick-start | 15 | 0 |
+| Environment variables reference | 74 | 59 |
+| Database migration guide | 158 | 143 |
+| TLS setup | 203 | 188 |
+| Monitoring stack setup | 261 | 246 |
+| Kubernetes (Helm) | 323 | 308 |
+| Backup and disaster recovery | 376 | 361 |
+| Health checks | 408 | 393 |
+
+### SECURITY.md (docs/SECURITY.md)
+
+| Section | Line | Offset |
+|---------|------|--------|
+| Authentication flow | 9 | 0 |
+| Authorization (RBAC) | 66 | 57 |
+| Secret management | 119 | 110 |
+| Audit logging | 174 | 165 |
+| Network security | 243 | 234 |
+| Vulnerability reporting | 317 | 308 |
+| Security checklist | 348 | 339 |
+| Compliance considerations | 417 | 408 |
+
+### COMMERCIAL.md (docs/COMMERCIAL.md)
+
+| Section | Line | Offset |
+|---------|------|--------|
+| License overview | 9 | 0 |
+| Tier comparison | 34 | 25 |
+| Feature gating | 67 | 58 |
+| Stripe billing setup | 137 | 128 |
+| Enterprise SSO | 196 | 187 |
+| Support SLAs | 254 | 245 |
+| FAQ | 271 | 262 |
+
+### CHANGELOG.md (docs/CHANGELOG.md)
+
+| Section | Line | Offset |
+|---------|------|--------|
+| Sprint 1.5: Scripts, Remote Shell, Monaco | 12 | 0 |
+| Sprint 1.4: Patches | 35 | 23 |
+| Sprint 1.3: Policies & Compliance | 58 | 46 |
+| Sprint 1.2: Alerts | 80 | 68 |
+| Sprint 1.1: Checks | 103 | 91 |
+| Sprint 0.2: Agent & Foundation | 122 | 110 |
+| Sprint 0.1: Foundation | 146 | 134 |
+| Sprint 2.1: A2A Gateway | 163 | 151 |
+| Sprint 2.2: Framework Adapters | 177 | 165 |
+| Sprint 2.3: Bridge & End-to-End | 193 | 181 |
+| Phase 3: Secrets & Security | 207 | 195 |
+| Phase 4: Settings & UI Polish | 224 | 212 |
+| Phase 5: Observability | 239 | 227 |
+| Ozore AI Integration | 256 | 244 |
+| Live Dashboard & Mission Control | 269 | 257 |
+
+---
+
 ## AI TOOL INTEGRATION
 
 ### CLCODE_INTEGRATION.md (docs/CLCODE_INTEGRATION.md)

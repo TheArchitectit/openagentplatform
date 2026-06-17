@@ -16,6 +16,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/audit"
 	"github.com/openagentplatform/openagentplatform/internal/auth"
 	"github.com/openagentplatform/openagentplatform/internal/checklib"
+	"github.com/openagentplatform/openagentplatform/internal/tenancy"
 	"github.com/openagentplatform/openagentplatform/internal/telemetry"
 	"github.com/openagentplatform/openagentplatform/pkg/models"
 )
@@ -60,10 +61,18 @@ func (s *Server) registerRoutes(r chi.Router) {
 	// use the same Authorization-header flow as REST calls.
 	r.Get("/ws", s.handleWebSocket)
 
+	// Stripe webhook endpoint. Authentication is enforced inside the
+	// handler via the Stripe-Signature header — Stripe's HMAC is the
+	// only credential we accept here.
+	r.Route("/api/v1/billing", func(r chi.Router) {
+		r.Post("/webhook", s.handleBillingWebhook)
+	})
+
 	// Protected API.
 	r.Group(func(r chi.Router) {
 		r.Use(auth.VerifierMiddleware(s.sessionMinter, s.oidcVerifier, sessionCookieName))
 		r.Use(orgContextMiddleware)
+		r.Use(tenancy.TenantMiddleware(s.resolveOrgTier))
 		r.Route("/api/v1", func(r chi.Router) {
 			r.Get("/health", s.healthz)
 
@@ -211,6 +220,18 @@ func (s *Server) registerRoutes(r chi.Router) {
 				})
 			})
 
+			// Billing: commercial-tier management (customers, subscriptions,
+			// invoices, usage). All routes return 503 if the BillingService
+			// or StripeClient is not wired into the Server.
+			r.Route("/billing", func(r chi.Router) {
+				r.Post("/create-customer", s.handleCreateCustomer)
+				r.Post("/create-subscription", s.handleCreateSubscription)
+				r.Get("/subscription", s.handleGetSubscription)
+				r.Post("/cancel", s.handleCancelSubscription)
+				r.Get("/invoices", s.handleGetInvoices)
+				r.Get("/usage", s.handleGetUsage)
+			})
+
 			// Script library: reusable scripts that can be enqueued for
 			// execution on one or more agents. The /runs sub-route is
 			// mounted before the /{id} group so chi can match
@@ -321,6 +342,23 @@ func (s *Server) registerRoutes(r chi.Router) {
 				r.Get("/health", s.handleSecretsHealth)
 				r.Post("/resolve", s.handleSecretsResolve)
 				r.Get("/backends", s.handleSecretsBackends)
+			})
+
+			// Enterprise reporting: templates, on-demand generation,
+			// run history, and cron-based schedules. Endpoints return
+			// 503 when the reports Store / Scheduler is not wired.
+			r.Route("/reports", func(r chi.Router) {
+				r.Get("/templates", s.listReportTemplates)
+				r.Post("/generate", s.generateReport)
+				r.Get("/runs", s.listReportRuns)
+				r.Route("/runs/{id}", func(r chi.Router) {
+					r.Get("/", s.getReportRun)
+				})
+				r.Route("/schedules", func(r chi.Router) {
+					r.Post("/", s.createReportSchedule)
+					r.Get("/", s.listReportSchedules)
+					r.Delete("/{id}", s.deleteReportSchedule)
+				})
 			})
 		})
 	})

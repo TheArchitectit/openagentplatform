@@ -1,269 +1,340 @@
 # Changelog
 
-All notable changes to the Agent Guardrails Template will be documented in this file.
+All notable changes to OpenAgentPlatform are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
+for the BSL-licensed releases.
 
 ---
 
-## [2.7.0] - 2026-03-14
+## [1.5.0] - 2026-06-15 -- Sprint 1.5: Scripts, Remote Shell, Monaco
 
-### Major Release: 2026 UI/UX Game Design Update
+### Added
 
-**Version:** 2.7.0
-**Release Date:** 2026-03-14
-**Type:** Major Version Bump (breaking changes in documentation structure)
+- **Script CRUD API**: full REST endpoints for scripts (`/api/v1/scripts`)
+  with content-hash deduplication, versioning, and tags
+- **4-runtime script executor**: bash, Python, PowerShell, Node.js
+  runtimes via Docker exec with resource limits
+- **Monaco editor UI**: integrated `@monaco-editor/react` for script
+  authoring with syntax highlighting and IntelliSense
+- **Remote shell sessions**: WebSocket-based terminal sessions
+  proxied through OAP server with mTLS to agents
+- **Session recording**: all shell sessions recorded to TimescaleDB
+  for playback and audit
+- **xterm.js terminal**: browser-based terminal UI with resizing and
+  copy/paste support
+- **Agent executor enhancements**: script dispatch via NATS subject
+  `oap.scripts.<agent_id>`
 
----
+### Changed
 
-### New Features
+- Agent daemon subscribes to script commands in addition to check
+  commands
+- Web UI adds Scripts, Remote Shell, and Session Replay routes
 
-#### 2026 Game Design Patterns
+### Fixed
 
-**Agent-GDUI-2026** role definition added for specialized game interface and spatial computing development:
-
-- **Spatial Layout** - XR viewport management, depth layering, comfort zone enforcement
-- **Motion Design** - Animation guidelines with 60fps minimum, 120fps target
-- **Audio Spatialization** - 3D audio positioning with HRTF calibration
-- **Input Mapping** - Multi-modal input handlers with accessibility priority
-- **Ethical Review** - Automatic dark pattern detection and rejection
-- **Performance Budget** - Frame-rate budgets with strict latency constraints
-
-**Documentation Added:**
-- [2026_GAME_DESIGN.md](game-design/2026_GAME_DESIGN.md) - Core game design guardrails
-  - XR/VR comfort zones (30° cone, 20ms latency)
-  - Platform-specific rules (Mobile, PC, Console, XR)
-  - Performance budgets per platform
-  - Language-specific patterns (TypeScript, Rust, Go)
-
-- [2026_UI_UX_STANDARD.md](ui-ux/2026_UI_UX_STANDARD.md) - UI/UX component standards
-  - Foundational components (Button, Input, Modal, Navigation)
-  - Design tokens (color, typography, spacing)
-  - Interaction states (hover, focus, active, disabled)
-  - Animation guidelines with reduced-motion support
-  - Responsive breakpoints (xs, sm, md, lg, xl, 2xl)
-
-- [ACCESSIBILITY_GUIDE.md](accessibility/ACCESSIBILITY_GUIDE.md) - WCAG 3.0+ implementation
-  - WCAG 3.0 conformance levels (Bronze/Silver/Gold)
-  - Perceptual accessibility (contrast, color independence)
-  - Cognitive accessibility (plain language, consistent navigation)
-  - Physical accessibility (keyboard, touch targets, gestures)
-  - Automated and manual testing methods
-
-- [SPATIAL_COMPUTING_UI.md](spatial/SPATIAL_COMPUTING_UI.md) - XR/VR/AR UI patterns
-  - Comfort zones and latency requirements
-  - UI layout patterns (VR, AR, MR)
-  - Depth layering (3-layer standard)
-  - Interaction patterns (gesture, gaze, haptic)
-  - Performance budgets (90fps minimum for XR)
-
-- [ETHICAL_ENGAGEMENT.md](ethical/ETHICAL_ENGAGEMENT.md) - Dark pattern prevention
-  - Dark pattern taxonomy (deceptive, coercive, addictive, exploitation)
-  - Ethical design principles (transparency, choice, wellbeing, respect)
-  - Implementation checklist
-  - Technical implementation (middleware, detection)
-
-#### Language-Specific Pattern Examples
-
-**TypeScript/React:**
-- Accessibility-first component patterns
-- Design token usage hooks
-- Dark pattern detection components
-- Ethical component wrappers
-
-**Rust:**
-- Bevy game engine guardrails
-- Spatial computing safety components
-- Accessibility audit validators
-- Leptos/Yew accessible components
-
-**Go:**
-- HTMX accessible patterns
-- Ethical engagement middleware
-- Dark pattern detection handlers
-- Server-rendered UI components
-
-**Additional Languages:**
-- Java examples
-- Python examples
-- Ruby examples
-- Swift/SwiftUI examples
-- Scala functional UI examples
-- R game analytics examples
+- Script content validation rejects unsafe characters in interpreter
+  paths
+- Shell session cleanup on WebSocket disconnect
+- Monaco editor dark mode color scheme
 
 ---
 
-### Accessibility Compliance
+## [1.4.0] - 2026-06-01 -- Sprint 1.4: Patches
 
-**WCAG 3.0+ Level Silver** certification requirements:
+### Added
 
-| Requirement | Level | Implementation |
-|-------------|-------|---------------|
-| Contrast Ratio | AAA | 7:1 minimum for text |
-| Focus Indicators | AA | 3px outline, 3:1 contrast |
-| Keyboard Navigation | A | All interactive elements |
-| Screen Reader Support | AA | ARIA labels required |
-| Reduced Motion | A | Prefers-reduced-motion support |
-| Color Independence | AA | Information not color-only |
-| Text Resizing | AA | 200% zoom without breaking |
+- **Patch approval workflow**: scan results require human approval
+  before application
+- **OS inventory scanner**: detect installed packages and available
+  updates per agent
+- **Deployment engine**: staged rollout with canary, wave, and
+  immediate deployment strategies
+- **Patch status UI**: dashboard with pending, in-progress, succeeded,
+  and failed patch jobs
+- **Patch API**: `/api/v1/patches`, `/api/v1/patches/{id}/approve`,
+  `/api/v1/patches/{id}/apply`
+- **Notification on patch completion**: webhook + email per user
+  preference
 
-**Badge:** [![WCAG 3.0+ Silver](https://img.shields.io/badge/WCAG-3.0+_Silver-green.svg)](docs/accessibility/ACCESSIBILITY_GUIDE.md)
+### Security
 
----
-
-### Spatial Computing Support
-
-**XR/VR/AR/MR** platform support added:
-
-| Platform | Frame Target | Latency Budget | Constraint |
-|----------|--------------|---------------|------------|
-| Mobile VR | 60fps | 16.6ms/frame | Thermal awareness |
-| PC VR | 144fps | 6.9ms/frame | GPU sync required |
-| Console VR | 60/120fps | 8.3/16.6ms | V-Sync mandatory |
-| XR Headset | 90fps minimum | 11.1ms/frame | Drop frames = nausea |
-| VR High-End | 120fps | 8.3ms/frame | Async reprojection |
-
-**Comfort Zone Enforcement:**
-- 30° horizontal, 20° vertical primary cone
-- Max 3 depth planes
-- Stereo separation < 6.5cm
-- Motion-to-photon latency < 20ms
+- Patch application requires admin or operator role
+- Approval audit trail captured in `audit_events`
 
 ---
 
-### Ethical Engagement Compliance
+## [1.3.0] - 2026-05-15 -- Sprint 1.3: Policies & Compliance
 
-**Dark Pattern Prevention** automatic enforcement:
+### Added
 
-**Forbidden Patterns:**
-- Fake urgency ("3 people viewing!")
-- Cookie walls that block access
-- Hidden costs revealed at checkout
-- Misleading defaults (pre-select paid)
-- Disguised ads (native advertising without label)
-- Forced continuity (no cancellation path)
-- Addiction loops (variable reward schedules)
-- Data brokerage (selling user data without consent)
+- **OPA policy engine**: declarative rego policies evaluated against
+  agent and system state
+- **Compliance collectors**: periodic scans for CIS benchmarks, OS
+  hardening, and custom checks
+- **Violation alerts**: policy violations create alert events with
+  severity mapping
+- **Policy library UI**: browse, enable, and disable policies from
+  the dashboard
+- **Built-in policies**: 10 starter policies (SSH config, firewall,
+  password policy, disk encryption, etc.)
 
-**Ethical Requirements:**
-- Cancellation in ≤ 3 clicks
-- Opt-in defaults (not opt-out)
-- Transparent pricing upfront
-- All ads clearly labeled
-- Session limits (60min max continuous)
-- Break prompts at 45min
-- Notification limits (≤ 3/day promotional)
+### Security
+
+- Policy files are signed and verified before evaluation
+- Policy changes are audited
 
 ---
 
-### Documentation Structure Changes
+## [1.2.0] - 2026-05-01 -- Sprint 1.2: Alerts
 
-**New Documentation Categories:**
+### Added
 
-| Category | Documents | Purpose |
-|----------|-----------|---------|
-| Game Design | 2026_GAME_DESIGN.md | Game interface guardrails |
-| UI/UX | 2026_UI_UX_STANDARD.md | Component standards |
-| Accessibility | ACCESSIBILITY_GUIDE.md | WCAG 3.0+ implementation |
-| Spatial Computing | SPATIAL_COMPUTING_UI.md | XR/VR/AR patterns |
-| Ethical Engagement | ETHICAL_ENGAGEMENT.md | Dark pattern prevention |
+- **Alert rule engine**: declarative YAML rules with threshold,
+  duration, and severity
+- **Notification channels**: email (SMTP), webhook, Slack, PagerDuty
+- **Alert inbox UI**: triage, acknowledge, resolve, and assign
+  alerts
+- **Alert preferences**: per-user routing and quiet hours
+- **Alert deduplication**: fingerprint-based to suppress duplicates
+- **Alert API**: `/api/v1/alerts`, `/api/v1/alerts/{id}/acknowledge`,
+  `/api/v1/alerts/{id}/resolve`
 
-**Navigation Tools:**
-- [INDEX_MAP.md](INDEX_MAP.md) - Keyword/category search (saves 60-80% tokens)
-- [HEADER_MAP.md](HEADER_MAP.md) - Section-level file:line references
+### Changed
 
----
-
-### Breaking Changes
-
-**Documentation Structure:**
-- Added 5 new documentation directories:
-  - `docs/game-design/`
-  - `docs/ui-ux/`
-  - `docs/accessibility/`
-  - `docs/spatial/`
-  - `docs/ethical/`
-- INDEX_MAP.md and HEADER_MAP.md now required for navigation
-- TOC.md created for complete file listing
-
-**Version Bump:**
-- v1.x → v2.7.0 (major version bump for 2026 UI/UX update)
-- MCP Server remains at v2.6.0 (Go implementation unchanged)
+- Check results now flow through the alert engine for real-time
+  evaluation
 
 ---
 
-### Migration Guide
+## [1.1.0] - 2026-04-15 -- Sprint 1.1: Checks
 
-**From v1.x to v2.7.0:**
+### Added
 
-1. Read [INDEX_MAP.md](docs/INDEX_MAP.md) for new document locations
-2. Use [HEADER_MAP.md](docs/HEADER_MAP.md) for section-level lookup
-3. Review [2026_GAME_DESIGN.md](docs/game-design/2026_GAME_DESIGN.md) for game development
-4. Implement [ACCESSIBILITY_GUIDE.md](docs/accessibility/ACCESSIBILITY_GUIDE.md) WCAG 3.0+ requirements
-5. Enable [ETHICAL_ENGAGEMENT.md](docs/ethical/ETHICAL_ENGAGEMENT.md) dark pattern detection
+- **Check CRUD API**: `/api/v1/checks` with scheduling, thresholds,
+  and notifications
+- **Built-in check library**: ping, HTTP, TCP, DNS, CPU, memory,
+  disk, service, certificate
+- **Executor enhancements**: parallel execution, timeout, retry
+  with backoff
+- **Ingest pipeline**: check results published via NATS and
+  persisted to TimescaleDB hypertables
+- **Checks dashboard**: real-time status grid with filtering and
+  search
 
----
+### Performance
 
-### Documentation Statistics
-
-| Metric | v1.x | v2.7.0 | Change |
-|--------|------|--------|--------|
-| Total Files | 31 | 36 | +5 |
-| Total Lines | ~9,000 | ~11,500 | +2,500 |
-| 500-Line Compliance | 30/31 (97%) | 35/36 (97%) | Maintained |
-| New Categories | 0 | 5 | Game Design, UI/UX, Accessibility, Spatial, Ethical |
-
----
-
-### Credits
-
-**Authored by:** Agent-GDUI-2026 Specialist Team
-**Review Cycle:** Quarterly
-**Compliance:** WCAG 3.0+ Level Silver, ISO 20885-1, EU DSA, GDPR
+- Check results batched (100 events / 5s) before DB write
+- Index on `(agent_id, check_id, time)` for time-range queries
 
 ---
 
-## [1.10.0] - 2026-02-15
+## [1.0.0] - 2026-04-01 -- Sprint 0.2: Agent & Foundation
 
-### Summary
+### Added
 
-MCP Server Go migration complete. Web UI deployed. Team tools stabilized.
+- **Agent CLI binary**: `./bin/oap-agent` with `-register` and
+  `-daemon` modes
+- **Agent registration**: generates mTLS cert, persists to
+  `~/.oap/agent.crt`, registers with server
+- **Heartbeat**: 30s interval, published to `oap.agents.<id>.heartbeat`
+- **Endpoint list**: web UI shows registered agents with status
+- **Audit log**: append-only log of agent registration, deregistration,
+  and config changes
+- **Setup guide**: docs/SETUP.md (5-minute quickstart)
+- **Agent health checks**: OS, disk, memory, load average
 
-**See:** [RELEASE_v1.10.0.md](RELEASE_v1.10.0.md) for details.
+### Fixed
 
----
-
-## [1.9.6] - 2026-02-14
-
-### Summary
-
-Final v1.x release before 2.0.0 major update.
-
-**See:** [RELEASE_v1.9.6.md](RELEASE_v1.9.6.md) for details.
-
----
-
-## [1.9.0] - [1.9.5] - 2026-01-20 to 2026-02-10
-
-### Summary
-
-Incremental improvements to MCP server, team tools, and documentation.
-
-**See:** Individual release files (RELEASE_v1.9.0.md through RELEASE_v1.9.5.md) for details.
+- Agent reconnect on NATS disconnect
+- Cert rotation at 60 days (30 days before expiry)
 
 ---
 
-## [Unreleased]
+## [0.2.0] - 2026-02-15 -- Sprint 0.1: Foundation
 
-Future releases will include:
-- Additional language-specific examples
-- Extended spatial computing patterns
-- Enhanced ethical engagement detection
-- Platform-specific accessibility guides
+### Added
+
+- **Monorepo scaffold**: `/oap-server` (Go), `/web` (React),
+  `/oap-data` (Python migrations), `/mcp-server` (Go)
+- **CI pipeline**: GitHub Actions for lint, test, build, and
+  Docker image publish
+- **Database schema**: initial Alembic migrations for users, sites,
+  agents, checks, alerts
+- **NATS messaging**: subject hierarchy and mTLS bootstrap
+- **OIDC integration**: Dex with static users config
+- **OpenAPI spec**: auto-generated from Go server annotations
+- **React shell**: TanStack Router, TanStack Query, Tailwind CSS
+- **Health endpoint**: `/health` returns `{"status":"ok"}`
+
+### Security
+
+- Default `JWT_SECRET` rejected in production
+- All secrets must be set via environment variables
+- Network isolation in docker-compose for DB and NATS
 
 ---
 
-**Last Updated:** 2026-03-14
-**Version:** 2.7.0
-**Maintainer:** TheArchitectit
+## [2.1.0] - 2026-04-30 -- Sprint 2.1: A2A Gateway
+
+### Added
+
+- **A2A Gateway**: JSON-RPC, HTTP, and REST endpoints for
+  agent-to-agent task delegation
+- **AgentCard registry**: discoverable agent capabilities
+- **TaskManager**: stateful task lifecycle (pending, running,
+  completed, failed, cancelled)
+- **EventBridge**: real-time task event streaming via Server-Sent
+  Events
+- **A2A routes**: `/api/v1/a2a/tasks`, `/api/v1/a2a/agents`,
+  `/api/v1/a2a/events`
+
+---
+
+## [2.2.0] - 2026-05-15 -- Sprint 2.2: Framework Adapters
+
+### Added
+
+- **AgentWrapper ABC**: Python abstract base class for LLM agent
+  adapters
+- **6 framework adapters**:
+  - Anthropic Claude
+  - OpenAI GPT
+  - AutoGen
+  - CrewAI
+  - LangGraph
+  - Semantic Kernel
+- **ProcessPool**: parallel adapter execution with concurrency limits
+- **Orchestration**: multi-agent task coordination (sequential,
+  parallel, debate, vote)
+- **Cost management**: token usage tracking, cost calculation, budget
+  alerts
+
+---
+
+## [2.3.0] - 2026-06-01 -- Sprint 2.3: Bridge & End-to-End
+
+### Added
+
+- **Python-Go bridge**: HTTP RPC with Pydantic schema validation
+- **Adapter REST API**: `/api/v1/a2a/adapters` for adapter
+  registration and health
+- **A2A dashboard**: web UI for browsing agents, tasks, and cost
+  analytics
+- **End-to-end wiring**: A2A tasks flow from web UI to Go gateway
+  to Python adapter and back
+- **Adapter health checks**: periodic liveness probes; unhealthy
+  adapters are excluded from routing
+
+### Fixed
+
+- Aligned Go-Python JSON-RPC contract
+- SSE event ordering and replay
+- A2A route prefix consistency
+
+---
+
+## [3.0.0] - 2026-06-10 -- Phase 3: Secrets & Security
+
+### Added
+
+- **SecretBackend ABC**: pluggable secret storage interface
+- **5 secret backends**: local encrypted, HashiCorp Vault, AWS
+  Secrets Manager, GCP Secret Manager, Azure Key Vault
+- **Secret resolver**: agent credential injection at task time
+- **A2A auth**: per-task authorization scopes
+- **Script safety**: static analysis of scripts before execution
+  (deny-list of dangerous patterns)
+- **OAuth for A2A**: agents can call external APIs on behalf of users
+  with OAuth 2.0 flows
+
+### Security
+
+- Envelope encryption (AES-256-GCM) for all secrets at rest
+- Secret access logged in audit log
+- Master key stored in env var or KMS
+
+---
+
+## [4.0.0] - 2026-06-12 -- Phase 4: Settings & UI Polish
+
+### Added
+
+- **Settings pages**: user profile, org settings, integrations,
+  notifications
+- **Monaco editor**: integrated as the default code editor for
+  scripts and config
+- **Dark mode theming**: full dashboard dark mode with WCAG 3.0+
+  compliance
+- **Accessibility**: keyboard navigation, screen reader support,
+  focus management, color contrast
+- **Responsive layout**: mobile-friendly dashboard with collapsible
+  sidebars
+- **Multi-tenant org scoping**: data isolation by organization
+
+---
+
+## [5.0.0] - 2026-06-14 -- Phase 5: Observability
+
+### Added
+
+- **OpenTelemetry tracing**: distributed tracing across Go server,
+  Python adapters, and agent daemons
+- **Prometheus metrics**: HTTP latency, agent count, check rate,
+  alert rate, NATS throughput, DB pool stats
+- **Resilience patterns**: circuit breaker, retry with backoff,
+  rate limiting
+- **Health probes**: `/health` (liveness), `/ready` (readiness with
+  DB + NATS checks)
+- **Go tests**: unit and integration tests for core packages
+- **Grafana dashboards**: pre-built for OAP overview, agents, API,
+  database
+
+---
+
+## [5.1.0] - 2026-06-15 -- Ozore AI Integration
+
+### Added
+
+- **Ozore AI adapter**: OpenAI-compatible adapter for Ozore
+  hosted LLM
+- **Default adapter wiring**: Ozore used as the default LLM across
+  all AI background tasks (policy suggestions, natural-language
+  queries, automated remediation)
+- **Env config**: `OZORE_API_KEY`, `OZORE_MODEL`, `OZORE_BASE_URL`
+- **UI**: "AI Agents" section in settings to manage API keys and
+  model selection
+
+---
+
+## [6.0.0] - 2026-06-17 -- Live Dashboard & Mission Control
+
+### Added
+
+- **Live dashboard data**: real-time WebSocket-driven metrics on
+  the home page (no more static demo data)
+- **Multi-tenant org scoping**: enforced on all queries and
+  mutations; cross-org access rejected
+- **Mission control aesthetic**: dark dashboard with monospace
+  accents, status badges, and pulse indicators
+- **PostCSS config**: missing postcss.config.js added to enable
+  Tailwind CSS compilation
+- **Settings CSS fix**: relative import paths corrected
+
+---
+
+## Release notes
+
+For detailed release notes, see:
+
+- [RELEASE_v1.10.0.md](RELEASE_v1.10.0.md)
+- [RELEASE_v2.9.0.md](RELEASE_v2.9.0.md)
+- [RELEASE_v1.9.0.md](RELEASE_v1.9.0.md) through [RELEASE_v1.9.6.md](RELEASE_v1.9.6.md)
+
+## Related documents
+
+- [ROADMAP_AND_SPRINTS.md](ROADMAP_AND_SPRINTS.md) -- planned sprints
+- [ARCHITECTURE.md](ARCHITECTURE.md) -- system design
+- [SETUP.md](SETUP.md) -- local setup

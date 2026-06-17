@@ -28,6 +28,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/policy"
 	"github.com/openagentplatform/openagentplatform/internal/resilience"
 	"github.com/openagentplatform/openagentplatform/internal/telemetry"
+	"github.com/openagentplatform/openagentplatform/internal/tenancy"
 	"github.com/openagentplatform/openagentplatform/pkg/models"
 	"github.com/openagentplatform/openagentplatform/secrets"
 	secretsauth "github.com/openagentplatform/openagentplatform/secrets/auth"
@@ -59,6 +60,10 @@ type Server struct {
 	// secretsSweeper cleans up expired credential injections. nil when
 	// no resolver/injector was configured.
 	secretsSweeper *inject.Sweeper
+	// retentionPurger runs the daily two-phase (soft + hard) deletion
+	// of audit_events and check_results rows whose age exceeds the
+	// per-tenant retention policy.
+	retentionPurger *tenancy.RetentionPurger
 	// secretsRevocation holds the JWT revocation list for A2A tokens.
 	secretsRevocation *secretsauth.RevocationList
 
@@ -299,6 +304,15 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
+	// --- Tenancy retention purger ---------------------------------------
+	// Background worker that soft-deletes and then hard-deletes old
+	// audit_events and check_results rows on a daily cadence.
+	retentionPurger := tenancy.NewRetentionPurger(tenancy.RetentionPurgerConfig{
+		Pool:   pool,
+		Logger: log,
+		Tables: []string{"audit_events", "check_results"},
+	})
+
 	return &Server{
 		cfg:               cfg,
 		log:               log,
@@ -317,6 +331,7 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		rpcBridge:         rpcBridge,
 		secretsSweeper:    secretsSweeper,
 		secretsRevocation: secretsRevocation,
+		retentionPurger:   retentionPurger,
 		rateLimiter:       rateLimiter,
 		adapterBreaker:    adapterBreaker,
 		graceful:          graceful,
@@ -359,6 +374,11 @@ func (s *Server) Start(ctx context.Context) error {
 	// (env vars, temp files, stdin pipes) are cleaned up automatically.
 	if s.secretsSweeper != nil {
 		s.secretsSweeper.Start(hbCtx)
+	}
+
+	// Start the per-tenant retention purger (daily soft/hard delete).
+	if s.retentionPurger != nil {
+		s.retentionPurger.Start(hbCtx)
 	}
 
 	go s.patchScheduler.Run(hbCtx)
@@ -425,6 +445,14 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if s.secretsSweeper != nil {
 		s.graceful.Register("secrets-sweeper", resilience.CloserFunc(func(_ context.Context) error {
 			s.secretsSweeper.Stop()
+			return nil
+		}))
+	}
+
+	// 2b. Tenancy retention purger.
+	if s.retentionPurger != nil {
+		s.graceful.Register("retention-purger", resilience.CloserFunc(func(_ context.Context) error {
+			s.retentionPurger.Stop()
 			return nil
 		}))
 	}

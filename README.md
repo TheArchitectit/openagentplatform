@@ -1,8 +1,8 @@
 # OpenAgentPlatform
 
 Open-source, agent-first RMM (Remote Monitoring & Management) platform.
-Endpoints, agents, checks, alerts, scripts, and patches — managed from one place,
-extensible through AI agents and an A2A-compatible API.
+Endpoints, agents, checks, alerts, scripts, and patches -- managed from
+one place, extensible through AI agents and an A2A-compatible API.
 
 [![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?logo=docker&logoColor=white)](https://www.docker.com/)
@@ -33,21 +33,76 @@ Open http://localhost:5173 and login with `admin@oap.local` / `password`.
 - Sample data was seeded
 - The agent registered itself and is now publishing heartbeats
 
-## Stack
+For the full walkthrough see [docs/SETUP.md](docs/SETUP.md).
+
+## Architecture
+
+```
+┌────────────┐       OIDC        ┌──────────────┐
+│   Web UI   │ ───────────────▶  │  OAP Server  │ ──┐
+│  (React)   │                   │   (Go API)   │   │
+└────────────┘                   └──────┬───────┘   │
+                                        │           │
+                            pgxpool     │           │  publish/subscribe
+                                        ▼           ▼
+                                 ┌──────────┐  ┌──────────┐
+                                 │ Postgres │  │   NATS   │
+                                 │ +TSDB    │  │  (mTLS)  │
+                                 └──────────┘  └────┬─────┘
+                                                   │
+                                                   ▼
+                                          ┌────────────────┐
+                                          │   Agents       │
+                                          │ (Go / Python)  │
+                                          └────────────────┘
+```
+
+For the full component diagram (all phases) and ADRs, see
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Built With
 
 - **Server**: Go 1.23 + chi + slog
-- **Web**: React 19 + TanStack Router/Query + TailwindCSS
-- **Services**: Python 3.12 (FastAPI, SQLAlchemy, Alembic)
-- **Data**: PostgreSQL 16 + TimescaleDB
-- **Messaging**: NATS with mTLS
+- **Web**: React 19 + TanStack Router/Query + TailwindCSS + Monaco
+- **MCP Server**: Go (separate module, stdio/HTTP)
+- **A2A Adapters**: Python 3.12 (FastAPI, Pydantic) -- Anthropic, OpenAI,
+  AutoGen, CrewAI, LangGraph, Semantic Kernel
+- **LLM Provider**: Ozore AI (OpenAI-compatible)
+- **Data**: PostgreSQL 16 + TimescaleDB + Alembic
+- **Messaging**: NATS 2.10 with mTLS
 - **Auth**: OIDC (Dex) + JWT sessions
-- **Deploy**: Docker Compose
+- **Policy**: OPA (Open Policy Agent) with rego
+- **Observability**: OpenTelemetry, Prometheus, Grafana
+- **Secrets**: Envelope encryption (AES-256-GCM) with 5 backends
+- **CI**: GitHub Actions
+- **Deploy**: Docker Compose, Kubernetes (Helm)
+
+## Phase status
+
+| Phase | Sprint | Status      | Description                         |
+|-------|--------|-------------|-------------------------------------|
+| 0     | 0.1    | Complete    | Foundation: scaffold, CI, schema, NATS, OIDC |
+| 0     | 0.2    | Complete    | Agent CLI, registration, heartbeat  |
+| 1     | 1.1    | Complete    | Check CRUD, built-in library, ingest |
+| 1     | 1.2    | Complete    | Alert rules, notifications, inbox   |
+| 1     | 1.3    | Complete    | OPA policy engine, compliance scans |
+| 1     | 1.4    | Complete    | Patch approval, inventory, deploy   |
+| 1     | 1.5    | Complete    | Scripts, 4-runtime executor, shell  |
+| 2     | 2.1    | Complete    | A2A Gateway, JSON-RPC, EventBridge  |
+| 2     | 2.2    | Complete    | 6 framework adapters, orchestration |
+| 2     | 2.3    | Complete    | Python-Go bridge, end-to-end wiring |
+| 3     | 3.0    | Complete    | Secret vault, A2A auth, OAuth       |
+| 4     | 4.0    | Complete    | Settings, Monaco, dark mode, a11y   |
+| 5     | 5.0    | Complete    | OTel, Prometheus, resilience, tests |
+| 5     | 5.1    | Complete    | Ozore AI integration                |
+| 6     | 6.0    | Complete    | Live dashboard, multi-tenant, polish|
 
 ## Prerequisites
 
 - Docker 20.10+ with Compose v2
 - Go 1.23+ (for agent)
 - Node 20+ (for web dev)
+- Python 3.12 + uv (for migrations)
 
 See [docs/SETUP.md](docs/SETUP.md) for detailed installation instructions.
 
@@ -55,14 +110,14 @@ See [docs/SETUP.md](docs/SETUP.md) for detailed installation instructions.
 
 Once running, you get:
 
-- **Dashboard** — Sites, agents, checks, alerts overview at http://localhost:5173
-- **REST API** — Full CRUD for all resources at http://localhost:8080
-- **Agent** — Cross-platform endpoint agent (Linux/macOS/Windows)
-- **OIDC auth** — Dex with two pre-configured users:
+- **Dashboard** -- Sites, agents, checks, alerts overview at http://localhost:5173
+- **REST API** -- Full CRUD for all resources at http://localhost:8080
+- **Agent** -- Cross-platform endpoint agent (Linux/macOS/Windows)
+- **OIDC auth** -- Dex with two pre-configured users:
   - `admin@oap.local` / `password` (admin role)
   - `tech@oap.local` / `password` (technician role)
-- **Health checks** — All services have healthcheck endpoints
-- **Sample data** — 3 sites, 10 agents, 20 checks, 5 alert rules
+- **Health checks** -- All services have healthcheck endpoints
+- **Sample data** -- 3 sites, 10 agents, 20 checks, 5 alert rules
 
 ## Development
 
@@ -72,7 +127,8 @@ For active development with hot reload:
 make up-dev
 ```
 
-This mounts your local source into containers. Server changes trigger Air hot-reload; web changes trigger Vite HMR.
+This mounts your local source into containers. Server changes trigger
+Air hot-reload; web changes trigger Vite HMR.
 
 ## Useful commands
 
@@ -106,21 +162,27 @@ docs/             documentation
 
 ## Documentation
 
-- [Setup](docs/SETUP.md) — 5-minute walkthrough
-- [Architecture](docs/ARCHITECTURE.md) — system design
-- [API](docs/API.md) — REST endpoints
-- [Contributing](docs/CONTRIBUTING.md) — PR process & coding standards
+- [Setup](docs/SETUP.md) -- 5-minute walkthrough
+- [Architecture](docs/ARCHITECTURE.md) -- system design, ADRs
+- [API](docs/API.md) -- REST endpoints
+- [Deployment](docs/DEPLOYMENT.md) -- production deployment guide
+- [Security](docs/SECURITY.md) -- auth, RBAC, secrets, audit
+- [Commercial](docs/COMMERCIAL.md) -- licensing tiers, billing, SSO
+- [Changelog](docs/CHANGELOG.md) -- sprint-by-sprint history
+- [Contributing](docs/CONTRIBUTING.md) -- PR process and coding standards
 
 ## Community
 
-- [Discord](https://discord.gg/openagentplatform) — Join for support and discussion
-- [GitHub Issues](https://github.com/openagentplatform/openagentplatform/issues) — Bug reports and feature requests
-- [Discussions](https://github.com/openagentplatform/openagentplatform/discussions) — Q&A and ideas
+- [Discord](https://discord.gg/openagentplatform) -- Join for support
+- [GitHub Issues](https://github.com/openagentplatform/openagentplatform/issues) -- Bug reports
+- [Discussions](https://github.com/openagentplatform/openagentplatform/discussions) -- Q&A
 
 ## License
 
-Business Source License 1.1 — see [LICENSE](LICENSE).
+Business Source License 1.1 -- see [LICENSE](LICENSE). Free for
+non-production use; commercial licenses available for production.
+See [docs/COMMERCIAL.md](docs/COMMERCIAL.md) for tier details.
 
 ---
 
-**Status:** Active development | **Version:** 0.1.0-alpha | **Last updated:** 2026-06-16
+**Status:** All sprints 0.1 -- 6.0 complete | **Version:** 6.0.0 | **Last updated:** 2026-06-17
