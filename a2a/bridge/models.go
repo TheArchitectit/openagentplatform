@@ -10,233 +10,260 @@ import (
 )
 
 // ============================================================
+// Part — a single content unit (text, file, or data).
+// ============================================================
+
+// Part is a single content unit carried in messages and artifacts.
+// Matches Python oap.adapters.types.Part.
+type Part struct {
+	// Type is the kind of content: "text", "file", or "data".
+	Type string `json:"type"`
+
+	// Text is the text content (populated when Type == "text").
+	Text string `json:"text,omitempty"`
+
+	// FileURL is the URL or path to a file (populated when Type == "file").
+	FileURL string `json:"file_url,omitempty"`
+
+	// FileMIME is the MIME type of the file (populated when Type == "file").
+	FileMIME string `json:"file_mime,omitempty"`
+
+	// Data is arbitrary structured data (populated when Type == "data").
+	Data map[string]any `json:"data,omitempty"`
+}
+
+// ============================================================
+// CostRecord — per-invocation cost and token usage.
+// ============================================================
+
+// CostRecord tracks cost and token usage for a single invocation.
+// Matches Python oap.adapters.types.CostRecord.
+type CostRecord struct {
+	// TaskID is the A2A task identifier (for correlation).
+	TaskID string `json:"task_id,omitempty"`
+
+	// Framework is the underlying agent framework.
+	Framework string `json:"framework,omitempty"`
+
+	// Model is the model identifier used.
+	Model string `json:"model,omitempty"`
+
+	// PromptTokens is the number of input/prompt tokens consumed.
+	PromptTokens float64 `json:"prompt_tokens"`
+
+	// CompletionTokens is the number of output/completion tokens consumed.
+	CompletionTokens float64 `json:"completion_tokens"`
+
+	// TotalCost is the estimated cost.
+	TotalCost float64 `json:"total_cost"`
+
+	// Currency is the currency code for TotalCost (e.g. "USD").
+	Currency string `json:"currency,omitempty"`
+}
+
+// ============================================================
 // Request types
 // ============================================================
 
 // InvokeRequest is the payload sent to POST /api/v1/adapters/invoke.
-// It describes which adapter to invoke and the input message.
+// Matches Python InvokeRequestModel.
 type InvokeRequest struct {
-	// Adapter is the name of the adapter to invoke.
-	Adapter string `json:"adapter"`
+	// AdapterName is the registry name of the preferred adapter.
+	AdapterName string `json:"adapter_name"`
 
 	// TaskID is the A2A task identifier (for correlation).
 	TaskID string `json:"task_id,omitempty"`
 
-	// ContextID groups related invocations.
-	ContextID string `json:"context_id,omitempty"`
-
-	// Message is the input message to send to the adapter.
-	Message models.Message `json:"message"`
-
-	// Metadata carries arbitrary key-value context (org_id, user_id, etc.).
-	Metadata map[string]string `json:"metadata,omitempty"`
-
-	// Stream indicates the caller wants streaming responses.
-	Stream bool `json:"stream,omitempty"`
+	// Messages is the ordered list of message Parts.
+	Messages []Part `json:"messages"`
 }
 
 // StreamRequest is the payload sent to POST /api/v1/adapters/stream.
-// It carries the same fields as InvokeRequest with stream=true.
+// It carries the same fields as InvokeRequest. Streaming is determined
+// by the endpoint, not a flag.
 type StreamRequest = InvokeRequest
-
-// CancelRequest is the payload for POST /api/v1/adapters/{taskId}/cancel.
-// The taskId is passed in the URL; the body may carry a reason.
-type CancelRequest struct {
-	// Reason is a human-readable explanation for the cancellation.
-	Reason string `json:"reason,omitempty"`
-}
-
-// CostUsageRequest is the query for GET /api/v1/cost/usage.
-type CostUsageRequest struct {
-	// OrgID filters usage by organization. Empty = all orgs.
-	OrgID string `json:"org_id,omitempty"`
-
-	// From is the start of the time window (inclusive).
-	From time.Time `json:"from"`
-
-	// To is the end of the time window (exclusive).
-	To time.Time `json:"to"`
-}
 
 // ============================================================
 // Response types
 // ============================================================
 
 // InvokeResponse is the response from POST /api/v1/adapters/invoke.
+// Matches Python InvokeResponse.
 type InvokeResponse struct {
-	// TaskID is the adapter-side task identifier.
+	// TaskID is the A2A task identifier.
 	TaskID string `json:"task_id"`
 
-	// Status is the final task status (completed, failed, etc.).
-	Status string `json:"status"`
+	// Adapter is the adapter that handled the request.
+	Adapter string `json:"adapter,omitempty"`
 
-	// Messages contains the conversation produced by the adapter.
-	Messages []models.Message `json:"messages,omitempty"`
+	// Messages is the list of response Parts.
+	Messages []Part `json:"messages"`
 
-	// Artifacts contains any output artifacts produced.
-	Artifacts []models.Artifact `json:"artifacts,omitempty"`
+	// TokensUsed is the total number of tokens consumed.
+	TokensUsed int `json:"tokens_used,omitempty"`
 
-	// Usage contains cost/token usage for this invocation.
-	Usage *UsageRecord `json:"usage,omitempty"`
+	// DurationMs is the wall-clock duration in milliseconds.
+	DurationMs int64 `json:"duration_ms,omitempty"`
 
-	// Error is set when the adapter failed.
-	Error string `json:"error,omitempty"`
+	// Cost is the per-invocation cost record.
+	Cost *CostRecord `json:"cost,omitempty"`
+
+	// ErrorMessage is set on failure.
+	ErrorMessage string `json:"error_message,omitempty"`
+}
+
+// StreamResponse is the response from POST /api/v1/adapters/stream.
+type StreamResponse struct {
+	// TaskID is the A2A task identifier.
+	TaskID string `json:"task_id"`
+
+	// Adapter is the adapter that handled the request.
+	Adapter string `json:"adapter,omitempty"`
+
+	// Messages is the list of response Parts (accumulated).
+	Messages []Part `json:"messages"`
+
+	// Done indicates the stream is complete.
+	Done bool `json:"done,omitempty"`
+
+	// Cost is the per-invocation cost record (set on final event).
+	Cost *CostRecord `json:"cost,omitempty"`
 }
 
 // StreamEvent is a single Server-Sent Event from a streaming invocation.
 type StreamEvent struct {
-	// Type is the event type (message, artifact, status, error, done).
-	Type string `json:"type"`
-
-	// TaskID is the adapter-side task identifier.
+	// TaskID is the A2A task identifier.
 	TaskID string `json:"task_id"`
 
-	// Status is set on status events.
-	Status string `json:"status,omitempty"`
+	// EventType is the event kind: "delta", "status", "error", or "done".
+	EventType string `json:"event_type"`
 
-	// Message is set on message events.
-	Message *models.Message `json:"message,omitempty"`
+	// Delta is the content delta carried by this event (populated for
+	// EventType == "delta").
+	Delta *Part `json:"delta,omitempty"`
 
-	// Artifact is set on artifact events.
+	// Artifact is set on artifact events (nullable, included when
+	// streaming a complete artifact outside the main delta channel).
 	Artifact *models.Artifact `json:"artifact,omitempty"`
 
-	// Error is set on error events.
-	Error string `json:"error,omitempty"`
+	// Status is a status string (populated for EventType == "status").
+	Status string `json:"status,omitempty"`
 
-	// Usage is set on the final usage event.
-	Usage *UsageRecord `json:"usage,omitempty"`
+	// ErrorMessage is set on error events.
+	ErrorMessage string `json:"error_message,omitempty"`
+
+	// Metadata carries arbitrary event-level metadata.
+	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
-// UsageRecord tracks cost and token usage for a single invocation.
-type UsageRecord struct {
-	// InputTokens is the number of input/prompt tokens consumed.
-	InputTokens int64 `json:"input_tokens"`
-
-	// OutputTokens is the number of output/completion tokens consumed.
-	OutputTokens int64 `json:"output_tokens"`
-
-	// CostUSD is the estimated cost in US dollars.
-	CostUSD float64 `json:"cost_usd"`
-
-	// Model is the model identifier used (if applicable).
-	Model string `json:"model,omitempty"`
-
-	// Adapter is the adapter name that produced this usage.
-	Adapter string `json:"adapter,omitempty"`
-}
+// ============================================================
+// Cost / Budget types
+// ============================================================
 
 // UsageReport is the response from GET /api/v1/cost/usage.
+// Matches Python UsageReport.
 type UsageReport struct {
 	// OrgID is the organization filter applied.
 	OrgID string `json:"org_id,omitempty"`
+
+	// Adapter is the adapter filter applied.
+	Adapter string `json:"adapter,omitempty"`
+
+	// Model is the model filter applied.
+	Model string `json:"model,omitempty"`
+
+	// TaskCount is the number of tasks in the report.
+	TaskCount int `json:"task_count"`
+
+	// PromptTokens is the total prompt tokens.
+	PromptTokens int64 `json:"prompt_tokens"`
+
+	// CompletionTokens is the total completion tokens.
+	CompletionTokens int64 `json:"completion_tokens"`
+
+	// TotalCost is the total cost.
+	TotalCost float64 `json:"total_cost"`
+
+	// Currency is the currency code.
+	Currency string `json:"currency,omitempty"`
 
 	// From is the start of the queried window.
 	From time.Time `json:"from"`
 
 	// To is the end of the queried window.
 	To time.Time `json:"to"`
-
-	// Records is the list of per-invocation usage records.
-	Records []UsageRecord `json:"records"`
-
-	// TotalInputTokens is the sum of all input tokens.
-	TotalInputTokens int64 `json:"total_input_tokens"`
-
-	// TotalOutputTokens is the sum of all output tokens.
-	TotalOutputTokens int64 `json:"total_output_tokens"`
-
-	// TotalCostUSD is the sum of all costs.
-	TotalCostUSD float64 `json:"total_cost_usd"`
 }
 
 // BudgetInfo describes a single cost budget.
+// Matches Python BudgetInfo.
 type BudgetInfo struct {
 	// OrgID is the organization this budget applies to.
 	OrgID string `json:"org_id"`
 
-	// LimitUSD is the budget cap in US dollars.
-	LimitUSD float64 `json:"limit_usd"`
+	// BudgetLimit is the budget cap.
+	BudgetLimit float64 `json:"budget_limit"`
 
-	// UsedUSD is the amount consumed so far.
-	UsedUSD float64 `json:"used_usd"`
+	// CurrentSpend is the amount consumed so far.
+	CurrentSpend float64 `json:"current_spend"`
 
-	// Period is the reset period (daily, monthly, etc.).
-	Period string `json:"period"`
+	// AlertThresholds maps threshold names to spend amounts.
+	AlertThresholds map[string]float64 `json:"alert_thresholds,omitempty"`
 
-	// ResetAt is when the budget resets.
-	ResetAt time.Time `json:"reset_at"`
+	// Status is the budget status (ok, warning, exceeded).
+	Status string `json:"status,omitempty"`
 }
 
+// CancelRequest is the body sent to POST /api/v1/adapters/{taskId}/cancel.
+type CancelRequest struct {
+	// Reason is a human-readable reason for cancellation.
+	Reason string `json:"reason,omitempty"`
+}
+
+// ============================================================
+// Adapter discovery types
+// ============================================================
+
 // AdapterInfo describes a single adapter exposed by the Python service.
+// Matches Python AdapterListEntry.
 type AdapterInfo struct {
 	// Name is the unique adapter identifier.
 	Name string `json:"name"`
 
-	// Framework is the underlying agent framework (langchain, crewai, etc.).
-	Framework string `json:"framework"`
-
-	// Description is a human-readable description of the adapter.
-	Description string `json:"description,omitempty"`
-
-	// Version is the adapter version string.
-	Version string `json:"version"`
-
-	// Capabilities lists the adapter's capabilities (streaming, etc.).
-	Capabilities []string `json:"capabilities,omitempty"`
-
-	// Tags lists the adapter's skill tags for routing.
-	Tags []string `json:"tags,omitempty"`
+	// AgentCard is the nested A2A agent card for this adapter.
+	AgentCard *models.AgentCard `json:"agent_card"`
 
 	// Healthy indicates whether the adapter is currently healthy.
 	Healthy bool `json:"healthy"`
 }
 
 // HealthStatus is the response from GET /api/v1/adapters/{name}/health.
+// Matches Python HealthStatus.
 type HealthStatus struct {
-	// Name is the adapter name.
-	Name string `json:"name"`
+	// Healthy indicates whether the adapter is healthy.
+	Healthy bool `json:"healthy"`
 
-	// Status is one of "healthy", "degraded", "unhealthy".
-	Status string `json:"status"`
+	// LastError is the last error message (empty if none).
+	LastError string `json:"last_error,omitempty"`
 
-	// Message is a human-readable status description.
-	Message string `json:"message,omitempty"`
+	// UptimeSeconds is how long the adapter has been running.
+	UptimeSeconds float64 `json:"uptime_seconds,omitempty"`
 
-	// LastChecked is when the health check was performed.
-	LastChecked time.Time `json:"last_checked"`
+	// ActiveTasks is the number of currently active tasks.
+	ActiveTasks int `json:"active_tasks,omitempty"`
 
-	// LatencyMs is the last observed latency in milliseconds.
-	LatencyMs int64 `json:"latency_ms,omitempty"`
+	// MemoryMb is the memory usage in megabytes.
+	MemoryMb float64 `json:"memory_mb,omitempty"`
 }
 
 // ============================================================
 // AgentCard conversion
 // ============================================================
 
-// AgentCardFromAdapter converts a Python AdapterInfo into an A2A AgentCard.
-// The endpoint is set to the adapter name (used as a routing key in the registry).
+// AgentCardFromAdapter extracts the AgentCard from a Python AdapterInfo.
+// The AgentCard is now nested inside AdapterInfo (per Python contract).
 func AgentCardFromAdapter(info *AdapterInfo) *models.AgentCard {
-	if info == nil {
+	if info == nil || info.AgentCard == nil {
 		return nil
 	}
-	tags := info.Tags
-	if tags == nil {
-		tags = []string{}
-	}
-	caps := info.Capabilities
-	if caps == nil {
-		caps = []string{}
-	}
-	card := &models.AgentCard{
-		ID:           info.Name,
-		Name:         info.Name,
-		Description:  info.Description,
-		Version:      info.Version,
-		Framework:    info.Framework,
-		Endpoint:     info.Name,
-		Capabilities: caps,
-		Tags:         tags,
-		Skills:       []models.Skill{},
-	}
-	return card
+	return info.AgentCard
 }

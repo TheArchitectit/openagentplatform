@@ -46,16 +46,20 @@ func IsTerminal(status string) bool {
 // ============================================================
 
 type AgentCard struct {
-	ID             string       `json:"id"`
-	Name           string       `json:"name"`
-	Description    string       `json:"description"`
-	Version        string       `json:"version"`
-	Framework      string       `json:"framework"`
-	Endpoint       string       `json:"endpoint"`
-	Capabilities   []string     `json:"capabilities"`
-	Tags           []string     `json:"tags"`
-	Skills         []Skill      `json:"skills"`
-	Authentication *AuthScheme  `json:"authentication,omitempty"`
+	ID                string       `json:"id"`
+	Name              string       `json:"name"`
+	Description       string       `json:"description"`
+	Version           string       `json:"version"`
+	URL               string       `json:"url"`
+	ProviderName      string       `json:"provider_name"`
+	ProviderURL       string       `json:"provider_url"`
+	Streaming         bool         `json:"streaming"`
+	PushNotifications bool         `json:"push_notifications"`
+	AuthSchemes       []AuthScheme `json:"auth_schemes"`
+	DefaultInputModes []string     `json:"default_input_modes"`
+	DefaultOutputModes []string    `json:"default_output_modes"`
+	Tags              []string     `json:"tags"`
+	Skills            []Skill      `json:"skills"`
 }
 
 type Skill struct {
@@ -66,8 +70,8 @@ type Skill struct {
 }
 
 type AuthScheme struct {
-	Type   string            `json:"type"`
-	Config map[string]string `json:"config"`
+	Type   string         `json:"type"`
+	Config map[string]any `json:"config"`
 }
 
 type Message struct {
@@ -129,8 +133,8 @@ func (c *AgentCard) Validate() error {
 	if c.Name == "" {
 		return fmt.Errorf("agent card: name is required")
 	}
-	if c.Endpoint == "" {
-		return fmt.Errorf("agent card: endpoint is required")
+	if c.URL == "" {
+		return fmt.Errorf("agent card: url is required")
 	}
 	for i, s := range c.Skills {
 		if err := s.Validate(); err != nil {

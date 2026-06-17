@@ -138,7 +138,7 @@ func (r *Registry) Register(ctx context.Context, card *models.AgentCard) error {
 	}
 
 	r.mu.Lock()
-	r.cards[card.Endpoint] = &entry{
+	r.cards[card.URL] = &entry{
 		card:          *card,
 		lastHeartbeat: time.Now().UTC(),
 	}
@@ -355,21 +355,21 @@ func (r *Registry) pruneLoop() {
 // cardToRow converts a domain AgentCard to a database row.
 func cardToRow(card *models.AgentCard) *AgentCardRow {
 	providerMap := map[string]any{
-		"organization": card.Framework,
+		"organization": card.ProviderName,
 	}
 
 	skillsJSON, _ := json.Marshal(card.Skills)
-	authJSON, _ := json.Marshal(card.Authentication)
+	authJSON, _ := json.Marshal(card.AuthSchemes)
 
 	return &AgentCardRow{
-		URL:               card.Endpoint,
+		URL:               card.URL,
 		Name:              card.Name,
 		Description:       card.Description,
 		Version:           card.Version,
 		Provider:          providerMap,
 		Skills:            skillsJSON,
-		Streaming:         containsString(card.Capabilities, "streaming"),
-		PushNotifications: containsString(card.Capabilities, "push_notifications"),
+		Streaming:         card.Streaming,
+		PushNotifications: card.PushNotifications,
 		AuthSchemes:       authJSON,
 	}
 }
@@ -377,12 +377,14 @@ func cardToRow(card *models.AgentCard) *AgentCardRow {
 // rowToCard converts a database row back to a domain AgentCard.
 func rowToCard(row *AgentCardRow) (*models.AgentCard, error) {
 	card := &models.AgentCard{
-		ID:          row.URL,
-		Name:        row.Name,
-		Description: row.Description,
-		Version:     row.Version,
-		Framework:   stringFromMap(row.Provider, "organization"),
-		Endpoint:    row.URL,
+		ID:                row.URL,
+		Name:              row.Name,
+		Description:       row.Description,
+		Version:           row.Version,
+		URL:               row.URL,
+		ProviderName:      stringFromMap(row.Provider, "organization"),
+		Streaming:         row.Streaming,
+		PushNotifications: row.PushNotifications,
 	}
 
 	// Deserialize skills
@@ -394,16 +396,6 @@ func rowToCard(row *AgentCardRow) (*models.AgentCard, error) {
 	if card.Skills == nil {
 		card.Skills = []models.Skill{}
 	}
-
-	// Build capability list from boolean flags
-	caps := []string{}
-	if row.Streaming {
-		caps = append(caps, "streaming")
-	}
-	if row.PushNotifications {
-		caps = append(caps, "push_notifications")
-	}
-	card.Capabilities = caps
 
 	// Collect tags from all skills
 	tagSet := make(map[string]struct{})
@@ -418,9 +410,9 @@ func rowToCard(row *AgentCardRow) (*models.AgentCard, error) {
 
 	// Deserialize auth schemes
 	if len(row.AuthSchemes) > 0 && string(row.AuthSchemes) != "null" {
-		var auth models.AuthScheme
-		if err := json.Unmarshal(row.AuthSchemes, &auth); err == nil && auth.Type != "" {
-			card.Authentication = &auth
+		var auths []models.AuthScheme
+		if err := json.Unmarshal(row.AuthSchemes, &auths); err == nil && len(auths) > 0 {
+			card.AuthSchemes = auths
 		}
 	}
 

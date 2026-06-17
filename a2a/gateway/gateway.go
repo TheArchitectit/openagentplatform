@@ -261,7 +261,7 @@ func (g *Gateway) SendTask(ctx context.Context, id *Identity, t *models.Task) (*
 		if err != nil {
 			return nil, fmt.Errorf("a2a gateway: route: %w", err)
 		}
-		agentURL = card.Endpoint
+		agentURL = card.URL
 	}
 
 	created, err := g.tasks.CreateTask(ctx, t.ContextID, agentURL, t.Metadata)

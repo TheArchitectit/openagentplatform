@@ -250,7 +250,7 @@ func (g *Gateway) jsonrpcAgentRegister(ctx context.Context, id *Identity, raw js
 	if err := g.RegisterAgent(ctx, id, p.Card); err != nil {
 		return nil, mapGatewayError(err), err.Error(), nil
 	}
-	return map[string]string{"status": "registered", "endpoint": p.Card.Endpoint}, 0, "", nil
+	return map[string]string{"status": "registered", "endpoint": p.Card.URL}, 0, "", nil
 }
 
 func (g *Gateway) jsonrpcAgentList(ctx context.Context, id *Identity, _ json.RawMessage) (any, int, string, any) {

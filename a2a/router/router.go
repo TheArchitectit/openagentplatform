@@ -108,14 +108,14 @@ func (rt *Router) Route(task *models.Task, preferredAgent string) (*models.Agent
 		}
 		// Tie-break: preferred agent wins.
 		if preferredAgent != "" {
-			if results[i].card.Endpoint == preferredAgent {
+			if results[i].card.URL == preferredAgent {
 				return true
 			}
-			if results[j].card.Endpoint == preferredAgent {
+			if results[j].card.URL == preferredAgent {
 				return false
 			}
 		}
-		return results[i].card.Endpoint < results[j].card.Endpoint
+		return results[i].card.URL < results[j].card.URL
 	})
 
 	best := results[0].card
@@ -173,20 +173,13 @@ func scoreCard(card *models.AgentCard, requiredTags []string, wantStreaming, wan
 	}
 
 	// +2 bonus for streaming capability if requested
-	if wantStreaming && containsCap(card.Capabilities, "streaming") {
+	if wantStreaming && card.Streaming {
 		score += 2
 	}
 
 	// +2 bonus for push notifications if requested
-	if wantPush && containsCap(card.Capabilities, "push_notifications") {
+	if wantPush && card.PushNotifications {
 		score += 2
-	}
-
-	// +1 per generic capability match
-	for _, cap := range card.Capabilities {
-		if _, ok := requiredSet[cap]; ok {
-			score += 1
-		}
 	}
 
 	return score
@@ -294,8 +287,8 @@ func (rt *Router) ExplainRoute(task *models.Task, preferredAgent string) (string
 		task.ID, requiredTags, wantStreaming, wantPush, preferredAgent)
 	for i := range cards {
 		s := scoreCard(&cards[i], requiredTags, wantStreaming, wantPush)
-		out += fmt.Sprintf("  agent=%q score=%d skills=%d caps=%v\n",
-			cards[i].Endpoint, s, len(cards[i].Skills), cards[i].Capabilities)
+		out += fmt.Sprintf("  agent=%q score=%d skills=%d streaming=%v push=%v\n",
+			cards[i].URL, s, len(cards[i].Skills), cards[i].Streaming, cards[i].PushNotifications)
 	}
 	return out, nil
 }

@@ -276,9 +276,13 @@ func (s *Server) registerRoutes(r chi.Router) {
 				r.Get("/adapters/{name}/card", s.handleA2AAdapterCard)
 				r.Get("/adapters/{name}/health", s.handleA2AAdapterHealth)
 
-				// A2A task browser.
+				// A2A task operations.
 				r.Get("/tasks", s.handleA2AListTasks)
 				r.Get("/tasks/{id}", s.handleA2AGetTask)
+				r.Post("/tasks/{id}/cancel", s.handleA2ACancelTask)
+				r.Get("/tasks/events", s.handleA2ATaskEvents)
+				r.Post("/invoke", s.handleA2AInvoke)
+				r.Post("/stream", s.handleA2AStream)
 
 				// Cost and budget summary.
 				r.Get("/costs/summary", s.handleA2ACostSummary)

@@ -6,7 +6,9 @@
 //   - SSE streaming: streamAdapter (returns a cancel function)
 //   - Real-time task events: subscribeTaskEvents
 //
-// API paths are rooted at the A2A gateway base (exported from api.ts).
+// API paths are rooted at the A2A proxy base (/api/v1/a2a/...) which
+// forwards to the Python adapter service. The apiFetch helper prepends
+// /api/v1, so A2A paths are written as /a2a/... (relative to that prefix).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch, ApiError } from './api';
@@ -157,6 +159,9 @@ export interface A2ACostByOrg {
 // REST helpers — plain functions, usable outside of React components.
 // ---------------------------------------------------------------------------
 
+// A2A API base path. The frontend apiFetch prepends /api/v1, so the
+// proxy routes are at /api/v1/a2a/... — we use /a2a/... as the relative
+// segment. This matches the proxy handlers in internal/api/routes.go.
 const A2A = '/a2a';
 
 export async function fetchAdapters(): Promise<A2AAdapter[]> {
@@ -265,7 +270,10 @@ export function streamAdapter(
   handler: StreamHandler
 ): () => void {
   const controller = new AbortController();
-  const url = `${A2A}/stream`;
+  // The stream endpoint is proxied at /api/v1/a2a/stream. We construct
+  // the full path manually here because EventSource/fetch does not
+  // go through apiFetch (which would JSON-encode the body).
+  const url = `/api/v1${A2A}/stream`;
 
   // We use fetch + ReadableStream because the native EventSource API does
   // not support POST bodies. The response is expected to be text/event-stream.
@@ -381,7 +389,7 @@ export interface UseA2ATasksResult {
   sseConnected: boolean;
 }
 
-const TASK_SSE_PATH = '/api/v1/a2a/tasks/events';
+const TASK_SSE_PATH = `/api/v1${A2A}/tasks/events`;
 
 export function useA2ATasks(params: UseA2ATasksParams = {}): UseA2ATasksResult {
   const { status, autoRefresh = true } = params;

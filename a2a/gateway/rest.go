@@ -216,7 +216,7 @@ func RESTAgentHandler(g *Gateway) http.Handler {
 				return
 			}
 			for _, a := range agents {
-				if a.Endpoint == agentURL {
+				if a.URL == agentURL {
 					writeRESTJSON(w, http.StatusOK, a)
 					return
 				}
@@ -242,7 +242,7 @@ func RESTAgentHandler(g *Gateway) http.Handler {
 				writeJSONError(w, http.StatusBadRequest, "invalid request body", RequestIDFromContext(r.Context()))
 				return
 			}
-			card.Endpoint = agentURL
+			card.URL = agentURL
 			if err := g.RegisterAgent(r.Context(), id, &card); err != nil {
 				writeJSONError(w, gatewayErrorStatus(err), err.Error(), RequestIDFromContext(r.Context()))
 				return

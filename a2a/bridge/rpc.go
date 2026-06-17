@@ -215,7 +215,8 @@ func (rb *RPCBridge) resolveAdapter(task *models.Task) string {
 
 // dispatchSync handles a non-streaming invocation.
 func (rb *RPCBridge) dispatchSync(ctx context.Context, task *models.Task, adapter string) error {
-	resp, err := rb.client.Invoke(ctx, adapter, &task.Message)
+	messages := messageToParts(task.Message)
+	resp, err := rb.client.Invoke(ctx, adapter, messages)
 	if err != nil {
 		// Mark task as failed
 		failed, failErr := rb.gw.UpdateTaskStatus(ctx, task.ID, "fail", int(task.Version))
@@ -233,15 +234,19 @@ func (rb *RPCBridge) dispatchSync(ctx context.Context, task *models.Task, adapte
 		return fmt.Errorf("bridge: invoke adapter %q: %w", adapter, err)
 	}
 
-	// Update task with response messages and artifacts
+	// Update task with response messages
 	current, err := rb.gw.GetTaskInternal(ctx, task.ID)
 	if err != nil {
 		return fmt.Errorf("bridge: get task after invoke: %w", err)
 	}
 
-	// Add response messages
-	for _, msg := range resp.Messages {
-		if _, err := rb.gw.AddMessage(ctx, current.ID, msg, int(current.Version)); err != nil {
+	// Convert response Parts to a single message and add it
+	if len(resp.Messages) > 0 {
+		respMsg := models.Message{
+			Role:  "agent",
+			Parts: partsToModelsParts(resp.Messages),
+		}
+		if _, err := rb.gw.AddMessage(ctx, current.ID, respMsg, int(current.Version)); err != nil {
 			if rb.log != nil {
 				rb.log.Warn("bridge: add response message",
 					"task_id", task.ID,
@@ -249,29 +254,21 @@ func (rb *RPCBridge) dispatchSync(ctx context.Context, task *models.Task, adapte
 				)
 			}
 		}
-		// Re-fetch to get updated version
 		current, _ = rb.gw.GetTaskInternal(ctx, task.ID)
-		if current == nil {
-			break
-		}
-	}
-
-	// Add artifacts
-	for _, art := range resp.Artifacts {
-		if _, err := rb.gw.AddArtifact(ctx, current.ID, art.Name, art.Description, art.MimeType, art.Parts); err != nil {
-			if rb.log != nil {
-				rb.log.Warn("bridge: add artifact",
-					"task_id", task.ID,
-					"err", err,
-				)
-			}
-		}
 	}
 
 	// Transition to completed (or failed if error)
 	event := "complete"
-	if resp.Status == models.TaskStatusFailed || resp.Error != "" {
+	if resp.ErrorMessage != "" {
 		event = "fail"
+	}
+	if current == nil {
+		updated, err := rb.gw.UpdateTaskStatus(ctx, task.ID, event, int(task.Version))
+		if err != nil {
+			return fmt.Errorf("bridge: transition after invoke: %w", err)
+		}
+		rb.publishUpdate(updated)
+		return nil
 	}
 	updated, err := rb.gw.UpdateTaskStatus(ctx, task.ID, event, int(current.Version))
 	if err != nil {
@@ -285,7 +282,8 @@ func (rb *RPCBridge) dispatchSync(ctx context.Context, task *models.Task, adapte
 // dispatchStreaming handles a streaming invocation. Events are forwarded
 // to Gateway SSE subscribers in real-time.
 func (rb *RPCBridge) dispatchStreaming(ctx context.Context, task *models.Task, adapter string) error {
-	events, cancelStream, err := rb.client.Stream(ctx, adapter, &task.Message)
+	messages := messageToParts(task.Message)
+	events, cancelStream, err := rb.client.Stream(ctx, adapter, messages)
 	if err != nil {
 		failed, _ := rb.gw.UpdateTaskStatus(ctx, task.ID, "fail", int(task.Version))
 		if failed != nil {
@@ -310,46 +308,23 @@ func (rb *RPCBridge) dispatchStreaming(ctx context.Context, task *models.Task, a
 
 	for event := range events {
 		// Process the event
-		switch event.Type {
-		case "message":
-			if event.Message != nil {
-				updated, err := rb.gw.AddMessage(ctx, current.ID, *event.Message, int(current.Version))
-				if err == nil {
-					current = updated
-				}
-			}
-		case "artifact":
-			if event.Artifact != nil {
-				_, _ = rb.gw.AddArtifact(ctx, current.ID,
-					event.Artifact.Name, event.Artifact.Description,
-					event.Artifact.MimeType, event.Artifact.Parts)
+		switch event.EventType {
+		case "delta":
+			// Forward delta content to SSE subscribers
+			if event.Delta != nil {
+				rb.publishUpdateRaw(current.ID, models.TaskStatusWorking, event.Delta.Text)
 			}
 		case "status":
+			// Update task status
 			if event.Status != "" {
-				var stateEvent string
-				switch event.Status {
-				case models.TaskStatusCompleted:
-					stateEvent = "complete"
-				case models.TaskStatusFailed:
-					stateEvent = "fail"
-				case models.TaskStatusWorking:
-					stateEvent = "start"
-				default:
-					// Publish raw status update
-					rb.publishUpdateRaw(current.ID, event.Status, event.Error)
-					continue
-				}
-				updated, err := rb.gw.UpdateTaskStatus(ctx, current.ID, stateEvent, int(current.Version))
-				if err == nil {
-					current = updated
-				}
+				rb.publishUpdate(current)
 			}
 		case "error":
 			failed, _ := rb.gw.UpdateTaskStatus(ctx, current.ID, "fail", int(current.Version))
 			if failed != nil {
 				rb.publishUpdate(failed)
 			}
-			return fmt.Errorf("bridge: stream error: %s", event.Error)
+			return fmt.Errorf("bridge: stream error: %s", event.ErrorMessage)
 		case "done":
 			// Stream completed naturally
 			return nil
@@ -431,12 +406,34 @@ func (rb *RPCBridge) SyncAgentCards(ctx context.Context) error {
 	synced := 0
 	for i := range adapters {
 		info := &adapters[i]
-		card := AgentCardFromAdapter(info)
 
-		// Fetch the full card for richer metadata
+		// Each AdapterInfo has a nested AgentCard from the Python contract.
+		// Use the nested card directly as the registration source.
+		card := info.AgentCard
+		if card == nil {
+			card = AgentCardFromAdapter(info)
+		}
+
+		// Ensure the card has an ID and Name from the adapter name
+		// if the nested card is missing them.
+		if card.ID == "" {
+			card.ID = info.Name
+		}
+		if card.Name == "" {
+			card.Name = info.Name
+		}
+
+		// Fetch the full card for richer metadata, overriding the
+		// nested card fields if available.
 		fullCard, err := rb.client.GetAdapterCard(ctx, info.Name)
 		if err == nil && fullCard != nil {
 			card = fullCard
+			if card.ID == "" {
+				card.ID = info.Name
+			}
+			if card.Name == "" {
+				card.Name = info.Name
+			}
 		}
 
 		if err := rb.gw.RegisterAgent(ctx, identity, card); err != nil {
@@ -512,4 +509,39 @@ func (rb *RPCBridge) publishUpdateRaw(taskID, status, message string) {
 // generateTaskID is a helper to generate a UUID v4 task ID.
 func generateTaskID() string {
 	return uuid.NewString()
+}
+
+// messageToParts converts an A2A models.Message into the bridge Part slice
+// that the Python adapter service expects.
+func messageToParts(msg models.Message) []Part {
+	if len(msg.Parts) == 0 {
+		return nil
+	}
+	parts := make([]Part, 0, len(msg.Parts))
+	for _, p := range msg.Parts {
+		bp := Part{Type: "text", Text: p.Text}
+		if p.File != nil {
+			bp.Type = "file"
+			bp.FileURL = p.File.URI
+			bp.FileMIME = p.File.MimeType
+		}
+		parts = append(parts, bp)
+	}
+	return parts
+}
+
+// partsToModelsParts converts bridge Parts back into a2a models.Parts.
+func partsToModelsParts(parts []Part) []models.Part {
+	result := make([]models.Part, 0, len(parts))
+	for _, p := range parts {
+		mp := models.Part{Text: p.Text}
+		if p.Type == "file" && p.FileURL != "" {
+			mp.File = &models.FileRef{
+				URI:      p.FileURL,
+				MimeType: p.FileMIME,
+			}
+		}
+		result = append(result, mp)
+	}
+	return result
 }

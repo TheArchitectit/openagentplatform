@@ -391,14 +391,14 @@ func (c *AdapterClient) doRequest(ctx context.Context, method, path string, body
 
 // Invoke sends a synchronous invocation request to the adapter service.
 // POST /api/v1/adapters/invoke
-func (c *AdapterClient) Invoke(ctx context.Context, adapter string, request *models.Message) (*InvokeResponse, error) {
+func (c *AdapterClient) Invoke(ctx context.Context, adapter string, messages []Part) (*InvokeResponse, error) {
 	if c == nil {
 		return nil, ErrClientNotConfigured
 	}
 
 	req := &InvokeRequest{
-		Adapter: adapter,
-		Message: *request,
+		AdapterName: adapter,
+		Messages:    messages,
 	}
 
 	_, body, err := c.doRequest(ctx, http.MethodPost, "/api/v1/adapters/invoke", req)
@@ -423,7 +423,7 @@ func (c *AdapterClient) Invoke(ctx context.Context, adapter string, request *mod
 // underlying HTTP request.
 //
 // POST /api/v1/adapters/stream (SSE response)
-func (c *AdapterClient) Stream(ctx context.Context, adapter string, request *models.Message) (<-chan StreamEvent, func(), error) {
+func (c *AdapterClient) Stream(ctx context.Context, adapter string, messages []Part) (<-chan StreamEvent, func(), error) {
 	if c == nil {
 		return nil, nil, ErrClientNotConfigured
 	}
@@ -433,9 +433,8 @@ func (c *AdapterClient) Stream(ctx context.Context, adapter string, request *mod
 	}
 
 	req := &StreamRequest{
-		Adapter: adapter,
-		Message: *request,
-		Stream:  true,
+		AdapterName: adapter,
+		Messages:    messages,
 	}
 
 	bodyBytes, err := json.Marshal(req)
@@ -529,7 +528,7 @@ func (c *AdapterClient) Stream(ctx context.Context, adapter string, request *mod
 			}
 
 			// Terminal events end the stream
-			if event.Type == "done" || event.Type == "error" {
+			if event.EventType == "done" || event.EventType == "error" {
 				return
 			}
 		}
