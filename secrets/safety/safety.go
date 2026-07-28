@@ -416,6 +416,39 @@ func (s *ScriptCredentialSafe) PurgeExpired(now time.Time) int {
 	return purged
 }
 
+// PurgeInterval is the default cadence at which StartPurgeLoop reaps expired
+// JIT deliveries. It is shorter than a delivery's 60s lifetime so credentials
+// are reclaimed promptly after expiry.
+const PurgeInterval = 15 * time.Second
+
+// StartPurgeLoop launches a background goroutine that periodically calls
+// PurgeExpired, keeping the JIT delivery ledger bounded without a caller
+// having to drive it manually. The loop exits when ctx is cancelled. It is
+// safe to call once per ScriptCredentialSafe; calling it again starts a
+// second loop.
+func (s *ScriptCredentialSafe) StartPurgeLoop(ctx context.Context) {
+	s.startPurgeLoop(ctx, PurgeInterval)
+}
+
+// startPurgeLoop is the interval-injectable core, used by tests to avoid the
+// 15s production cadence.
+func (s *ScriptCredentialSafe) startPurgeLoop(ctx context.Context, interval time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if n := s.PurgeExpired(time.Now().UTC()); n > 0 {
+					s.logger.InfoContext(ctx, "purged expired JIT deliveries", "count", n)
+				}
+			}
+		}
+	}()
+}
+
 // emitAudit is a thin wrapper over the audit service.
 func (s *ScriptCredentialSafe) emitAudit(
 	ctx context.Context,

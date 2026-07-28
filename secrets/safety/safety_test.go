@@ -146,3 +146,39 @@ func TestPurgeExpiredZerosCredential(t *testing.T) {
 		}
 	}
 }
+
+// TestStartPurgeLoopReaps verifies the background purge loop reaps expired
+// deliveries on its ticker cadence and that cancelling the context stops the
+// loop. Uses the interval-injectable core with a tiny interval so the test is
+// fast and deterministic.
+func TestStartPurgeLoopReaps(t *testing.T) {
+	s := NewScriptCredentialSafe(DefaultPolicy(), &stubResolver{val: []byte("k")}, nil, nil, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	s.startPurgeLoop(ctx, 20*time.Millisecond)
+
+	// Seed an already-expired delivery. The next tick must reap it.
+	s.mu.Lock()
+	s.deliveryLedger["exp"] = &JITDeliveryResult{
+		Credential: []byte("c1"),
+		ExpiresAt:  time.Now().UTC().Add(-time.Minute),
+	}
+	s.mu.Unlock()
+	if got := s.ActiveDeliveries(); got != 1 {
+		t.Fatalf("seed: ActiveDeliveries = %d, want 1", got)
+	}
+
+	// Wait for at most ~1s for the loop to reap it.
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) && s.ActiveDeliveries() > 0 {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got := s.ActiveDeliveries(); got != 0 {
+		t.Fatalf("loop did not reap expired delivery: ActiveDeliveries = %d", got)
+	}
+
+	// Cancel stops the loop (the deferred ticker stop settles on return).
+	cancel()
+	time.Sleep(30 * time.Millisecond)
+}
+
