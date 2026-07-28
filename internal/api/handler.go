@@ -259,6 +259,17 @@ func (s *Server) SetReportsScheduler(sched *reports.Scheduler) {
 	s.reportsScheduler = sched
 }
 
+// SetBilling wires the Stripe-backed billing and metering services into the
+// API server. Any of the three may be nil (billing is optional); the billing
+// and usage endpoints return 503 when their service is unset. When a
+// MeteringService is provided the caller is expected to have started its flush
+// loop and to Flush it on shutdown.
+func (s *Server) SetBilling(stripe *billing.StripeClient, billingSvc *billing.BillingService, metering *billing.MeteringService) {
+	s.StripeClient = stripe
+	s.BillingService = billingSvc
+	s.MeteringService = metering
+}
+
 func (s *Server) buildRouter() chi.Router {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
