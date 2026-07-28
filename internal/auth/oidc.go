@@ -227,7 +227,15 @@ func (m *SessionMinter) Parse(raw string) (*SessionClaims, error) {
 			return nil, jwt.ErrTokenSignatureInvalid
 		}
 		return m.signKey.Public(), nil
-	})
+	},
+		// Defence in depth: validate the issuer/audience claims that Mint
+		// sets, and require an expiry. Previously only the signature and
+		// the built-in exp/nbf checks ran, so a token with a wrong iss/aud
+		// but a valid signature would be accepted.
+		jwt.WithIssuer(m.issuer),
+		jwt.WithAudience(m.audience),
+		jwt.WithExpirationRequired(),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("auth: parse session: %w", err)
 	}

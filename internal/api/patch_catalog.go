@@ -4,9 +4,11 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/openagentplatform/openagentplatform/internal/patches"
@@ -72,9 +74,14 @@ func (s *Server) triggerScanAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	go func() {
-		// Use a detached context so the scan continues even if the
-		// HTTP request that triggered it is cancelled.
-		if _, err := s.patchScanner.ScanAll(r.Context()); err != nil {
+		// Use a detached context with a bounded deadline so the scan
+		// continues after the HTTP request returns. The previous code
+		// passed r.Context(), which is cancelled the instant the handler
+		// writes the 202 and returns, aborting the scan immediately
+		// despite the "detached" comment.
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		if _, err := s.patchScanner.ScanAll(ctx); err != nil {
 			s.log.Warn("patch scan: ScanAll failed", "err", err)
 		}
 	}()
@@ -95,13 +102,17 @@ func (s *Server) triggerScanSite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	go func() {
-		if _, err := s.patchScanner.ScanSite(r.Context(), siteID); err != nil {
+		// Detached context so the scan outlives the request (see above).
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		if _, err := s.patchScanner.ScanSite(ctx, siteID); err != nil {
 			s.log.Warn("patch scan: ScanSite failed", "site_id", siteID, "err", err)
 		}
 	}()
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
-	_, _ = w.Write([]byte(`{"status":"scan_triggered","site_id":"` + siteID + `"}`))
+	resp := map[string]string{"status": "scan_triggered", "site_id": siteID}
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // triggerScanAgent triggers a patch scan for a single agent and
@@ -119,7 +130,7 @@ func (s *Server) triggerScanAgent(w http.ResponseWriter, r *http.Request) {
 	result, err := s.patchScanner.ScanAgent(r.Context(), id)
 	if err != nil {
 		s.log.Warn("patch scan: ScanAgent failed", "agent_id", id, "err", err)
-		http.Error(w, `{"error":"scan_failed","message":"`+err.Error()+`"}`, http.StatusBadGateway)
+		writeJSONError(w, http.StatusBadGateway, "scan_failed")
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

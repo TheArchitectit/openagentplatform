@@ -178,7 +178,10 @@ func clientIP(r *http.Request) string {
 func outcomeFromStatus(status int) Outcome {
 	switch {
 	case status == 0:
-		return OutcomeSuccess
+		// WriteHeader was never called and no body was written, so the
+		// request produced no real response — treat as an error rather
+		// than silently recording it as a success in the audit trail.
+		return OutcomeError
 	case status >= 200 && status < 300:
 		return OutcomeSuccess
 	case status == http.StatusUnauthorized || status == http.StatusForbidden:

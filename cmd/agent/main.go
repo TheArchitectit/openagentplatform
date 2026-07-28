@@ -170,18 +170,19 @@ func main() {
 		MaxConcurrentShells: shell.DefaultMaxConcurrentShells,
 		IdleTimeout:         shell.DefaultIdleTimeout,
 	}, natsClient.Conn(), log)
+
+	// Track the long-lived goroutines so the graceful-shutdown wait
+	// actually waits for all of them, not just the heartbeat.
+	var wg sync.WaitGroup
+	wg.Add(2)
 	go func() {
+		defer wg.Done()
 		if err := shellHandler.Run(ctx); err != nil {
 			log.Warn("shell handler exited", "err", err)
 		}
 	}()
-	defer func() {
-		// Run returns when ctx is cancelled; no extra cleanup needed.
-	}()
 
 	// Heartbeat goroutine.
-	var wg sync.WaitGroup
-	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		agent.RunHeartbeat(ctx, cfg.AgentID, cfg.HeartbeatIntervalSec, natsClient, log)
