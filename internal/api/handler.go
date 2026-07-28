@@ -266,6 +266,8 @@ func (s *Server) buildRouter() chi.Router {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Heartbeat("/healthz"))
+	// Cap request body size to bound memory use on mutating endpoints.
+	r.Use(bodyLimitMiddleware)
 	// Metrics middleware records request count and latency for every
 	// request.  It is installed before audit so it sees the final status
 	// code and response size; the middleware itself skips /metrics to

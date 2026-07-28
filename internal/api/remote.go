@@ -555,18 +555,15 @@ func writeJSONError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
 }
 
-// verifyWSUser parses the supplied token into SessionClaims. If a
-// SessionMinter is configured we use it; otherwise we accept any
-// non-empty token and synthesise a dev user (insecure, dev only).
+// verifyWSUser parses the supplied token into SessionClaims via the
+// configured SessionMinter. If no SessionMinter is configured, all requests
+// are rejected (fail-closed). Previously this synthesised an admin identity
+// for any non-empty token when no minter was present — a dev shortcut that
+// would grant full admin shell access the moment the remote-shell endpoint
+// was wired up.
 func (h *RemoteHandler) verifyWSUser(tok string) (*auth.SessionClaims, bool) {
 	if h.SessionMinter == nil {
-		if tok == "" {
-			return nil, false
-		}
-		return &auth.SessionClaims{
-			Role:             "admin",
-			RegisteredClaims: devClaims("dev-user"),
-		}, true
+		return nil, false
 	}
 	c, err := h.SessionMinter.Parse(tok)
 	if err != nil || c == nil {
