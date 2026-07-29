@@ -24,7 +24,6 @@
 
 import {
   forwardRef,
-  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -124,8 +123,6 @@ interface MonacoNamespace {
 // Module-level state: singleton loader + pending callbacks
 // ---------------------------------------------------------------------------
 
-type LoadResult = { monaco: MonacoNamespace } | { error: Error };
-
 let monacoPromise: Promise<MonacoNamespace> | null = null;
 let loaderScript: HTMLScriptElement | null = null;
 
@@ -173,7 +170,11 @@ function loadMonaco(): Promise<MonacoNamespace> {
         const w = window as unknown as {
           require: {
             config(opts: Record<string, unknown>): void;
-            (deps: string[], cb: (...args: unknown[]) => void): void;
+            (
+              deps: string[],
+              cb: (...args: unknown[]) => void,
+              errback?: (err: unknown) => void,
+            ): void;
           };
         };
 
@@ -184,12 +185,13 @@ function loadMonaco(): Promise<MonacoNamespace> {
         // array so require() fetches them in parallel from the CDN.
         w.require(
           ['vs/editor/editor.main'],
-          (_editorExports: unknown, monaco: MonacoNamespace) => {
+          (_editorExports: unknown, monacoExports: unknown) => {
             window.clearTimeout(timeoutId);
+            const monaco = monacoExports as MonacoNamespace;
             registerCustomLanguages(monaco);
             resolve(monaco);
           },
-          (err: Error) => {
+          (err: unknown) => {
             window.clearTimeout(timeoutId);
             reject(err instanceof Error ? err : new Error(String(err)));
           },

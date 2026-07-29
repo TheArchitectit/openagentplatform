@@ -44,11 +44,11 @@ function statusBadge(status: A2ATask['status']): { classes: string; icon: React.
 }
 
 function partPreview(part: A2APart): string {
-  switch (part.kind) {
+  switch (part.type) {
     case 'text':
       return part.text ?? '';
     case 'file':
-      return `[File: ${part.file?.name ?? 'unnamed'}]`;
+      return `[File: ${part.filename ?? 'unnamed'}]`;
     case 'data':
       return `[Data: ${JSON.stringify(part.data ?? {}).slice(0, 80)}]`;
     default:
@@ -195,8 +195,8 @@ function TaskDetailPage() {
         <div>
           <div className="text-xs text-gray-400 mb-0.5">Tokens</div>
           <div className="text-white">
-            {task.input_tokens !== undefined
-              ? `${task.input_tokens.toLocaleString()} in / ${task.output_tokens?.toLocaleString() ?? '—'} out`
+            {task.prompt_tokens !== undefined
+              ? `${task.prompt_tokens.toLocaleString()} in / ${task.completion_tokens?.toLocaleString() ?? '—'} out`
               : '—'}
           </div>
         </div>
@@ -227,11 +227,11 @@ function TaskDetailPage() {
                 className="flex items-center justify-between gap-3 rounded-md border border-slate-800 bg-slate-800/40 p-3"
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-blue-400 flex-shrink-0">{artifactIcon(artifact.kind ?? '')}</span>
+                  <span className="text-blue-400 flex-shrink-0">{artifactIcon(`${artifact.name} ${artifact.description ?? ''}`)}</span>
                   <div className="min-w-0">
                     <div className="text-sm text-white truncate">{artifact.name ?? `artifact-${i}`}</div>
                     <div className="text-xs text-gray-400">
-                      {artifact.kind ?? 'file'} · {artifact.parts?.length ?? 0} part(s)
+                      artifact · {artifact.parts?.length ?? 0} part(s)
                     </div>
                   </div>
                 </div>

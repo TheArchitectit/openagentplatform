@@ -12,7 +12,6 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Search, RefreshCw, Calendar, Download, Terminal } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
-import { getStoredUser } from '@/lib/auth';
 
 export const Route = createFileRoute('/shell-recordings/')({
   component: RecordingsListPage,
@@ -75,7 +74,7 @@ function RecordingsListPage() {
       });
       if (dateFrom) params.set('started_after', new Date(dateFrom).toISOString());
       if (dateTo) params.set('started_before', new Date(dateTo).toISOString());
-      const res = await apiFetch(`/api/v1/shell/recordings?${params}`);
+      const res = await apiFetch<Response>(`/api/v1/shell/recordings?${params}`);
       if (!res.ok) throw new Error(`Failed to load recordings (${res.status})`);
       const data: ListResponse = await res.json();
       setRecordings(data.recordings ?? []);

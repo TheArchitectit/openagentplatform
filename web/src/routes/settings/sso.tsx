@@ -57,8 +57,8 @@ function SSOPage() {
   }, [fetchSSOProviders]);
 
   const handleCreate = useCallback(
-    async (input: CreateSSOProviderInput) => {
-      await createSSOProvider(input);
+    async (input: CreateSSOProviderInput | UpdateSSOProviderInput) => {
+      await createSSOProvider(input as CreateSSOProviderInput);
       setShowCreate(false);
     },
     [createSSOProvider]

@@ -14,7 +14,7 @@ import {
   StopCircle,
   Loader2,
 } from 'lucide-react';
-import { useA2ATasks, type A2ATask, type A2ATaskStatus } from '@/lib/useA2A';
+import { useA2ATasks, type A2ATaskStatus } from '@/lib/useA2A';
 
 export const Route = createFileRoute('/a2a/tasks')({
   component: TaskMonitorPage,
@@ -105,6 +105,7 @@ function TaskMonitorPage() {
       all: tasks.length,
       pending: 0,
       working: 0,
+      input_required: 0,
       completed: 0,
       failed: 0,
       cancelled: 0,

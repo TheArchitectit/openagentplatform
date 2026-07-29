@@ -279,11 +279,6 @@ function PatchJobDetailPage() {
   const progress = job ? computeProgress(job) : 0;
   const activeStageIdx = findActiveStageIndex(progress);
 
-  const pendingReboots = useMemo(
-    () => reboots.filter((r) => r.status === 'pending' || r.status === 'scheduled'),
-    [reboots]
-  );
-
   const targetsByStage = useMemo(() => {
     const map: Record<DeploymentStage, PatchTarget[]> = {
       queued: [],

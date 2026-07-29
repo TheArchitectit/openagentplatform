@@ -408,7 +408,7 @@ function StatusPill({ status }: { status: Status }) {
 
 function loadScript(src: string, globalName: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    if ((window as Record<string, unknown>)[globalName]) {
+    if ((window as unknown as Record<string, unknown>)[globalName]) {
       resolve();
       return;
     }
