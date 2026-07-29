@@ -21,6 +21,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/alerts"
 	"github.com/openagentplatform/openagentplatform/internal/api"
 	"github.com/openagentplatform/openagentplatform/internal/audit"
+	"github.com/openagentplatform/openagentplatform/internal/billing"
 	"github.com/openagentplatform/openagentplatform/internal/checks"
 	"github.com/openagentplatform/openagentplatform/internal/config"
 	"github.com/openagentplatform/openagentplatform/internal/events"
@@ -66,6 +67,11 @@ type Server struct {
 	retentionPurger *tenancy.RetentionPurger
 	// secretsRevocation holds the JWT revocation list for A2A tokens.
 	secretsRevocation *secretsauth.RevocationList
+	// billingSvc / meteringSvc are nil when STRIPE_SECRET_KEY is unset
+	// (billing disabled). When set, their loops are started in Run() and
+	// the metering queue is flushed in Shutdown().
+	billingSvc  *billing.BillingService
+	meteringSvc *billing.MeteringService
 
 	// --- Resilience layer ----------------------------------------------
 	// rateLimiter throttles per-IP and per-user request rates.
@@ -252,6 +258,29 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 	// secrets HTTP endpoints can dispatch to it.
 	apiServer.SetSecretsResolver(secretResolver, registeredNames)
 
+	// --- Billing & metering -----------------------------------------------
+	// Billing is optional: it is only wired when STRIPE_SECRET_KEY is set.
+	// Without it the /billing and /usage endpoints return 503 (the handlers
+	// nil-check the services). When configured we construct the Stripe
+	// client + BillingService/MeteringService façades and attach them to the
+	// API server. The flush/sync loops are started in Run() (alongside the
+	// other background workers, sharing hbCtx) and the metering queue is
+	// flushed during graceful shutdown.
+	var (
+		stripeClient *billing.StripeClient
+		billingSvc   *billing.BillingService
+		meteringSvc  *billing.MeteringService
+	)
+	if sc, err := billing.NewStripeClient(); err != nil {
+		log.Info("billing: STRIPE_SECRET_KEY not set; billing endpoints disabled")
+	} else {
+		stripeClient = sc
+		billingSvc = billing.NewBillingService(sc, log)
+		meteringSvc = billing.NewMeteringService(sc, log)
+		apiServer.SetBilling(stripeClient, billingSvc, meteringSvc)
+		log.Info("billing: Stripe billing + metering enabled")
+	}
+
 	// --- Resilience layer wiring -----------------------------------------
 	// Rate limiter: 100 req/s sustained, 200 burst, with health and
 	// metrics endpoints exempted from throttling.
@@ -332,6 +361,8 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		secretsSweeper:    secretsSweeper,
 		secretsRevocation: secretsRevocation,
 		retentionPurger:   retentionPurger,
+		billingSvc:        billingSvc,
+		meteringSvc:       meteringSvc,
 		rateLimiter:       rateLimiter,
 		adapterBreaker:    adapterBreaker,
 		graceful:          graceful,
@@ -382,6 +413,16 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 
 	go s.patchScheduler.Run(hbCtx)
+
+	// Start the billing sync loop and the metering flush loop, sharing hbCtx
+	// so they are cancelled on shutdown. The metering queue is flushed one
+	// final time in Shutdown() before the process exits.
+	if s.meteringSvc != nil {
+		s.meteringSvc.StartFlushLoop(hbCtx)
+	}
+	if s.billingSvc != nil {
+		s.billingSvc.StartSyncLoop(hbCtx)
+	}
 
 	go func() {
 		s.log.Info("starting server", "addr", s.httpServer.Addr)
@@ -440,6 +481,20 @@ func (s *Server) Shutdown(ctx context.Context) error {
 		s.patchScheduler.Close()
 		return nil
 	}))
+
+	// Flush any queued metering usage to Stripe so it isn't lost on shutdown.
+	// Use a bounded context independent of the request/shutdown ctx so the
+	// report isn't cancelled prematurely.
+	if s.meteringSvc != nil {
+		s.graceful.Register("metering-flush", resilience.CloserFunc(func(_ context.Context) error {
+			flushCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if err := s.meteringSvc.Flush(flushCtx); err != nil {
+				s.log.Warn("billing: final metering flush returned errors", "err", err)
+			}
+			return nil
+		}))
+	}
 
 	// 2. Secrets sweeper.
 	if s.secretsSweeper != nil {
