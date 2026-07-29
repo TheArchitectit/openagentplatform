@@ -886,31 +886,33 @@ func (s *Server) oidcAuthURL(state string) string {
 }
 
 // exchangeCode performs the OIDC token exchange using client credentials.
+// exchangeCode performs the OIDC token exchange using client credentials.
+//
+// Only a single request is built and sent. The client_secret is included
+// only when configured; the default `oap-server` Dex client is public and
+// rejects the secret, and including it for a confidential client is the
+// standard PKCE/client-secret flow.
 func (s *Server) exchangeCode(ctx context.Context, code string) (string, error) {
 	form := url.Values{
-		"grant_type":    {"authorization_code"},
-		"code":          {code},
-		"client_id":     {s.cfg.OIDCClientID},
-		"client_secret": {s.cfg.OIDCClientSecret},
-		"redirect_uri":  {s.cfg.OIDCRedirectURL},
+		"grant_type":   {"authorization_code"},
+		"code":         {code},
+		"client_id":    {s.cfg.OIDCClientID},
+		"redirect_uri": {s.cfg.OIDCRedirectURL},
 	}
+	if s.cfg.OIDCClientSecret != "" {
+		form.Set("client_secret", s.cfg.OIDCClientSecret)
+	}
+	// Encode the form into the request body via a buffer-backed reader.
+	body := formBody(form)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		s.cfg.OIDCIssuerURL+"/token", nil)
+		s.cfg.OIDCIssuerURL+"/token", body)
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Body = http.NoBody
-
-	// Use the stdlib client with a form body.
-	client := &http.Client{Timeout: 10 * time.Second}
-	req.Body = nil
-	req, _ = http.NewRequestWithContext(ctx, http.MethodPost,
-		s.cfg.OIDCIssuerURL+"/token", nil)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("Accept", "application/json")
-	// Encode form into body using a buffer-backed reader.
-	req.Body = formBody(form)
+
+	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
