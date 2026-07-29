@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,14 +13,18 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 	"github.com/openagentplatform/openagentplatform/pkg/models"
 )
 
 // agentToken is the per-site registration token used by an agent to prove it
 // is authorised to register against a particular site. The DB column
-// sites.registration_token stores the bcrypt/argon2 hash; for the initial
-// implementation we store a plaintext token and compare with constant-time
-// equality. A future migration should switch this to a hashed comparison.
+// sites.registration_token SHOULD store a bcrypt hash of the token
+// (verifyRegistrationToken detects the "$2a$"/"$2b$"/"$2y$" bcrypt prefix and
+// compares with bcrypt.CompareHashAndPassword). For backward compatibility,
+// legacy plaintext tokens are still accepted via a constant-time comparison,
+// but operators should migrate existing rows to hashes — a DB read of a
+// plaintext token is enough to enroll a rogue agent.
 type siteTokenLookup interface {
 	GetSiteRegistrationToken(ctx context.Context, siteID string) (token string, orgID string, err error)
 }
@@ -82,7 +87,7 @@ func (s *Server) handleRegisterAgent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"invalid_site"}`, http.StatusUnauthorized)
 		return
 	}
-	if subtleCompare(regToken, req.AgentToken) != 0 {
+	if !verifyRegistrationToken(regToken, req.AgentToken, s.log) {
 		s.log.Warn("agent_token mismatch", "site_id", req.SiteID)
 		http.Error(w, `{"error":"invalid_agent_token"}`, http.StatusUnauthorized)
 		return
@@ -355,9 +360,47 @@ func (s *Server) mintAgentToken(agentID, siteID, orgID string, ttl time.Duration
 	return s.sessionMinter.MintAgentToken(agentID, siteID, orgID, ttl)
 }
 
+// verifyRegistrationToken checks a supplied agent token against the stored
+// value. Stored values with a bcrypt prefix ("$2a$"/"$2b$"/"$2y$") are
+// verified with bcrypt.CompareHashAndPassword. Legacy plaintext values fall
+// back to a constant-time comparison and emit a warning nudging the operator
+// to hash the token (see HashRegistrationToken), since a DB read of a
+// plaintext token is enough to enroll a rogue agent.
+func verifyRegistrationToken(stored, supplied string, log *slog.Logger) bool {
+	if stored == "" || supplied == "" {
+		return false
+	}
+	if isBcryptHash(stored) {
+		return bcrypt.CompareHashAndPassword([]byte(stored), []byte(supplied)) == nil
+	}
+	// Legacy plaintext token: constant-time compare, then nudge to upgrade.
+	if subtleCompare(stored, supplied) != 0 {
+		return false
+	}
+	log.Warn("agent registration token is stored in plaintext; hash it with HashRegistrationToken and update sites.registration_token")
+	return true
+}
+
+// HashRegistrationToken returns a bcrypt hash of a registration token suitable
+// for storing in sites.registration_token. Use this when creating/rotating a
+// site token so the stored value is never the raw credential.
+func HashRegistrationToken(token string) (string, error) {
+	h, err := bcrypt.GenerateFromPassword([]byte(token), bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("api: hash registration token: %w", err)
+	}
+	return string(h), nil
+}
+
+// isBcryptHash reports whether s looks like a bcrypt hash (versions 2a/2b/2y).
+func isBcryptHash(s string) bool {
+	return strings.HasPrefix(s, "$2a$") || strings.HasPrefix(s, "$2b$") || strings.HasPrefix(s, "$2y$")
+}
+
 // subtleCompare returns 0 if a and b are equal in length and content.
 // Uses constant-time comparison to avoid leaking timing information on
-// registration-token checks. Returns 0 on equal, non-zero otherwise.
+// legacy plaintext registration-token checks. Returns 0 on equal, non-zero
+// otherwise.
 func subtleCompare(a, b string) int {
 	if len(a) != len(b) {
 		return 1
