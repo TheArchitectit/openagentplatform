@@ -92,6 +92,17 @@ func (c *Config) validate() error {
 	if c.Env != "development" && c.Env != "staging" && c.Env != "production" {
 		return errors.New("APP_ENV must be one of: development, staging, production")
 	}
+	// Production hardening: debug endpoints expose unauthenticated pprof and
+	// a full config dump, and the session cookie carries the JWT used for
+	// authentication, so neither may be insecure in non-development envs.
+	if c.Env != "development" {
+		if c.DebugMode {
+			return errors.New("DEBUG_MODE must be false outside development (exposes unauthenticated pprof/config dump)")
+		}
+		if !c.CookieSecure {
+			return errors.New("COOKIE_SECURE must be true outside development (session cookie carries the auth JWT)")
+		}
+	}
 	return nil
 }
 
