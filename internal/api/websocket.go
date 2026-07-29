@@ -155,10 +155,31 @@ func (h *wsHub) Broadcast(ch wsChannel, event string, data any) {
 	}
 	h.mu.RUnlock()
 	for _, c := range clients {
-		select {
-		case c.send <- frame:
-		default:
-			h.log.Warn("ws client send buffer full, dropping", "user", c.userID)
+		c.sendSafe(frame, h.log)
+	}
+}
+
+// sendSafe enqueues a frame for writing unless the client has been closed.
+// It guards against the send-on-closed-channel panic that would otherwise
+// occur when Broadcast (or a readPump ack) races with readPump's defer
+// closing c.send.
+//
+// The mutex is held across the select so the close + channel-close in
+// readPump's defer cannot interleave between the closed-check and the send.
+// Because the send uses a non-blocking `default:` branch, a slow consumer
+// never holds the lock for long — the buffer is small and full buffers drop
+// immediately.
+func (c *wsClient) sendSafe(frame []byte, log *slog.Logger) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		return
+	}
+	select {
+	case c.send <- frame:
+	default:
+		if log != nil {
+			log.Warn("ws client send buffer full, dropping", "user", c.userID)
 		}
 	}
 }
@@ -247,10 +268,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		Type: "hello",
 		Data: json.RawMessage(`{"protocol":"oap-ws-1"}`),
 	})
-	select {
-	case c.send <- hello:
-	default:
-	}
+	c.sendSafe(hello, nil)
 
 	// Start pumps. writePump exits when the send channel closes;
 	// readPump exits when the client disconnects or sends a bad frame.
@@ -263,9 +281,17 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 // On disconnect the client is removed from the hub.
 func (c *wsClient) readPump() {
 	defer func() {
+		// Atomically mark closed AND close the channel under the mutex so
+		// any concurrent sendSafe() caller either:
+		//   - acquires the mutex first and sends (channel still open), or
+		//   - acquires it after us, sees closed=true, and bails out.
+		// This prevents a send on a closed channel (which panics).
+		c.mu.Lock()
+		c.closed = true
+		close(c.send)
+		c.mu.Unlock()
 		c.hub.remove(c)
 		_ = c.conn.Close()
-		close(c.send)
 		c.log.Info("ws client disconnected", "user", c.userID, "clients", c.hub.ClientCount())
 	}()
 
@@ -295,30 +321,21 @@ func (c *wsClient) readPump() {
 		switch msg.Type {
 		case "ping":
 			pong, _ := json.Marshal(wsMessage{Type: "pong"})
-			select {
-			case c.send <- pong:
-			default:
-			}
+			c.sendSafe(pong, nil)
 		case "subscribe":
 			if !validChannel(msg.Channel) {
 				continue
 			}
 			c.hub.subscribe(c, msg.Channel)
 			ack, _ := json.Marshal(wsMessage{Type: "subscribed", Channel: msg.Channel})
-			select {
-			case c.send <- ack:
-			default:
-			}
+			c.sendSafe(ack, nil)
 		case "unsubscribe":
 			if !validChannel(msg.Channel) {
 				continue
 			}
 			c.hub.unsubscribe(c, msg.Channel)
 			ack, _ := json.Marshal(wsMessage{Type: "unsubscribed", Channel: msg.Channel})
-			select {
-			case c.send <- ack:
-			default:
-			}
+			c.sendSafe(ack, nil)
 		}
 	}
 }
