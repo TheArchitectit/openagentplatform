@@ -2,6 +2,10 @@
 node_modules/
 dist/
 .pnpm-store/
+# The web app is a pnpm workspace (pnpm-lock.yaml + pnpm-workspace.yaml);
+# ignore npm's package-lock.json so a stray lockfile can't reintroduce
+# toolchain ambiguity. The Makefile and Dockerfile use pnpm.
+web/package-lock.json
 
 # Python
 *.pyc
