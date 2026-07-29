@@ -119,8 +119,11 @@ func APIKeyAuth(cfg *config.Config) echo.MiddlewareFunc {
 				return echo.NewHTTPError(http.StatusUnauthorized, "Invalid API key")
 			}
 
-			// Check endpoint restrictions
-			if strings.HasPrefix(path, "/ide") && keyType != "ide" && keyType != "mcp" {
+			// Check endpoint restrictions: /ide/* requires the IDE key. The
+			// previous condition `keyType != "ide" && keyType != "mcp"` was
+			// always false (the else above guarantees keyType is "mcp" or
+			// "ide"), so an MCP key could reach every /ide/* endpoint.
+			if strings.HasPrefix(path, "/ide") && keyType != "ide" {
 				return echo.NewHTTPError(http.StatusForbidden, "IDE API key required for this endpoint")
 			}
 
