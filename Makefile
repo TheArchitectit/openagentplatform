@@ -21,6 +21,14 @@ help:
 
 setup:
 	@if [ ! -f .env ]; then cp .env.example .env && echo "Created .env from .env.example"; fi
+	@# Generate the mTLS certificates the NATS server requires (nats.conf
+	@# references deploy/nats/certs/{server-cert,server-key,ca}.pem). Without
+	@# this, NATS exits on boot with "file not found" and the whole stack's
+	@# depends_on: nats condition: service_healthy never resolves.
+	@if [ ! -f deploy/nats/certs/server-cert.pem ]; then \
+		echo "Generating NATS mTLS certificates..."; \
+		bash deploy/nats/scripts/gen-certs.sh; \
+	fi
 	docker compose -f $(COMPOSE_FILE) up -d
 	@echo "Waiting for services to be healthy..."
 	@sleep 10
@@ -87,7 +95,13 @@ migrate-new:
 	cd py && uv run alembic revision --autogenerate -m "$(name)"
 
 seed:
-	cd py && uv run python -m oap.scripts.seed
+	@# Sample data: the built-in check library is seeded automatically when the
+	@# server boots (internal/checklib.Seed, called from cmd/server/main.go).
+	@# There is no separate Python seeder module (py/oap/scripts/seed does not
+	@# exist), so this target is a documented no-op rather than a failing
+	@# `python -m oap.scripts.seed`. Add a dedicated seeder here if you extend
+	@# the sample dataset (sites/agents/alert rules).
+	@echo "Seed: built-in check library is seeded on server boot (checklib.Seed)."
 
 reset:
 	@echo "⚠️  This will destroy all data. Press Ctrl+C to abort, or wait 5 seconds..."

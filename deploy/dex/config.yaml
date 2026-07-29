@@ -1,4 +1,10 @@
-issuer: http://localhost:5556/dex
+# Issuer MUST match OIDC_ISSUER_URL as seen by the server. The server runs in
+# the compose network and reaches Dex at http://dex:5556/dex; coreos/go-oidc
+# validates that the discovered issuer field equals the discovery URL exactly,
+# so a mismatch (previously http://localhost:5556/dex) broke provider discovery
+# and blocked all logins. The browser still authenticates via the redirect URIs
+# below, which remain localhost.
+issuer: http://dex:5556/dex
 storage:
   type: memory
 web:
