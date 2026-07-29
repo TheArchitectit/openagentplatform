@@ -156,6 +156,14 @@ func (s *Server) Router() http.Handler {
 	return s.router
 }
 
+// SessionMinter returns the session JWT minter used to mint and parse the
+// internal session tokens. It may be nil when session auth is not configured.
+// Callers (e.g. the A2A gateway authenticator) use it to validate bearer
+// tokens against the same credentials the REST API accepts.
+func (s *Server) SessionMinter() *auth.SessionMinter {
+	return s.sessionMinter
+}
+
 // resolveOrgTier returns the commercial tier for the given org ID.
 // It is used by the tenancy middleware to populate the TenantContext
 // with quota limits and feature flags.  The default returns Community

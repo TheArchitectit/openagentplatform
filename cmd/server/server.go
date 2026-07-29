@@ -22,6 +22,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/api"
 	"github.com/openagentplatform/openagentplatform/internal/audit"
 	"github.com/openagentplatform/openagentplatform/internal/billing"
+	"github.com/openagentplatform/openagentplatform/internal/auth"
 	"github.com/openagentplatform/openagentplatform/internal/checks"
 	"github.com/openagentplatform/openagentplatform/internal/config"
 	"github.com/openagentplatform/openagentplatform/internal/events"
@@ -211,7 +212,7 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 	if err != nil {
 		return nil, errors.New("a2a router: " + err.Error())
 	}
-	a2aGw, err := gateway.NewGateway(taskMgr, agentReg, a2aRouter, gateway.Config{})
+	a2aGw, err := gateway.NewGateway(taskMgr, agentReg, a2aRouter, gateway.Config{RequireAuth: true})
 	if err != nil {
 		return nil, errors.New("a2a gateway: " + err.Error())
 	}
@@ -317,7 +318,41 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 	// --- HTTP server with A2A routes mounted ---------------------------
 	// Build a top-level router that delegates the API to apiServer.Router()
 	// and mounts the A2A gateway handlers under /a2a/.
-	rootHandler := newA2ARouter(apiServer.Router(), a2aGw)
+	//
+	// The A2A gateway runs with RequireAuth=true, so its per-RPC authorize()
+	// checks require an identity. We build a gateway Authenticator whose
+	// token validator reuses the API server's SessionMinter, so callers
+	// authenticate against the same session JWT the REST API accepts.
+	a2aAuth := gateway.NewAuthenticator(gateway.Config{RequireAuth: true})
+	if sm := apiServer.SessionMinter(); sm != nil {
+		a2aAuth.SetTokenValidator(func(token string) (*gateway.Identity, error) {
+			claims, err := sm.Parse(token)
+			if err != nil || claims == nil {
+				return nil, gateway.ErrInvalidCredentials
+			}
+			md := map[string]string{
+				"email": claims.Email,
+				"role":  claims.Role,
+			}
+			if claims.OrgID != "" {
+				md["org_id"] = claims.OrgID
+			}
+			// Map the session role to A2A permission scopes: viewers get
+			// a2a:read; admin/technician/operator also get a2a:send + a2a:admin.
+			scopes := []string{gateway.PermRead}
+			switch claims.Role {
+			case auth.RoleAdmin, auth.RoleTechnician, auth.RoleOperator:
+				scopes = append(scopes, gateway.PermSend, gateway.PermAdmin)
+			}
+			return &gateway.Identity{
+				Subject:  claims.Subject,
+				Method:   gateway.AuthBearer,
+				Scopes:   scopes,
+				Metadata: md,
+			}, nil
+		})
+	}
+	rootHandler := newA2ARouter(apiServer.Router(), a2aGw, a2aAuth)
 
 	// Wrap with the OpenTelemetry HTTP middleware so every request gets a
 	// server span.  Health-check endpoints are skipped inside the middleware.
