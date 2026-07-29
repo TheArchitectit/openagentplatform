@@ -126,6 +126,13 @@ type SecretResolver interface {
 	Resolve(ctx context.Context, uri string) ([]byte, error)
 }
 
+// OperationHandler performs a single server-side operation on behalf of an
+// agent's script. The handler receives the operation params (which by policy
+// never contain the raw credential) plus a SecretResolver so it can resolve
+// any ref:oap:// URIs server-side without returning the secret to the script.
+// It returns the operation result text and/or an error.
+type OperationHandler func(ctx context.Context, params map[string]string, resolve SecretResolver) (string, error)
+
 // ScriptCredentialSafe enforces the four-credential-safety guarantees:
 // server-side operations, JIT delivery, no-arg-secrets guard, and full
 // audit logging on every credential fetch.
@@ -136,6 +143,10 @@ type ScriptCredentialSafe struct {
 	deliver  JITDeliverer
 	audit    *audit.AuditService
 	logger   *slog.Logger
+
+	// handlers maps operation descriptor (e.g. "ssh.connect") to its
+	// executor. Registered via RegisterOperationHandler.
+	handlers map[string]OperationHandler
 
 	// deliveryLedger tracks active JIT deliveries for revocation.
 	deliveryLedger map[string]*JITDeliveryResult
@@ -159,8 +170,19 @@ func NewScriptCredentialSafe(
 		deliver:        deliver,
 		audit:          auditSvc,
 		logger:         logger,
+		handlers:       make(map[string]OperationHandler),
 		deliveryLedger: make(map[string]*JITDeliveryResult),
 	}
+}
+
+// RegisterOperationHandler registers an executor for a server-side operation
+// descriptor (e.g. "ssh.connect", "db.query"). Without at least one registered
+// handler, ServerSideOperation returns an explicit "no handler registered"
+// error rather than silently succeeding with an empty result.
+func (s *ScriptCredentialSafe) RegisterOperationHandler(operation string, h OperationHandler) {
+	s.mu.Lock()
+	s.handlers[operation] = h
+	s.mu.Unlock()
 }
 
 // SetPolicy updates the active safety policy. Existing operations are
@@ -223,14 +245,36 @@ func (s *ScriptCredentialSafe) ServerSideOperation(
 		ExecutedAt:  time.Now().UTC(),
 	}
 
-	// The actual operation execution is delegated to a registered handler.
-	// In this implementation, we record the intent and return. Callers can
-	// extend this by registering operation handlers.
+	// Dispatch to the registered handler for this operation. Previously this
+	// was a stub that recorded the intent and returned an empty Result,
+	// silently succeeding for a control advertised as one of the four
+	// credential-safety guarantees. We now require a handler; if none is
+	// registered the operation fails explicitly so callers cannot mistake a
+	// no-op for a completed action.
+	s.mu.RLock()
+	handler, ok := s.handlers[operation]
+	s.mu.RUnlock()
+	if !ok {
+		result.Err = fmt.Errorf("safety: no handler registered for operation %q", operation)
+		s.emitAudit(ctx, "script.credential.server_op.failed", agentID, operation,
+			audit.OutcomeError, result.Err.Error())
+		return result, result.Err
+	}
+
 	s.logger.InfoContext(ctx, "server-side operation initiated",
 		"agent_id", agentID,
 		"script_run_id", scriptRunID,
 		"operation", operation,
 	)
+
+	out, err := handler(ctx, params, s.resolver)
+	if err != nil {
+		result.Err = err
+		s.emitAudit(ctx, "script.credential.server_op.failed", agentID, operation,
+			audit.OutcomeError, err.Error())
+		return result, fmt.Errorf("safety: operation %q failed: %w", operation, err)
+	}
+	result.Result = out
 
 	s.emitAudit(ctx, "script.credential.server_op.complete", agentID, operation,
 		audit.OutcomeSuccess, "")
@@ -346,6 +390,63 @@ func (s *ScriptCredentialSafe) ActiveDeliveries() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return len(s.deliveryLedger)
+}
+
+// PurgeExpired removes JIT deliveries whose ExpiresAt deadline has passed,
+// zero-filling their in-memory credentials first. It returns the number of
+// deliveries purged. Previously the ledger only shrank via explicit
+// RevokeDelivery, so expired credentials accumulated indefinitely (a slow
+// memory leak and a security concern, since each entry still holds the raw
+// credential). Call this periodically (e.g. from the secrets TTL sweeper).
+func (s *ScriptCredentialSafe) PurgeExpired(now time.Time) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	purged := 0
+	for id, delivery := range s.deliveryLedger {
+		if !now.After(delivery.ExpiresAt) {
+			continue
+		}
+		// Zero-fill the credential in memory before dropping the entry.
+		for i := range delivery.Credential {
+			delivery.Credential[i] = 0
+		}
+		delete(s.deliveryLedger, id)
+		purged++
+	}
+	return purged
+}
+
+// PurgeInterval is the default cadence at which StartPurgeLoop reaps expired
+// JIT deliveries. It is shorter than a delivery's 60s lifetime so credentials
+// are reclaimed promptly after expiry.
+const PurgeInterval = 15 * time.Second
+
+// StartPurgeLoop launches a background goroutine that periodically calls
+// PurgeExpired, keeping the JIT delivery ledger bounded without a caller
+// having to drive it manually. The loop exits when ctx is cancelled. It is
+// safe to call once per ScriptCredentialSafe; calling it again starts a
+// second loop.
+func (s *ScriptCredentialSafe) StartPurgeLoop(ctx context.Context) {
+	s.startPurgeLoop(ctx, PurgeInterval)
+}
+
+// startPurgeLoop is the interval-injectable core, used by tests to avoid the
+// 15s production cadence.
+func (s *ScriptCredentialSafe) startPurgeLoop(ctx context.Context, interval time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if n := s.PurgeExpired(time.Now().UTC()); n > 0 {
+					s.logger.InfoContext(ctx, "purged expired JIT deliveries", "count", n)
+				}
+			}
+		}
+	}()
 }
 
 // emitAudit is a thin wrapper over the audit service.
