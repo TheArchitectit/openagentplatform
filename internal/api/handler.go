@@ -280,6 +280,9 @@ func (s *Server) SetBilling(stripe *billing.StripeClient, billingSvc *billing.Bi
 
 func (s *Server) buildRouter() chi.Router {
 	r := chi.NewRouter()
+	// Security response headers (nosniff, frame-ancestors, HSTS) applied
+	// first so they cover every response including errors and health checks.
+	r.Use(securityHeadersMiddleware)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
