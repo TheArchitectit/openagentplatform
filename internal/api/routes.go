@@ -84,7 +84,6 @@ func (s *Server) registerRoutes(r chi.Router) {
 
 			r.Route("/agents", func(r chi.Router) {
 				r.Get("/", s.listAgents)
-				r.Post("/", s.createAgent)
 				// Agent registration is mounted here for routing
 				// convenience, but it does its own auth via the
 				// per-site registration token in the request body
@@ -99,6 +98,9 @@ func (s *Server) registerRoutes(r chi.Router) {
 					// offset, check_id, and status query parameters.
 					r.Get("/check-results", s.handleListAgentCheckResults)
 				})
+				// Manually creating an agent record requires an
+				// elevated role.
+				r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician, auth.RoleOperator)).Post("/", s.createAgent)
 			})
 
 			// Platform-wide check-result feed. Supports agent_id,
@@ -111,18 +113,30 @@ func (s *Server) registerRoutes(r chi.Router) {
 
 			r.Route("/checks", func(r chi.Router) {
 				r.Get("/", s.handleListChecks)
-				r.Post("/", s.handleCreateCheck)
-				r.Post("/assign-bulk", s.handleBulkAssign)
-				// Built-in check library: catalog + instantiate from template.
-				checklib.NewLibrary(s.db).RegisterRoutes(r)
+				// Built-in check library: read-only catalog is available
+				// to any org member; instantiating a check from a
+				// template is mutating and is gated below.
+				lib := checklib.NewLibrary(s.db)
+				lib.RegisterReadRoutes(r)
 				r.Route("/{id}", func(r chi.Router) {
 					r.Get("/", s.handleGetCheck)
-					r.Put("/", s.handleUpdateCheck)
-					r.Delete("/", s.handleDeleteCheck)
-					r.Post("/run-now", s.handleRunCheckNow)
-					r.Post("/assign", s.handleAssignCheck)
-					r.Delete("/assign/{agent_id}", s.handleUnassignCheck)
 					r.Get("/assignments", s.handleListCheckAssignments)
+					// Mutating per-check routes require an elevated role.
+					r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)).Put("/", s.handleUpdateCheck)
+					r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)).Delete("/", s.handleDeleteCheck)
+					r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)).Post("/run-now", s.handleRunCheckNow)
+					r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)).Post("/assign", s.handleAssignCheck)
+					r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)).Delete("/assign/{agent_id}", s.handleUnassignCheck)
+				})
+				// Collection-level mutations and template instantiation
+				// require an elevated role.
+				r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)).Post("/", s.handleCreateCheck)
+				r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)).Post("/assign-bulk", s.handleBulkAssign)
+				// Register on a fresh elevated subrouter to keep the
+				// POST /library/{id}/create registration isolated.
+				r.Group(func(r chi.Router) {
+					r.Use(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician))
+					lib.RegisterMutatingRoutes(r)
 				})
 			})
 
@@ -139,15 +153,18 @@ func (s *Server) registerRoutes(r chi.Router) {
 
 			r.Route("/alert-rules", func(r chi.Router) {
 				r.Get("/", s.listAlertRules)
-				r.Post("/", s.createAlertRule)
 				r.Route("/{id}", func(r chi.Router) {
-					r.Put("/", s.updateAlertRule)
-					r.Delete("/", s.deleteAlertRule)
 					// Channel mapping for an individual alert rule
 					// (alert_rule_channels junction).
 					r.Get("/channels", s.getAlertRuleChannels)
-					r.Put("/channels", s.putAlertRuleChannels)
+					// Mutating alert-rule configuration requires an
+					// elevated role.
+					elevated := auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)
+					r.With(elevated).Put("/", s.updateAlertRule)
+					r.With(elevated).Delete("/", s.deleteAlertRule)
+					r.With(elevated).Put("/channels", s.putAlertRuleChannels)
 				})
+				r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)).Post("/", s.createAlertRule)
 			})
 
 			// User-level alert preferences (quiet hours, severity
@@ -158,19 +175,23 @@ func (s *Server) registerRoutes(r chi.Router) {
 				// Global (org-level, admin-only) preferences.
 				r.Route("/global", func(r chi.Router) {
 					r.Get("/", s.getGlobalAlertPreferences)
-					r.Put("/", s.putGlobalAlertPreferences)
+					r.With(auth.RequireRole(auth.RoleAdmin)).Put("/", s.putGlobalAlertPreferences)
 				})
 			})
 
 			r.Route("/notification-channels", func(r chi.Router) {
 				r.Get("/", s.listNotificationChannels)
-				r.Post("/", s.createNotificationChannel)
 				r.Route("/{id}", func(r chi.Router) {
 					r.Get("/", s.getNotificationChannel)
-					r.Put("/", s.updateNotificationChannel)
-					r.Delete("/", s.deleteNotificationChannel)
-					r.Post("/test", s.testNotificationChannel)
+					// Channel management and the /test endpoint (which
+					// performs an outbound HTTP fetch to the configured
+					// webhook URL) require an elevated role.
+					elevated := auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)
+					r.With(elevated).Put("/", s.updateNotificationChannel)
+					r.With(elevated).Delete("/", s.deleteNotificationChannel)
+					r.With(elevated).Post("/test", s.testNotificationChannel)
 				})
+				r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)).Post("/", s.createNotificationChannel)
 			})
 
 			// Policy engine: Rego-based compliance checks.
@@ -180,18 +201,21 @@ func (s *Server) registerRoutes(r chi.Router) {
 			// /{id} group for readability.
 			r.Route("/policies", func(r chi.Router) {
 				r.Get("/", s.listPolicies)
-				r.Post("/", s.createPolicy)
-				r.Post("/evaluate-site", s.evaluateSite)
 				r.Route("/{id}", func(r chi.Router) {
 					r.Get("/", s.getPolicy)
-					r.Put("/", s.updatePolicy)
-					r.Delete("/", s.deletePolicy)
-					r.Post("/evaluate", s.evaluatePolicy)
-					r.Post("/assign", s.assignPolicy)
 					// Per-policy violation feed. Supports resolved
 					// and status filters plus pagination.
 					r.Get("/violations", s.listViolationsByPolicy)
+					// Creating or modifying a policy compiles/stores a
+					// Rego module, and evaluation/assignment runs it
+					// against live resources, so these are admin-only.
+					r.With(auth.RequireRole(auth.RoleAdmin)).Put("/", s.updatePolicy)
+					r.With(auth.RequireRole(auth.RoleAdmin)).Delete("/", s.deletePolicy)
+					r.With(auth.RequireRole(auth.RoleAdmin)).Post("/evaluate", s.evaluatePolicy)
+					r.With(auth.RequireRole(auth.RoleAdmin)).Post("/assign", s.assignPolicy)
 				})
+				r.With(auth.RequireRole(auth.RoleAdmin)).Post("/", s.createPolicy)
+				r.With(auth.RequireRole(auth.RoleAdmin)).Post("/evaluate-site", s.evaluateSite)
 			})
 
 			// Per-agent violation feed. Lives at /agents/{id}/violations
@@ -201,8 +225,10 @@ func (s *Server) registerRoutes(r chi.Router) {
 				r.Get("/", s.listViolationsByAgent)
 			})
 
-			// Violation lifecycle endpoints (dismiss, remediate).
+			// Violation lifecycle endpoints (dismiss, remediate). These
+			// change compliance state and require an elevated role.
 			r.Route("/violations/{id}", func(r chi.Router) {
+				r.Use(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician))
 				r.Post("/dismiss", s.dismissViolation)
 				r.Post("/remediate", s.remediateViolation)
 			})
@@ -220,74 +246,92 @@ func (s *Server) registerRoutes(r chi.Router) {
 				})
 			})
 
-			// Billing: commercial-tier management (customers, subscriptions,
-			// invoices, usage). All routes return 503 if the BillingService
-			// or StripeClient is not wired into the Server.
-			r.Route("/billing", func(r chi.Router) {
-				r.Post("/create-customer", s.handleCreateCustomer)
-				r.Post("/create-subscription", s.handleCreateSubscription)
-				r.Get("/subscription", s.handleGetSubscription)
-				r.Post("/cancel", s.handleCancelSubscription)
-				r.Get("/invoices", s.handleGetInvoices)
-				r.Get("/usage", s.handleGetUsage)
-			})
+				// Billing: commercial-tier management (customers, subscriptions,
+				// invoices, usage). All routes return 503 if the BillingService
+				// or StripeClient is not wired into the Server. Billing actions
+				// are admin-only.
+				r.Route("/billing", func(r chi.Router) {
+					r.Use(auth.RequireRole(auth.RoleAdmin))
+					r.Post("/create-customer", s.handleCreateCustomer)
+					r.Post("/create-subscription", s.handleCreateSubscription)
+					r.Get("/subscription", s.handleGetSubscription)
+					r.Post("/cancel", s.handleCancelSubscription)
+					r.Get("/invoices", s.handleGetInvoices)
+					r.Get("/usage", s.handleGetUsage)
+				})
 
 			// Script library: reusable scripts that can be enqueued for
 			// execution on one or more agents. The /runs sub-route is
 			// mounted before the /{id} group so chi can match
 			// /scripts/runs/{run_id} without falling through to the
 			// {id} parameter.
+			//
+			// Creating, modifying, or running a script publishes a
+			// script_body that is executed on an endpoint agent, so all
+			// mutating routes require an elevated role. Read-only list
+			// and detail endpoints remain available to any authenticated
+			// member of the org.
 			r.Route("/scripts", func(r chi.Router) {
 				r.Get("/", s.handleListScripts)
-				r.Post("/", s.handleCreateScript)
 				// Per-run detail mounted at /scripts/runs/{run_id}
 				// so it doesn't collide with /scripts/{id}.
 				r.Get("/runs/{run_id}", s.handleGetScriptRun)
 				r.Route("/{id}", func(r chi.Router) {
 					r.Get("/", s.handleGetScript)
-					r.Put("/", s.handleUpdateScript)
-					r.Delete("/", s.handleDeleteScript)
-					r.Post("/run", s.handleRunScript)
 					r.Get("/runs", s.handleListScriptRuns)
+					// Mutating + execution routes require an elevated
+					// role (POST /run publishes script_body to agents).
+					r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician, auth.RoleOperator)).Put("/", s.handleUpdateScript)
+					r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician, auth.RoleOperator)).Delete("/", s.handleDeleteScript)
+					r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician, auth.RoleOperator)).Post("/run", s.handleRunScript)
 				})
+				r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician, auth.RoleOperator)).Post("/", s.handleCreateScript)
 			})
 
-			// Patch approval workflow with RBAC.
+			// Patch approval workflow with RBAC. Read-only catalog and
+			// per-patch views are available to any authenticated org
+			// member; creating jobs, triggering scans, and the approval
+			// lifecycle (approve/reject/schedule/cancel/rollback) require
+			// an elevated role because they drive patch deployment on
+			// endpoints.
 			r.Route("/patches", func(r chi.Router) {
 				r.Get("/", s.listPatches)
 				r.Get("/stats", s.getPatchStats)
-				r.Post("/jobs", s.createPatchJob)
-				// Catalog: aggregated view of available patches
-				// across all agents, plus on-demand scan triggers.
 				r.Route("/catalog", func(r chi.Router) {
 					r.Get("/", s.listPatchCatalog)
-					r.Post("/scan", s.triggerScanAll)
-					r.Post("/scan/site/{siteId}", s.triggerScanSite)
+					// Scan triggers require an elevated role.
+					r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)).Post("/scan", s.triggerScanAll)
+					r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)).Post("/scan/site/{siteId}", s.triggerScanSite)
 				})
 				r.Route("/{id}", func(r chi.Router) {
 					r.Get("/", s.getPatch)
-					r.Post("/approve", s.approvePatch)
-					r.Post("/reject", s.rejectPatch)
-					r.Post("/schedule", s.schedulePatch)
-					r.Post("/cancel", s.cancelPatch)
-					r.Post("/rollback", s.rollbackPatch)
+					// Approval lifecycle requires an elevated role.
+					elevated := auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)
+					r.With(elevated).Post("/approve", s.approvePatch)
+					r.With(elevated).Post("/reject", s.rejectPatch)
+					r.With(elevated).Post("/schedule", s.schedulePatch)
+					r.With(elevated).Post("/cancel", s.cancelPatch)
+					r.With(elevated).Post("/rollback", s.rollbackPatch)
 				})
+				r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)).Post("/jobs", s.createPatchJob)
 			})
 
 			// Per-agent patch feed (the agent's own available
 			// patches, from the most recent scan). Mounted under
 			// /agents/{id}/patches so the endpoint detail page can
 			// link directly to it.
-			r.Route("/agents/{id}/patches", func(r chi.Router) {
-				r.Get("/", s.getAgentPatches)
-				r.Post("/scan", s.triggerScanAgent)
-			})
+				r.Route("/agents/{id}/patches", func(r chi.Router) {
+					r.Get("/", s.getAgentPatches)
+					r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)).Post("/scan", s.triggerScanAgent)
+				})
 
 			// Remote shell: list/get/kill shell sessions and
 			// manage stored credentials. The WebSocket bridge is
 			// mounted in the public group below because it does
-			// its own authentication (cookie or ?token=).
+			// its own authentication (cookie or ?token=). All
+			// remote-shell access requires an elevated role.
 			r.Route("/shell", func(r chi.Router) {
+				r.Use(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician))
 				r.Get("/sessions", s.handleRemoteListSessions)
 				r.Get("/{session_id}", s.handleRemoteGetSession)
 				r.Post("/{session_id}/kill", s.handleRemoteKillSession)
@@ -309,6 +353,7 @@ func (s *Server) registerRoutes(r chi.Router) {
 				})
 			})
 			r.Route("/agents/{id}/shell", func(r chi.Router) {
+				r.Use(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician))
 				r.Post("/", s.handleRemoteCreateSession)
 			})
 
@@ -318,48 +363,59 @@ func (s *Server) registerRoutes(r chi.Router) {
 			// cards, check health, list tasks, and view cost summaries
 			// without needing a direct connection to the adapter
 			// service.
-			r.Route("/a2a", func(r chi.Router) {
-				// Adapter discovery and inspection.
-				r.Get("/adapters", s.handleA2AListAdapters)
-				r.Get("/adapters/{name}/card", s.handleA2AAdapterCard)
-				r.Get("/adapters/{name}/health", s.handleA2AAdapterHealth)
+				r.Route("/a2a", func(r chi.Router) {
+					// Adapter discovery and inspection.
+					r.Get("/adapters", s.handleA2AListAdapters)
+					r.Get("/adapters/{name}/card", s.handleA2AAdapterCard)
+					r.Get("/adapters/{name}/health", s.handleA2AAdapterHealth)
 
-				// A2A task operations.
-				r.Get("/tasks", s.handleA2AListTasks)
-				r.Get("/tasks/{id}", s.handleA2AGetTask)
-				r.Post("/tasks/{id}/cancel", s.handleA2ACancelTask)
-				r.Get("/tasks/events", s.handleA2ATaskEvents)
-				r.Post("/invoke", s.handleA2AInvoke)
-				r.Post("/stream", s.handleA2AStream)
-
-				// Cost and budget summary.
-				r.Get("/costs/summary", s.handleA2ACostSummary)
-			})
+					// A2A task read operations + cost summary.
+					r.Get("/tasks", s.handleA2AListTasks)
+					r.Get("/tasks/{id}", s.handleA2AGetTask)
+					r.Get("/tasks/events", s.handleA2ATaskEvents)
+					r.Get("/costs/summary", s.handleA2ACostSummary)
+					// Invoking, streaming, and cancelling A2A tasks drives
+					// agent work and spend, so they require an elevated
+					// role.
+					r.Group(func(r chi.Router) {
+						r.Use(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician))
+						r.Post("/tasks/{id}/cancel", s.handleA2ACancelTask)
+						r.Post("/invoke", s.handleA2AInvoke)
+						r.Post("/stream", s.handleA2AStream)
+					})
+				})
 
 			// Secrets management endpoints. When no resolver is
-			// configured these return 503.
+			// configured these return 503. Resolving a secret is
+			// admin-only.
 			r.Route("/secrets", func(r chi.Router) {
 				r.Get("/health", s.handleSecretsHealth)
-				r.Post("/resolve", s.handleSecretsResolve)
 				r.Get("/backends", s.handleSecretsBackends)
+				r.With(auth.RequireRole(auth.RoleAdmin)).Post("/resolve", s.handleSecretsResolve)
 			})
 
-			// Enterprise reporting: templates, on-demand generation,
-			// run history, and cron-based schedules. Endpoints return
-			// 503 when the reports Store / Scheduler is not wired.
-			r.Route("/reports", func(r chi.Router) {
-				r.Get("/templates", s.listReportTemplates)
-				r.Post("/generate", s.generateReport)
-				r.Get("/runs", s.listReportRuns)
-				r.Route("/runs/{id}", func(r chi.Router) {
-					r.Get("/", s.getReportRun)
+				// Enterprise reporting: templates, on-demand generation,
+				// run history, and cron-based schedules. Endpoints return
+				// 503 when the reports Store / Scheduler is not wired.
+				// Reading templates and run history is open; generating
+				// reports and managing schedules requires an elevated
+				// role.
+				r.Route("/reports", func(r chi.Router) {
+					r.Get("/templates", s.listReportTemplates)
+					r.Get("/runs", s.listReportRuns)
+					r.Route("/runs/{id}", func(r chi.Router) {
+						r.Get("/", s.getReportRun)
+					})
+					r.Group(func(r chi.Router) {
+						r.Use(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician))
+						r.Post("/generate", s.generateReport)
+						r.Route("/schedules", func(r chi.Router) {
+							r.Post("/", s.createReportSchedule)
+							r.Get("/", s.listReportSchedules)
+							r.Delete("/{id}", s.deleteReportSchedule)
+						})
+					})
 				})
-				r.Route("/schedules", func(r chi.Router) {
-					r.Post("/", s.createReportSchedule)
-					r.Get("/", s.listReportSchedules)
-					r.Delete("/{id}", s.deleteReportSchedule)
-				})
-			})
 		})
 	})
 

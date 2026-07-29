@@ -266,14 +266,28 @@ func (l *Library) handleInstantiateFromTemplate(w http.ResponseWriter, r *http.R
 }
 
 // RegisterRoutes mounts the library endpoints on r. The library must be
-// installed under the authenticated API group by the caller.
+// installed under the authenticated API group by the caller. For finer-grained
+// access control prefer RegisterReadRoutes + RegisterMutatingRoutes.
 func (l *Library) RegisterRoutes(r chi.Router) {
-	r.Route("/library", func(r chi.Router) {
-		r.Get("/", l.handleListLibrary)
-		r.Route("/{template_id}", func(r chi.Router) {
-			r.Post("/create", l.handleInstantiateFromTemplate)
-		})
-	})
+	l.RegisterReadRoutes(r)
+	l.RegisterMutatingRoutes(r)
+}
+
+// RegisterReadRoutes mounts the read-only library catalog endpoint.
+func (l *Library) RegisterReadRoutes(r chi.Router) {
+	r.Get("/library", l.handleListLibrary)
+}
+
+// RegisterMutatingRoutes mounts the template-instantiation endpoint, which
+// creates a check on one or more agents. Wire this behind a RequireRole
+// middleware that requires an elevated role.
+//
+// Note: this registers POST /library/{template_id}/create directly rather
+// than via a nested r.Route("/library", ...) so it does not collide with the
+// read route registered by RegisterReadRoutes (chi panics if the same route
+// node is declared twice).
+func (l *Library) RegisterMutatingRoutes(r chi.Router) {
+	r.Post("/library/{template_id}/create", l.handleInstantiateFromTemplate)
 }
 
 // ErrNoDB is returned by helpers that require a database connection.
