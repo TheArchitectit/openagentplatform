@@ -25,7 +25,6 @@ import {
   type A2AAdapter,
   type A2AInvokeResult,
 } from '@/lib/useA2A';
-import { ApiError } from '@/lib/api';
 
 export const Route = createFileRoute('/a2a/agents/$name')({
   component: AgentDetailPage,

@@ -21,12 +21,6 @@ export const Route = createFileRoute('/a2a/')({
   component: A2ADashboardPage,
 });
 
-function shortId(id: string): string {
-  if (!id) return '—';
-  if (id.length <= 12) return id;
-  return id.slice(0, 8);
-}
-
 function healthDot(h: A2AAdapter['health']): string {
   switch (h) {
     case 'healthy':
@@ -56,7 +50,6 @@ function A2ADashboardPage() {
     let cancelled = false;
     const today = new Date(now);
     today.setHours(0, 0, 0, 0);
-    const todayIso = today.toISOString();
     void (async () => {
       try {
         const all = await fetchTasks({ limit: 500 });

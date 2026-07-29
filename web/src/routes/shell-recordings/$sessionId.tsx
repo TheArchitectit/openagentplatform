@@ -27,7 +27,6 @@ import {
   Download,
   Trash2,
   ChevronLeft,
-  ChevronRight,
   Gauge,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
@@ -92,8 +91,8 @@ function RecordingPlaybackPage() {
     setError(null);
     try {
       const [metaRes, eventsRes] = await Promise.all([
-        apiFetch(`/api/v1/shell/recordings/${sessionId}`),
-        apiFetch(`/api/v1/shell/recordings/${sessionId}/events`),
+        apiFetch<Response>(`/api/v1/shell/recordings/${sessionId}`),
+        apiFetch<Response>(`/api/v1/shell/recordings/${sessionId}/events`),
       ]);
       if (!metaRes.ok) throw new Error(`Failed to load metadata (${metaRes.status})`);
       if (!eventsRes.ok) throw new Error(`Failed to load events (${eventsRes.status})`);
@@ -179,7 +178,7 @@ function RecordingPlaybackPage() {
   const handleDelete = async () => {
     if (!confirm('Delete this recording? This cannot be undone.')) return;
     try {
-      const res = await apiFetch(`/api/v1/shell/recordings/${sessionId}`, { method: 'DELETE' });
+      const res = await apiFetch<Response>(`/api/v1/shell/recordings/${sessionId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(`Delete failed (${res.status})`);
       void navigate({ to: '/shell-recordings' });
     } catch (err) {

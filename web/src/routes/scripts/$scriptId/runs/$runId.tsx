@@ -9,7 +9,7 @@
 //   • Cancel button (visible when in_progress)
 
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   CircleCheck,
@@ -116,7 +116,7 @@ function RunDetailPage() {
   // Output buffers, appendable by WS events.
   const [stdout, setStdout] = useState<string>('');
   const [stderr, setStderr] = useState<string>('');
-  const [now, setNow] = useState(() => Date.now());
+  const [, setNow] = useState(() => Date.now());
   const [cancelling, setCancelling] = useState(false);
 
   const outputRef = useRef<HTMLDivElement>(null);

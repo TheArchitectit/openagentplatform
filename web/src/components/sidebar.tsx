@@ -17,7 +17,7 @@
 //   Settings     — Organization, Users, Roles, API Keys, SSO, Audit Log
 
 import { Link } from '@tanstack/react-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   LayoutDashboard,
   Bot,
@@ -26,7 +26,6 @@ import {
   ShieldCheck,
   Wrench,
   FileCode2,
-  Settings,
   LogOut,
   Terminal,
   Radio,

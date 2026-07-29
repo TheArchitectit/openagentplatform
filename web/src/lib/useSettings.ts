@@ -10,7 +10,7 @@
 //   fetchAuditEvents
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { apiFetch, ApiError } from './api';
+import { apiFetch } from './api';
 
 // ---------------------------------------------------------------------------
 // Types — Users

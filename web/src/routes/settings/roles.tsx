@@ -4,7 +4,7 @@
 // grouped by category. Built-in roles are shown but cannot be edited.
 
 import { createFileRoute } from '@tanstack/react-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Plus, X, Lock, ShieldCheck } from 'lucide-react';
 import {
   useSettings,
@@ -30,8 +30,8 @@ function RolesPage() {
   }, [fetchRoles]);
 
   const handleCreate = useCallback(
-    async (input: CreateRoleInput) => {
-      await createRole(input);
+    async (input: CreateRoleInput | UpdateRoleInput) => {
+      await createRole(input as CreateRoleInput);
       setCreating(false);
     },
     [createRole]

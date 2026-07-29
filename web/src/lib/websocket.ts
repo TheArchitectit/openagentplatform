@@ -306,7 +306,6 @@ export function getShellWsUrl(wsUrl: string, sessionId?: string): string {
   // Otherwise resolve against the configured base. We honour the
   // same env variables as resolveUrl() so dev / prod stay in sync.
   const env = (import.meta as ImportMeta).env;
-  let base: string;
   if (env?.VITE_WS_URL) {
     // VITE_WS_URL points at the multiplexed /ws. We need the
     // origin part only; the server's ws_url already includes the

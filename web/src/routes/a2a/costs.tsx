@@ -39,13 +39,13 @@ function fmtMoney(n: number, currency = 'USD'): string {
 function CostDashboardPage() {
   const [start, setStart] = useState(thirtyDaysAgoIso());
   const [end, setEnd] = useState(todayIso());
-  const { data, isLoading, error, refetch } = useA2ACost({ start, end });
+  const { summary: data, isLoading, error, refresh: refetch } = useA2ACost({ start, end });
 
   const totals = useMemo(() => {
     if (!data) return null;
     const total = data.by_day.reduce((s, d) => s + d.cost, 0);
-    const tokens = data.by_day.reduce((s, d) => s + d.input_tokens + d.output_tokens, 0);
-    const calls = data.by_day.reduce((s, d) => s + d.call_count, 0);
+    const tokens = data.by_adapter.reduce((s, d) => s + d.tokens, 0);
+    const calls = data.by_day.reduce((s, d) => s + d.tasks, 0);
     const avgDaily = data.by_day.length > 0 ? total / data.by_day.length : 0;
     return { total, tokens, calls, avgDaily };
   }, [data]);
@@ -205,10 +205,10 @@ function CostDashboardPage() {
                       {fmtMoney(row.cost)}
                     </td>
                     <td className="px-4 py-2.5 text-gray-300 text-xs text-right">
-                      {fmt(row.input_tokens + row.output_tokens)}
+                      {fmt(row.tokens)}
                     </td>
                     <td className="px-4 py-2.5 text-gray-300 text-xs text-right">
-                      {fmt(row.call_count)}
+                      {fmt(row.tasks)}
                     </td>
                   </tr>
                 ))}
@@ -244,10 +244,10 @@ function CostDashboardPage() {
                       {fmtMoney(row.cost)}
                     </td>
                     <td className="px-4 py-2.5 text-gray-300 text-xs text-right">
-                      {fmt(row.input_tokens + row.output_tokens)}
+                      {fmt(row.tokens)}
                     </td>
                     <td className="px-4 py-2.5 text-gray-300 text-xs text-right">
-                      {fmt(row.call_count)}
+                      {fmt(row.tasks)}
                     </td>
                   </tr>
                 ))}
@@ -267,14 +267,15 @@ function CostDashboardPage() {
           </div>
           <div className="divide-y divide-slate-800">
             {data.by_org.map((row) => {
-              const pct = row.budget_usd > 0 ? Math.min(100, (row.spent_usd / row.budget_usd) * 100) : 0;
-              const overBudget = row.budget_usd > 0 && row.spent_usd > row.budget_usd;
+              const orgLabel = row.org_name ?? row.org_id;
+              const pct = row.budget > 0 ? Math.min(100, (row.spend / row.budget) * 100) : 0;
+              const overBudget = row.budget > 0 && row.spend > row.budget;
               return (
-                <div key={row.org} className="px-4 py-3 hover:bg-slate-800/40 transition-colors">
+                <div key={row.org_id} className="px-4 py-3 hover:bg-slate-800/40 transition-colors">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-white font-medium">{row.org}</span>
+                    <span className="text-white font-medium">{orgLabel}</span>
                     <span className="text-gray-300 text-xs">
-                      {fmtMoney(row.spent_usd)} / {fmtMoney(row.budget_usd)}
+                      {fmtMoney(row.spend)} / {fmtMoney(row.budget)}
                     </span>
                   </div>
                   <div className="mt-1.5 h-1.5 rounded-full bg-slate-800 overflow-hidden">
