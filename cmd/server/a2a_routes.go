@@ -26,7 +26,11 @@ func withTracing(next http.Handler) http.Handler {
 //	/a2a/v1/tasks/{id}/subscribe - SSE task status stream
 //	/a2a/v1/agents       - REST agent listing
 //	/a2a/v1/agents/{name} - REST single agent card
-func newA2ARouter(apiHandler http.Handler, gw *gateway.Gateway) http.Handler {
+//
+// When auth is non-nil, all /a2a/* requests are wrapped in the gateway's
+// AuthMiddleware so the per-RPC authorize() checks enforce an identity
+// instead of short-circuiting on a nil identity.
+func newA2ARouter(apiHandler http.Handler, gw *gateway.Gateway, auth *gateway.Authenticator) http.Handler {
 	root := http.NewServeMux()
 
 	// JSON-RPC endpoint at /a2a/
@@ -40,10 +44,18 @@ func newA2ARouter(apiHandler http.Handler, gw *gateway.Gateway) http.Handler {
 	root.Handle("/a2a/v1/agents", gateway.RESTAgentsHandler(gw))
 	root.Handle("/a2a/v1/agents/", gateway.RESTAgentHandler(gw))
 
+	// Apply authentication to the A2A surface when an authenticator is
+	// configured. The REST API (apiHandler) already authenticates via its
+	// own VerifierMiddleware, so it is left untouched.
+	var a2aHandler http.Handler = root
+	if auth != nil {
+		a2aHandler = gateway.AuthMiddleware(auth, true)(root)
+	}
+
 	// Composite handler: API server for everything else, A2A for /a2a/*
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if len(r.URL.Path) >= 4 && r.URL.Path[:4] == "/a2a" {
-			root.ServeHTTP(w, r)
+			a2aHandler.ServeHTTP(w, r)
 			return
 		}
 		apiHandler.ServeHTTP(w, r)
