@@ -6,7 +6,7 @@ one place, extensible through AI agents and an A2A-compatible API.
 
 [![License: BSL 1.1](https://img.shields.io/badge/License-BSL_1.1-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?logo=docker&logoColor=white)](https://www.docker.com/)
-[![Go 1.23+](https://img.shields.io/badge/Go-1.23+-00ADD8.svg?logo=go)](https://golang.org/)
+[![Go 1.25+](https://img.shields.io/badge/Go-1.25+-00ADD8.svg?logo=go)](https://golang.org/)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB.svg?logo=react)](https://react.dev/)
 [![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-336791.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![NATS](https://img.shields.io/badge/NATS-2.10-27AAE1.svg?logo=nats)](https://nats.io/)
@@ -29,8 +29,8 @@ Open http://localhost:5173 and login with `admin@oap.local` / `password`.
 
 **What just happened:**
 - Docker Compose started Postgres, NATS, Dex, server, and web
-- Database migrations created 9 base tables
-- Sample data was seeded
+- Database migrations created the schema (24 tables across all phases)
+- The built-in check library was seeded (runs on server boot via `checklib.Seed`)
 - The agent registered itself and is now publishing heartbeats
 
 For the full walkthrough see [docs/SETUP.md](docs/SETUP.md).
@@ -62,7 +62,7 @@ For the full component diagram (all phases) and ADRs, see
 
 ## Built With
 
-- **Server**: Go 1.23 + chi + slog
+- **Server**: Go 1.25 + chi + slog
 - **Web**: React 19 + TanStack Router/Query + TailwindCSS + Monaco
 - **MCP Server**: Go (separate module, stdio/HTTP)
 - **A2A Adapters**: Python 3.12 (FastAPI, Pydantic) -- Anthropic, OpenAI,
@@ -73,7 +73,7 @@ For the full component diagram (all phases) and ADRs, see
 - **Auth**: OIDC (Dex) + JWT sessions
 - **Policy**: OPA (Open Policy Agent) with rego
 - **Observability**: OpenTelemetry, Prometheus, Grafana
-- **Secrets**: Envelope encryption (AES-256-GCM) with 5 backends
+- **Secrets**: 5 pluggable backends (memory, env, Vault, Infisical, k8s CSI); AES-256-GCM team encryption lives in the separate `mcp-server` module
 - **CI**: GitHub Actions
 - **Deploy**: Docker Compose, Kubernetes (Helm)
 
@@ -100,7 +100,7 @@ For the full component diagram (all phases) and ADRs, see
 ## Prerequisites
 
 - Docker 20.10+ with Compose v2
-- Go 1.23+ (for agent)
+- Go 1.25+ (for agent)
 - Node 20+ (for web dev)
 - Python 3.12 + uv (for migrations)
 
@@ -117,7 +117,9 @@ Once running, you get:
   - `admin@oap.local` / `password` (admin role)
   - `tech@oap.local` / `password` (technician role)
 - **Health checks** -- All services have healthcheck endpoints
-- **Sample data** -- 3 sites, 10 agents, 20 checks, 5 alert rules
+- **Check library** -- built-in check definitions seeded on server boot
+  (`make seed` is a documented no-op; extend it with a dedicated seeder if you
+  need sample sites/agents/alert rules)
 
 ## Development
 
