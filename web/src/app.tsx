@@ -3,6 +3,7 @@ import { RouterProvider, createRouter } from '@tanstack/react-router';
 import { routeTree } from './routeTree.gen';
 import { ThemeProvider } from '@/lib/theme';
 import { OrgProvider } from '@/lib/org';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,7 +32,9 @@ export function App() {
     <ThemeProvider>
       <OrgProvider>
         <QueryClientProvider client={queryClient}>
-          <RouterProvider router={router} />
+          <ErrorBoundary>
+            <RouterProvider router={router} />
+          </ErrorBoundary>
         </QueryClientProvider>
       </OrgProvider>
     </ThemeProvider>
