@@ -46,3 +46,6 @@ deploy/nats/certs/*.pem
 deploy/nats/certs/*.key
 deploy/nats/certs/*.crt
 .vite/ 
+
+# pi-agent runtime cache (local only — never commit)
+.pi/
