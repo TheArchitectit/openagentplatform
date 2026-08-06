@@ -547,8 +547,40 @@ def check_file_against_failures(file_path: str, failures: list[dict]) -> list[di
     return matching_failures
 
 
-def check_diff_against_patterns(diff_content: str, rules: list[dict]) -> list[dict]:
-    """Check diff content against pattern rules."""
+def file_matches_globs(rel_path: str, globs: list[str] | None) -> bool:
+    """True if rel_path matches any glob in globs.
+
+    An absent/empty file_glob list means "applies everywhere" (all files).
+    Globs match the filename and/or any path segment via fnmatch, so
+    'Dockerfile' matches a file literally named Dockerfile, and '*.py' matches
+    any .py file at any depth. A trailing-slash glob is treated as a directory
+    prefix.
+    """
+    if not globs:
+        return True
+    base = os.path.basename(rel_path)
+    for g in globs:
+        if g.endswith("/"):
+            if g in rel_path or rel_path.startswith(g):
+                return True
+            continue
+        if fnmatch.fnmatch(rel_path, g) or fnmatch.fnmatch(base, g):
+            return True
+    return False
+
+
+def check_diff_against_patterns(
+    diff_content: str,
+    rules: list[dict],
+    rel_path: str | None = None,
+) -> list[dict]:
+    """Check diff content against pattern rules.
+
+    If rel_path is given, each rule is only applied when its declared
+    file_glob matches the file (rules with no file_glob apply everywhere).
+    This honours the rule schema and prevents an over-broad pattern from
+    firing on every changed file.
+    """
     violations = []
 
     # Extract added lines only (lines starting with +)
@@ -561,6 +593,16 @@ def check_diff_against_patterns(diff_content: str, rules: list[dict]) -> list[di
 
     for rule in rules:
         if rule.get("rule_type") != "pattern":
+            continue
+
+        # Honour the rule's declared file_glob: only apply this rule to
+        # files whose path matches one of its globs. Rules with no/empty
+        # file_glob apply everywhere. This prevents an over-broad pattern
+        # (e.g. a Dockerfile-only rule with pattern '.*') from firing on
+        # every changed file.
+        if rel_path is not None and not file_matches_globs(
+            rel_path, rule.get("file_glob")
+        ):
             continue
 
         pattern = rule.get("pattern")
@@ -654,7 +696,7 @@ def run_regression_check(
         # Check diff against pattern rules
         diff = get_diff_content(file_path, staged=staged)
         if diff:
-            violations = check_diff_against_patterns(diff, rules)
+            violations = check_diff_against_patterns(diff, rules, rel_path=file_path)
             if violations:
                 file_issues["violations"] = violations
 

@@ -12,44 +12,49 @@
 //   const lastEnvelope = useChannel('alerts');
 //   if (lastEnvelope) { ... render based on event type ... }
 
-import { useEffect, useRef, useState } from 'react';
-import { getWsClient, type Channel, type WsEnvelope, type Status } from '@/lib/websocket';
+import { useEffect, useRef, useState } from "react";
+import {
+	getWsClient,
+	type Channel,
+	type WsEnvelope,
+	type Status,
+} from "@/lib/websocket";
 
 export interface UseChannelResult {
-  /** Most recent envelope received on this channel (undefined until first event). */
-  last: WsEnvelope | null;
-  /** Current WebSocket connection status. */
-  status: Status;
+	/** Most recent envelope received on this channel (undefined until first event). */
+	last: WsEnvelope | null;
+	/** Current WebSocket connection status. */
+	status: Status;
 }
 
 export function useChannel(channel: Channel): UseChannelResult {
-  const [last, setLast] = useState<WsEnvelope | null>(null);
-  const [status, setStatus] = useState<Status>('closed');
-  const mountedRef = useRef(true);
+	const [last, setLast] = useState<WsEnvelope | null>(null);
+	const [status, setStatus] = useState<Status>("closed");
+	const mountedRef = useRef(true);
 
-  useEffect(() => {
-    mountedRef.current = true;
-    const ws = getWsClient();
-    setStatus(ws.getStatus());
+	useEffect(() => {
+		mountedRef.current = true;
+		const ws = getWsClient();
+		setStatus(ws.getStatus());
 
-    const statusInterval = setInterval(() => {
-      if (mountedRef.current) setStatus(ws.getStatus());
-    }, 1000);
+		const statusInterval = setInterval(() => {
+			if (mountedRef.current) setStatus(ws.getStatus());
+		}, 1000);
 
-    const handler = (env: WsEnvelope) => {
-      if (mountedRef.current) setLast(env);
-    };
+		const handler = (env: WsEnvelope) => {
+			if (mountedRef.current) setLast(env);
+		};
 
-    const unsub = ws.subscribe(channel, handler);
+		const unsub = ws.subscribe(channel, handler);
 
-    return () => {
-      mountedRef.current = false;
-      clearInterval(statusInterval);
-      unsub();
-    };
-  }, [channel]);
+		return () => {
+			mountedRef.current = false;
+			clearInterval(statusInterval);
+			unsub();
+		};
+	}, [channel]);
 
-  return { last, status };
+	return { last, status };
 }
 
 export default useChannel;

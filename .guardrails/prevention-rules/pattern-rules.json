@@ -402,9 +402,9 @@
       "rule_id": "PREVENT-027",
       "name": "Docker: Missing .dockerignore",
       "enabled": true,
-      "pattern": ".*",
+      "pattern": "^\\s*FROM\\s+\\S+",
       "forbidden_context": null,
-      "message": "No .dockerignore file found — entire context sent to Docker daemon",
+      "message": "Dockerfile detected — verify .dockerignore exists to exclude .git, node_modules, __pycache__, .env",
       "severity": "info",
       "file_glob": [
         "Dockerfile",
