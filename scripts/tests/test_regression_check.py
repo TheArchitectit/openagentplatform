@@ -3,7 +3,7 @@
 Unit tests for scripts/regression_check.py
 
 Covers:
-  - _classify_file for web/py/go/test paths
+  - _classify_file for web/py/go paths (universal 300/500 limits)
   - soft-as-hard changed-file gating
   - settings leak detection (positive + negative)
 """
@@ -21,46 +21,54 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, str(Path(__file__).parent.parent))
 import regression_check as rc
 
+SOFT = rc.SOFT_LIMIT  # 300
+HARD = rc.HARD_LIMIT  # 500
+
 
 class TestClassifyFile(unittest.TestCase):
-    """Test _classify_file path classification."""
+    """Test _classify_file path classification — universal 300/500 limits."""
 
-    def test_web_ts_soft_limit(self):
-        """web/ .ts files get WEB_SOFT limit."""
-        soft, hard = rc._classify_file("web/src/app.tsx")
-        self.assertEqual(soft, rc.WEB_SOFT)
-        self.assertEqual(hard, rc.WEB_HARD)
-
-    def test_web_tsx_hard_limit(self):
-        """web/ .tsx files get WEB_HARD limit."""
+    def test_web_tsx(self):
+        """web/ .tsx files get universal 300/500 limits."""
         soft, hard = rc._classify_file("web/src/components/Sidebar.tsx")
-        self.assertEqual(soft, rc.WEB_SOFT)
-        self.assertEqual(hard, rc.WEB_HARD)
+        self.assertEqual(soft, SOFT)
+        self.assertEqual(hard, HARD)
 
-    def test_py_hard_limit(self):
-        """py/ .py files get PY_HARD limit."""
+    def test_web_ts(self):
+        """web/ .ts files get universal 300/500 limits."""
+        soft, hard = rc._classify_file("web/src/lib/useApi.ts")
+        self.assertEqual(soft, SOFT)
+        self.assertEqual(hard, HARD)
+
+    def test_py(self):
+        """py/ .py files get universal 300/500 limits."""
         soft, hard = rc._classify_file("py/oap/settings.py")
-        self.assertEqual(soft, rc.PY_SOFT)
-        self.assertEqual(hard, rc.PY_HARD)
+        self.assertEqual(soft, SOFT)
+        self.assertEqual(hard, HARD)
 
-    def test_go_hard_limit(self):
-        """Go files get GO_SOFT/GO_HARD limits."""
+    def test_go(self):
+        """Go files get universal 300/500 limits."""
         soft, hard = rc._classify_file("internal/api/routes.go")
-        self.assertEqual(soft, rc.GO_SOFT)
-        self.assertEqual(hard, rc.GO_HARD)
+        self.assertEqual(soft, SOFT)
+        self.assertEqual(hard, HARD)
 
-    def test_test_file_extra_soft_limit(self):
-        """Test files (.test.ts) get TEST_SOFT for hard limit; soft stays at WEB_SOFT."""
+    def test_go_in_mcp_server(self):
+        """Go files under mcp-server/ get universal 300/500 limits."""
+        soft, hard = rc._classify_file("mcp-server/internal/mcp/server.go")
+        self.assertEqual(soft, SOFT)
+        self.assertEqual(hard, HARD)
+
+    def test_web_test_file(self):
+        """web/ test files get same 300/500 limits (no special test exceptions)."""
         soft, hard = rc._classify_file("web/src/routes/patches/index.test.tsx")
-        # web/ paths always use WEB_SOFT for soft; test files get TEST_SOFT for hard
-        self.assertEqual(soft, rc.WEB_SOFT)
-        self.assertEqual(hard, rc.TEST_SOFT)
+        self.assertEqual(soft, SOFT)
+        self.assertEqual(hard, HARD)
 
-    def test_test_go_file(self):
+    def test_go_test_file(self):
+        """Go test files get same 300/500 limits (no special test exceptions)."""
         soft, hard = rc._classify_file("mcp-server/internal/mcp/tools_test.go")
-        # Go test files use GO_SOFT for soft; TEST_HARD for hard
-        self.assertEqual(soft, rc.GO_SOFT)
-        self.assertEqual(hard, rc.TEST_HARD)
+        self.assertEqual(soft, SOFT)
+        self.assertEqual(hard, HARD)
 
     def test_skip_node_modules(self):
         """Files in node_modules are skipped."""
@@ -94,6 +102,20 @@ class TestClassifyFile(unittest.TestCase):
         self.assertIsNone(soft)
         self.assertIsNone(hard)
 
+    def test_no_language_exceptions(self):
+        """Verify no language-specific exceptions exist — all source files 300/500."""
+        for path, expected_soft, expected_hard in [
+            ("web/src/app.tsx", SOFT, HARD),
+            ("web/src/app.ts", SOFT, HARD),
+            ("py/oap/main.py", SOFT, HARD),
+            ("internal/api/routes.go", SOFT, HARD),
+            ("cmd/server/main.go", SOFT, HARD),
+            ("mcp-server/internal/mcp/tools.go", SOFT, HARD),
+        ]:
+            soft, hard = rc._classify_file(path)
+            self.assertEqual(soft, expected_soft, f"soft limit mismatch for {path}")
+            self.assertEqual(hard, expected_hard, f"hard limit mismatch for {path}")
+
 
 class TestSoftAsHardGating(unittest.TestCase):
     """Test soft-as-hard changed-file gating logic."""
@@ -115,9 +137,7 @@ class TestSoftAsHardGating(unittest.TestCase):
             # Simulate a staged change
             with patch("regression_check.get_changed_files", return_value=["web/src/big.tsx"]):
                 with patch("regression_check.get_diff_content", return_value="diff content"):
-                    # The file itself is 501 lines, over WEB_HARD=500
-                    # But the gating is on changed files only
-                    pass  # This is a structural test
+                    pass  # Structural test
 
     def test_settings_leak_positive(self):
         """Positive test: WEB_SENSITIVE_SETTINGS present in web/ should be detected."""
@@ -125,7 +145,6 @@ class TestSoftAsHardGating(unittest.TestCase):
             repo = Path(tmp)
             web_src = repo / "web" / "src"
             web_src.mkdir(parents=True)
-            # Create a file that references a sensitive setting
             leaky = web_src / "config.ts"
             leaky.write_text('constdsn = "POSTGRES_DSN";\n', encoding="utf-8")
             with patch("regression_check.WEB_SENSITIVE_SETTINGS", frozenset({"POSTGRES_DSN"})):
@@ -176,7 +195,6 @@ class TestPnpmAuditBlocking(unittest.TestCase):
 
     def test_pnpm_timeout_returns_blocking(self):
         """If pnpm audit times out, returns 1 blocking issue."""
-        # _pnpm_audit_available catches (FileNotFoundError, subprocess.TimeoutExpired)
         with patch(
             "subprocess.run",
             side_effect=subprocess.TimeoutExpired("pnpm", 5),

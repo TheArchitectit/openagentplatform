@@ -27,26 +27,19 @@ DEFAULT_REGISTRY_PATH = Path(".guardrails/failure-registry.jsonl")
 DEFAULT_RULES_PATH = Path(".guardrails/prevention-rules")
 
 
-# File-size limits (CLAUDE.md §6 + user rule: ALL non-doc well under 500).
-# web/ .ts/.tsx: 300 soft / 500 hard; py/ .py: 400 soft / 600 hard;
-# Go (.go): 500 soft / 800 hard (Go files have higher structural density);
-# tests/ 600 soft / 800 hard.
+# File-size limits: ALL source files soft=300 / hard=500. No language exceptions.
 FILE_SIZE_DIRS = ("web", "py", "internal", "cmd", "pkg", "a2a", "mcp-server", "secrets")
 FILE_SIZE_SKIP_PARTS = ("node_modules", "dist", ".claude", "worktrees", ".venv", "__pycache__")
 FILE_SIZE_SKIP_SUFFIXES = (".d.ts",)
-WEB_SOFT = 300
-WEB_HARD = 500
-PY_SOFT = 400
-PY_HARD = 600
-GO_SOFT = 500
-GO_HARD = 800
-TEST_SOFT = 600
-TEST_HARD = 800
+SOFT_LIMIT = 300
+HARD_LIMIT = 500
 
 
 def _classify_file(rel_path: str) -> tuple[int | None, int | None]:
     """Return (soft, hard) line limits for a repo-relative source path, or
-    (None, None) if the file should be skipped."""
+    (None, None) if the file should be skipped.
+
+    Universal limits: soft=300, hard=500 for ALL source files regardless of language."""
     parts = rel_path.split(os.sep)
     for skip in FILE_SIZE_SKIP_PARTS:
         if skip in parts:
@@ -55,19 +48,12 @@ def _classify_file(rel_path: str) -> tuple[int | None, int | None]:
         if rel_path.endswith(suf):
             return (None, None)
 
-    is_test = (
-        rel_path.endswith((".test.ts", ".test.tsx", ".spec.ts", "_test.go"))
-        or ".test." in rel_path
-    )
-
-    if rel_path.startswith("web" + os.sep):
-        return (WEB_SOFT, TEST_SOFT if is_test else WEB_HARD)
-    if rel_path.startswith("py" + os.sep):
-        if is_test or rel_path.endswith((".py")) and ("test" in rel_path or "tests" in parts):
-            return (PY_SOFT, TEST_SOFT if is_test else PY_HARD)
-        return (PY_SOFT, PY_HARD)
+    if rel_path.startswith("web" + os.sep) and rel_path.endswith((".ts", ".tsx")):
+        return (SOFT_LIMIT, HARD_LIMIT)
+    if rel_path.startswith("py" + os.sep) and rel_path.endswith(".py"):
+        return (SOFT_LIMIT, HARD_LIMIT)
     if rel_path.endswith(".go"):
-        return (GO_SOFT, TEST_HARD if is_test else GO_HARD)
+        return (SOFT_LIMIT, HARD_LIMIT)
     return (None, None)
 
 

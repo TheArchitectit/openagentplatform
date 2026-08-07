@@ -28,10 +28,11 @@
 
 ### File Size Issues
 
+- **Soft limit: 300 lines / Hard limit: 500 lines** for ALL source files (no language exceptions)
 - **30 files over hard limit** (blocking)
 - **42 files over soft limit** (warning)
 - Largest offenders:
-  - `mcp-server/internal/mcp/tools_extended.go` (2246 lines)
+  - `mcp-server/internal/mcp/tools_extended.go` (2246 lines) → split into 8 files
   - `web/src/routes/patches/index.tsx` (1781 lines)
   - `mcp-server/internal/mcp/team_tool_handlers_test.go` (1468 lines)
 

@@ -181,11 +181,12 @@ Enforcement:
 
 7.1 The "God Script" Warning
 
-Rule: No single GDScript should exceed 500 lines.
+Rule: No single GDScript should exceed 500 lines (hard limit). Soft limit is 300 lines.
 
 Enforcement:
 - Sentinel monitors `.gd` file sizes.
-- If a script exceeds 500 lines, it warns about maintainability.
+- If a script exceeds 300 lines (soft), it warns about maintainability.
+- If a script exceeds 500 lines (hard), it blocks commit.
 - Suggestion: "Split into multiple scripts using composition or autoloads."
 
 7.2 The `_ready` Dependency Chain
@@ -223,5 +224,6 @@ Enforcement:
 | Input Map | warning | Undefined actions | WARN |
 | Save Versioning | warning | Unversioned saves | WARN |
 | Absolute Paths | error | Non-res:// paths | BLOCK |
-| God Script | warning | >500 lines | WARN |
+| God Script | warning | >300 lines (soft) | WARN |
+| God Script | error | >500 lines (hard) | BLOCK |
 | Direct .free() | warning | node.free() | WARN |
