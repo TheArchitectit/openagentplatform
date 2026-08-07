@@ -1,13 +1,12 @@
 package mcp
 
 import (
-	"context"
-	"os"
-	"path/filepath"
-	"strings"
-	"testing"
-
-	"github.com/mark3labs/mcp-go/mcp"
+"context"
+"os"
+"path/filepath"
+"strings"
+"testing"
+"github.com/mark3labs/mcp-go/mcp"
 )
 
 // mockMCPServer creates a minimal MCPServer for testing

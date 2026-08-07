@@ -225,5 +225,3 @@ func (s *MCPServer) handleValidatePush(ctx context.Context, args map[string]inte
 
 	return buildToolResult(result, !valid)
 }
-
-
