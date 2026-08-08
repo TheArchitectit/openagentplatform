@@ -36,6 +36,8 @@ def go_local_name(import_path: str) -> str:
     # Get last component
     name = path.rstrip('/').split('/')[-1]
     # Replace dashes/dots with underscores (Go convention)
+    # Strip .go extension from import path (e.g. nats.go -> nats)
+    name = re.sub(r".go$", "", name)
     name = re.sub(r'[-.]+', '_', name)
     return name
 
