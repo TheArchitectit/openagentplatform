@@ -30,7 +30,7 @@ DEFAULT_RULES_PATH = Path(".guardrails/prevention-rules")
 # File-size limits: ALL source files soft=300 / hard=500. No language exceptions.
 FILE_SIZE_DIRS = ("web", "py", "internal", "cmd", "pkg", "a2a", "mcp-server", "secrets")
 FILE_SIZE_SKIP_PARTS = ("node_modules", "dist", ".claude", "worktrees", ".venv", "__pycache__")
-FILE_SIZE_SKIP_SUFFIXES = (".d.ts",)
+FILE_SIZE_SKIP_SUFFIXES = (".d.ts", ".gen.ts", ".gen.tsx")
 SOFT_LIMIT = 300
 HARD_LIMIT = 500
 
