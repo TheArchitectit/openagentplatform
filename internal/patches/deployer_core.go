@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
+
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"github.com/openagentplatform/openagentplatform/pkg/agent/patcher"
@@ -26,9 +27,9 @@ const (
 
 // Deployment strategy names.
 const (
-	StrategyStaged     = "staged"
-	StrategyCanary     = "canary"
-	StrategyAllAtOnce  = "all_at_once"
+	StrategyStaged    = "staged"
+	StrategyCanary    = "canary"
+	StrategyAllAtOnce = "all_at_once"
 )
 
 // Per-target install status constants (separate from store status to
@@ -51,40 +52,40 @@ type DeployTarget struct {
 
 // DeployResult is the aggregate outcome of a deployment.
 type DeployResult struct {
-	JobID      string          `json:"job_id"`
-	Strategy   string          `json:"strategy"`
-	Total      int             `json:"total"`
-	Succeeded  int             `json:"succeeded"`
-	Failed     int             `json:"failed"`
-	Skipped    int             `json:"skipped"`
-	Aborted    bool            `json:"aborted"`
+	JobID       string         `json:"job_id"`
+	Strategy    string         `json:"strategy"`
+	Total       int            `json:"total"`
+	Succeeded   int            `json:"succeeded"`
+	Failed      int            `json:"failed"`
+	Skipped     int            `json:"skipped"`
+	Aborted     bool           `json:"aborted"`
 	AbortReason string         `json:"abort_reason,omitempty"`
-	Targets    []TargetResult  `json:"targets"`
-	Stages     []StageResult   `json:"stages,omitempty"`
-	Duration   time.Duration   `json:"duration_ms"`
+	Targets     []TargetResult `json:"targets"`
+	Stages      []StageResult  `json:"stages,omitempty"`
+	Duration    time.Duration  `json:"duration_ms"`
 }
 
 // TargetResult captures the per-target install outcome.
 type TargetResult struct {
-	AgentID  string `json:"agent_id"`
-	Hostname string `json:"hostname,omitempty"`
-	Status   string `json:"status"`
-	Error    string `json:"error,omitempty"`
-	Retries  int    `json:"retries"`
+	AgentID  string        `json:"agent_id"`
+	Hostname string        `json:"hostname,omitempty"`
+	Status   string        `json:"status"`
+	Error    string        `json:"error,omitempty"`
+	Retries  int           `json:"retries"`
 	Duration time.Duration `json:"duration_ms"`
 }
 
 // StageResult is the aggregate outcome for one stage of a staged or
 // canary rollout.
 type StageResult struct {
-	Name       string         `json:"name"`
-	Index      int            `json:"index"`
-	Targets    []string       `json:"targets"`
-	Succeeded  int            `json:"succeeded"`
-	Failed     int            `json:"failed"`
-	SuccessRate float64       `json:"success_rate"`
-	StartedAt  time.Time      `json:"started_at"`
-	FinishedAt time.Time      `json:"finished_at"`
+	Name        string    `json:"name"`
+	Index       int       `json:"index"`
+	Targets     []string  `json:"targets"`
+	Succeeded   int       `json:"succeeded"`
+	Failed      int       `json:"failed"`
+	SuccessRate float64   `json:"success_rate"`
+	StartedAt   time.Time `json:"started_at"`
+	FinishedAt  time.Time `json:"finished_at"`
 }
 
 // DeploymentStrategy is the interface every rollout style

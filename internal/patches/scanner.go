@@ -107,7 +107,7 @@ func (d *PatchScanDispatcher) ScheduleLoop(ctx context.Context) {
 		d.ScanInterval = 6 * time.Hour
 	}
 	// Initial delay: 0-30s to avoid a herd on cold start.
-	initial := time.Duration(time.Now().UnixNano() % 30) * time.Second
+	initial := time.Duration(time.Now().UnixNano()%30) * time.Second
 	select {
 	case <-ctx.Done():
 		return
@@ -326,12 +326,12 @@ func (d *PatchScanDispatcher) absorbResult(env *patcher.PatchScanResultEnvelope)
 		entry, ok := d.catalog[key]
 		if !ok {
 			entry = &PatchCatalogEntry{
-				Name:           p.Name,
-				PackageManager: p.PackageManager,
-				Category:       p.Category,
-				Severity:       p.Severity,
+				Name:             p.Name,
+				PackageManager:   p.PackageManager,
+				Category:         p.Category,
+				Severity:         p.Severity,
 				AvailableVersion: p.AvailableVersion,
-				FirstSeen:      now,
+				FirstSeen:        now,
 			}
 			d.catalog[key] = entry
 		}
@@ -399,8 +399,8 @@ func (d *PatchScanDispatcher) AgentPatches(agentID string) []patcher.PatchInfo {
 
 // CatalogFilter is an optional filter for the Catalog view.
 type CatalogFilter struct {
-	MinAgentCount int
-	Severity      string
+	MinAgentCount  int
+	Severity       string
 	PackageManager string
 }
 

@@ -13,8 +13,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 	"github.com/openagentplatform/openagentplatform/pkg/models"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // agentToken is the per-site registration token used by an agent to prove it
@@ -96,23 +96,23 @@ func (s *Server) handleRegisterAgent(w http.ResponseWriter, r *http.Request) {
 	agentID := uuid.NewString()
 	now := time.Now().UTC()
 	agent := &models.Agent{
-		ID:            agentID,
-		SiteID:        req.SiteID,
-		OrgID:         orgID,
-		Hostname:      req.Hostname,
+		ID:              agentID,
+		SiteID:          req.SiteID,
+		OrgID:           orgID,
+		Hostname:        req.Hostname,
 		OperatingSystem: req.OS,
-		Arch:          req.Arch,
-		Platform:      req.Platform,
-		CPUCount:      req.CPUCount,
-		TotalMemoryMB: req.TotalMemoryMB,
-		TotalDiskGB:   req.TotalDiskGB,
-		AgentVersion:  req.AgentVersion,
-		Version:       req.AgentVersion,
-		Status:        "online",
-		LastSeen:      now,
-		Tags:          req.Tags,
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		Arch:            req.Arch,
+		Platform:        req.Platform,
+		CPUCount:        req.CPUCount,
+		TotalMemoryMB:   req.TotalMemoryMB,
+		TotalDiskGB:     req.TotalDiskGB,
+		AgentVersion:    req.AgentVersion,
+		Version:         req.AgentVersion,
+		Status:          "online",
+		LastSeen:        now,
+		Tags:            req.Tags,
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 
 	if err := store.UpsertAgent(r.Context(), agent); err != nil {
@@ -245,10 +245,10 @@ func (s *Server) handleGetAgent(w http.ResponseWriter, r *http.Request) {
 // should subscribe to / publish on.
 func NATSSubjectsForAgent(agentID string) map[string]string {
 	return map[string]string{
-		"heartbeat":  fmt.Sprintf("oap.agents.%s.heartbeat", agentID),
-		"commands":   fmt.Sprintf("oap.agents.%s.commands", agentID),
-		"checks":     fmt.Sprintf("oap.agents.%s.checks", agentID),
-		"results":    fmt.Sprintf("oap.agents.%s.results", agentID),
+		"heartbeat": fmt.Sprintf("oap.agents.%s.heartbeat", agentID),
+		"commands":  fmt.Sprintf("oap.agents.%s.commands", agentID),
+		"checks":    fmt.Sprintf("oap.agents.%s.checks", agentID),
+		"results":   fmt.Sprintf("oap.agents.%s.results", agentID),
 	}
 }
 

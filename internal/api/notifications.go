@@ -63,10 +63,10 @@ func (s *Server) createNotificationChannel(w http.ResponseWriter, r *http.Reques
 	}
 
 	var body struct {
-		Name   string          `json:"name"`
-		Type   string          `json:"type"`
-		Config json.RawMessage `json:"config"`
-		Enabled *bool          `json:"enabled,omitempty"`
+		Name    string          `json:"name"`
+		Type    string          `json:"type"`
+		Config  json.RawMessage `json:"config"`
+		Enabled *bool           `json:"enabled,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, `{"error":"invalid_body"}`, http.StatusBadRequest)
@@ -283,10 +283,10 @@ func (s *Server) testNotificationChannel(w http.ResponseWriter, r *http.Request)
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
 		Metadata: map[string]any{
-			"hostname":      "synthetic-host",
-			"test":          true,
-			"channel_id":    channel.ID,
-			"channel_name":  channel.Name,
+			"hostname":     "synthetic-host",
+			"test":         true,
+			"channel_id":   channel.ID,
+			"channel_name": channel.Name,
 		},
 	}
 
@@ -323,8 +323,8 @@ func (s *Server) testNotificationChannel(w http.ResponseWriter, r *http.Request)
 	}
 
 	resp := map[string]any{
-		"status":     status,
-		"channel_id": channel.ID,
+		"status":       status,
+		"channel_id":   channel.ID,
 		"channel_type": channel.Type,
 	}
 	if errMsg != "" {

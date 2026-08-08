@@ -306,12 +306,12 @@ func (s *Server) streamRecordingAsJSON(w http.ResponseWriter, r *http.Request, s
 		return
 	}
 	type playEvent struct {
-		OffsetMS int64    `json:"offset_ms"`
-		Dir      string   `json:"dir"`
-		DataB64  string   `json:"data_b64"`
-		DataHex  string   `json:"data_hex"`
-		Size     int      `json:"size"`
-		WallTS   string   `json:"wall_ts"`
+		OffsetMS int64  `json:"offset_ms"`
+		Dir      string `json:"dir"`
+		DataB64  string `json:"data_b64"`
+		DataHex  string `json:"data_hex"`
+		Size     int    `json:"size"`
+		WallTS   string `json:"wall_ts"`
 	}
 	events := make([]playEvent, 0, 256)
 	for _, c := range chunks {
@@ -383,9 +383,9 @@ func (s *Server) handleExportRecording(w http.ResponseWriter, r *http.Request) {
 	// Header line.
 	startedUnix := float64(meta.StartedAt.UnixNano()) / 1e9
 	header := map[string]any{
-		"version": 2,
-		"width":  meta.TerminalSize.Cols,
-		"height": meta.TerminalSize.Rows,
+		"version":   2,
+		"width":     meta.TerminalSize.Cols,
+		"height":    meta.TerminalSize.Rows,
 		"timestamp": int64(meta.StartedAt.Unix()),
 		"env": map[string]string{
 			"SHELL": "/bin/sh",

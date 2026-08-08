@@ -35,7 +35,7 @@ func TestValidTransitions(t *testing.T) {
 			from:  StatePendingApproval,
 			event: EventApprove,
 			actor: approveActor,
-			prep: func(j *models.PatchJob) { j.RequiredApprovals = 1 },
+			prep:  func(j *models.PatchJob) { j.RequiredApprovals = 1 },
 			want:  StateApproved,
 		},
 		{
@@ -95,10 +95,10 @@ func TestValidTransitions(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			job := &models.PatchJob{
-				ID:     "job-1",
-				State:  tc.from,
-				OrgID:  "org-1",
-				Title:  "unit test job",
+				ID:    "job-1",
+				State: tc.from,
+				OrgID: "org-1",
+				Title: "unit test job",
 				Approvals: []models.ApprovalRecord{
 					// Pre-seed an approval to satisfy standard patches.
 					{PatchJobID: "job-1", ApproverID: "seed", Decision: "approved"},

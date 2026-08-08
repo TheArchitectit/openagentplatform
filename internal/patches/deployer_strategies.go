@@ -7,6 +7,7 @@ import (
 	"sort"
 	"sync"
 	"time"
+
 	"github.com/openagentplatform/openagentplatform/pkg/models"
 )
 
@@ -304,9 +305,9 @@ type RebootQueue struct {
 
 // RebootRequest represents a queued reboot for one agent.
 type RebootRequest struct {
-	AgentID  string
-	Hostname string
-	JobID    string
+	AgentID   string
+	Hostname  string
+	JobID     string
 	NotBefore time.Time
 }
 

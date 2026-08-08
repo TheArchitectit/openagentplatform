@@ -21,43 +21,44 @@ import (
 // present in the map is rejected by Transition.
 //
 // The A2A task lifecycle has 7 states:
-//   pending           - task created, not yet started
-//   working           - agent actively processing
-//   input-required    - agent needs more input from the user
-//   output-available  - agent has produced an output artifact
-//   completed         - terminal: task finished successfully
-//   failed            - terminal: task encountered an unrecoverable error
-//   cancelled         - terminal: task was cancelled by user or system
+//
+//	pending           - task created, not yet started
+//	working           - agent actively processing
+//	input-required    - agent needs more input from the user
+//	output-available  - agent has produced an output artifact
+//	completed         - terminal: task finished successfully
+//	failed            - terminal: task encountered an unrecoverable error
+//	cancelled         - terminal: task was cancelled by user or system
 var ValidTransitions = map[string]map[string]string{
 	// pending: initial state, can start working or be cancelled
 	models.TaskStatusPending: {
-		EventStart:     models.TaskStatusWorking,
-		EventCancel:    models.TaskStatusCancelled,
-		EventFail:      models.TaskStatusFailed,
+		EventStart:  models.TaskStatusWorking,
+		EventCancel: models.TaskStatusCancelled,
+		EventFail:   models.TaskStatusFailed,
 	},
 
 	// working: agent is processing
 	models.TaskStatusWorking: {
-		EventRequestInput:   models.TaskStatusInputRequired,
-		EventProduceOutput:  models.TaskStatusOutputAvailable,
-		EventComplete:       models.TaskStatusCompleted,
-		EventFail:           models.TaskStatusFailed,
-		EventCancel:         models.TaskStatusCancelled,
+		EventRequestInput:  models.TaskStatusInputRequired,
+		EventProduceOutput: models.TaskStatusOutputAvailable,
+		EventComplete:      models.TaskStatusCompleted,
+		EventFail:          models.TaskStatusFailed,
+		EventCancel:        models.TaskStatusCancelled,
 	},
 
 	// input-required: agent needs user input to continue
 	models.TaskStatusInputRequired: {
-		EventResume:  models.TaskStatusWorking,
-		EventFail:    models.TaskStatusFailed,
-		EventCancel:  models.TaskStatusCancelled,
+		EventResume: models.TaskStatusWorking,
+		EventFail:   models.TaskStatusFailed,
+		EventCancel: models.TaskStatusCancelled,
 	},
 
 	// output-available: agent has produced output, may continue or finalize
 	models.TaskStatusOutputAvailable: {
-		EventContinue:  models.TaskStatusWorking,
-		EventComplete:  models.TaskStatusCompleted,
-		EventFail:      models.TaskStatusFailed,
-		EventCancel:    models.TaskStatusCancelled,
+		EventContinue: models.TaskStatusWorking,
+		EventComplete: models.TaskStatusCompleted,
+		EventFail:     models.TaskStatusFailed,
+		EventCancel:   models.TaskStatusCancelled,
 	},
 
 	// completed: terminal - no outgoing transitions

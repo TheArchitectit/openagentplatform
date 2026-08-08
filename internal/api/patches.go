@@ -13,8 +13,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/openagentplatform/openagentplatform/internal/auth"
 	"github.com/openagentplatform/openagentplatform/internal/audit"
+	"github.com/openagentplatform/openagentplatform/internal/auth"
 	"github.com/openagentplatform/openagentplatform/internal/patches"
 	"github.com/openagentplatform/openagentplatform/pkg/models"
 )
@@ -189,9 +189,9 @@ func (s *Server) createPatchJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.recordPatchAudit(r, "patch.create", job.ID, map[string]any{
-		"severity":      string(job.Severity),
-		"state":         job.State,
-		"target_count":  len(job.Targets),
+		"severity":     string(job.Severity),
+		"state":        job.State,
+		"target_count": len(job.Targets),
 	})
 
 	w.Header().Set("Content-Type", "application/json")
@@ -249,10 +249,10 @@ func (s *Server) patchTransition(w http.ResponseWriter, r *http.Request, event s
 	}
 
 	var req struct {
-		Comment             string     `json:"comment"`
-		ScheduledAt         *time.Time `json:"scheduled_at,omitempty"`
-		MaintenanceStart    *time.Time `json:"maintenance_window_start,omitempty"`
-		MaintenanceEnd      *time.Time `json:"maintenance_window_end,omitempty"`
+		Comment          string     `json:"comment"`
+		ScheduledAt      *time.Time `json:"scheduled_at,omitempty"`
+		MaintenanceStart *time.Time `json:"maintenance_window_start,omitempty"`
+		MaintenanceEnd   *time.Time `json:"maintenance_window_end,omitempty"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&req)
 
@@ -314,8 +314,8 @@ func (s *Server) patchTransition(w http.ResponseWriter, r *http.Request, event s
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"patch":          result.Job,
-		"auto_approved":  result.AutoApproved,
+		"patch":               result.Job,
+		"auto_approved":       result.AutoApproved,
 		"approvals_remaining": patches.RequiredApprovalCount(result.Job) - patches.CountApprovals(result.Job),
 	})
 }

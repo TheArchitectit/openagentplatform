@@ -111,7 +111,7 @@ func (s *Server) handleSecretsResolve(w http.ResponseWriter, r *http.Request) {
 	val, err := s.secretsResolver.Resolve(r.Context(), req.URI, authCtx)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "resolve_failed",
+			"error":  "resolve_failed",
 			"detail": err.Error(),
 		})
 		return

@@ -93,9 +93,9 @@ func (s *Server) getAuditEvent(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"event":           ev,
-		"hash_valid":      valid,
-		"verification":    "sha256",
+		"event":        ev,
+		"hash_valid":   valid,
+		"verification": "sha256",
 	})
 }
 

@@ -97,10 +97,10 @@ var (
 // results arriving at once) from generating an equal number of
 // A2A tasks. Each event subject gets its own bucket.
 type eventRateLimiter struct {
-	mu       sync.Mutex
-	buckets  map[string]*rateBucket
-	rate     float64 // tokens per second
-	burst    float64 // max tokens
+	mu      sync.Mutex
+	buckets map[string]*rateBucket
+	rate    float64 // tokens per second
+	burst   float64 // max tokens
 }
 
 type rateBucket struct {

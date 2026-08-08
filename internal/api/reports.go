@@ -52,8 +52,9 @@ func (s *Server) listReportTemplates(w http.ResponseWriter, r *http.Request) {
 
 // generateReport handles POST /api/v1/reports/generate.
 // Body: { "template_id": "...", "format": "json|csv|pdf",
-//         "delivery_method": "email|webhook|download",
-//         "delivery_target": "...", "params": {...} }
+//
+//	"delivery_method": "email|webhook|download",
+//	"delivery_target": "...", "params": {...} }
 func (s *Server) generateReport(w http.ResponseWriter, r *http.Request) {
 	store := s.reportStore()
 	sched := s.reportScheduler()
@@ -143,8 +144,9 @@ func (s *Server) getReportRun(w http.ResponseWriter, r *http.Request) {
 
 // createReportSchedule handles POST /api/v1/reports/schedules.
 // Body: { "template_id": "...", "cron_expr": "0 9 * * *",
-//         "format": "json", "delivery_method": "email",
-//         "delivery_target": "...", "params": {...} }
+//
+//	"format": "json", "delivery_method": "email",
+//	"delivery_target": "...", "params": {...} }
 func (s *Server) createReportSchedule(w http.ResponseWriter, r *http.Request) {
 	store := s.reportStore()
 	sched := s.reportScheduler()

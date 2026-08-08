@@ -48,14 +48,14 @@ type wsMessage struct {
 
 // wsClient represents a single connected browser/agent connection.
 type wsClient struct {
-	conn     *websocket.Conn
-	send     chan []byte
-	subs     map[wsChannel]struct{}
-	mu       sync.Mutex
-	closed   bool
-	userID   string
-	log      *slog.Logger
-	hub      *wsHub
+	conn   *websocket.Conn
+	send   chan []byte
+	subs   map[wsChannel]struct{}
+	mu     sync.Mutex
+	closed bool
+	userID string
+	log    *slog.Logger
+	hub    *wsHub
 }
 
 // wsHub is the per-process subscription manager. It is shared by all

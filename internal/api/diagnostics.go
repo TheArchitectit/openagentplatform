@@ -16,19 +16,19 @@ import (
 // are aggregated counts and latencies, not row-level data, so it is
 // safe to expose to admin-role callers.
 type diagResponse struct {
-	Timestamp      string         `json:"timestamp"`
-	AgentsOnline   int            `json:"agents_online"`
-	AlertsOpen     int            `json:"alerts_open"`
-	ChecksFailing  int            `json:"checks_failing"`
-	ActivePatchJobs int           `json:"active_patch_jobs"`
-	ActiveSessions int            `json:"active_sessions"`
-	DBLatencyMS    int64          `json:"db_latency_ms"`
-	NATSLatencyMS  int64          `json:"nats_latency_ms"`
-	AdapterHealth  map[string]any `json:"adapter_health"`
-	UptimeSeconds  int64          `json:"uptime_seconds"`
-	GoroutineCount int            `json:"goroutine_count"`
-	MemoryUsageMB  float64        `json:"memory_usage_mb"`
-	BuildInfo      any            `json:"build_info"`
+	Timestamp       string         `json:"timestamp"`
+	AgentsOnline    int            `json:"agents_online"`
+	AlertsOpen      int            `json:"alerts_open"`
+	ChecksFailing   int            `json:"checks_failing"`
+	ActivePatchJobs int            `json:"active_patch_jobs"`
+	ActiveSessions  int            `json:"active_sessions"`
+	DBLatencyMS     int64          `json:"db_latency_ms"`
+	NATSLatencyMS   int64          `json:"nats_latency_ms"`
+	AdapterHealth   map[string]any `json:"adapter_health"`
+	UptimeSeconds   int64          `json:"uptime_seconds"`
+	GoroutineCount  int            `json:"goroutine_count"`
+	MemoryUsageMB   float64        `json:"memory_usage_mb"`
+	BuildInfo       any            `json:"build_info"`
 }
 
 // diagConnectionsResponse describes live connection state for WebSocket

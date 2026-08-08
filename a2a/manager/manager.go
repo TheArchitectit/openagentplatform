@@ -47,14 +47,14 @@ func NewTaskManagerWithStore(store Store) *TaskManager {
 func (m *TaskManager) CreateTask(ctx context.Context, sessionID, agentCardURL string, metadata map[string]string) (*models.Task, error) {
 	now := time.Now().UTC()
 	t := &models.Task{
-		ID:         uuid.NewString(),
-		ContextID:  sessionID,
-		AgentID:    agentCardURL,
-		Status:     models.TaskStatusPending,
-		Metadata:   metadata,
-		Version:    1,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		ID:        uuid.NewString(),
+		ContextID: sessionID,
+		AgentID:   agentCardURL,
+		Status:    models.TaskStatusPending,
+		Metadata:  metadata,
+		Version:   1,
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 	if err := t.Validate(); err != nil {
 		return nil, fmt.Errorf("a2a: validate task: %w", err)

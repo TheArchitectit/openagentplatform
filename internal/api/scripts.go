@@ -399,8 +399,8 @@ func (s *Server) handleRunScript(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"script_id":   id,
-		"run_ids":     runIDs,
+		"script_id":    id,
+		"run_ids":      runIDs,
 		"queued_count": len(runIDs),
 	})
 }

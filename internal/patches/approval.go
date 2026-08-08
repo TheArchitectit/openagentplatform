@@ -31,11 +31,11 @@ const (
 	EventReject      = "reject"
 	EventSchedule    = "schedule"
 	EventCancel      = "cancel"
-	EventStart       = "start"       // auto on schedule time
-	EventComplete    = "complete"    // auto on success
-	EventFail        = "fail"        // auto on failure
+	EventStart       = "start"    // auto on schedule time
+	EventComplete    = "complete" // auto on success
+	EventFail        = "fail"     // auto on failure
 	EventRollback    = "rollback"
-	EventTimeout     = "timeout"     // auto-approve on timeout
+	EventTimeout     = "timeout"      // auto-approve on timeout
 	EventAdminReject = "admin_reject" // admin override of approved state
 )
 

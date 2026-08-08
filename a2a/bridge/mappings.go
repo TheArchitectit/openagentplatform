@@ -82,14 +82,14 @@ var EventSubjectToSkills = map[string][]string{
 // task name. Used as the default name when the event payload does not
 // contain an explicit title.
 var EventSubjectToName = map[string]string{
-	SubjectCheckResult:    "Check Result Triage",
-	SubjectAlertEvents:    "Alert Investigation",
-	SubjectAgentOnline:    "Agent Came Online",
-	SubjectAgentOffline:   "Agent Went Offline",
+	SubjectCheckResult:     "Check Result Triage",
+	SubjectAlertEvents:     "Alert Investigation",
+	SubjectAgentOnline:     "Agent Came Online",
+	SubjectAgentOffline:    "Agent Went Offline",
 	SubjectPolicyViolation: "Policy Violation Response",
-	SubjectPatchStatus:    "Patch Deployment Status",
-	SubjectScriptResult:   "Script Execution Result",
-	SubjectShellSession:   "Remote Shell Session",
+	SubjectPatchStatus:     "Patch Deployment Status",
+	SubjectScriptResult:    "Script Execution Result",
+	SubjectShellSession:    "Remote Shell Session",
 }
 
 // EventSubjectToContextPrefix maps a NATS event subject to a
@@ -97,12 +97,12 @@ var EventSubjectToName = map[string]string{
 // event type within a short window share a context so that an agent
 // can correlate related work.
 var EventSubjectToContextPrefix = map[string]string{
-	SubjectCheckResult:    "ctx-check",
-	SubjectAlertEvents:    "ctx-alert",
-	SubjectAgentOnline:    "ctx-agent-online",
-	SubjectAgentOffline:   "ctx-agent-offline",
+	SubjectCheckResult:     "ctx-check",
+	SubjectAlertEvents:     "ctx-alert",
+	SubjectAgentOnline:     "ctx-agent-online",
+	SubjectAgentOffline:    "ctx-agent-offline",
 	SubjectPolicyViolation: "ctx-policy",
-	SubjectPatchStatus:    "ctx-patch",
-	SubjectScriptResult:   "ctx-script",
-	SubjectShellSession:   "ctx-shell",
+	SubjectPatchStatus:     "ctx-patch",
+	SubjectScriptResult:    "ctx-script",
+	SubjectShellSession:    "ctx-shell",
 }

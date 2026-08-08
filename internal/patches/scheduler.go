@@ -19,7 +19,7 @@ import (
 
 // Default scheduler values.
 const (
-	DefaultMaxConcurrency     = 10
+	DefaultMaxConcurrency        = 10
 	DefaultBlackoutCheckInterval = 30 * time.Second
 )
 
@@ -50,9 +50,9 @@ func PriorityFor(sev models.PatchSeverity) SchedulerPriority {
 // BlackoutWindow is a time range during which no deployments may
 // run. Multiple blackouts may be configured.
 type BlackoutWindow struct {
-	Start    time.Time
-	End      time.Time
-	Reason   string
+	Start     time.Time
+	End       time.Time
+	Reason    string
 	Recurring bool // if true, the window recurs weekly (same weekday)
 }
 
@@ -122,8 +122,8 @@ type PatchSchedulerConfig struct {
 // MaintenanceWindow represents a recurring or one-shot window during
 // which patch deployments are permitted.
 type MaintenanceWindow struct {
-	Start    time.Time
-	End      time.Time
+	Start     time.Time
+	End       time.Time
 	Recurring bool
 	// Weekdays, if non-empty, restricts the window to those days.
 	Weekdays []time.Weekday
@@ -174,18 +174,18 @@ func (w *MaintenanceWindow) NextOccurrence(after time.Time) time.Time {
 
 // PatchScheduler queues and dispatches patch deployments.
 type PatchScheduler struct {
-	cfg    PatchSchedulerConfig
+	cfg      PatchSchedulerConfig
 	deployer *PatchDeployer
-	store  Store
-	log    *slog.Logger
+	store    Store
+	log      *slog.Logger
 
-	mu       sync.Mutex
-	queue    []*QueuedJob
-	active   map[string]bool          // jobID -> running
-	deferred map[string]*QueuedJob    // jobs waiting for blackout
-	agentBusy map[string]string       // agentID -> jobID currently using it
-	closed   bool
-	notify   chan struct{}
+	mu        sync.Mutex
+	queue     []*QueuedJob
+	active    map[string]bool       // jobID -> running
+	deferred  map[string]*QueuedJob // jobs waiting for blackout
+	agentBusy map[string]string     // agentID -> jobID currently using it
+	closed    bool
+	notify    chan struct{}
 }
 
 // NewPatchScheduler creates a scheduler. The deployer is used to

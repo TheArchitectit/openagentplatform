@@ -1,11 +1,11 @@
 // Package api - policy_violations.go implements the HTTP handlers for
 // the policy-violation REST surface:
 //
-//   GET  /api/v1/policies/{id}/violations -- list violations for a policy
-//   GET  /api/v1/agents/{id}/violations   -- list violations for an agent
-//   POST /api/v1/violations/{id}/dismiss  -- dismiss a violation
-//   POST /api/v1/violations/{id}/remediate -- trigger remediation
-//   GET  /api/v1/compliance/summary       -- org-level compliance summary
+//	GET  /api/v1/policies/{id}/violations -- list violations for a policy
+//	GET  /api/v1/agents/{id}/violations   -- list violations for an agent
+//	POST /api/v1/violations/{id}/dismiss  -- dismiss a violation
+//	POST /api/v1/violations/{id}/remediate -- trigger remediation
+//	GET  /api/v1/compliance/summary       -- org-level compliance summary
 package api
 
 import (
@@ -204,13 +204,13 @@ func (s *Server) remediateViolation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	payload, _ := json.Marshal(map[string]any{
-		"type":          "remediation.requested",
-		"violation_id":  v.ID,
-		"policy_id":     v.PolicyID,
-		"agent_id":      v.AgentID,
-		"action":        body.Action,
-		"requested_by":  actor,
-		"timestamp":     time.Now().UTC(),
+		"type":         "remediation.requested",
+		"violation_id": v.ID,
+		"policy_id":    v.PolicyID,
+		"agent_id":     v.AgentID,
+		"action":       body.Action,
+		"requested_by": actor,
+		"timestamp":    time.Now().UTC(),
 	})
 	if err := s.eventBus.Publish(r.Context(), "oap.events.remediation", payload); err != nil {
 		s.log.Error("publish remediation event failed", "err", err)

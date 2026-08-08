@@ -97,11 +97,11 @@ func NewRPCBridge(client *AdapterClient, gw *gateway.Gateway, cfg RPCConfig) (*R
 	}
 
 	return &RPCBridge{
-		client:       client,
-		gw:           gw,
-		log:          cfg.Logger,
-		cfg:          RPCConfig{CardSyncInterval: interval, Logger: cfg.Logger},
-		stopCh:       make(chan struct{}),
+		client:        client,
+		gw:            gw,
+		log:           cfg.Logger,
+		cfg:           RPCConfig{CardSyncInterval: interval, Logger: cfg.Logger},
+		stopCh:        make(chan struct{}),
 		activeStreams: make(map[string]context.CancelFunc),
 	}, nil
 }

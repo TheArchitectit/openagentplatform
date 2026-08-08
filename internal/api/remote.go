@@ -12,8 +12,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
-	"github.com/openagentplatform/openagentplatform/internal/auth"
 	"github.com/openagentplatform/openagentplatform/internal/audit"
+	"github.com/openagentplatform/openagentplatform/internal/auth"
 	"github.com/openagentplatform/openagentplatform/internal/remote"
 )
 
@@ -350,13 +350,13 @@ func (h *RemoteHandler) HandleShellWebSocket(w http.ResponseWriter, r *http.Requ
 // shellBridge owns the NATS subscription and the user-facing
 // WebSocket connection for one session.
 type shellBridge struct {
-	handler    *RemoteHandler
-	session    *remote.ShellSession
-	conn       *websocket.Conn
-	wsOut      chan wsOutMsg
-	natsSub    NATSSub
-	closeOnce  sync.Once
-	closed     chan struct{}
+	handler   *RemoteHandler
+	session   *remote.ShellSession
+	conn      *websocket.Conn
+	wsOut     chan wsOutMsg
+	natsSub   NATSSub
+	closeOnce sync.Once
+	closed    chan struct{}
 }
 
 // wsOutMsg is a message heading from NATS to the WebSocket.

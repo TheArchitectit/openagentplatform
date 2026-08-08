@@ -46,7 +46,7 @@ func TestRBACMutatingRoutesGateByRole(t *testing.T) {
 				r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician, auth.RoleOperator)).Post("/", stubCreated)
 			})
 			r.Route("/api/v1/policies", func(r chi.Router) {
-				r.Get("/", stubOK) // open list
+				r.Get("/", stubOK)                                              // open list
 				r.With(auth.RequireRole(auth.RoleAdmin)).Post("/", stubCreated) // admin-only
 			})
 		})
@@ -129,6 +129,6 @@ func TestRequireRoleDeniesNilClaims(t *testing.T) {
 	}
 }
 
-func stubOK(w http.ResponseWriter, _ *http.Request)        { w.WriteHeader(http.StatusOK) }
-func stubCreated(w http.ResponseWriter, _ *http.Request)   { w.WriteHeader(http.StatusCreated) }
-func stubAccepted(w http.ResponseWriter, _ *http.Request)  { w.WriteHeader(http.StatusAccepted) }
+func stubOK(w http.ResponseWriter, _ *http.Request)       { w.WriteHeader(http.StatusOK) }
+func stubCreated(w http.ResponseWriter, _ *http.Request)  { w.WriteHeader(http.StatusCreated) }
+func stubAccepted(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusAccepted) }

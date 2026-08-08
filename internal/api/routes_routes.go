@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/openagentplatform/openagentplatform/internal/auth"
 	"github.com/openagentplatform/openagentplatform/internal/checklib"
@@ -234,19 +235,19 @@ func (s *Server) registerRoutes(r chi.Router) {
 				})
 			})
 
-				// Billing: commercial-tier management (customers, subscriptions,
-				// invoices, usage). All routes return 503 if the BillingService
-				// or StripeClient is not wired into the Server. Billing actions
-				// are admin-only.
-				r.Route("/billing", func(r chi.Router) {
-					r.Use(auth.RequireRole(auth.RoleAdmin))
-					r.Post("/create-customer", s.handleCreateCustomer)
-					r.Post("/create-subscription", s.handleCreateSubscription)
-					r.Get("/subscription", s.handleGetSubscription)
-					r.Post("/cancel", s.handleCancelSubscription)
-					r.Get("/invoices", s.handleGetInvoices)
-					r.Get("/usage", s.handleGetUsage)
-				})
+			// Billing: commercial-tier management (customers, subscriptions,
+			// invoices, usage). All routes return 503 if the BillingService
+			// or StripeClient is not wired into the Server. Billing actions
+			// are admin-only.
+			r.Route("/billing", func(r chi.Router) {
+				r.Use(auth.RequireRole(auth.RoleAdmin))
+				r.Post("/create-customer", s.handleCreateCustomer)
+				r.Post("/create-subscription", s.handleCreateSubscription)
+				r.Get("/subscription", s.handleGetSubscription)
+				r.Post("/cancel", s.handleCancelSubscription)
+				r.Get("/invoices", s.handleGetInvoices)
+				r.Get("/usage", s.handleGetUsage)
+			})
 
 			// Script library: reusable scripts that can be enqueued for
 			// execution on one or more agents. The /runs sub-route is
@@ -308,10 +309,10 @@ func (s *Server) registerRoutes(r chi.Router) {
 			// patches, from the most recent scan). Mounted under
 			// /agents/{id}/patches so the endpoint detail page can
 			// link directly to it.
-				r.Route("/agents/{id}/patches", func(r chi.Router) {
-					r.Get("/", s.getAgentPatches)
-					r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)).Post("/scan", s.triggerScanAgent)
-				})
+			r.Route("/agents/{id}/patches", func(r chi.Router) {
+				r.Get("/", s.getAgentPatches)
+				r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)).Post("/scan", s.triggerScanAgent)
+			})
 
 			// Remote shell: list/get/kill shell sessions and
 			// manage stored credentials. The WebSocket bridge is
@@ -351,27 +352,27 @@ func (s *Server) registerRoutes(r chi.Router) {
 			// cards, check health, list tasks, and view cost summaries
 			// without needing a direct connection to the adapter
 			// service.
-				r.Route("/a2a", func(r chi.Router) {
-					// Adapter discovery and inspection.
-					r.Get("/adapters", s.handleA2AListAdapters)
-					r.Get("/adapters/{name}/card", s.handleA2AAdapterCard)
-					r.Get("/adapters/{name}/health", s.handleA2AAdapterHealth)
+			r.Route("/a2a", func(r chi.Router) {
+				// Adapter discovery and inspection.
+				r.Get("/adapters", s.handleA2AListAdapters)
+				r.Get("/adapters/{name}/card", s.handleA2AAdapterCard)
+				r.Get("/adapters/{name}/health", s.handleA2AAdapterHealth)
 
-					// A2A task read operations + cost summary.
-					r.Get("/tasks", s.handleA2AListTasks)
-					r.Get("/tasks/{id}", s.handleA2AGetTask)
-					r.Get("/tasks/events", s.handleA2ATaskEvents)
-					r.Get("/costs/summary", s.handleA2ACostSummary)
-					// Invoking, streaming, and cancelling A2A tasks drives
-					// agent work and spend, so they require an elevated
-					// role.
-					r.Group(func(r chi.Router) {
-						r.Use(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician))
-						r.Post("/tasks/{id}/cancel", s.handleA2ACancelTask)
-						r.Post("/invoke", s.handleA2AInvoke)
-						r.Post("/stream", s.handleA2AStream)
-					})
+				// A2A task read operations + cost summary.
+				r.Get("/tasks", s.handleA2AListTasks)
+				r.Get("/tasks/{id}", s.handleA2AGetTask)
+				r.Get("/tasks/events", s.handleA2ATaskEvents)
+				r.Get("/costs/summary", s.handleA2ACostSummary)
+				// Invoking, streaming, and cancelling A2A tasks drives
+				// agent work and spend, so they require an elevated
+				// role.
+				r.Group(func(r chi.Router) {
+					r.Use(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician))
+					r.Post("/tasks/{id}/cancel", s.handleA2ACancelTask)
+					r.Post("/invoke", s.handleA2AInvoke)
+					r.Post("/stream", s.handleA2AStream)
 				})
+			})
 
 			// Secrets management endpoints. When no resolver is
 			// configured these return 503. Resolving a secret is
@@ -382,28 +383,28 @@ func (s *Server) registerRoutes(r chi.Router) {
 				r.With(auth.RequireRole(auth.RoleAdmin)).Post("/resolve", s.handleSecretsResolve)
 			})
 
-				// Enterprise reporting: templates, on-demand generation,
-				// run history, and cron-based schedules. Endpoints return
-				// 503 when the reports Store / Scheduler is not wired.
-				// Reading templates and run history is open; generating
-				// reports and managing schedules requires an elevated
-				// role.
-				r.Route("/reports", func(r chi.Router) {
-					r.Get("/templates", s.listReportTemplates)
-					r.Get("/runs", s.listReportRuns)
-					r.Route("/runs/{id}", func(r chi.Router) {
-						r.Get("/", s.getReportRun)
-					})
-					r.Group(func(r chi.Router) {
-						r.Use(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician))
-						r.Post("/generate", s.generateReport)
-						r.Route("/schedules", func(r chi.Router) {
-							r.Post("/", s.createReportSchedule)
-							r.Get("/", s.listReportSchedules)
-							r.Delete("/{id}", s.deleteReportSchedule)
-						})
+			// Enterprise reporting: templates, on-demand generation,
+			// run history, and cron-based schedules. Endpoints return
+			// 503 when the reports Store / Scheduler is not wired.
+			// Reading templates and run history is open; generating
+			// reports and managing schedules requires an elevated
+			// role.
+			r.Route("/reports", func(r chi.Router) {
+				r.Get("/templates", s.listReportTemplates)
+				r.Get("/runs", s.listReportRuns)
+				r.Route("/runs/{id}", func(r chi.Router) {
+					r.Get("/", s.getReportRun)
+				})
+				r.Group(func(r chi.Router) {
+					r.Use(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician))
+					r.Post("/generate", s.generateReport)
+					r.Route("/schedules", func(r chi.Router) {
+						r.Post("/", s.createReportSchedule)
+						r.Get("/", s.listReportSchedules)
+						r.Delete("/{id}", s.deleteReportSchedule)
 					})
 				})
+			})
 		})
 	})
 
@@ -421,4 +422,3 @@ func (s *Server) registerRoutes(r chi.Router) {
 	// on the same mux. The registration handler performs its own auth
 	// via the per-site registration token in the request body.
 }
-
