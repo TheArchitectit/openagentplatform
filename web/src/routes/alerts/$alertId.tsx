@@ -4,325 +4,51 @@
 //   • Header: title, severity badge, state badge, key timestamps.
 //   • Action bar: Acknowledge / Snooze (duration picker) / Resolve / Close.
 //   • Details card: check name, agent hostname, monospace output, metrics.
-//   • State timeline: vertical timeline of state transitions.
-//   • Notification history: which channels were notified, delivery status.
-//   • Related alerts: other alerts for the same check or agent.
+//   • State timeline, notification history, and related alerts live in
+//     <AlertDetailHistory> (see alert_detail_components.tsx).
+//   • State/effects live in useAlertDetail (see useAlertDetail.ts).
 
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import {
   ArrowLeft,
-  BellRing,
   Check,
   CheckCheck,
   Clock,
   X,
-  Mail,
-  MessageSquare,
-  Slack,
-  Webhook,
-  Send,
-  AlertCircle,
-  Bot,
   Activity,
-  CircleCheck,
-  CircleX,
-  CircleDot,
+  Bot,
   Loader2,
+  AlertCircle,
 } from 'lucide-react';
-import { apiFetch, ApiError } from '@/lib/api';
-import { getWsClient, type WsEnvelope } from '@/lib/websocket';
-import {
-  useAlerts,
-  type Alert,
-  type AlertStateTransition,
-  type NotificationRecord,
-} from '@/lib/useAlerts';
 import { SeverityBadge } from '@/components/severity-badge';
+import {
+  StateBadge,
+  formatTime,
+  SnoozeMenu,
+  AlertDetailHistory,
+} from './alert_detail_components';
+import { useAlertDetail } from './useAlertDetail';
 
 export const Route = createFileRoute('/alerts/$alertId')({
   component: AlertDetailPage,
 });
 
-const STATE_BADGE: Record<string, { label: string; classes: string }> = {
-  open: { label: 'Open', classes: 'bg-red-500/10 text-red-400 border-red-800' },
-  acknowledged: {
-    label: 'Acknowledged',
-    classes: 'bg-yellow-500/10 text-yellow-400 border-yellow-800',
-  },
-  snoozed: {
-    label: 'Snoozed',
-    classes: 'bg-slate-500/10 text-gray-300 border-slate-700',
-  },
-  resolved: {
-    label: 'Resolved',
-    classes: 'bg-green-500/10 text-green-400 border-green-800',
-  },
-  closed: {
-    label: 'Closed',
-    classes: 'bg-slate-700/30 text-gray-300 border-slate-700/30',
-  },
-};
-
-function StateBadge({ state }: { state: string }) {
-  const key = (state ?? 'open').toLowerCase();
-  const meta = STATE_BADGE[key] ?? STATE_BADGE.open;
-  return (
-    <span
-      className={
-        'inline-flex items-center px-2.5 py-1 rounded-full border text-sm font-medium ' +
-        meta.classes
-      }
-    >
-      {meta.label}
-    </span>
-  );
-}
-
-function formatTime(iso: string | undefined): string {
-  if (!iso) return '—';
-  const t = new Date(iso);
-  if (Number.isNaN(t.getTime())) return '—';
-  return t.toLocaleString();
-}
-
-function channelIcon(channel: string) {
-  const c = channel.toLowerCase();
-  if (c.includes('slack')) return Slack;
-  if (c.includes('mail') || c.includes('email') || c.includes('smtp')) return Mail;
-  if (c.includes('sms') || c.includes('phone') || c.includes('twilio')) return MessageSquare;
-  if (c.includes('webhook')) return Webhook;
-  if (c.includes('pagerduty') || c.includes('pd')) return BellRing;
-  return Send;
-}
-
-function deliveryTone(status: string): { classes: string; icon: typeof CircleCheck } {
-  switch (status.toLowerCase()) {
-    case 'delivered':
-      return {
-        classes: 'text-green-400 bg-green-500/10 border-green-800',
-        icon: CircleCheck,
-      };
-    case 'sent':
-      return {
-        classes: 'text-blue-400 bg-blue-500/10 border-blue-800',
-        icon: Send,
-      };
-    case 'failed':
-      return {
-        classes: 'text-red-400 bg-red-500/10 border-red-800',
-        icon: CircleX,
-      };
-    case 'pending':
-    default:
-      return {
-        classes: 'text-gray-300 bg-slate-700/30 border-slate-700/30',
-        icon: CircleDot,
-      };
-  }
-}
-
-function transitionIcon(toState: string) {
-  const s = (toState ?? '').toLowerCase();
-  if (s === 'acknowledged') return Check;
-  if (s === 'resolved') return CheckCheck;
-  if (s === 'closed') return X;
-  if (s === 'snoozed') return Clock;
-  if (s === 'open') return AlertCircle;
-  return CircleDot;
-}
-
-function transitionTone(toState: string): string {
-  const s = (toState ?? '').toLowerCase();
-  if (s === 'resolved' || s === 'closed') return 'bg-green-500/15 border-green-800 text-green-400';
-  if (s === 'acknowledged') return 'bg-yellow-500/15 border-yellow-800 text-yellow-400';
-  if (s === 'snoozed') return 'bg-slate-700/20 border-slate-700 text-gray-300';
-  if (s === 'open') return 'bg-red-500/15 border-red-800 text-red-400';
-  return 'bg-slate-700/30 border-slate-700/30 text-gray-300';
-}
-
-const SNOOZE_PRESETS: { label: string; mins: number }[] = [
-  { label: '15 min', mins: 15 },
-  { label: '1 hour', mins: 60 },
-  { label: '4 hours', mins: 240 },
-  { label: '24 hours', mins: 1440 },
-  { label: '3 days', mins: 4320 },
-];
-
 function AlertDetailPage() {
   const { alertId } = Route.useParams();
-  const navigate = useNavigate();
-  const [alert, setAlert] = useState<Alert | null>(null);
-  const [timeline, setTimeline] = useState<AlertStateTransition[]>([]);
-  const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
-  const [related, setRelated] = useState<Alert[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [actionBusy, setActionBusy] = useState<string | null>(null);
-  const [snoozeOpen, setSnoozeOpen] = useState(false);
-  const [copyOk, setCopyOk] = useState(false);
-
   const {
-    acknowledgeAlert,
-    snoozeAlert,
-    resolveAlert,
-    closeAlert,
-  } = useAlerts('all');
-
-  const load = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const a = await apiFetch<Alert>(`/alerts/${encodeURIComponent(alertId)}`);
-      setAlert(a);
-      setError(null);
-      // Fetch timeline, notifications, and related in parallel.
-      const [tlRes, nRes, relRes] = await Promise.allSettled([
-        apiFetch<
-          { transitions: AlertStateTransition[] } | AlertStateTransition[]
-        >(`/alerts/${encodeURIComponent(alertId)}/timeline`),
-        apiFetch<
-          { notifications: NotificationRecord[] } | NotificationRecord[]
-        >(`/alerts/${encodeURIComponent(alertId)}/notifications`),
-        (async (): Promise<Alert[]> => {
-          const params = new URLSearchParams();
-          if (a.check_id) params.set('check_id', a.check_id);
-          else if (a.agent_id) params.set('agent_id', a.agent_id);
-          else return [];
-          params.set('exclude_id', a.id);
-          params.set('limit', '20');
-          const res = await apiFetch<{ alerts?: Alert[] }>(
-            `/alerts?${params.toString()}`
-          );
-          return res.alerts ?? [];
-        })(),
-      ]);
-      if (tlRes.status === 'fulfilled') {
-        const v = tlRes.value;
-        setTimeline(Array.isArray(v) ? v : v.transitions ?? []);
-      } else {
-        setTimeline([]);
-      }
-      if (nRes.status === 'fulfilled') {
-        const v = nRes.value;
-        setNotifications(Array.isArray(v) ? v : v.notifications ?? []);
-      } else {
-        setNotifications([]);
-      }
-      if (relRes.status === 'fulfilled') {
-        setRelated(relRes.value);
-      } else {
-        setRelated([]);
-      }
-    } catch (err) {
-      setError(err instanceof ApiError ? err : new Error(String(err)));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [alertId]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  // Real-time updates: keep alert, timeline and related list in sync.
-  useEffect(() => {
-    const ws = getWsClient();
-    const unsub = ws.subscribe('alerts', (env: WsEnvelope) => {
-      if (env.type !== 'event' || !env.data) return;
-      if (env.event === 'alert.updated') {
-        const a = env.data as Alert;
-        if (a.id === alertId) setAlert((prev) => (prev ? { ...prev, ...a } : a));
-      } else if (env.event === 'alert.state') {
-        const s = env.data as {
-          id: string;
-          state: string;
-          previous_state?: string;
-          timestamp?: string;
-          actor?: string;
-        };
-        if (s.id !== alertId) return;
-        setAlert((prev) =>
-          prev
-            ? {
-                ...prev,
-                state: s.state,
-                updated_at: s.timestamp ?? prev.updated_at,
-                ...(s.state === 'acknowledged'
-                  ? {
-                      acknowledged_at: s.timestamp ?? prev.acknowledged_at,
-                      acknowledged_by: s.actor ?? prev.acknowledged_by,
-                    }
-                  : {}),
-                ...(s.state === 'resolved'
-                  ? {
-                      resolved_at: s.timestamp ?? prev.resolved_at,
-                      resolved_by: s.actor ?? prev.resolved_by,
-                    }
-                  : {}),
-              }
-            : prev
-        );
-        // Append a synthetic transition for live-feel.
-        setTimeline((prev) => [
-          ...prev,
-          {
-            id: `live-${Date.now()}`,
-            alert_id: alertId,
-            from_state: s.previous_state,
-            to_state: s.state,
-            actor: s.actor,
-            timestamp: s.timestamp ?? new Date().toISOString(),
-          },
-        ]);
-      } else if (env.event === 'alert.deleted') {
-        const d = env.data as { id: string };
-        if (d.id === alertId) {
-          // Bounce to inbox on delete.
-          void navigate({ to: '/alerts' });
-        }
-      }
-    });
-    return unsub;
-  }, [alertId, navigate]);
-
-  const doAction = useCallback(
-    async (
-      kind: 'ack' | 'resolve' | 'close' | { snooze: number }
-    ): Promise<void> => {
-      if (!alert) return;
-      setActionBusy(typeof kind === 'string' ? kind : 'snooze');
-      try {
-        if (kind === 'ack') {
-          await acknowledgeAlert(alert.id);
-        } else if (kind === 'resolve') {
-          await resolveAlert(alert.id);
-        } else if (kind === 'close') {
-          await closeAlert(alert.id);
-        } else {
-          await snoozeAlert(alert.id, kind.snooze);
-        }
-        // Refresh server-of-record data.
-        await load();
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error(String(err)));
-      } finally {
-        setActionBusy(null);
-        setSnoozeOpen(false);
-      }
-    },
-    [alert, acknowledgeAlert, snoozeAlert, resolveAlert, closeAlert, load]
-  );
-
-  const handleCopyId = useCallback(async () => {
-    if (!alert) return;
-    try {
-      await navigator.clipboard.writeText(alert.id);
-      setCopyOk(true);
-      setTimeout(() => setCopyOk(false), 1200);
-    } catch {
-      /* ignore */
-    }
-  }, [alert]);
+    alert,
+    timeline,
+    notifications,
+    related,
+    isLoading,
+    error,
+    actionBusy,
+    snoozeOpen,
+    copyOk,
+    setSnoozeOpen,
+    doAction,
+    handleCopyId,
+  } = useAlertDetail(alertId);
 
   if (isLoading && !alert) {
     return (
@@ -634,206 +360,13 @@ function AlertDetailPage() {
         </div>
       </div>
 
-      {/* State timeline */}
-      <div className="rounded-lg border border-slate-800 bg-slate-900">
-        <div className="px-5 py-4 border-b border-slate-800">
-          <h2 className="text-sm font-semibold text-white">State timeline</h2>
-        </div>
-        <div className="p-5">
-          {timeline.length === 0 ? (
-            <p className="text-sm text-gray-400">No state changes recorded yet.</p>
-          ) : (
-            <ol className="relative border-l border-slate-800 ml-2 space-y-4">
-              {timeline.map((t) => {
-                const Icon = transitionIcon(t.to_state);
-                return (
-                  <li key={t.id} className="ml-4">
-                    <span
-                      className={
-                        'absolute -left-[9px] flex h-4 w-4 items-center justify-center rounded-full border ' +
-                        transitionTone(t.to_state)
-                      }
-                    >
-                      <Icon className="h-2.5 w-2.5" />
-                    </span>
-                    <div className="flex flex-wrap items-baseline gap-2">
-                      <span className="text-sm text-white font-medium">
-                        {t.from_state ? `${t.from_state} → ` : ''}
-                        {t.to_state}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        {formatTime(t.timestamp)}
-                      </span>
-                    </div>
-                    {t.actor && (
-                      <p className="text-xs text-gray-400 mt-0.5">by {t.actor}</p>
-                    )}
-                    {t.note && (
-                      <p className="text-xs text-gray-300 mt-1">{t.note}</p>
-                    )}
-                  </li>
-                );
-              })}
-            </ol>
-          )}
-        </div>
-      </div>
-
-      {/* Notification history */}
-      <div className="rounded-lg border border-slate-800 bg-slate-900">
-        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white">Notification history</h2>
-          <span className="text-xs text-gray-400">
-            {notifications.length} attempt{notifications.length === 1 ? '' : 's'}
-          </span>
-        </div>
-        <div className="overflow-x-auto">
-          {notifications.length === 0 ? (
-            <p className="text-sm text-gray-400 p-5">
-              No notifications have been dispatched for this alert.
-            </p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-slate-800 bg-slate-800">
-                  <th className="px-4 py-3">Channel</th>
-                  <th className="px-4 py-3">Target</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Sent</th>
-                  <th className="px-4 py-3">Delivered</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {notifications.map((n) => {
-                  const Icon = channelIcon(n.channel);
-                  const tone = deliveryTone(n.status);
-                  const StatusIcon = tone.icon;
-                  return (
-                    <tr key={n.id}>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-2 text-white">
-                          <Icon className="h-4 w-4 text-gray-300" />
-                          <span>{n.channel}</span>
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-gray-300 break-all">
-                        {n.target || '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={
-                            'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-xs font-medium ' +
-                            tone.classes
-                          }
-                        >
-                          <StatusIcon className="h-3 w-3" />
-                          <span className="capitalize">{n.status}</span>
-                        </span>
-                        {n.error && (
-                          <p className="text-xs text-red-400 mt-1 break-all">
-                            {n.error}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-gray-300">
-                        {formatTime(n.sent_at)}
-                      </td>
-                      <td className="px-4 py-3 text-gray-300">
-                        {formatTime(n.delivered_at)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-
-      {/* Related alerts */}
-      <div className="rounded-lg border border-slate-800 bg-slate-900">
-        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white">Related alerts</h2>
-          <span className="text-xs text-gray-400">
-            {alert.check_id
-              ? 'Same check'
-              : alert.agent_id
-              ? 'Same agent'
-              : 'No relation available'}
-          </span>
-        </div>
-        {related.length === 0 ? (
-          <p className="text-sm text-gray-400 p-5">
-            No other alerts share this{' '}
-            {alert.check_id ? 'check' : 'agent'}.
-          </p>
-        ) : (
-          <ul className="divide-y divide-slate-800">
-            {related.map((r) => (
-              <li
-                key={r.id}
-                className="px-5 py-3 flex items-center gap-4 hover:bg-slate-900 transition-colors"
-              >
-                <SeverityBadge severity={r.severity} showLabel={false} />
-                <Link
-                  to="/alerts/$alertId"
-                  params={{ alertId: r.id }}
-                  className="flex-1 min-w-0"
-                >
-                  <p className="text-sm text-white truncate hover:text-blue-400">
-                    {r.title}
-                  </p>
-                  <p className="text-xs text-gray-400 truncate">
-                    {r.hostname ?? r.agent_id ?? ''}
-                    {r.check_name ? ` · ${r.check_name}` : ''}
-                  </p>
-                </Link>
-                <StateBadge state={r.state} />
-                <span className="text-xs text-gray-400 shrink-0">
-                  {formatTime(r.created_at)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SnoozeMenu({
-  onPick,
-  onClose,
-}: {
-  onPick: (mins: number) => Promise<void> | void;
-  onClose: () => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    function onClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    }
-    document.addEventListener('mousedown', onClick);
-    return () => document.removeEventListener('mousedown', onClick);
-  }, [onClose]);
-  return (
-    <div
-      ref={ref}
-      className="absolute right-0 top-full mt-1 w-44 rounded-md border border-slate-700 bg-slate-900 shadow-xl py-1 z-30"
-    >
-      <div className="px-3 py-1.5 text-xs text-gray-400 uppercase tracking-wider border-b border-slate-800">
-        Snooze for…
-      </div>
-      {SNOOZE_PRESETS.map((p) => (
-        <button
-          key={p.mins}
-          type="button"
-          onClick={() => void onPick(p.mins)}
-          className="w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-slate-800 hover:text-white transition-colors"
-        >
-          {p.label}
-        </button>
-      ))}
+      {/* State timeline, notification history, related alerts */}
+      <AlertDetailHistory
+        alert={alert}
+        timeline={timeline}
+        notifications={notifications}
+        related={related}
+      />
     </div>
   );
 }
