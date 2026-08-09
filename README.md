@@ -162,6 +162,25 @@ deploy/           docker-compose, NATS config, Dex config, postgres init
 docs/             documentation
 ```
 
+## Code Size Limits
+
+All source files must stay under a **500-line hard limit** (300-line soft warning).
+This is enforced by `scripts/regression_check.py` with 29 regression tests.
+
+```bash
+python3 scripts/regression_check.py --all   # check everything
+python3 scripts/regression_check.py --all --no-audit  # skip audit table
+```
+
+**Known violations (4 files, in progress):**
+
+| File | Lines | Plan |
+|---|---|---|
+| `web/src/routes/patches/index.tsx` | 1781 | Split into 4+ files (helpers, sub-components, custom hook) |
+| `web/src/routes/patches/$jobId.tsx` | 1135 | Split into 3+ files (helpers, sub-components, custom hook) |
+| `mcp-server/internal/mcp/server.go` | 888 | Extract setupHandlers() tool definitions into separate files |
+| `web/src/routes/policies/$policyId.tsx` | 586 | Finish right column JSX extraction (helpers + hook already done) |
+
 ## Documentation
 
 - [Setup](docs/SETUP.md) -- 5-minute walkthrough
@@ -187,7 +206,7 @@ See [docs/COMMERCIAL.md](docs/COMMERCIAL.md) for tier details.
 
 ---
 
-**Status:** All sprints 0.1 -- 6.0 complete | **Version:** 6.0.0 | **Last updated:** 2026-06-17
+**Status:** All sprints 0.1 -- 6.0 complete | **Version:** v1.1.0 | **Last updated:** 2026-01-15
 
 ## ☕ Support
 
