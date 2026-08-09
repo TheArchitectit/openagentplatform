@@ -49,3 +49,5 @@ deploy/nats/certs/*.crt
 
 # pi-agent runtime cache (local only — never commit)
 .pi/
+server
+.pi-subagents
