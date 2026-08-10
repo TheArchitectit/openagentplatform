@@ -1,33 +1,17 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import {
-  Bot,
-  CircleCheck,
-  CircleAlert,
-  Bell,
-  CheckCircle2,
-  AlertTriangle,
-  PauseCircle,
-  CheckCheck,
-  CalendarDays,
-  Wrench,
-  Shield,
-  CirclePlay,
-  FileCode2,
-  Timer,
-} from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { useChecks } from '@/lib/useChecks';
-import { useAlerts } from '@/lib/useAlerts';
 import { usePolicies, type PolicyCategory } from '@/lib/usePolicies';
-import { usePatches } from '@/lib/usePatches';
-import { useScripts } from '@/lib/useScripts';
-import { useAgents } from '@/lib/useAgents';
-import { apiFetch } from '@/lib/api';
+import { useDashboard } from './useDashboard';
+import { KpiCard } from './dashboard_components';
 
+export const Route = createFileRoute('/dashboard')({ component: DashboardPage });
 
-import { useDashboard } from './useDashboard'
-
-import { KpiCard, type Kpi, type ActivityItem } from './dashboard_components'
+function DashboardPage() {
+  const {
+    checksLoading, alertsLoading, policiesLoading,
+    greeting, agentKpis, checkRow, alertRow, patchKpis, scriptKpis,
+    compliance, policies,
+    activityItems, activityLoading, activityError,
+  } = useDashboard();
 
   return (
     <div className="space-y-6" aria-busy={checksLoading || alertsLoading || policiesLoading}>
@@ -41,7 +25,7 @@ import { KpiCard, type Kpi, type ActivityItem } from './dashboard_components'
         </div>
       </div>
 
-      {/* Agents + Checks KPIs (live agents + live check KPIs) */}
+      {/* Agents + Checks KPIs */}
       <div role="group" aria-label="Agent and check KPIs" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
         {[...agentKpis, ...checkRow].map((kpi) => (
           <KpiCard key={kpi.label} kpi={kpi} />
@@ -62,11 +46,7 @@ import { KpiCard, type Kpi, type ActivityItem } from './dashboard_components'
       <section aria-labelledby="patches-heading">
         <div className="flex items-center justify-between mb-3">
           <h2 id="patches-heading" className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Patches</h2>
-          <Link
-            to="/patches"
-            aria-label="View all patches"
-            className="text-xs text-gray-400 hover:text-white focus:outline-none focus-visible:underline transition-colors"
-          >
+          <Link to="/patches" aria-label="View all patches" className="text-xs text-gray-400 hover:text-white focus:outline-none focus-visible:underline transition-colors">
             View all →
           </Link>
         </div>
@@ -81,11 +61,7 @@ import { KpiCard, type Kpi, type ActivityItem } from './dashboard_components'
       <section aria-labelledby="scripts-heading">
         <div className="flex items-center justify-between mb-3">
           <h2 id="scripts-heading" className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Scripts</h2>
-          <Link
-            to="/scripts"
-            aria-label="View all scripts"
-            className="text-xs text-gray-400 hover:text-white focus:outline-none focus-visible:underline transition-colors"
-          >
+          <Link to="/scripts" aria-label="View all scripts" className="text-xs text-gray-400 hover:text-white focus:outline-none focus-visible:underline transition-colors">
             View all →
           </Link>
         </div>
@@ -96,9 +72,9 @@ import { KpiCard, type Kpi, type ActivityItem } from './dashboard_components'
         </div>
       </section>
 
-      {/* Bottom section: 2-column grid - Status Overview + Policy Compliance */}
+      {/* Bottom section: compliance + violations */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Policy compliance overall score (1/3) */}
+        {/* Policy compliance overall score */}
         <Link
           to="/policies"
           aria-label="View policy compliance details"
@@ -137,15 +113,11 @@ import { KpiCard, type Kpi, type ActivityItem } from './dashboard_components'
           </p>
         </Link>
 
-        {/* Violations by category (2/3) */}
+        {/* Violations by category */}
         <div className="rounded-xl border border-slate-800 bg-slate-900 p-5 lg:col-span-2">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-white">Violations by category</h3>
-            <Link
-              to="/policies"
-              aria-label="View all policy violations"
-              className="text-xs text-gray-400 hover:text-white focus:outline-none focus-visible:underline transition-colors"
-            >
+            <Link to="/policies" aria-label="View all policy violations" className="text-xs text-gray-400 hover:text-white focus:outline-none focus-visible:underline transition-colors">
               View all →
             </Link>
           </div>
@@ -170,10 +142,7 @@ import { KpiCard, type Kpi, type ActivityItem } from './dashboard_components'
                       aria-valuemax={100}
                       aria-label={`${cat} violation rate`}
                     >
-                      <div
-                        className="h-full bg-red-500/70 transition-all"
-                        style={{ width: `${pct}%` }}
-                      />
+                      <div className="h-full bg-red-500/70 transition-all" style={{ width: `${pct}%` }} />
                     </div>
                     <div className="w-20 text-right text-xs text-gray-400 tabular-nums" aria-label={`${violations} of ${total} policies with violations`}>
                       {violations} / {total}
@@ -186,17 +155,11 @@ import { KpiCard, type Kpi, type ActivityItem } from './dashboard_components'
         </div>
       </div>
 
-      {/* Recent Activity — live audit events */}
+      {/* Recent Activity */}
       <section aria-labelledby="activity-heading" className="rounded-xl border border-slate-800 bg-slate-900 p-5">
         <div className="flex items-center justify-between mb-3">
-          <h3 id="activity-heading" className="text-sm font-semibold text-white">
-            Recent Activity
-          </h3>
-          <Link
-            to="/settings/audit-log"
-            aria-label="View full audit log"
-            className="text-xs text-gray-400 hover:text-white focus:outline-none focus-visible:underline transition-colors"
-          >
+          <h3 id="activity-heading" className="text-sm font-semibold text-white">Recent Activity</h3>
+          <Link to="/settings/audit-log" aria-label="View full audit log" className="text-xs text-gray-400 hover:text-white focus:outline-none focus-visible:underline transition-colors">
             View all →
           </Link>
         </div>
@@ -215,48 +178,36 @@ import { KpiCard, type Kpi, type ActivityItem } from './dashboard_components'
             ))}
           </div>
         ) : activityError ? (
-          <div className="text-center text-xs text-gray-500 py-6" role="status">
-            Activity feed unavailable.
-          </div>
+          <div className="text-center text-xs text-gray-500 py-6" role="status">Activity feed unavailable.</div>
         ) : activityItems.length === 0 ? (
-          <div className="text-center text-xs text-gray-500 py-6" role="status">
-            No recent activity.
-          </div>
+          <div className="text-center text-xs text-gray-500 py-6" role="status">No recent activity.</div>
         ) : (
           <ul role="list" aria-label="Recent audit events" className="space-y-2.5">
             {activityItems.map((item) => {
               const toneColor =
-                item.tone === 'success'
-                  ? 'text-emerald-400'
-                  : item.tone === 'danger'
-                  ? 'text-red-400'
-                  : item.tone === 'warning'
-                  ? 'text-amber-400'
+                item.tone === 'success' ? 'text-emerald-400'
+                  : item.tone === 'danger' ? 'text-red-400'
+                  : item.tone === 'warning' ? 'text-amber-400'
                   : 'text-blue-400';
               const dotColor =
-                item.tone === 'success'
-                  ? 'bg-emerald-500'
-                  : item.tone === 'danger'
-                  ? 'bg-red-500'
-                  : item.tone === 'warning'
-                  ? 'bg-amber-500'
+                item.tone === 'success' ? 'bg-emerald-500'
+                  : item.tone === 'danger' ? 'bg-red-500'
+                  : item.tone === 'warning' ? 'bg-amber-500'
                   : 'bg-blue-500';
               return (
-                <li
-                  key={item.id}
-                  role="listitem"
-                  className="flex items-center gap-3"
-                >
-                  <span
-                    className={`h-2 w-2 rounded-full shrink-0 ${dotColor}`}
-                    aria-hidden="true"
-                  />
+                <li key={item.id} role="listitem" className="flex items-center gap-3">
+                  <span className={`h-2 w-2 rounded-full shrink-0 ${dotColor}`} aria-hidden="true" />
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm truncate ${toneColor}`}>{item.title}</p>
-                    {item.meta ? (
-                      <p className="text-xs text-gray-500 truncate">{item.meta}</p>
-                    ) : null}
+                    {item.meta ? <p className="text-xs text-gray-500 truncate">{item.meta}</p> : null}
                   </div>
-                  <span className="text-xs text-gray-500 shrink-0 tabular-nums" aria-label={`${item.time}`}>
-                    {item.time}
-                  </span>
+                  <span className="text-xs text-gray-500 shrink-0 tabular-nums" aria-label={`${item.time}`}>{item.time}</span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}
