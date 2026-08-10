@@ -21,7 +21,7 @@ export type {
   UserRole, UserStatus, User, InviteUserInput, UpdateUserInput,
   PermissionAction, PermissionCategory, Role, CreateRoleInput, UpdateRoleInput,
   APIKeyExpiry, APIKeyScope, APIKey, CreateAPIKeyInput, UpdateAPIKeyInput,
-, PERMISSION_CATEGORIES, API_KEY_SCOPES, BUILT_IN_ROLES } from './useSettings_types'
+  PERMISSION_CATEGORIES, API_KEY_SCOPES, BUILT_IN_ROLES } from './useSettings_types'
 
 
 // ---------------------------------------------------------------------------

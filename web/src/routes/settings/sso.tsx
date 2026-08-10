@@ -26,6 +26,7 @@ import {
 
 import { SSOProviderModal, SSORow } from './sso_components'
 
+export const Route = createFileRoute('/settings/sso')({
   component: SSOPage,
 });
 

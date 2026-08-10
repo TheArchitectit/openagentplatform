@@ -149,17 +149,6 @@ export function mapAuditToActivity(events: AuditEventShape[]): ActivityItem[] {
   });
 }
 
-
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-    </div>
-  );
-}
-
 export function KpiCard({ kpi }: { kpi: Kpi }) {
   const Icon = kpi.icon;
   const inner = (
