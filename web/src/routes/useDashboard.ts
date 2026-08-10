@@ -375,4 +375,10 @@ function DashboardPage() {
     return 'Good evening';
   }, []);
 
+  return {
+    checksLoading, alertsLoading, policiesLoading,
+    greeting, agentKpis, checkRow, alertRow, patchKpis, scriptKpis,
+    compliance, policies,
+    activityItems, activityLoading, activityError,
+  };
 }
