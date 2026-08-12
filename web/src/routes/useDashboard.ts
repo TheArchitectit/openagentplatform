@@ -27,7 +27,7 @@ import { apiFetch } from '@/lib/api';
 
 import { isToday, relativeTime, mapAuditToActivity, type ActivityItem, type Kpi, type AuditEventShape } from './dashboard_components'
 
-function DashboardPage() {
+export function useDashboard() {
   const { checks, isLoading: checksLoading } = useChecks();
   const { alerts, isLoading: alertsLoading } = useAlerts('all');
   const { policies, isLoading: policiesLoading, fetchComplianceSummary } = usePolicies();

@@ -36,7 +36,7 @@ import {
 // ---------------------------------------------------------------------------
 
 
-import { injectLoaderScript, loadMonaco, registerCustomLanguages, type MonacoNamespace } from './monaco-loader'
+import { injectLoaderScript, loadMonaco, registerCustomLanguages, type MonacoNamespace, type MonacoLanguage, type MonacoEditorProps, type MonacoEditorHandle, type MonacoTextModel } from './monaco-loader'
 
 // ---------------------------------------------------------------------------
 
