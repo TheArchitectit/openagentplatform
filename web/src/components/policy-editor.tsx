@@ -26,6 +26,7 @@ import type {
   PolicyEnforcement,
 } from '@/lib/usePolicies';
 import { MonacoEditor } from '@/components/monaco-editor';
+import { TEMPLATES, CATEGORY_OPTIONS, SEVERITY_OPTIONS, ENFORCEMENT_OPTIONS } from './policy-editor-helpers';
 
 
 import { PolicyEditorProps, fieldClasses, labelClasses } from './policy-editor-helpers'

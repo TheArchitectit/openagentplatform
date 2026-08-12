@@ -38,7 +38,7 @@ export interface PolicyTemplate {
   rego_source: string;
 }
 
-const TEMPLATES: PolicyTemplate[] = [
+export const TEMPLATES: PolicyTemplate[] = [
   {
     id: 'ssh-root-disabled',
     label: 'SSH: Disable root login',
@@ -122,7 +122,7 @@ export interface PolicyEditorProps {
 // Component
 // ---------------------------------------------------------------------------
 
-const CATEGORY_OPTIONS: { value: PolicyCategory; label: string }[] = [
+export const CATEGORY_OPTIONS: { value: PolicyCategory; label: string }[] = [
   { value: 'security', label: 'Security' },
   { value: 'compliance', label: 'Compliance' },
   { value: 'configuration', label: 'Configuration' },
@@ -130,14 +130,14 @@ const CATEGORY_OPTIONS: { value: PolicyCategory; label: string }[] = [
   { value: 'custom', label: 'Custom' },
 ];
 
-const SEVERITY_OPTIONS: { value: PolicySeverity; label: string }[] = [
+export const SEVERITY_OPTIONS: { value: PolicySeverity; label: string }[] = [
   { value: 'info', label: 'Info' },
   { value: 'warning', label: 'Warning' },
   { value: 'critical', label: 'Critical' },
   { value: 'emergency', label: 'Emergency' },
 ];
 
-const ENFORCEMENT_OPTIONS: { value: PolicyEnforcement; label: string }[] = [
+export const ENFORCEMENT_OPTIONS: { value: PolicyEnforcement; label: string }[] = [
   { value: 'enforce', label: 'Enforce' },
   { value: 'audit', label: 'Audit' },
   { value: 'report', label: 'Report' },
