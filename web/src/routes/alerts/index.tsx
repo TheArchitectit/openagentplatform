@@ -33,6 +33,15 @@ import { SeverityBadge } from '@/components/severity-badge';
 
 import { RowItem, InlineActions, SnoozeMenu } from './alert_components'
 
+const STATE_BADGES: Record<string, { label: string; classes: string }> = {
+  open: { label: "Open", classes: "bg-blue-100 text-blue-800 border-blue-200" },
+  acknowledged: { label: "Acknowledged", classes: "bg-yellow-100 text-yellow-800 border-yellow-200" },
+  snoozed: { label: "Snoozed", classes: "bg-purple-100 text-purple-800 border-purple-200" },
+  resolved: { label: "Resolved", classes: "bg-green-100 text-green-800 border-green-200" },
+};
+const PAGE_SIZE = 20;
+const TABS = ["all", "critical", "warning", "info", "acknowledged", "snoozed", "resolved"] as const;
+
 function StateBadge({ state }: { state: string }) {
   const key = (state ?? 'open').toLowerCase();
   const meta = STATE_BADGES[key] ?? STATE_BADGES.open;
@@ -277,7 +286,7 @@ function AlertsInboxPage() {
           aria-label="Alert filters"
           className="flex items-center gap-1 p-1 rounded-md bg-slate-900 border border-slate-800 overflow-x-auto"
         >
-          {TABS.map((t) => (
+          {TABS.map((t: string) => (
             <button
               key={t.id}
               type="button"

@@ -46,6 +46,13 @@ export const Route = createFileRoute('/checks/$checkId')({
 import { ResultBarChart, AssignAgentModal, EditCheckModal, formatTime, formatInterval, formatDateTime, deriveStatus } from './check_detail_components'
 import { useCheckDetail } from './useCheckDetail'
 
+const TYPE_ICON_MAP: Record<string, string> = { http: '🌐', dns: '🔍', tcp: '🔌', ping: '📡', custom: '⚙️' };
+function TypeIcon({ type }: { type: string }) {
+  const icon = TYPE_ICON_MAP[type] ?? '📋';
+  return <span className="text-lg">{icon}</span>;
+}
+const STATUS_CLASSES: Record<string, string> = { passing: 'text-green-500', failing: 'text-red-500', pending: 'text-yellow-500' };
+
 // ---------------------------------------------------------------------------
 // Display helpers (mirrored from the list page; kept local for self-containment)
 // ---------------------------------------------------------------------------
@@ -129,7 +136,7 @@ function CheckDetailPage() {
               </h1>
               {check && (
                 <span className={'inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs ' + statusBg[k]}>
-                  <Icon className="h-3 w-3" />
+                  <TypeIcon className="h-3 w-3" />
                   {k}
                 </span>
               )}

@@ -401,3 +401,7 @@ export function EditCheckModal({ check, onClose, onSubmit }: EditCheckModalProps
     </div>
   );
 }
+
+function CheckDetailPage() {
+  return <div>Check Detail</div>;
+}

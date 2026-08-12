@@ -99,7 +99,7 @@ export function LiveEvents({
 						channel: env.channel,
 						event: env.event,
 						timestamp: new Date(),
-						data: env.data,
+						data: JSON.stringify(env.data),
 					};
 					const updated = [newEvent, ...prev];
 					return updated.slice(0, maxEvents);

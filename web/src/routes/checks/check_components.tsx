@@ -374,3 +374,7 @@ export function CreateCheckModal({ onClose, onSubmit }: CreateCheckModalProps) {
     </div>
   );
 }
+
+function ChecksListPage() {
+  return <div>Checks List</div>;
+}

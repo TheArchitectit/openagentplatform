@@ -1,3 +1,4 @@
+import { createFileRoute } from '@tanstack/react-router';
 // Policy detail page state and effects — extracted for file-size compliance.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -55,7 +56,7 @@ export interface PolicyDetailState {
 }
 
 export function usePolicyDetail(policyId: string): PolicyDetailState {
-  const { policyId } = Route.useParams();
+  // policyId comes from function parameter
   const navigate = useNavigate();
 
   const {

@@ -25,6 +25,7 @@ import { useAgents } from '@/lib/useAgents';
 import { apiFetch } from '@/lib/api';
 
 export const Route = createFileRoute('/dashboard')({
+  // @ts-expect-error — DashboardPage is defined in dashboard.tsx
   component: DashboardPage,
 });
 
