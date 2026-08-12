@@ -12,6 +12,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from './api';
 
+import type {
+  UserStatus, User, InviteUserInput, UpdateUserInput,
+  Role, CreateRoleInput, UpdateRoleInput,
+  APIKey, CreateAPIKeyInput, CreateAPIKeyResult,
+  SSOSSOProvider, CreateSSOProviderInput,
+  UpdateSSOProviderInput, SSOTestResult,
+} from './useSettings_types'
+
+import { BUILT_IN_ROLES } from './useSettings_types'
+
 // ---------------------------------------------------------------------------
 // Types — Users
 // ---------------------------------------------------------------------------
@@ -21,7 +31,13 @@ export type {
   UserRole, UserStatus, User, InviteUserInput, UpdateUserInput,
   PermissionAction, PermissionCategory, Role, CreateRoleInput, UpdateRoleInput,
   APIKeyExpiry, APIKeyScope, APIKey, CreateAPIKeyInput, UpdateAPIKeyInput,
-  PERMISSION_CATEGORIES, API_KEY_SCOPES, BUILT_IN_ROLES } from './useSettings_types'
+  CreateAPIKeyResult, SSOProviderType, SSOSSOProvider, CreateSSOProviderInput,
+  UpdateSSOProviderInput, SSOTestResult,
+} from './useSettings_types'
+
+export {
+  PERMISSION_CATEGORIES, API_KEY_SCOPES, BUILT_IN_ROLES,
+} from './useSettings_types'
 
 
 // ---------------------------------------------------------------------------
