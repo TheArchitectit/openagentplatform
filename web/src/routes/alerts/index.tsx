@@ -40,7 +40,15 @@ const STATE_BADGES: Record<string, { label: string; classes: string }> = {
   resolved: { label: "Resolved", classes: "bg-green-100 text-green-800 border-green-200" },
 };
 const PAGE_SIZE = 20;
-const TABS = ["all", "critical", "warning", "info", "acknowledged", "snoozed", "resolved"] as const;
+const TABS = [
+  { id: "all", label: "All" },
+  { id: "critical", label: "Critical" },
+  { id: "warning", label: "Warning" },
+  { id: "info", label: "Info" },
+  { id: "acknowledged", label: "Acknowledged" },
+  { id: "snoozed", label: "Snoozed" },
+  { id: "resolved", label: "Resolved" },
+] as const;
 
 function StateBadge({ state }: { state: string }) {
   const key = (state ?? 'open').toLowerCase();
