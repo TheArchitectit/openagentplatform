@@ -10,6 +10,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -323,7 +324,7 @@ func (s *AuditService) GetEvent(ctx context.Context, eventID string) (*Event, er
 		&ev.OrgID, &ev.SiteID,
 	)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("audit: get event: %w", err)
@@ -387,7 +388,7 @@ func (s *AuditService) latestHash(ctx context.Context) (string, error) {
 	var h string
 	err := s.pool.QueryRow(ctx, q).Scan(&h)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return "", nil
 		}
 		return "", err

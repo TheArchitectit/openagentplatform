@@ -110,11 +110,6 @@ func (s *pgPolicyStore) ListPolicies(ctx context.Context, f PolicyFilter) ([]mod
 		add("enabled = $%d", *f.Enabled)
 	}
 	if f.Search != "" {
-		add("(name ILIKE $%d OR description ILIKE $%d)", "%"+f.Search+"%")
-		// The above is wrong: $N is referenced twice. Use a separate
-		// arg slot:
-		where = where[:len(where)-1]
-		args = args[:len(args)-1]
 		args = append(args, "%"+f.Search+"%", "%"+f.Search+"%")
 		pos := len(args) - 1
 		where = append(where, fmt.Sprintf("(name ILIKE $%d OR description ILIKE $%d)", pos-1, pos))

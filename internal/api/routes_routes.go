@@ -16,7 +16,7 @@ const sessionCookieName = "oap_session"
 func (s *Server) registerRoutes(r chi.Router) {
 	r.Get("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"service":"openagentplatform","version":"0.1.0"}`))
+		_, _ = w.Write([]byte(`{"service":"openagentplatform","version":"1.1.0"}`))
 	})
 
 	// Prometheus scrape and JSON summary endpoints.  These are mounted

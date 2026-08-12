@@ -236,7 +236,8 @@ func (s *Server) acknowledgeAlert(w http.ResponseWriter, r *http.Request) {
 	}
 	id := chi.URLParam(r, "id")
 	actor := actorFromContext(r)
-	if err := s.alertEngine.Acknowledge(r.Context(), id, actor); err != nil {
+	orgID := orgIDFromContext(r)
+	if err := s.alertEngine.Acknowledge(r.Context(), orgID, id, actor); err != nil {
 		if errors.Is(err, alerts.ErrAlertNotFound) {
 			http.Error(w, `{"error":"alert_not_found"}`, http.StatusNotFound)
 			return
@@ -268,8 +269,9 @@ func (s *Server) snoozeAlert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actor := actorFromContext(r)
+	orgID := orgIDFromContext(r)
 	duration := time.Duration(body.DurationMinutes) * time.Minute
-	if err := s.alertEngine.Snooze(r.Context(), id, actor, duration); err != nil {
+	if err := s.alertEngine.Snooze(r.Context(), orgID, id, actor, duration); err != nil {
 		if errors.Is(err, alerts.ErrAlertNotFound) {
 			http.Error(w, `{"error":"alert_not_found"}`, http.StatusNotFound)
 			return
@@ -290,7 +292,8 @@ func (s *Server) resolveAlert(w http.ResponseWriter, r *http.Request) {
 	}
 	id := chi.URLParam(r, "id")
 	actor := actorFromContext(r)
-	if err := s.alertEngine.Resolve(r.Context(), id, actor); err != nil {
+	orgID := orgIDFromContext(r)
+	if err := s.alertEngine.Resolve(r.Context(), orgID, id, actor); err != nil {
 		if errors.Is(err, alerts.ErrAlertNotFound) {
 			http.Error(w, `{"error":"alert_not_found"}`, http.StatusNotFound)
 			return
@@ -311,7 +314,8 @@ func (s *Server) closeAlert(w http.ResponseWriter, r *http.Request) {
 	}
 	id := chi.URLParam(r, "id")
 	actor := actorFromContext(r)
-	if err := s.alertEngine.Close(r.Context(), id, actor); err != nil {
+	orgID := orgIDFromContext(r)
+	if err := s.alertEngine.Close(r.Context(), orgID, id, actor); err != nil {
 		if errors.Is(err, alerts.ErrAlertNotFound) {
 			http.Error(w, `{"error":"alert_not_found"}`, http.StatusNotFound)
 			return
@@ -330,7 +334,7 @@ func (s *Server) listAlertRules(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"alert_store_not_configured"}`, http.StatusServiceUnavailable)
 		return
 	}
-	orgID := r.URL.Query().Get("org_id")
+	orgID := orgIDFromContext(r)
 	rules, err := s.alertStore.GetAlertRules(r.Context(), orgID)
 	if err != nil {
 		s.log.Error("list alert rules failed", "err", err)
@@ -403,7 +407,8 @@ func (s *Server) deleteAlertRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := chi.URLParam(r, "id")
-	if err := s.alertStore.DeleteAlertRule(r.Context(), id); err != nil {
+	orgID := orgIDFromContext(r)
+	if err := s.alertStore.DeleteAlertRule(r.Context(), orgID, id); err != nil {
 		if errors.Is(err, alerts.ErrAlertRuleNotFound) {
 			http.Error(w, `{"error":"rule_not_found"}`, http.StatusNotFound)
 			return

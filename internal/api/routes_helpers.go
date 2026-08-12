@@ -26,6 +26,13 @@ func actorFromContext(r *http.Request) string {
 	return "unknown"
 }
 
+func orgIDFromContext(r *http.Request) string {
+	if claims, ok := auth.UserFromContext(r.Context()); ok && claims != nil {
+		return claims.OrgID
+	}
+	return ""
+}
+
 // uuidNew returns a new UUID v4 string. Wrapped here so callers don't
 // need to import the uuid package directly.
 func uuidNew() string {

@@ -66,6 +66,7 @@ var (
 		&MemoryChecker{},
 		&DiskChecker{},
 		&ServiceChecker{},
+		&ScriptChecker{},
 	}
 	// Default timeout applied when neither req.Timeout nor wrap-timeout is set.
 	defaultWrapTimeout = 30 * time.Second

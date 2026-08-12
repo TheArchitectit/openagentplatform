@@ -13,7 +13,7 @@ cookie obtained via the OIDC flow.
 GET /api/v1/health
 ```
 
-Returns `{"status":"ok"}`.
+Returns `{"status":"ok"}`. This endpoint requires authentication. For a public (unauthenticated) health check, use `GET /healthz` instead.
 
 ### Agents
 
@@ -38,7 +38,7 @@ POST   /api/v1/sites
 GET    /api/v1/checks
 POST   /api/v1/checks
 GET    /api/v1/checks/{id}
-PATCH  /api/v1/checks/{id}
+PUT    /api/v1/checks/{id}
 DELETE /api/v1/checks/{id}
 ```
 
@@ -89,4 +89,4 @@ POST   /api/v1/scripts/{id}/run
 ## Full specification
 
 See the live Swagger UI at `/docs` (when the server is running) or
-`/swagger.json` for the machine-readable spec.
+`/docs/openapi.json` for the machine-readable spec.

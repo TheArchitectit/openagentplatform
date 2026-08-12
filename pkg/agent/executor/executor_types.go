@@ -3,7 +3,6 @@ package executor
 import (
 	"context"
 	"os/exec"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -197,7 +196,3 @@ func DetectRuntime(script, url string) Runtime {
 func Execute(ctx context.Context, opts Options) (*Result, error) {
 	return ExecuteWith(ctx, Default(), opts)
 }
-
-// ExecuteWith runs a script using the provided registry. It handles
-// runtime selection, temp-file management, environment isolation, line
-// streaming, timeout enforcement, and process-group cancellation.

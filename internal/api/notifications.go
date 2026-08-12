@@ -232,7 +232,7 @@ func (s *Server) deleteNotificationChannel(w http.ResponseWriter, r *http.Reques
 		http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
 		return
 	}
-	if err := s.alertStore.DeleteNotificationChannel(r.Context(), id); err != nil {
+	if err := s.alertStore.DeleteNotificationChannel(r.Context(), claims.OrgID, id); err != nil {
 		if errors.Is(err, alerts.ErrChannelNotFound) {
 			http.Error(w, `{"error":"channel_not_found"}`, http.StatusNotFound)
 			return

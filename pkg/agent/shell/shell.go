@@ -104,13 +104,15 @@ type Handler struct {
 
 // sessionRun tracks a single in-flight shell process.
 type sessionRun struct {
-	id      string
-	cancel  context.CancelFunc
-	cmd     *exec.Cmd
-	stdin   io.WriteCloser
-	stdout  io.ReadCloser
-	stderr  io.ReadCloser
-	created time.Time
+	id        string
+	cancel    context.CancelFunc
+	cmd       *exec.Cmd
+	stdin     io.WriteCloser
+	stdout    io.ReadCloser
+	stderr    io.ReadCloser
+	created   time.Time
+	stdinSub  *nats.Subscription
+	resizeSub *nats.Subscription
 }
 
 // NewHandler builds a Handler. nc may be nil; in that case Run
@@ -219,6 +221,12 @@ func (h *Handler) stop() {
 		}
 		h.mu.Lock()
 		for id, s := range h.sessions {
+			if s.stdinSub != nil {
+				_ = s.stdinSub.Unsubscribe()
+			}
+			if s.resizeSub != nil {
+				_ = s.resizeSub.Unsubscribe()
+			}
 			s.cancel()
 			delete(h.sessions, id)
 		}
@@ -329,6 +337,9 @@ func (h *Handler) handleStart(parent context.Context, req StartRequest) {
 		h.log.Warn("shell: resize subscribe failed", "err", err)
 	}
 
+	run.stdinSub = stdinSub
+	run.resizeSub = resizeSub
+
 	// Pump stdout + stderr back to the server.
 	go h.pumpStream(req.SessionID, "stdout", stdout)
 	go h.pumpStream(req.SessionID, "stderr", stderr)
@@ -365,6 +376,12 @@ func (h *Handler) killSession(id, reason string) {
 	h.mu.Unlock()
 	if !ok {
 		return
+	}
+	if s.stdinSub != nil {
+		_ = s.stdinSub.Unsubscribe()
+	}
+	if s.resizeSub != nil {
+		_ = s.resizeSub.Unsubscribe()
 	}
 	if s.cmd != nil && s.cmd.Process != nil {
 		_ = s.cmd.Process.Kill()

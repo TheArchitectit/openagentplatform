@@ -19,6 +19,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/openagentplatform/openagentplatform/internal/policy/collectors"
 	"github.com/openagentplatform/openagentplatform/pkg/agent"
 	"github.com/openagentplatform/openagentplatform/pkg/agent/checkers"
 	"github.com/openagentplatform/openagentplatform/pkg/agent/executor"
@@ -193,7 +194,7 @@ func main() {
 		"checks_subject", agent.ChecksSubject(cfg.AgentID),
 		"scripts_subject", agent.ScriptsSubject(cfg.AgentID),
 		"scripts_cancel_subject", agent.ScriptsCancelSubject(cfg.AgentID),
-		"compliance_subject", "oap.agents."+cfg.AgentID+".compliance",
+		"compliance_subject", collectors.ComplianceRequestSubject(cfg.AgentID),
 		"patch_scan_subject", patcher.PatchScanSubject(cfg.AgentID),
 		"patch_install_subject", patcher.PatchInstallSubject(cfg.AgentID),
 		"shell_start_subject", shell.StartRequestSubject(cfg.AgentID),

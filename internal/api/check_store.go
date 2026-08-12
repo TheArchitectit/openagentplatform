@@ -48,7 +48,7 @@ func (p *pgCheckStore) InsertCheck(ctx context.Context, c *models.CheckDefinitio
 		INSERT INTO check_definitions (
 			id, org_id, name, description, check_type, config,
 			interval_seconds, timeout_seconds, enabled,
-			fail_threshold, warn_threshold, error_threshold,
+			fail_threshold, warning_threshold, error_threshold,
 			alert_severity, is_template, last_status,
 			created_at, updated_at
 		) VALUES (
@@ -91,7 +91,7 @@ func (p *pgCheckStore) GetCheck(ctx context.Context, orgID, id string) (*models.
 		       check_type, config,
 		       COALESCE(interval_seconds, 60), COALESCE(timeout_seconds, 30),
 		       COALESCE(enabled, true),
-		       COALESCE(fail_threshold, 0), COALESCE(warn_threshold, 0), COALESCE(error_threshold, 0),
+		       COALESCE(fail_threshold, 0), COALESCE(warning_threshold, 0), COALESCE(error_threshold, 0),
 		       COALESCE(alert_severity, ''), COALESCE(is_template, false), COALESCE(last_status, ''),
 		       created_at, updated_at
 		FROM check_definitions
@@ -164,7 +164,7 @@ func (p *pgCheckStore) ListChecks(ctx context.Context, f CheckListFilter) ([]mod
 		       check_type, config,
 		       COALESCE(interval_seconds, 60), COALESCE(timeout_seconds, 30),
 		       COALESCE(enabled, true),
-		       COALESCE(fail_threshold, 0), COALESCE(warn_threshold, 0), COALESCE(error_threshold, 0),
+		       COALESCE(fail_threshold, 0), COALESCE(warning_threshold, 0), COALESCE(error_threshold, 0),
 		       COALESCE(alert_severity, ''), COALESCE(is_template, false), COALESCE(last_status, ''),
 		       created_at, updated_at
 		FROM check_definitions
@@ -247,7 +247,7 @@ func (p *pgCheckStore) UpdateCheck(ctx context.Context, orgID, id string, patch 
 		add("fail_threshold", *patch.FailThreshold)
 	}
 	if patch.WarnThreshold != nil {
-		add("warn_threshold", *patch.WarnThreshold)
+		add("warning_threshold", *patch.WarnThreshold)
 	}
 	if patch.ErrorThreshold != nil {
 		add("error_threshold", *patch.ErrorThreshold)

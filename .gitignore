@@ -45,12 +45,10 @@ coverage.out
 deploy/nats/certs/*.pem
 deploy/nats/certs/*.key
 deploy/nats/certs/*.crt
-.vite/ 
+.vite/
 
 # pi-agent runtime cache (local only — never commit)
 .pi/
 server
 .pi-subagents
-web/tsconfig.tsbuildinfo
-web/tsconfig.tsbuildinfo
 web/tsconfig.tsbuildinfo

@@ -4,7 +4,6 @@ import (
 	"context"
 	"os/exec"
 	"runtime"
-	"strings"
 	"time"
 )
 
@@ -96,7 +95,6 @@ func (s *ServiceChecker) Run(ctx context.Context, req *CheckRequest) *Result {
 		if ok {
 			status = "active"
 		}
-		_ = strings.TrimSpace
 		return &Result{
 			OK:       ok,
 			Status:   status,

@@ -34,6 +34,9 @@ func (s *SlackConfig) Validate() error {
 	if !strings.HasPrefix(s.WebhookURL, "https://") && !strings.HasPrefix(s.WebhookURL, "http://") {
 		return errors.New("slack: webhook_url must be http(s)")
 	}
+	if err := validateWebhookURL(s.WebhookURL); err != nil {
+		return err
+	}
 	return nil
 }
 

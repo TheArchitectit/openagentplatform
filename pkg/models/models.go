@@ -22,25 +22,36 @@ type Site struct {
 }
 
 type Agent struct {
-	ID            string          `json:"id"`
-	AgentID       string          `json:"agent_id"`
-	SiteID        string          `json:"site_id"`
-	OrgID         string          `json:"org_id"`
-	Hostname      string          `json:"hostname"`
-	OperatingSystem string        `json:"os" db:"operating_system"`
-	Arch          string          `json:"arch"`
-	Platform      string          `json:"platform"`
-	CPUCount      int             `json:"cpu_count"`
-	TotalMemoryMB int64           `json:"total_memory_mb"`
-	TotalDiskGB   int64           `json:"total_disk_gb"`
-	Tags          []string        `json:"tags"`
-	Metadata      map[string]any  `json:"metadata,omitempty"`
-	AgentVersion  string          `json:"agent_version"`
-	Version       string          `json:"version"`
-	Status        string          `json:"status"`
-	LastSeen      time.Time       `json:"last_seen"`
-	CreatedAt     time.Time       `json:"created_at"`
-	UpdatedAt     time.Time       `json:"updated_at"`
+	ID              string          `json:"id"`
+	AgentID         string          `json:"agent_id"`
+	SiteID          string          `json:"site_id"`
+	ClientID        string          `json:"client_id,omitempty"`
+	OrgID           string          `json:"org_id"`
+	Hostname        string          `json:"hostname"`
+	OperatingSystem string          `json:"os" db:"operating_system"`
+	Arch            string          `json:"arch" db:"goarch"`
+	Platform        string          `json:"platform"`
+	CPUCount        int             `json:"cpu_count"`
+	TotalMemoryMB   int64           `json:"total_memory_mb" db:"total_ram"`
+	TotalDiskGB     int64           `json:"total_disk_gb"`
+	Disks           map[string]any  `json:"disks,omitempty"`
+	Services        map[string]any  `json:"services,omitempty"`
+	WMIDetail       map[string]any  `json:"wmi_detail,omitempty"`
+	PublicIP        string          `json:"public_ip,omitempty"`
+	BootTime        *time.Time      `json:"boot_time,omitempty"`
+	LoggedInUser    string          `json:"logged_in_username,omitempty"`
+	NeedsReboot     bool            `json:"needs_reboot"`
+	Inventory       map[string]any  `json:"inventory,omitempty"`
+	MeshToken       string          `json:"mesh_token,omitempty"`
+	Tags            []string        `json:"tags"`
+	Metadata        map[string]any  `json:"metadata,omitempty"`
+	AgentVersion    string          `json:"agent_version"`
+	Version         string          `json:"version"`
+	Status          string          `json:"status"`
+	LastSeen        time.Time       `json:"last_seen"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
+	DeletedAt       *time.Time      `json:"deleted_at,omitempty"`
 }
 
 // Heartbeat is the payload published by agents on oap.agents.<id>.heartbeat.
@@ -307,17 +318,23 @@ type PatchStats struct {
 // execution on one or more agents. Runtime is one of bash, powershell,
 // python, or node. Tags are free-form strings used for filtering.
 type ScriptDefinition struct {
-	ID             string    `json:"id"`
-	OrgID          string    `json:"org_id"`
-	Name           string    `json:"name"`
-	Description    string    `json:"description"`
-	Runtime        string    `json:"runtime"`
-	ScriptBody     string    `json:"script_body"`
-	TimeoutSeconds int       `json:"timeout_seconds"`
-	Enabled        bool      `json:"enabled"`
-	Tags           []string  `json:"tags,omitempty"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID                 string         `json:"id"`
+	OrgID              string         `json:"org_id"`
+	Name               string         `json:"name"`
+	Description        string         `json:"description"`
+	Body               string         `json:"body" db:"body"`
+	Runtime            string         `json:"runtime"`
+	Arguments          []any          `json:"arguments,omitempty"`
+	EnvVars            map[string]any `json:"env_vars,omitempty"`
+	TimeoutSeconds     int            `json:"timeout_seconds"`
+	SupportedPlatforms []string       `json:"supported_platforms,omitempty"`
+	Category           string         `json:"category,omitempty"`
+	IsTemplate         bool           `json:"is_template"`
+	CreatedBy          string         `json:"created_by,omitempty"`
+	Enabled            bool           `json:"enabled"`
+	Tags               []string       `json:"tags,omitempty"`
+	CreatedAt          time.Time      `json:"created_at"`
+	UpdatedAt          time.Time      `json:"updated_at"`
 }
 
 // ScriptRun records a single execution of a ScriptDefinition on a specific

@@ -23,6 +23,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/policy"
 	"github.com/openagentplatform/openagentplatform/internal/remote"
 	"github.com/openagentplatform/openagentplatform/internal/reports"
+	"github.com/openagentplatform/openagentplatform/internal/resilience"
 	"github.com/openagentplatform/openagentplatform/internal/schema"
 	"github.com/openagentplatform/openagentplatform/secrets/resolver"
 )
@@ -107,6 +108,8 @@ type Server struct {
 	// reportsScheduler triggers scheduled report runs. May be nil;
 	// report generation/scheduling endpoints return 503 when unset.
 	reportsScheduler *reports.Scheduler
+	// rateLimiter enforces per-IP request rate limits. Always set.
+	rateLimiter *resilience.RateLimiter
 }
 
 // Publisher is the subset of the events.Client interface used by API handlers.
@@ -120,7 +123,7 @@ type Publisher interface {
 // db, eventBus, and audit may be nil; when nil, endpoints that require them
 // return 503 Service Unavailable.
 func NewServer(cfg *config.Config, log *slog.Logger, db *pgxpool.Pool, eventBus Publisher, auditSvc *audit.AuditService) *Server {
-	s := &Server{cfg: cfg, log: log, db: db, eventBus: eventBus, audit: auditSvc, startedAt: time.Now()}
+	s := &Server{cfg: cfg, log: log, db: db, eventBus: eventBus, audit: auditSvc, startedAt: time.Now(), rateLimiter: resilience.NewRateLimiter(resilience.DefaultRateLimitConfig())}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -290,6 +293,9 @@ func (s *Server) buildRouter() chi.Router {
 	r.Use(middleware.Heartbeat("/healthz"))
 	// Cap request body size to bound memory use on mutating endpoints.
 	r.Use(bodyLimitMiddleware)
+	// Rate limiting applied server-wide before auth to protect login
+	// and mutation endpoints from brute force and resource exhaustion.
+	r.Use(s.rateLimiter.Middleware())
 	// Metrics middleware records request count and latency for every
 	// request.  It is installed before audit so it sees the final status
 	// code and response size; the middleware itself skips /metrics to

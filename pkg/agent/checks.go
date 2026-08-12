@@ -136,7 +136,7 @@ func (e *ChecksExecutor) Start(ctx context.Context) {
 // Close stops the batch flusher and flushes any pending results.
 func (e *ChecksExecutor) Close() {
 	e.closeOnce.Do(func() {
-		e.closeCh <- struct{}{}
+		close(e.closeCh)
 	})
 }
 

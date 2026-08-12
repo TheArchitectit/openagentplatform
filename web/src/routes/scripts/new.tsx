@@ -25,7 +25,8 @@ import {
 import { toast } from 'sonner';
 import { useScripts, type ScriptRuntime } from '@/lib/useScripts';
 import { useAgents } from '@/lib/useAgents';
-import { MonacoEditor, type MonacoLanguage } from '@/components/monaco-editor';
+import { MonacoEditor } from '@/components/monaco-editor';
+import type { MonacoLanguage } from '@/components/monaco-loader';
 
 export const Route = createFileRoute('/scripts/new')({
   component: NewScriptPage,

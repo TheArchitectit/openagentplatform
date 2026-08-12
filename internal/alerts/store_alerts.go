@@ -40,7 +40,7 @@ type Store interface {
 	GetAlertRules(ctx context.Context, orgID string) ([]models.AlertRule, error)
 	CreateAlertRule(ctx context.Context, r *models.AlertRule) error
 	UpdateAlertRule(ctx context.Context, r *models.AlertRule) error
-	DeleteAlertRule(ctx context.Context, id string) error
+	DeleteAlertRule(ctx context.Context, orgID, id string) error
 
 	InsertStateTransition(ctx context.Context, t *models.AlertStateMachine) error
 	GetStateHistory(ctx context.Context, alertID string) ([]models.AlertStateMachine, error)
@@ -60,7 +60,7 @@ type Store interface {
 	GetNotificationChannel(ctx context.Context, id string) (*notify.NotificationChannel, error)
 	CreateNotificationChannel(ctx context.Context, c *notify.NotificationChannel) error
 	UpdateNotificationChannel(ctx context.Context, c *notify.NotificationChannel) error
-	DeleteNotificationChannel(ctx context.Context, id string) error
+	DeleteNotificationChannel(ctx context.Context, orgID, id string) error
 	// Alert preferences used by both the API and the engine.
 	GetUserPreferences(ctx context.Context, userID, orgID string) (*UserAlertPreferences, error)
 	UpsertUserPreferences(ctx context.Context, p *UserAlertPreferences) error

@@ -25,7 +25,6 @@ export function usePatchJobDetail(jobId: string) {
     rejectJob,
     cancelJob,
     rollbackJob,
-    retryJob,
     rebootAgentNow,
     scheduleReboot,
   } = usePatches();
@@ -112,15 +111,14 @@ export function usePatchJobDetail(jobId: string) {
   // --- Action handlers ---
 
   const doAction = useCallback(
-    async (kind: 'approve' | 'reject' | 'cancel' | 'rollback' | 'retry') => {
+    async (kind: 'approve' | 'reject' | 'cancel' | 'rollback') => {
       if (!job) return;
       setActionBusy(kind);
       try {
         if (kind === 'approve') await approveJob(job.id);
         else if (kind === 'reject') await rejectJob(job.id);
         else if (kind === 'cancel') await cancelJob(job.id);
-        else if (kind === 'rollback') await rollbackJob(job.id);
-        else await retryJob(job.id);
+        else await rollbackJob(job.id);
         await reloadAll();
       } catch (err) {
         setError(err instanceof Error ? err : new Error(String(err)));
@@ -128,7 +126,7 @@ export function usePatchJobDetail(jobId: string) {
         setActionBusy(null);
       }
     },
-    [job, approveJob, rejectJob, cancelJob, rollbackJob, retryJob, reloadAll]
+    [job, approveJob, rejectJob, cancelJob, rollbackJob, reloadAll]
   );
 
   const doRebootNow = useCallback(

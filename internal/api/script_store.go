@@ -13,7 +13,7 @@ import (
 
 // pgScriptStore is the default Postgres-backed implementation of scriptStore.
 // Tables assumed: script_definitions(id, org_id, name, description, runtime,
-// script_body, timeout_seconds, enabled, tags jsonb, created_at, updated_at,
+// body, timeout_seconds, enabled, tags jsonb, created_at, updated_at,
 // deleted_at), script_runs(id, script_id, agent_id, status, started_at,
 // finished_at, exit_code, stdout, stderr, triggered_by, scheduled,
 // created_at, updated_at). Tolerates missing tables (returns empty/zero
@@ -60,7 +60,7 @@ type ScriptRunListFilter struct {
 type ScriptPatch struct {
 	Name           *string
 	Description    *string
-	ScriptBody     *string
+	Body           *string
 	Runtime        *string
 	TimeoutSeconds *int
 	Enabled        *bool
@@ -79,7 +79,7 @@ func (p *pgScriptStore) InsertScript(ctx context.Context, s *models.ScriptDefini
 	}
 	const q = `
 		INSERT INTO script_definitions (
-			id, org_id, name, description, runtime, script_body,
+			id, org_id, name, description, runtime, body,
 			timeout_seconds, enabled, tags, created_at, updated_at
 		) VALUES (
 			$1, COALESCE(NULLIF($2,''), ''), $3, $4, $5, $6,
@@ -88,7 +88,7 @@ func (p *pgScriptStore) InsertScript(ctx context.Context, s *models.ScriptDefini
 		RETURNING created_at, updated_at
 	`
 	row := p.pool.QueryRow(ctx, q,
-		s.ID, s.OrgID, s.Name, s.Description, s.Runtime, s.ScriptBody,
+		s.ID, s.OrgID, s.Name, s.Description, s.Runtime, s.Body,
 		s.TimeoutSeconds, s.Enabled, tagsJSON, s.CreatedAt,
 	)
 	if err := row.Scan(&s.CreatedAt, &s.UpdatedAt); err != nil {
@@ -112,7 +112,7 @@ func (p *pgScriptStore) GetScript(ctx context.Context, orgID, id string) (*model
 	}
 	q := `
 		SELECT id, COALESCE(org_id,''), name, COALESCE(description,''),
-		       runtime, COALESCE(script_body,''),
+		       runtime, COALESCE(body,''),
 		       COALESCE(timeout_seconds, 30), COALESCE(enabled, true),
 		       COALESCE(tags, '[]'::jsonb),
 		       created_at, updated_at
@@ -124,7 +124,7 @@ func (p *pgScriptStore) GetScript(ctx context.Context, orgID, id string) (*model
 	var tagsRaw []byte
 	err := p.pool.QueryRow(ctx, q, args...).Scan(
 		&s.ID, &s.OrgID, &s.Name, &s.Description,
-		&s.Runtime, &s.ScriptBody,
+		&s.Runtime, &s.Body,
 		&s.TimeoutSeconds, &s.Enabled, &tagsRaw,
 		&s.CreatedAt, &s.UpdatedAt,
 	)
@@ -185,7 +185,7 @@ func (p *pgScriptStore) ListScripts(ctx context.Context, f ScriptListFilter) ([]
 	args = append(args, f.Limit, f.Offset)
 	q := fmt.Sprintf(`
 		SELECT id, COALESCE(org_id,''), name, COALESCE(description,''),
-		       runtime, COALESCE(script_body,''),
+		       runtime, COALESCE(body,''),
 		       COALESCE(timeout_seconds, 30), COALESCE(enabled, true),
 		       COALESCE(tags, '[]'::jsonb),
 		       created_at, updated_at
@@ -207,7 +207,7 @@ func (p *pgScriptStore) ListScripts(ctx context.Context, f ScriptListFilter) ([]
 		var tagsRaw []byte
 		if err := rows.Scan(
 			&s.ID, &s.OrgID, &s.Name, &s.Description,
-			&s.Runtime, &s.ScriptBody,
+			&s.Runtime, &s.Body,
 			&s.TimeoutSeconds, &s.Enabled, &tagsRaw,
 			&s.CreatedAt, &s.UpdatedAt,
 		); err != nil {
@@ -249,8 +249,8 @@ func (p *pgScriptStore) UpdateScript(ctx context.Context, orgID, id string, patc
 	if patch.Description != nil {
 		add("description", *patch.Description)
 	}
-	if patch.ScriptBody != nil {
-		add("script_body", *patch.ScriptBody)
+	if patch.Body != nil {
+		add("body", *patch.Body)
 	}
 	if patch.Runtime != nil {
 		add("runtime", *patch.Runtime)

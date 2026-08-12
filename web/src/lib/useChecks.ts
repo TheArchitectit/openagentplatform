@@ -289,7 +289,7 @@ export function useChecks(): UseChecksResult {
   }, []);
 
   const runCheck = useCallback(async (id: string): Promise<void> => {
-    await apiFetch<void>(`/checks/${encodeURIComponent(id)}/run`, { method: 'POST' });
+    await apiFetch<void>(`/checks/${encodeURIComponent(id)}/run-now`, { method: 'POST' });
   }, []);
 
   const assignAgent = useCallback(async (checkId: string, agentId: string): Promise<void> => {

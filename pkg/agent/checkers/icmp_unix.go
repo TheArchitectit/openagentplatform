@@ -44,28 +44,44 @@ func PingICMP(ctx context.Context, target string, timeout time.Duration) (*Resul
 		return nil, err
 	}
 
+	type readResult struct {
+		n    int
+		peer net.Addr
+		err  error
+	}
+	readCh := make(chan readResult, 1)
+
 	reply := make([]byte, 1500)
 	for {
 		if err := conn.SetReadDeadline(time.Now().Add(timeout)); err != nil {
 			return nil, err
 		}
-		n, peer, err := conn.ReadFrom(reply)
-		if err != nil {
-			return &Result{OK: false, Error: "icmp read: " + err.Error(), Duration: time.Since(start).Milliseconds()}, nil
+
+		go func() {
+			n, peer, err := conn.ReadFrom(reply)
+			readCh <- readResult{n, peer, err}
+		}()
+
+		select {
+		case <-ctx.Done():
+			return &Result{OK: false, Error: "icmp cancelled: " + ctx.Err().Error(), Duration: time.Since(start).Milliseconds()}, nil
+		case rr := <-readCh:
+			if rr.err != nil {
+				return &Result{OK: false, Error: "icmp read: " + rr.err.Error(), Duration: time.Since(start).Milliseconds()}, nil
+			}
+			rm, err := icmp.ParseMessage(1 /* ICMP for IPv4 */, reply[:rr.n])
+			if err != nil {
+				continue
+			}
+			if rm.Type == ipv4.ICMPTypeEchoReply {
+				return &Result{
+					OK:       true,
+					Status:   "reply",
+					Message:  "reply from " + rr.peer.String(),
+					Value:    map[string]interface{}{"rtt_ms": time.Since(start).Milliseconds()},
+					Duration: time.Since(start).Milliseconds(),
+				}, nil
+			}
 		}
-		rm, err := icmp.ParseMessage(1 /* ICMP for IPv4 */, reply[:n])
-		if err != nil {
-			continue
-		}
-		if rm.Type == ipv4.ICMPTypeEchoReply {
-			return &Result{
-				OK:       true,
-				Status:   "reply",
-				Message:  "reply from " + peer.String(),
-				Value:    map[string]interface{}{"rtt_ms": time.Since(start).Milliseconds()},
-				Duration: time.Since(start).Milliseconds(),
-			}, nil
-		}
-		_ = ctx
 	}
 }

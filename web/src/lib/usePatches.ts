@@ -10,21 +10,14 @@
 //
 // REST endpoints (server-of-record):
 //   GET    /patches/catalog?os=&severity=&search=&page=&limit=
-//   GET    /patches/jobs?status=&page=&limit=
 //   POST   /patches/jobs
-//   GET    /patches/jobs/:id
-//   POST   /patches/jobs/:id/approve
-//   POST   /patches/jobs/:id/reject
-//   POST   /patches/jobs/:id/cancel
-//   POST   /patches/jobs/:id/rollback
-//   POST   /patches/jobs/:id/retry
-//   GET    /patches/jobs/:id/targets
-//   GET    /patches/jobs/:id/approvals
-//   GET    /patches/jobs/:id/reboots
-//   POST   /patches/jobs/:id/reboots/:agentId/reboot-now
-//   POST   /patches/jobs/:id/reboots/:agentId/schedule
-//   GET    /patches/scans?agent_id=&job_id=
-//   POST   /patches/scans
+//   GET    /patches/:id
+//   POST   /patches/:id/approve
+//   POST   /patches/:id/reject
+//   POST   /patches/:id/cancel
+//   POST   /patches/:id/rollback
+//   POST   /patches/catalog/scan
+//   POST   /patches/catalog/scan/site/:siteId
 //
 // WebSocket event vocabulary (server -> client):
 //   { channel: "patches", event: "patch.job.created",   data: PatchJob }
@@ -208,7 +201,7 @@ export function usePatches(): UsePatchesResult {
 
   const fetchJob = useCallback(
     async (id: string): Promise<PatchJob> => {
-      const j = await apiFetch<PatchJob>(`/patches/jobs/${encodeURIComponent(id)}`);
+      const j = await apiFetch<PatchJob>(`/patches/${encodeURIComponent(id)}`);
       return applyJobMutation(j);
     },
     [applyJobMutation]
@@ -239,16 +232,6 @@ export function usePatches(): UsePatchesResult {
   const rollbackJob = useCallback(
     async (id: string): Promise<PatchJob> => {
       const j = await apiFetch<PatchJob>(`/patches/${encodeURIComponent(id)}/rollback`, {
-        method: 'POST',
-      });
-      return applyJobMutation(j);
-    },
-    [applyJobMutation]
-  );
-
-  const retryJob = useCallback(
-    async (id: string): Promise<PatchJob> => {
-      const j = await apiFetch<PatchJob>(`/patches/${encodeURIComponent(id)}/retry`, {
         method: 'POST',
       });
       return applyJobMutation(j);
@@ -423,7 +406,6 @@ export function usePatches(): UsePatchesResult {
     createJob,
     cancelJob,
     rollbackJob,
-    retryJob,
     approveJob,
     rejectJob,
     batchApprove,

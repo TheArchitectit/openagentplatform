@@ -1,4 +1,4 @@
-.PHONY: up down test lint build migrate seed fmt clean build-agent build-agent-all setup setup-dev reset logs help
+.PHONY: up up-dev down test lint build migrate seed fmt clean build-agent build-agent-all setup setup-dev reset logs help
 
 COMPOSE_FILE := deploy/docker-compose.yml
 COMPOSE_DEV_FILE := deploy/docker-compose.dev.yml

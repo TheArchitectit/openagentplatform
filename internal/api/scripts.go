@@ -99,7 +99,7 @@ func (s *Server) handleCreateScript(w http.ResponseWriter, r *http.Request) {
 		Name:           req.Name,
 		Description:    req.Description,
 		Runtime:        req.Runtime,
-		ScriptBody:     req.ScriptBody,
+		Body:           req.ScriptBody,
 		TimeoutSeconds: req.TimeoutSeconds,
 		Enabled:        enabled,
 		Tags:           req.Tags,
@@ -242,7 +242,7 @@ func (s *Server) handleUpdateScript(w http.ResponseWriter, r *http.Request) {
 		patch.Description = &v
 	}
 	if v, ok := req["script_body"].(string); ok {
-		patch.ScriptBody = &v
+		patch.Body = &v
 	}
 	if v, ok := req["runtime"].(string); ok {
 		if !validScriptRuntimes[v] {
@@ -384,7 +384,7 @@ func (s *Server) handleRunScript(w http.ResponseWriter, r *http.Request) {
 				"run_id":          run.ID,
 				"script_id":       script.ID,
 				"runtime":         script.Runtime,
-				"script_body":     script.ScriptBody,
+				"script_body":     script.Body,
 				"timeout_seconds": script.TimeoutSeconds,
 				"timestamp":       now.Unix(),
 			}

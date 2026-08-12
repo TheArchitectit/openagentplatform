@@ -8,7 +8,7 @@ Install these before starting:
 
 - **Docker** 20.10+ ([download](https://www.docker.com/get-started))
 - **Docker Compose** v2 (included with Docker Desktop; verify with `docker compose version`)
-- **Go** 1.23+ (for agent development; [install](https://golang.org/dl/))
+- **Go** 1.25+ (for agent development; [install](https://golang.org/dl/))
 - **Node** 20+ (for web development; [install](https://nodejs.org/))
 
 Optional for advanced workflows:
@@ -27,6 +27,14 @@ cp .env.example .env
 Review `.env` and adjust defaults if needed. The defaults work for local development.
 
 ## Step 2: Start the stack
+
+NATS requires mTLS certificates before first startup. Run `make setup` (which generates certs and starts the stack) or generate them manually:
+
+```bash
+bash deploy/nats/scripts/gen-certs.sh
+```
+
+Then start the stack:
 
 ```bash
 docker compose -f deploy/docker-compose.yml up -d
@@ -48,7 +56,7 @@ docker compose -f deploy/docker-compose.yml ps
 ## Step 3: Verify health
 
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:8080/healthz
 ```
 
 Expected response:
@@ -120,7 +128,7 @@ provider via an OpenAI-compatible API. To enable LLM-powered agents
 (policy suggestions, natural-language queries, automated remediation):
 
 1. Sign up at https://ozore.com and obtain an API key.
-2. Add the following to your `.env` file:
+2. Update the following in the root `.env` file (`ENABLE_LLM_AGENTS` already exists in `.env.example` as `false`; flip it to `true`):
 
 ```bash
 OZORE_API_KEY=your-api-key-here
@@ -279,10 +287,10 @@ If running in a remote Docker host, replace `localhost` with the host's IP or ho
 Confirm the server is reachable:
 
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:8080/healthz
 ```
 
-If using a custom domain, update `VITE_API_URL` in `web/.env.local`.
+If using a custom domain, update `VITE_API_URL` in the root `.env` file (copied from `.env.example`), not in `web/.env.local`.
 
 ### Ozore LLM errors
 

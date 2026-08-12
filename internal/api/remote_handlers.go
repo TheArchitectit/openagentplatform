@@ -193,6 +193,7 @@ func (h *RemoteHandler) HandleStoreCredential(w http.ResponseWriter, r *http.Req
 		Type:       ct,
 		AgentID:    body.AgentID,
 		SiteID:     body.SiteID,
+		OrgID:      claims.OrgID,
 		OrgDefault: body.OrgDefault,
 	}
 	plaintext := []byte(body.Credential)
@@ -217,7 +218,7 @@ func (h *RemoteHandler) HandleListCredentials(w http.ResponseWriter, r *http.Req
 		writeJSONError(w, http.StatusForbidden, "admin_required")
 		return
 	}
-	creds := h.CredStore.List()
+	creds := h.CredStore.List(claims.OrgID)
 	writeJSON(w, http.StatusOK, map[string]any{"credentials": creds})
 }
 
@@ -233,6 +234,11 @@ func (h *RemoteHandler) HandleDeleteCredential(w http.ResponseWriter, r *http.Re
 		return
 	}
 	id := chi.URLParam(r, "id")
+	cred, exists := h.CredStore.Get(id)
+	if !exists || (cred.OrgID != "" && cred.OrgID != claims.OrgID) {
+		writeJSONError(w, http.StatusNotFound, "credential_not_found")
+		return
+	}
 	if err := h.CredStore.Delete(id); err != nil {
 		if errors.Is(err, remote.ErrCredentialNotFound) {
 			writeJSONError(w, http.StatusNotFound, "credential_not_found")

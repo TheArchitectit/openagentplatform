@@ -172,14 +172,6 @@ python3 scripts/regression_check.py --all   # check everything
 python3 scripts/regression_check.py --all --no-audit  # skip audit table
 ```
 
-**Known violations (4 files, in progress):**
-
-| File | Lines | Plan |
-|---|---|---|
-| `web/src/routes/patches/index.tsx` | 1781 | Split into 4+ files (helpers, sub-components, custom hook) |
-| `web/src/routes/patches/$jobId.tsx` | 1135 | Split into 3+ files (helpers, sub-components, custom hook) |
-| `mcp-server/internal/mcp/server.go` | 888 | Extract setupHandlers() tool definitions into separate files |
-| `web/src/routes/policies/$policyId.tsx` | 586 | Finish right column JSX extraction (helpers + hook already done) |
 
 ## Documentation
 

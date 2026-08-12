@@ -31,6 +31,7 @@ type RemoteCredential struct {
 	Type          CredentialType `json:"type"`
 	AgentID       string         `json:"agent_id,omitempty"`
 	SiteID        string         `json:"site_id,omitempty"`
+	OrgID         string         `json:"org_id,omitempty"`
 	OrgDefault    bool           `json:"org_default,omitempty"`
 	EncryptedData string         `json:"-"` // base64 ciphertext, never sent to clients
 	CreatedAt     time.Time      `json:"created_at"`
@@ -147,13 +148,17 @@ func (s *CredentialStore) Get(id string) (*RemoteCredential, bool) {
 	return c, ok
 }
 
-// List returns masked copies (no ciphertext) of every credential.
-// Masked entries show only username/type/IDs and creation time.
-func (s *CredentialStore) List() []*RemoteCredential {
+// List returns masked copies (no ciphertext) of credentials belonging
+// to the given org. Masked entries show only username/type/IDs and
+// creation time. Pass empty orgID to list all (admin only).
+func (s *CredentialStore) List(orgID string) []*RemoteCredential {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	out := make([]*RemoteCredential, 0, len(s.creds))
 	for _, c := range s.creds {
+		if orgID != "" && c.OrgID != orgID {
+			continue
+		}
 		copy := *c
 		copy.EncryptedData = ""
 		out = append(out, &copy)

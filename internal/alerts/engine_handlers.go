@@ -159,28 +159,28 @@ func (e *AlertEngine) handleCheckRecovery(ctx context.Context, evt *AlertEvent) 
 }
 
 // Acknowledge transitions an alert from pending/open to acknowledged.
-func (e *AlertEngine) Acknowledge(ctx context.Context, alertID, actor string) error {
-	return e.transitionByID(ctx, alertID, EventAcknowledge, actor, "", 0)
+func (e *AlertEngine) Acknowledge(ctx context.Context, orgID, alertID, actor string) error {
+	return e.transitionByID(ctx, orgID, alertID, EventAcknowledge, actor, "", 0)
 }
 
 // Snooze transitions an alert to snoozed with the given duration.
-func (e *AlertEngine) Snooze(ctx context.Context, alertID, actor string, duration time.Duration) error {
-	return e.transitionByID(ctx, alertID, EventSnooze, actor, "", duration)
+func (e *AlertEngine) Snooze(ctx context.Context, orgID, alertID, actor string, duration time.Duration) error {
+	return e.transitionByID(ctx, orgID, alertID, EventSnooze, actor, "", duration)
 }
 
 // Resolve transitions an alert to resolved.
-func (e *AlertEngine) Resolve(ctx context.Context, alertID, actor string) error {
-	return e.transitionByID(ctx, alertID, EventCheckRecovery, actor, "", 0)
+func (e *AlertEngine) Resolve(ctx context.Context, orgID, alertID, actor string) error {
+	return e.transitionByID(ctx, orgID, alertID, EventCheckRecovery, actor, "", 0)
 }
 
 // Close transitions an alert to closed.
-func (e *AlertEngine) Close(ctx context.Context, alertID, actor string) error {
-	return e.transitionByID(ctx, alertID, EventClose, actor, "", 0)
+func (e *AlertEngine) Close(ctx context.Context, orgID, alertID, actor string) error {
+	return e.transitionByID(ctx, orgID, alertID, EventClose, actor, "", 0)
 }
 
 // transitionByID is the shared internal helper for user-driven transitions.
-func (e *AlertEngine) transitionByID(ctx context.Context, alertID, event, actor, reason string, duration time.Duration) error {
-	alert, err := e.store.GetAlert(ctx, "", alertID)
+func (e *AlertEngine) transitionByID(ctx context.Context, orgID, alertID, event, actor, reason string, duration time.Duration) error {
+	alert, err := e.store.GetAlert(ctx, orgID, alertID)
 	if err != nil {
 		return err
 	}

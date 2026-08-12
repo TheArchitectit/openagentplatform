@@ -2,12 +2,12 @@ version: "3.9"
 
 services:
   postgres:
-    image: timescale/timescaledb:latest-pg16
+    image: timescale/timescaledb:2.17.2-pg16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: oap
-      POSTGRES_PASSWORD: oap
-      POSTGRES_DB: oap
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
     volumes:
@@ -18,11 +18,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
 
   nats:
-    image: nats:2.10-alpine
+    image: nats:2.10.22-alpine
     restart: unless-stopped
     command: ["--config", "/etc/nats/nats.conf"]
+    environment:
+      SYS_PASSWORD: ${SYS_PASSWORD}
+      OAP_SERVER_PASSWORD: ${OAP_SERVER_PASSWORD}
+      AGENT_LOCAL_PASSWORD: ${AGENT_LOCAL_PASSWORD}
+      A2A_GATEWAY_PASSWORD: ${A2A_GATEWAY_PASSWORD}
     ports:
       - "4222:4222"
       - "6222:6222"
@@ -37,6 +47,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
 
   dex:
     image: ghcr.io/dexidp/dex:v2.40.0
@@ -52,6 +67,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
 
   server:
     build:
@@ -69,19 +89,24 @@ services:
       HTTP_PORT: "8080"
       APP_ENV: development
       LOG_LEVEL: info
-      POSTGRES_DSN: postgres://oap:oap@postgres:5432/oap?sslmode=disable
-      NATS_URL: nats://nats:4222
-      OIDC_ISSUER_URL: http://dex:5556/dex
-      OIDC_CLIENT_ID: oap-web
-      OIDC_CLIENT_SECRET: oap-web-secret
-      JWT_SECRET: dev-secret-change-me
+      POSTGRES_DSN: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      NATS_URL: ${NATS_URL}
+      OIDC_ISSUER_URL: ${OIDC_ISSUER_URL}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+      JWT_SECRET: ${JWT_SECRET}
     ports:
       - "8080:8080"
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/healthz"]
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
 
   web:
     build:
@@ -98,6 +123,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
 
 volumes:
   pg_data:

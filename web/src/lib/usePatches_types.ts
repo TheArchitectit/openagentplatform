@@ -233,7 +233,6 @@ export interface UsePatchesResult {
   createJob: (input: CreatePatchJobInput) => Promise<PatchJob>;
   cancelJob: (id: string) => Promise<PatchJob>;
   rollbackJob: (id: string) => Promise<PatchJob>;
-  retryJob: (id: string) => Promise<PatchJob>;
   approveJob: (id: string, note?: string) => Promise<PatchJob>;
   rejectJob: (id: string, note?: string) => Promise<PatchJob>;
   batchApprove: (ids: string[], note?: string) => Promise<{ succeeded: string[]; failed: string[] }>;

@@ -353,12 +353,12 @@ func (s *pgAlertStore) UpdateNotificationChannel(ctx context.Context, c *notify.
 }
 
 // DeleteNotificationChannel deletes a channel by id.
-func (s *pgAlertStore) DeleteNotificationChannel(ctx context.Context, id string) error {
+func (s *pgAlertStore) DeleteNotificationChannel(ctx context.Context, orgID, id string) error {
 	if s.pool == nil {
 		return errors.New("alerts: nil pool")
 	}
-	const q = `DELETE FROM notification_channels WHERE id = $1`
-	tag, err := s.pool.Exec(ctx, q, id)
+	const q = `DELETE FROM notification_channels WHERE id = $1 AND org_id = $2`
+	tag, err := s.pool.Exec(ctx, q, id, orgID)
 	if err != nil {
 		return fmt.Errorf("alerts: delete channel: %w", err)
 	}
@@ -385,12 +385,12 @@ var ErrChannelNotFound = errors.New("notification channel not found")
 // jsonOrNull marshals v to JSON, or returns nil if v is empty.
 // DeleteAlertRule deletes an alert rule by id. Returns ErrAlertRuleNotFound
 // if no row matches.
-func (s *pgAlertStore) DeleteAlertRule(ctx context.Context, id string) error {
+func (s *pgAlertStore) DeleteAlertRule(ctx context.Context, orgID, id string) error {
 	if s.pool == nil {
 		return errors.New("alerts: nil pool")
 	}
-	const q = `DELETE FROM alert_rules WHERE id = $1`
-	tag, err := s.pool.Exec(ctx, q, id)
+	const q = `DELETE FROM alert_rules WHERE id = $1 AND org_id = $2`
+	tag, err := s.pool.Exec(ctx, q, id, orgID)
 	if err != nil {
 		return fmt.Errorf("alerts: delete rule: %w", err)
 	}

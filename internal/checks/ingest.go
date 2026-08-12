@@ -44,6 +44,7 @@ type ResultIngestor struct {
 	checks    CheckDefinitionLookup
 	evaluator *ThresholdEvaluator
 	log       *slog.Logger
+	queueGrp  string
 
 	sub    *nats.Subscription
 	stopCh chan struct{}
@@ -81,6 +82,7 @@ func NewResultIngestor(cfg ResultIngestorConfig) *ResultIngestor {
 		checks:    cfg.Checks,
 		evaluator: cfg.Evaluator,
 		log:       cfg.Logger,
+		queueGrp:  cfg.QueueGroup,
 		stopCh:    make(chan struct{}),
 	}
 }
@@ -104,12 +106,7 @@ func (r *ResultIngestor) Start(ctx context.Context) error {
 
 // queueGroup returns the configured queue group name.
 func (r *ResultIngestor) queueGroup() string {
-	// We set the default in NewResultIngestor; this is just a guard.
-	if r.client == nil {
-		return "oap-check-ingest"
-	}
-	// Recovered from a builder reset; use the constant default.
-	return "oap-check-ingest"
+	return r.queueGrp
 }
 
 // Stop unsubscribes and waits for in-flight handlers to complete.
