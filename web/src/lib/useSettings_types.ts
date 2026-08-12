@@ -113,6 +113,11 @@ export interface CreateAPIKeyResult {
   secret: string;
 }
 
+export interface UpdateAPIKeyInput {
+  name?: string;
+  scopes?: string[];
+}
+
 // ---------------------------------------------------------------------------
 // Types — SSO
 // ---------------------------------------------------------------------------

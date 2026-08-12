@@ -13,6 +13,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch, ApiError } from './api';
 
+import { A2A } from './useA2A_types'
+import type {
+  A2AAdapter, A2ATask, A2ATaskStatus, A2AMessage,
+  A2AArtifact, A2AInvokeResult, A2ACostSummary,
+} from './useA2A_types'
 
 export type {
   A2AAdapter, A2ASkill, A2ASkillExample, A2AModel,

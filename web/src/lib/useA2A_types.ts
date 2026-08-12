@@ -163,4 +163,4 @@ export interface A2ACostByOrg {
 // A2A API base path. The frontend apiFetch prepends /api/v1, so the
 // proxy routes are at /api/v1/a2a/... — we use /a2a/... as the relative
 // segment. This matches the proxy handlers in internal/api/routes.go.
-const A2A = '/a2a';
+export const A2A = '/a2a';

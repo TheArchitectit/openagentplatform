@@ -36,7 +36,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch, ApiError } from './api';
-import { getWsClient, type WsEnvelope, type Status } from './websocket';
+import type { WsEnvelope, Status } from './websocket';
 import type { Severity } from '@/components/severity-badge';
 
 // ---------------------------------------------------------------------------
@@ -277,7 +277,7 @@ type WsPatchEvent =
   | { event: 'patch.reboot'; data: PatchReboot }
   | { event: 'patch.scan.completed'; data: PatchScanResult };
 
-function isPatchEvent(env: WsEnvelope): env is WsEnvelope & WsPatchEvent {
+export function isPatchEvent(env: WsEnvelope): env is WsEnvelope & WsPatchEvent {
   if (env.type !== 'event' || env.channel !== 'patches') return false;
   const ev = env.event;
   if (

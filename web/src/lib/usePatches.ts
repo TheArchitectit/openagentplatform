@@ -37,7 +37,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch, ApiError } from './api';
 import { usePatchWebSocket } from './usePatches_ws'
-import type { Severity } from '@/components/severity-badge';
+import type { Status } from './websocket';
+
+import type {
+  PatchJob, PatchCatalogItem, PatchCatalogFilters, PatchTarget, PatchApproval,
+  PatchReboot, PatchScanResult, CreatePatchJobInput, UsePatchesResult,
+} from './usePatches_types'
 
 // ---------------------------------------------------------------------------
 // Types

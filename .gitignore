@@ -51,3 +51,4 @@ deploy/nats/certs/*.crt
 .pi/
 server
 .pi-subagents
+web/tsconfig.tsbuildinfo
