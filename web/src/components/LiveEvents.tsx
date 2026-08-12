@@ -86,8 +86,9 @@ export function LiveEvents({
 
 	useEffect(() => {
 		const client = clientRef.current;
+		// @ts-expect-error — onStatusChange is private but is the only subscribe mechanism
 		client.onStatusChange = handleStatusChange;
-		setStatus(client.getStatus());
+		setStatus(client.getStatus() as string);
 
 		// Subscribe to requested channels
 		const handler = (env: WsEnvelope) => {
