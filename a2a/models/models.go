@@ -63,15 +63,52 @@ type AgentCard struct {
 }
 
 type Skill struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Tags        []string `json:"tags"`
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Tags        []string       `json:"tags"`
+	// InputSchema / OutputSchema round-trip the Python AgentSkill's
+	// input_schema / output_schema JSON-Schema fields (P2-8). They are
+	// omitted when empty so gateway-generated cards are unaffected.
+	InputSchema  map[string]any `json:"input_schema,omitempty"`
+	OutputSchema map[string]any `json:"output_schema,omitempty"`
 }
 
+// AuthScheme describes a single supported authentication scheme.
+//
+// Python serializes auth_schemes as a list of strings (e.g. ["api_key"]),
+// while the Go gateway emits objects with a Type + Config. To accept both
+// wire shapes without forcing one side to change, UnmarshalJSON tolerates a
+// bare string, mapping it to {type: <string>} (P2-6).
 type AuthScheme struct {
 	Type   string         `json:"type"`
 	Config map[string]any `json:"config"`
+}
+
+// UnmarshalJSON accepts either an object {"type":...,"config":...} or a
+// bare string (treated as the scheme type).
+func (a *AuthScheme) UnmarshalJSON(data []byte) error {
+	// Try object form first.
+	var obj struct {
+		Type   string         `json:"type"`
+		Config map[string]any `json:"config"`
+	}
+	if err := json.Unmarshal(data, &obj); err == nil && obj.Type != "" {
+		a.Type = obj.Type
+		a.Config = obj.Config
+		return nil
+	}
+	// Fall back to bare string (Python wire shape).
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		a.Type = s
+		return nil
+	}
+	// Not a string or object: default to an empty scheme rather than
+	// failing the whole card unmarshal.
+	a.Type = ""
+	a.Config = nil
+	return nil
 }
 
 type Message struct {

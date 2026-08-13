@@ -76,6 +76,11 @@ type InvokeRequest struct {
 
 	// Messages is the ordered list of message Parts.
 	Messages []Part `json:"messages"`
+
+	// Metadata is arbitrary caller-supplied context forwarded to the
+	// adapter service (P2-9). The service accepts it; previously the Go
+	// bridge never populated it.
+	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
 // StreamRequest is the payload sent to POST /api/v1/adapters/stream.

@@ -10,13 +10,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/openagentplatform/openagentplatform/a2a/bridge"
-	"github.com/openagentplatform/openagentplatform/a2a/gateway"
-	"github.com/openagentplatform/openagentplatform/a2a/manager"
-	"github.com/openagentplatform/openagentplatform/a2a/registry"
-	"github.com/openagentplatform/openagentplatform/a2a/router"
 	"github.com/openagentplatform/openagentplatform/internal/alerts"
 	"github.com/openagentplatform/openagentplatform/internal/api"
-	"github.com/openagentplatform/openagentplatform/internal/auth"
 	"github.com/openagentplatform/openagentplatform/internal/billing"
 	"github.com/openagentplatform/openagentplatform/internal/checks"
 	"github.com/openagentplatform/openagentplatform/internal/config"
@@ -28,7 +23,6 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/tenancy"
 	secretsauth "github.com/openagentplatform/openagentplatform/secrets/auth"
 	"github.com/openagentplatform/openagentplatform/secrets/inject"
-	"github.com/openagentplatform/openagentplatform/secrets/resolver"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -191,174 +185,22 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 	scriptStore := api.NewPGScriptStore(pool)
 	apiServer.SetScriptStore(scriptStore)
 
-	// --- A2A Event-to-Task bridge ---------------------------------------
-	// Build the A2A gateway components and the bridge that converts
-	// internal NATS events into A2A tasks. The bridge runs as an
-	// internal service and does not require an HTTP identity.
-	taskMgr := manager.NewTaskManager(pool)
-	cardStore := registry.NewPGCardStore(pool)
-	agentReg, err := registry.NewRegistry(context.Background(), cardStore, registry.Config{})
+	// --- A2A gateway + RPC bridge ----------------------------------------
+	a2aGw, rpcBridge, eventBridge, err := buildA2AGateway(apiServer, pool, natsClient, log)
 	if err != nil {
-		return nil, errors.New("a2a registry: " + err.Error())
+		return nil, err
 	}
-	a2aRouter, err := router.NewRouter(agentReg)
+
+	// --- Secrets, billing, and resilience wiring ------------------------
+	svc, err := wireSupportServices(apiServer, pool, log, auditSvc)
 	if err != nil {
-		return nil, errors.New("a2a router: " + err.Error())
+		return nil, err
 	}
-	a2aGw, err := gateway.NewGateway(taskMgr, agentReg, a2aRouter, gateway.Config{RequireAuth: true})
-	if err != nil {
-		return nil, errors.New("a2a gateway: " + err.Error())
-	}
-	eventBridge, err := bridge.NewBridge(natsClient.Conn(), a2aGw, log, bridge.Config{
-		QueueGroup: "a2a-bridge",
-	})
-	if err != nil {
-		return nil, errors.New("a2a bridge: " + err.Error())
-	}
-
-	// --- A2A RPC Bridge (Python adapter service) -----------------------
-	// Create the HTTP client for the Python adapter service and wire it
-	// to the A2A Gateway via the RPCBridge. The RPC bridge handles task
-	// dispatch, response streaming, cancellation, and periodic AgentCard
-	// refresh.
-	adapterClient := bridge.NewAdapterClient(bridge.ClientConfig{
-		BaseURL: "http://localhost:8001",
-	})
-	rpcBridge, err := bridge.NewRPCBridge(adapterClient, a2aGw, bridge.RPCConfig{
-		Logger: log,
-	})
-	if err != nil {
-		return nil, errors.New("a2a rpc bridge: " + err.Error())
-	}
-
-	// --- Secrets module wiring ----------------------------------------
-	// Build a registry of secret backends based on environment variables,
-	// create a resolver with an LRU cache, and wire the credential
-	// injector + TTL sweeper. The API server is updated so the
-	// /api/v1/secrets/* endpoints become available.
-	secretRegistry, registeredNames := buildSecretBackends(log)
-	secretResolver := resolver.New(secretRegistry, log, auditSvc)
-
-	// Credential injector and TTL sweeper. The sweeper periodically
-	// removes expired env-var / file / stdin injections.
-	secretsInjector := inject.NewInjector(secretResolver, &resolver.AuthContext{}, log, auditSvc)
-	secretsSweeper := inject.NewSweeper(log, auditSvc, secretResolver)
-	_ = secretsInjector // retained for future handler-level integration
-
-	// JWT revocation list for A2A auth tokens.
-	secretsRevocation := secretsauth.NewRevocationList()
-
-	// Share the resolver and backend list with the API server so the
-	// secrets HTTP endpoints can dispatch to it.
-	apiServer.SetSecretsResolver(secretResolver, registeredNames)
-
-	// --- Billing & metering -----------------------------------------------
-	// Billing is optional: it is only wired when STRIPE_SECRET_KEY is set.
-	// Without it the /billing and /usage endpoints return 503 (the handlers
-	// nil-check the services). When configured we construct the Stripe
-	// client + BillingService/MeteringService façades and attach them to the
-	// API server. The flush/sync loops are started in Run() (alongside the
-	// other background workers, sharing hbCtx) and the metering queue is
-	// flushed during graceful shutdown.
-	var (
-		stripeClient *billing.StripeClient
-		billingSvc   *billing.BillingService
-		meteringSvc  *billing.MeteringService
-	)
-	if sc, err := billing.NewStripeClient(); err != nil {
-		log.Info("billing: STRIPE_SECRET_KEY not set; billing endpoints disabled")
-	} else {
-		stripeClient = sc
-		billingSvc = billing.NewBillingService(sc, log)
-		meteringSvc = billing.NewMeteringService(sc, log)
-		apiServer.SetBilling(stripeClient, billingSvc, meteringSvc)
-		log.Info("billing: Stripe billing + metering enabled")
-	}
-
-	// --- Resilience layer wiring -----------------------------------------
-	// Rate limiter: 100 req/s sustained, 200 burst, with health and
-	// metrics endpoints exempted from throttling.
-	rateLimiter := resilience.NewRateLimiter(resilience.RateLimitConfig{
-		Rate:            100,
-		Burst:           200,
-		Enabled:         true,
-		IdleTTL:         5 * time.Minute,
-		CleanupInterval: 1 * time.Minute,
-		SkipPaths:       []string{"/healthz", "/readyz", "/metrics"},
-	})
-	log.Info("resilience: rate limiter enabled", "rate", 100, "burst", 200)
-
-	// Circuit breaker for the Python adapter service.  Trips after 5
-	// consecutive failures, stays open for 30s, then allows a single
-	// half-open probe.
-	adapterBreaker := resilience.NewCircuitBreaker(resilience.BreakerConfig{
-		Name:         "adapter",
-		MaxFailures:  5,
-		OpenDuration: 30 * time.Second,
-		HalfOpenMax:  1,
-		Logger:       log,
-	})
-	log.Info("resilience: adapter circuit breaker enabled",
-		"max_failures", 5, "open_duration", "30s")
-
-	// Graceful shutdown coordinator.  All dependencies are registered
-	// here so that Shutdown() can drain them in order.
-	graceful := resilience.NewGracefulShutdown(resilience.ShutdownConfig{
-		Timeout: 30 * time.Second,
-		Logger:  log,
-	})
 
 	// --- HTTP server with A2A routes mounted ---------------------------
-	// Build a top-level router that delegates the API to apiServer.Router()
-	// and mounts the A2A gateway handlers under /a2a/.
-	//
-	// The A2A gateway runs with RequireAuth=true, so its per-RPC authorize()
-	// checks require an identity. We build a gateway Authenticator whose
-	// token validator reuses the API server's SessionMinter, so callers
-	// authenticate against the same session JWT the REST API accepts.
-	a2aAuth := gateway.NewAuthenticator(gateway.Config{RequireAuth: true})
-	if sm := apiServer.SessionMinter(); sm != nil {
-		a2aAuth.SetTokenValidator(func(token string) (*gateway.Identity, error) {
-			claims, err := sm.Parse(token)
-			if err != nil || claims == nil {
-				return nil, gateway.ErrInvalidCredentials
-			}
-			md := map[string]string{
-				"email": claims.Email,
-				"role":  claims.Role,
-			}
-			if claims.OrgID != "" {
-				md["org_id"] = claims.OrgID
-			}
-			// Map the session role to A2A permission scopes: viewers get
-			// a2a:read; admin/technician/operator also get a2a:send + a2a:admin.
-			scopes := []string{gateway.PermRead}
-			switch claims.Role {
-			case auth.RoleAdmin, auth.RoleTechnician, auth.RoleOperator:
-				scopes = append(scopes, gateway.PermSend, gateway.PermAdmin)
-			}
-			return &gateway.Identity{
-				Subject:  claims.Subject,
-				Method:   gateway.AuthBearer,
-				Scopes:   scopes,
-				Metadata: md,
-			}, nil
-		})
-	}
-	rootHandler := newA2ARouter(apiServer.Router(), a2aGw, a2aAuth)
-
-	// Wrap with the OpenTelemetry HTTP middleware so every request gets a
-	// server span.  Health-check endpoints are skipped inside the middleware.
-	tracedHandler := withTracing(rootHandler)
-
-	// Wrap with the rate-limit middleware (outermost).  This is applied
-	// after tracing so 429 responses still receive a span.
-	rateLimitedHandler := rateLimiter.Middleware()(tracedHandler)
-
-	httpServer := &http.Server{
-		Addr:              ":" + cfg.HTTPPort,
-		Handler:           rateLimitedHandler,
-		ReadHeaderTimeout: 10 * time.Second,
+	httpServer, err := buildHTTPServer(apiServer, cfg, a2aGw, svc.rateLimiter, log)
+	if err != nil {
+		return nil, err
 	}
 
 	// --- Tenancy retention purger ---------------------------------------
@@ -386,14 +228,14 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		patchScheduler:    patchScheduler,
 		eventBridge:       eventBridge,
 		rpcBridge:         rpcBridge,
-		secretsSweeper:    secretsSweeper,
-		secretsRevocation: secretsRevocation,
+		secretsSweeper:    svc.secretsSweeper,
+		secretsRevocation: svc.secretsRevocation,
 		retentionPurger:   retentionPurger,
-		billingSvc:        billingSvc,
-		meteringSvc:       meteringSvc,
-		rateLimiter:       rateLimiter,
-		adapterBreaker:    adapterBreaker,
-		graceful:          graceful,
+		billingSvc:        svc.billingSvc,
+		meteringSvc:       svc.meteringSvc,
+		rateLimiter:       svc.rateLimiter,
+		adapterBreaker:    svc.adapterBreaker,
+		graceful:          svc.graceful,
 	}, nil
 }
 

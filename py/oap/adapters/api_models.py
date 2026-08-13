@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from oap.adapters.types import AgentCard, HealthStatus, InvokeResponse, Part, StreamEvent
 
@@ -121,6 +121,21 @@ class ModelEntry(BaseModel):
     input_per_1k: float
     output_per_1k: float
     currency: str = "USD"
+
+    # Frontend A2AModel expects input_cost_per_1k / output_cost_per_1k
+    # (P2-5). Emit both names so either contract reads correctly.
+    model_config = {"populate_by_name": True}
+
+    @model_validator(mode="after")
+    def _alias_cost_fields(self) -> "ModelEntry":
+        # Expose cost_per_1k aliases for the frontend without breaking the
+        # backend's input_per_1k usage.
+        self.input_cost_per_1k = self.input_per_1k
+        self.output_cost_per_1k = self.output_per_1k
+        return self
+
+    input_cost_per_1k: float = 0.0
+    output_cost_per_1k: float = 0.0
 
 
 class ModelsResponse(BaseModel):
