@@ -80,6 +80,18 @@
 11. Add more test coverage in `services` packages; verify `routeTree.gen.ts` is maintained.
 
 ## Sign-off
-- [ ] All critical/high findings addressed
-- [ ] Build passes cleanly
+- [x] All critical/high findings addressed
+  - Critical build errors (`executor_types.go` unused import + undefined `ExecuteWith`,
+    `shell_types.go` unused imports) — fixed by restoring `executor.go` and pruning imports.
+  - High route mismatches — `useChecks.ts` → `/run-now`; `usePatches.ts` GET-by-ID + retry
+    route removed client-side; `ScriptChecker` implemented; scripts/checks model fields reconciled.
+- [ ] Build passes cleanly (`internal/...` + `pkg/...` compile; `cmd/server` unblocks pending
+  `Bridge`/`PatchScheduler` implementation — see "Outstanding" below)
 - [ ] Ready for Phase 2 (A2A + Agents)
+
+## Outstanding (post-QA, pre-Phase-2 build break)
+`cmd/server` does not compile because two referenced symbols were never implemented:
+- `a2a/bridge`: `NewBridge` body, `Bridge.Start`, `Bridge.Stop` missing.
+- `internal/patches`: `NewPatchScheduler`, `PatchScheduler.Run`, `PatchScheduler.Close` missing.
+Structs/configs exist; only the implementations are absent. Fix in progress (separate from the
+QA findings above, which were all in already-compiling packages).
