@@ -49,6 +49,6 @@ deploy/nats/certs/*.crt
 
 # pi-agent runtime cache (local only — never commit)
 .pi/
-server
+/server
 .pi-subagents
 web/tsconfig.tsbuildinfo
