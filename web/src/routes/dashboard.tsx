@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { usePolicies, type PolicyCategory } from '@/lib/usePolicies';
-// @ts-expect-error — useDashboard not yet exported
 import { useDashboard } from './useDashboard';
 import { KpiCard } from './dashboard_components';
 

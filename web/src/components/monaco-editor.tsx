@@ -35,8 +35,8 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-
-import { injectLoaderScript, loadMonaco, registerCustomLanguages, type MonacoNamespace, type MonacoLanguage, type MonacoEditorProps, type MonacoEditorHandle, type MonacoTextModel } from './monaco-loader'
+import { loadMonaco, type MonacoNamespace, type MonacoLanguage, type MonacoEditorProps, type MonacoEditorHandle, type MonacoTextModel, type MonacoEditor as MonacoEditorInstance } from './monaco-loader';
+import { SafeErrorBoundary, FallbackTextarea } from './monaco-editor-fallback'
 
 // ---------------------------------------------------------------------------
 
@@ -53,90 +53,6 @@ const LANGUAGE_MAP: Record<MonacoLanguage, string> = {
 
 export function resolveMonacoLanguage(lang: MonacoLanguage): string {
   return LANGUAGE_MAP[lang] ?? 'plaintext';
-}
-
-// ---------------------------------------------------------------------------
-// Error boundary
-// ---------------------------------------------------------------------------
-
-interface ErrorBoundaryProps {
-  fallback: React.ReactNode;
-  children: React.ReactNode;
-}
-
-interface ErrorBoundaryState {
-  hasError: boolean;
-}
-
-import { Component, type ReactNode } from 'react';
-
-class SafeErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
-  static getDerivedStateFromError(): ErrorBoundaryState {
-    return { hasError: true };
-  }
-  override componentDidCatch(error: Error): void {
-    // eslint-disable-next-line no-console
-    console.warn('[MonacoEditor] render error, falling back to textarea:', error);
-  }
-  override render(): ReactNode {
-    if (this.state.hasError) return this.props.fallback;
-    return this.props.children;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Fallback textarea (used when Monaco can't load or throws)
-// ---------------------------------------------------------------------------
-
-interface FallbackProps {
-  value: string;
-  onChange: (next: string) => void;
-  language: MonacoLanguage;
-  height: number | string;
-  readOnly?: boolean;
-  minRows?: number;
-  placeholder?: string;
-  className?: string;
-  ariaLabel?: string;
-  ariaDescribedBy?: string;
-}
-
-function FallbackTextarea({
-  value,
-  onChange,
-  language,
-  height,
-  readOnly,
-  minRows = 12,
-  placeholder,
-  className,
-  ariaLabel,
-  ariaDescribedBy,
-}: FallbackProps) {
-  const heightStyle: CSSProperties =
-    typeof height === 'number' ? { height: `${height}px` } : { height };
-  return (
-    <textarea
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      readOnly={readOnly}
-      rows={minRows}
-      spellCheck={false}
-      data-language={language}
-      placeholder={placeholder}
-      aria-label={ariaLabel ?? `${language ?? 'code'} editor`}
-      aria-describedby={ariaDescribedBy}
-      className={
-        'w-full bg-slate-900 text-white p-3 resize-none outline-none text-sm font-mono leading-6 whitespace-pre overflow-auto ' +
-        (className ?? '')
-      }
-      style={{ tabSize: 2, ...heightStyle }}
-    />
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -161,7 +77,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>(
     } = props;
 
     const containerRef = useRef<HTMLDivElement>(null);
-    const editorRef = useRef<MonacoEditor | null>(null);
+    const editorRef = useRef<MonacoEditorInstance | null>(null);
     const modelRef = useRef<MonacoTextModel | null>(null);
     const monacoRef = useRef<MonacoNamespace | null>(null);
     // Keep the latest onChange in a ref so the change callback we register
@@ -239,7 +155,7 @@ export const MonacoEditor = forwardRef<MonacoEditorHandle, MonacoEditorProps>(
         })
         .catch((err: Error) => {
           if (cancelled) return;
-          // eslint-disable-next-line no-console
+           
           console.warn('[MonacoEditor] CDN load failed, using fallback:', err.message);
           setStatus('fallback');
         });

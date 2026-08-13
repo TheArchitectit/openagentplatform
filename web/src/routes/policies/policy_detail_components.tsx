@@ -1,5 +1,12 @@
 import { X, Users } from 'lucide-react';
-import type { Policy, PolicyAssignment, ComplianceSummary } from '@/lib/usePolicies';
+import type {
+  Policy,
+  PolicyAssignment,
+  ComplianceSummary,
+  CreatePolicyInput,
+  UpdatePolicyInput,
+  PolicyValidationResult,
+} from '@/lib/usePolicies';
 import type { Agent } from '@/lib/useAgents';
 import { PolicyEditor } from '@/components/policy-editor';
 import { complianceColor, formatTimestamp } from './policy_detail_helpers';
@@ -24,8 +31,12 @@ interface PolicyRightColumnProps {
   setEditorOpen: (v: boolean) => void;
   setSavingEditorError: (v: string | null) => void;
   handleAddAssignment: (agentId: string) => Promise<void>;
-  handleEditorSave: (code: string) => Promise<void>;
-  validatePolicy: (code: string) => Promise<string[]>;
+  handleEditorSave: (
+    input:
+      | CreatePolicyInput
+      | { id: string; input: UpdatePolicyInput }
+  ) => Promise<void>;
+  validatePolicy: (regoSource: string) => Promise<PolicyValidationResult>;
 }
 
 export function PolicyRightColumn({

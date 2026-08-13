@@ -7,12 +7,6 @@ import {
   Edit3,
   Eye,
   Trash2,
-  Plus,
-  X,
-  Users,
-  CircleCheck,
-  CircleAlert,
-  CircleX,
   Loader2,
 } from 'lucide-react';
 import {
@@ -30,6 +24,8 @@ import { ApiError } from '@/lib/api';
 import { enforcementIcon, enforcementClasses, categoryClasses, complianceColor, highlightRego, formatTimestamp } from './policy_detail_helpers'
 import { usePolicyDetail } from './usePolicyDetail'
 import { PolicyRightColumn } from './policy_detail_components'
+import { PolicyAssignmentsTable } from './PolicyAssignmentsTable'
+import { PolicyViolationsTable } from './PolicyViolationsTable'
 export const Route = createFileRoute('/policies/$policyId')({
   component: PolicyDetailPage,
 });
@@ -45,6 +41,7 @@ function PolicyDetailPage() {
     donutDashArray, donutDashOffset, donutRadius, donutStroke, donutSize,
     availableAgents, navigate,
     setEnabled, setEditMode, setEditorOpen, setShowAssignPicker,
+    setSavingEditorError, validatePolicy,
     handleToggleEnabled, handleEvaluate, handleDelete,
     handleRemoveAssignment, handleAddAssignment, handleDismissViolation,
     handleEditorSave,
@@ -245,172 +242,18 @@ setLoadError(
             )}
           </div>
 
-          {/* Assignments */}
-          <div className="rounded-lg border border-slate-800 bg-slate-900">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800">
-              <h2 className="text-sm font-semibold text-white">
-                Assignments <span className="text-xs text-gray-400 ml-1">({assignments.length})</span>
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowAssignPicker(true)}
-                className="inline-flex items-center gap-1.5 px-2 h-7 rounded text-xs border border-slate-700 bg-slate-800 hover:bg-slate-700 text-gray-300 transition-colors"
-              >
-                <Plus className="h-3 w-3" />
-                <span>Add</span>
-              </button>
-            </div>
+          <PolicyAssignmentsTable
+            assignments={assignments}
+            now={now}
+            onShowPicker={() => setShowAssignPicker(true)}
+            onRemove={(agentId) => void handleRemoveAssignment(agentId)}
+          />
 
-            {assignments.length === 0 ? (
-              <div className="px-5 py-8 text-center text-sm text-gray-400">
-                No agents assigned. Click "Add" to assign this policy.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-slate-800 bg-slate-800">
-                      <th className="px-4 py-2.5">Agent</th>
-                      <th className="px-4 py-2.5">Status</th>
-                      <th className="px-4 py-2.5">Last evaluated</th>
-                      <th className="px-4 py-2.5 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800">
-                    {assignments.map((a) => (
-                      <tr key={a.id ?? a.agent_id} className="hover:bg-slate-800/40">
-                        <td className="px-4 py-2.5">
-                          <Link
-                            to="/agents/$agentId"
-                            params={{ agentId: a.agent_id }}
-                            className="text-white hover:text-blue-400 transition-colors"
-                          >
-                            {a.hostname ?? a.agent_id}
-                          </Link>
-                        </td>
-                        <td className="px-4 py-2.5">
-                          {a.compliant === true ? (
-                            <span className="inline-flex items-center gap-1 text-xs text-green-400">
-                              <CircleCheck className="h-3.5 w-3.5" />
-                              Compliant
-                            </span>
-                          ) : a.compliant === false ? (
-                            <span className="inline-flex items-center gap-1 text-xs text-red-400">
-                              <CircleX className="h-3.5 w-3.5" />
-                              Non-compliant
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-xs text-gray-400">
-                              <CircleAlert className="h-3.5 w-3.5" />
-                              Unknown
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2.5 text-gray-300 text-xs">
-                          {formatTimestamp(a.last_evaluated, now)}
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          <button
-                            type="button"
-                            onClick={() => void handleRemoveAssignment(a.agent_id)}
-                            className="p-1 rounded text-gray-400 hover:text-red-400 transition-colors"
-                            title="Remove assignment"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* Violations */}
-          <div className="rounded-lg border border-slate-800 bg-slate-900">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800">
-              <h2 className="text-sm font-semibold text-white">
-                Recent violations{' '}
-                <span className="text-xs text-gray-400 ml-1">({violations.length})</span>
-              </h2>
-            </div>
-            {violations.length === 0 ? (
-              <div className="px-5 py-8 text-center text-sm text-gray-400">
-                No violations recorded.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-slate-800 bg-slate-800">
-                      <th className="px-4 py-2.5">Status</th>
-                      <th className="px-4 py-2.5">Severity</th>
-                      <th className="px-4 py-2.5">Agent</th>
-                      <th className="px-4 py-2.5">Message</th>
-                      <th className="px-4 py-2.5">Detected</th>
-                      <th className="px-4 py-2.5 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800">
-                    {violations.map((v) => (
-                      <tr key={v.id} className="hover:bg-slate-800/40">
-                        <td className="px-4 py-2.5">
-                          <span
-                            className={
-                              'inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-full border capitalize ' +
-                              (v.status === 'open'
-                                ? 'bg-red-500/10 text-red-400 border-red-800'
-                                : v.status === 'dismissed'
-                                ? 'bg-slate-500/10 text-gray-300 border-slate-700'
-                                : v.status === 'resolved'
-                                ? 'bg-green-500/10 text-green-400 border-green-800'
-                                : 'bg-yellow-500/10 text-yellow-400 border-yellow-800')
-                            }
-                          >
-                            {v.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <SeverityBadge severity={v.severity} />
-                        </td>
-                        <td className="px-4 py-2.5">
-                          {v.agent_id ? (
-                            <Link
-                              to="/agents/$agentId"
-                              params={{ agentId: v.agent_id }}
-                              className="text-white hover:text-blue-400 transition-colors"
-                            >
-                              {v.hostname ?? v.agent_id}
-                            </Link>
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                        <td className="px-4 py-2.5 text-gray-300 text-xs max-w-xs truncate">
-                          {v.message ?? '—'}
-                        </td>
-                        <td className="px-4 py-2.5 text-gray-300 text-xs">
-                          {formatTimestamp(v.detected_at, now)}
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          {v.status === 'open' && (
-                            <button
-                              type="button"
-                              onClick={() => void handleDismissViolation(v.id)}
-                              className="text-xs text-gray-300 hover:text-white transition-colors"
-                            >
-                              Dismiss
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <PolicyViolationsTable
+            violations={violations}
+            now={now}
+            onDismiss={(id) => void handleDismissViolation(id)}
+          />
         </div>
 
         <PolicyRightColumn
@@ -421,8 +264,8 @@ setLoadError(
           donutSize={donutSize}
           donutRadius={donutRadius}
           donutStroke={donutStroke}
-          donutDashArray={donutDashArray}
-          donutDashOffset={donutDashOffset}
+          donutDashArray={String(donutDashArray)}
+          donutDashOffset={String(donutDashOffset)}
           now={now}
           showAssignPicker={showAssignPicker}
           editorOpen={editorOpen}
@@ -431,14 +274,10 @@ setLoadError(
           availableAgents={availableAgents}
           setShowAssignPicker={setShowAssignPicker}
           setEditorOpen={setEditorOpen}
-          // @ts-expect-error
-setSavingEditorError={// @ts-expect-error
-setSavingEditorError}
+          setSavingEditorError={setSavingEditorError}
           handleAddAssignment={handleAddAssignment}
           handleEditorSave={handleEditorSave}
-          // @ts-expect-error
-validatePolicy={// @ts-expect-error
-validatePolicy}
+          validatePolicy={validatePolicy}
         />
       </div>
     </div>

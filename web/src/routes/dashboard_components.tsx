@@ -24,7 +24,7 @@ import { useScripts } from '@/lib/useScripts';
 import { useAgents } from '@/lib/useAgents';
 import { apiFetch } from '@/lib/api';
 
-export const Route = createFileRoute('/dashboard')({
+export const Route = createFileRoute('/dashboard_components')({
   // @ts-expect-error — DashboardPage is defined in dashboard.tsx
   component: DashboardPage,
 });
@@ -103,7 +103,7 @@ export function mapAuditToActivity(events: AuditEventShape[]): ActivityItem[] {
     const outcome = (ev.outcome ?? 'success').toLowerCase();
 
     // Map action -> ActivityItem type
-    let type: ActivityItem['type'] = 'agent';
+    let type: ActivityItem['type'];
     if (action.includes('login') || action.includes('auth')) {
       type = 'login';
     } else if (action.includes('check') || action.includes('api_call')) {

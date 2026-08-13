@@ -8,23 +8,10 @@ import {
   Plus,
   Bot,
   Loader2,
-  CircleCheck,
-  CircleAlert,
-  CircleX,
-  CircleDashed,
-  Globe,
-  Network,
-  HardDrive,
-  Cpu,
-  MemoryStick,
-  ServerCog,
-  FileCode2,
-  ScrollText,
-  ShieldCheck,
-  Radio,
   Save,
   Power,
   X,
+  CircleDashed,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAgents, type Agent } from '@/lib/useAgents';
@@ -42,70 +29,17 @@ export const Route = createFileRoute('/checks/$checkId')({
   component: CheckDetailPage,
 });
 
-
-import { ResultBarChart, AssignAgentModal, EditCheckModal, formatTime, formatInterval, formatDateTime, deriveStatus } from './check_detail_components'
+import {
+  TypeIcon,
+  statusIcon,
+  statusBg,
+  typeIcon,
+  typeLabel,
+} from './check_detail_helpers';
+import { ResultBarChart, AssignAgentModal, EditCheckModal, formatTime, formatInterval, deriveStatus } from './check_detail_components'
 import { useCheckDetail } from './useCheckDetail'
-
-const TYPE_ICON_MAP: Record<string, string> = { http: '🌐', dns: '🔍', tcp: '🔌', ping: '📡', custom: '⚙️' };
-function TypeIcon({ type }: { type: string }) {
-  const icon = TYPE_ICON_MAP[type] ?? '📋';
-  return <span className="text-lg">{icon}</span>;
-}
-const STATUS_CLASSES: Record<string, string> = { passing: 'text-green-500', failing: 'text-red-500', pending: 'text-yellow-500' };
-
-// ---------------------------------------------------------------------------
-// Display helpers (mirrored from the list page; kept local for self-containment)
-// ---------------------------------------------------------------------------
-
-const statusIcon: Record<CheckStatus, typeof CircleCheck> = {
-  ok: CircleCheck,
-  warning: CircleAlert,
-  critical: CircleX,
-  disabled: CircleDashed,
-};
-
-const statusColor: Record<CheckStatus, string> = {
-  ok: 'text-green-400',
-  warning: 'text-yellow-400',
-  critical: 'text-red-400',
-  disabled: 'text-gray-400',
-};
-
-const statusBg: Record<CheckStatus, string> = {
-  ok: 'bg-green-500/10 text-green-400 border-green-800',
-  warning: 'bg-yellow-500/10 text-yellow-400 border-yellow-800',
-  critical: 'bg-red-500/10 text-red-400 border-red-800',
-  disabled: 'bg-slate-500/10 text-gray-300 border-slate-700',
-};
-
-const typeIcon: Record<CheckType, typeof Globe> = {
-  http: Globe,
-  tcp: Network,
-  ping: Radio,
-  disk_usage: HardDrive,
-  memory_usage: MemoryStick,
-  cpu_usage: Cpu,
-  process: ServerCog,
-  service: ServerCog,
-  tls_cert: ShieldCheck,
-  script: FileCode2,
-  log_watch: ScrollText,
-};
-
-const typeLabel: Record<CheckType, string> = {
-  http: 'HTTP',
-  tcp: 'TCP',
-  ping: 'Ping',
-  disk_usage: 'Disk Usage',
-  memory_usage: 'Memory Usage',
-  cpu_usage: 'CPU Usage',
-  process: 'Process',
-  service: 'Service',
-  tls_cert: 'TLS Certificate',
-  script: 'Script',
-  log_watch: 'Log Watch',
-};
-
+import { CheckAssignedAgentsTable } from './CheckAssignedAgentsTable'
+import { CheckResultsTable } from './CheckResultsTable'
 
 function CheckDetailPage() {
   const { checkId } = Route.useParams();
@@ -120,10 +54,7 @@ function CheckDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <Link
-            to="/checks"
-            className="p-2 rounded-md text-gray-300 hover:text-white hover:bg-slate-800 transition-colors"
-          >
+          <Link to="/checks" className="p-2 rounded-md text-gray-300 hover:text-white hover:bg-slate-800 transition-colors">
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div className="h-9 w-9 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center">
@@ -135,9 +66,9 @@ function CheckDetailPage() {
                 {isLoading && !check ? 'Loading…' : check?.name ?? 'Unknown check'}
               </h1>
               {check && (
-                <span className={'inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs ' + statusBg[k]}>
+                <span className={'inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs ' + statusBg[deriveStatus(check)]}>
                   <TypeIcon className="h-3 w-3" />
-                  {k}
+                  {deriveStatus(check)}
                 </span>
               )}
             </div>
@@ -150,9 +81,7 @@ function CheckDetailPage() {
                   <span className="mx-2 text-gray-400">•</span>
                   Last run {formatTime(check.last_run, now)}
                 </>
-              ) : (
-                ' '
-              )}
+              ) : (' ')}
             </p>
           </div>
         </div>
@@ -254,69 +183,11 @@ function CheckDetailPage() {
             </div>
           </div>
 
-          {/* Assigned agents */}
-          <div className="rounded-lg border border-slate-800 bg-slate-900">
-            <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-white">Assigned Agents</h2>
-              <span className="text-xs text-gray-400">{assignments.length} agent{assignments.length === 1 ? '' : 's'}</span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-slate-800 bg-slate-800">
-                    <th className="px-4 py-3">Agent</th>
-                    <th className="px-4 py-3">Last Result</th>
-                    <th className="px-4 py-3">Last Run</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800">
-                  {assignments.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-gray-400">
-                        No agents assigned yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    assignments.map((a) => {
-                      const sk = (a.last_status as CheckStatus) ?? 'disabled';
-                      const SIcon = statusIcon[sk] ?? CircleDashed;
-                      return (
-                        <tr key={a.id ?? a.agent_id} className="hover:bg-slate-800/40">
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <Bot className="h-4 w-4 text-gray-400" />
-                              <span className="text-white font-medium">
-                                {a.hostname ?? a.agent_id}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={'inline-flex items-center gap-1.5 text-xs ' + (statusColor[sk] ?? 'text-gray-300')}>
-                              <SIcon className="h-3.5 w-3.5" />
-                              <span className="capitalize">{sk}</span>
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-gray-300">{formatTime(a.last_run, now)}</td>
-                          <td className="px-4 py-3 text-right">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                void onUnassign(a.agent_id);
-                              }}
-                              className="px-2 h-7 rounded text-xs text-red-400 hover:bg-red-500/10 border border-red-800"
-                            >
-                              Remove
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <CheckAssignedAgentsTable
+            assignments={assignments}
+            now={now}
+            onUnassign={(agentId) => void onUnassign(agentId)}
+          />
 
           {/* Result history bar chart */}
           <div className="rounded-lg border border-slate-800 bg-slate-900 p-5">
@@ -327,68 +198,7 @@ function CheckDetailPage() {
             <ResultBarChart results={results} />
           </div>
 
-          {/* Recent results table */}
-          <div className="rounded-lg border border-slate-800 bg-slate-900">
-            <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-white">Recent Results</h2>
-              <span className="text-xs text-gray-400">Last 20</span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-slate-800 bg-slate-800">
-                    <th className="px-4 py-3">Time</th>
-                    <th className="px-4 py-3">Agent</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-right">Value</th>
-                    <th className="px-4 py-3 text-right">Duration</th>
-                    <th className="px-4 py-3">Message</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800">
-                  {results.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
-                        No results yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    results.map((r, idx) => {
-                      const sk = (r.status as CheckStatus) ?? 'disabled';
-                      const SIcon = statusIcon[sk] ?? CircleDashed;
-                      return (
-                        <tr key={r.id ?? `${r.timestamp}-${idx}`} className="hover:bg-slate-800/40">
-                          <td className="px-4 py-3 text-gray-300">{formatDateTime(r.timestamp)}</td>
-                          <td className="px-4 py-3">
-                            <Link
-                              to="/agents/$agentId"
-                              params={{ agentId: r.agent_id }}
-                              className="text-white hover:text-blue-400"
-                            >
-                              {r.agent_id}
-                            </Link>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={'inline-flex items-center gap-1.5 text-xs ' + (statusColor[sk] ?? 'text-gray-300')}>
-                              <SIcon className="h-3.5 w-3.5" />
-                              <span className="capitalize">{sk}</span>
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums text-white">
-                            {r.value !== undefined && r.value !== null ? String(r.value) : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums text-gray-300">
-                            {r.duration_ms !== undefined ? `${r.duration_ms}ms` : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-gray-300 truncate max-w-md">{r.message ?? '—'}</td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <CheckResultsTable results={results} />
         </>
       )}
 
@@ -398,25 +208,14 @@ function CheckDetailPage() {
           agents={agents}
           assignedIds={new Set(assignments.map((a) => a.agent_id))}
           onClose={() => setShowAssign(false)}
-          onAssign={async (agentId) => {
-            await onAssign(agentId);
-          }}
+          onAssign={async (agentId) => { await onAssign(agentId); }}
         />
       )}
 
       {/* Edit modal */}
       {showEdit && check && (
-        <EditCheckModal
-          check={check}
-          onClose={() => setShowEdit(false)}
-          onSubmit={onSaveEdit}
-        />
+        <EditCheckModal check={check} onClose={() => setShowEdit(false)} onSubmit={onSaveEdit} />
       )}
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Result bar chart — green / orange / red bars by time bucket
-// ---------------------------------------------------------------------------
-

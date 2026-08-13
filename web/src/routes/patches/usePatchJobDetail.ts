@@ -111,14 +111,16 @@ export function usePatchJobDetail(jobId: string) {
   // --- Action handlers ---
 
   const doAction = useCallback(
-    async (kind: 'approve' | 'reject' | 'cancel' | 'rollback') => {
+    async (
+      kind: 'approve' | 'reject' | 'cancel' | 'rollback' | 'retry'
+    ) => {
       if (!job) return;
       setActionBusy(kind);
       try {
         if (kind === 'approve') await approveJob(job.id);
         else if (kind === 'reject') await rejectJob(job.id);
         else if (kind === 'cancel') await cancelJob(job.id);
-        else await rollbackJob(job.id);
+        else if (kind !== 'retry') await rollbackJob(job.id);
         await reloadAll();
       } catch (err) {
         setError(err instanceof Error ? err : new Error(String(err)));

@@ -88,7 +88,7 @@ export function LiveEvents({
 		const client = clientRef.current;
 		// @ts-expect-error — onStatusChange is private but is the only subscribe mechanism
 		client.onStatusChange = handleStatusChange;
-		setStatus(client.getStatus() as string);
+		setStatus(client.getStatus());
 
 		// Subscribe to requested channels
 		const handler = (env: WsEnvelope) => {
@@ -96,8 +96,8 @@ export function LiveEvents({
 				setEvents((prev) => {
 					const newEvent: LiveEvent = {
 						id: `${env.channel}:${env.event}:${Date.now()}`,
-						channel: env.channel,
-						event: env.event,
+						channel: env.channel ?? "",
+						event: env.event ?? "",
 						timestamp: new Date(),
 						data: JSON.stringify(env.data),
 					};
@@ -205,7 +205,7 @@ export function LiveEvents({
 									Channel:{" "}
 									<span className="font-mono text-slate-300">{e.channel}</span>
 								</div>
-								{e.data && typeof e.data === "object" && (
+								{e.data as React.ReactNode && typeof e.data === "object" && (
 									<div className="mt-1 font-mono text-xs text-slate-500">
 										{JSON.stringify(e.data).slice(0, 100)}
 										{JSON.stringify(e.data).length > 100 && "..."}
