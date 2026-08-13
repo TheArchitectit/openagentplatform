@@ -18,72 +18,15 @@ import {
   Search,
   Check,
   X,
-  Eye,
-  CircleDot,
-  Clock,
   CheckCheck,
   Volume2,
   VolumeX,
-  Bot,
-  Activity,
 } from 'lucide-react';
 import { useAlerts, type Alert, type AlertFilter, type AlertState } from '@/lib/useAlerts';
-import { SeverityBadge } from '@/components/severity-badge';
-
 
 import { RowItem, InlineActions, SnoozeMenu } from './alert_components'
-
-const STATE_BADGES: Record<string, { label: string; classes: string }> = {
-  open: { label: "Open", classes: "bg-blue-100 text-blue-800 border-blue-200" },
-  acknowledged: { label: "Acknowledged", classes: "bg-yellow-100 text-yellow-800 border-yellow-200" },
-  snoozed: { label: "Snoozed", classes: "bg-purple-100 text-purple-800 border-purple-200" },
-  resolved: { label: "Resolved", classes: "bg-green-100 text-green-800 border-green-200" },
-};
-const PAGE_SIZE = 20;
-const TABS = [
-  { id: "all", label: "All" },
-  { id: "critical", label: "Critical" },
-  { id: "warning", label: "Warning" },
-  { id: "info", label: "Info" },
-  { id: "acknowledged", label: "Acknowledged" },
-  { id: "snoozed", label: "Snoozed" },
-  { id: "resolved", label: "Resolved" },
-] as const;
-
-function StateBadge({ state }: { state: string }) {
-  const key = (state ?? 'open').toLowerCase();
-  const meta = STATE_BADGES[key] ?? STATE_BADGES.open;
-  return (
-    <span
-      role="status"
-      aria-label={`State: ${meta.label}`}
-      className={
-        'inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium ' +
-        meta.classes
-      }
-    >
-      {meta.label}
-    </span>
-  );
-}
-
-function formatTime(iso: string | undefined): string {
-  if (!iso) return '—';
-  const t = new Date(iso);
-  if (Number.isNaN(t.getTime())) return '—';
-  return t.toLocaleString();
-}
-
-function formatRelative(iso: string | undefined, now: number): string {
-  if (!iso) return '—';
-  const t = new Date(iso).getTime();
-  if (!t) return '—';
-  const age = Math.max(0, Math.floor((now - t) / 1000));
-  if (age < 60) return `${age}s ago`;
-  if (age < 3600) return `${Math.floor(age / 60)}m ago`;
-  if (age < 86400) return `${Math.floor(age / 3600)}h ago`;
-  return `${Math.floor(age / 86400)}d ago`;
-}
+import { PAGE_SIZE, TABS, computeAlertCounts } from './alertPage.helpers'
+import { AlertsTable } from './AlertsTable'
 
 function AlertsInboxPage() {
   const navigate = useNavigate();
@@ -124,39 +67,17 @@ function AlertsInboxPage() {
   const paged = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
 
   const counts = useMemo(() => {
-    const c: Record<AlertFilter, number> = {
-      all: alerts.length,
-      critical: 0,
-      warning: 0,
-      info: 0,
-      acknowledged: 0,
-      snoozed: 0,
-      resolved: 0,
-    };
-    for (const a of alerts) {
-      const sev = (a.severity ?? '').toLowerCase();
-      const st = (a.state ?? '').toLowerCase();
-      if (sev === 'critical' || sev === 'emergency') c.critical += 1;
-      if (sev === 'warning') c.warning += 1;
-      if (sev === 'info') c.info += 1;
-      if (st === 'acknowledged') c.acknowledged += 1;
-      if (st === 'snoozed') c.snoozed += 1;
-      if (st === 'resolved' || st === 'closed') c.resolved += 1;
-    }
-    return c;
+    const base = computeAlertCounts(alerts, ['critical', 'warning', 'info', 'acknowledged', 'snoozed', 'resolved']);
+    return { all: alerts.length, ...base } as Record<AlertFilter, number>;
   }, [alerts]);
 
   // Critical-alert browser notifications (optional).
   useEffect(() => {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
-    if (Notification.permission === 'default') {
-      // Don't auto-prompt — wait for explicit user opt-in via the sound toggle.
-      return;
-    }
+    if (Notification.permission === 'default') return;
     if (Notification.permission !== 'granted') return;
     if (alerts.length === 0) return;
 
-    // Find the newest critical/emergency alert that is still "open".
     const openCritical = alerts
       .filter(
         (a) =>
@@ -177,13 +98,12 @@ function AlertsInboxPage() {
         tag: openCritical.id,
       });
     } catch {
-      /* ignore — some browsers block from non-foreground tabs */
+      /* ignore */
     }
   }, [alerts]);
 
   const toggleSound = useCallback(() => {
     if (!soundOn) {
-      // Enabling also requests notification permission in one user gesture.
       if (typeof window !== 'undefined' && 'Notification' in window) {
         if (Notification.permission === 'default') {
           void Notification.requestPermission();
@@ -262,11 +182,7 @@ function AlertsInboxPage() {
           <button
             type="button"
             onClick={toggleSound}
-            aria-label={
-              soundOn
-                ? 'Mute critical-alert notifications'
-                : 'Enable critical-alert browser notifications'
-            }
+            aria-label={soundOn ? 'Mute critical-alert notifications' : 'Enable critical-alert browser notifications'}
             aria-pressed={soundOn}
             className="inline-flex items-center justify-center h-9 w-9 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
           >
@@ -274,9 +190,7 @@ function AlertsInboxPage() {
           </button>
           <button
             type="button"
-            onClick={() => {
-              void refresh();
-            }}
+            onClick={() => void refresh()}
             disabled={isLoading}
             aria-label="Refresh alerts"
             className="inline-flex items-center gap-2 px-3 h-9 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-white disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
@@ -289,27 +203,17 @@ function AlertsInboxPage() {
 
       {/* Tabs + search */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div
-          role="tablist"
-          aria-label="Alert filters"
-          className="flex items-center gap-1 p-1 rounded-md bg-slate-900 border border-slate-800 overflow-x-auto"
-        >
-          {TABS.map((t: string) => (
+        <div role="tablist" aria-label="Alert filters" className="flex items-center gap-1 p-1 rounded-md bg-slate-900 border border-slate-800 overflow-x-auto">
+          {TABS.map((t) => (
             <button
               key={t.id}
               type="button"
               role="tab"
               aria-selected={filter === t.id}
-              onClick={() => {
-                setFilter(t.id);
-                setPage(0);
-                clearSelection();
-              }}
+              onClick={() => { setFilter(t.id); setPage(0); clearSelection(); }}
               className={
                 'px-3 h-8 rounded text-sm whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ' +
-                (filter === t.id
-                  ? 'bg-slate-800 text-white'
-                  : 'text-gray-300 hover:text-white')
+                (filter === t.id ? 'bg-slate-800 text-white' : 'text-gray-300 hover:text-white')
               }
             >
               {t.label}
@@ -326,10 +230,7 @@ function AlertsInboxPage() {
             role="searchbox"
             aria-label="Search alerts"
             value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setPage(0);
-            }}
+            onChange={(e) => { setQuery(e.target.value); setPage(0); }}
             placeholder="Search alerts…"
             className="w-full h-9 pl-9 pr-3 rounded-md bg-slate-800/60 border border-slate-700 text-sm text-white placeholder:text-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus:border-blue-500"
           />
@@ -338,11 +239,7 @@ function AlertsInboxPage() {
 
       {/* Batch actions bar */}
       {selected.size > 0 && (
-        <div
-          role="region"
-          aria-label="Batch actions"
-          className="flex items-center justify-between gap-3 rounded-md border border-blue-500/30 bg-blue-600/5 px-4 py-2"
-        >
+        <div role="region" aria-label="Batch actions" className="flex items-center justify-between gap-3 rounded-md border border-blue-500/30 bg-blue-600/5 px-4 py-2">
           <div className="text-sm text-white" aria-live="polite">
             <span className="font-medium">{selected.size}</span> selected
           </div>
@@ -377,106 +274,24 @@ function AlertsInboxPage() {
         </div>
       )}
 
-      {/* Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table role="table" aria-label="Alerts inbox" className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-slate-800 bg-slate-800">
-                <th className="px-3 py-3 w-10" scope="col">
-                  <input
-                    type="checkbox"
-                    aria-label="Select all alerts on this page"
-                    checked={allOnPageSelected}
-                    onChange={togglePage}
-                    className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-blue-400 focus:ring-blue-500/40"
-                  />
-                </th>
-                <th className="px-3 py-3 w-32" scope="col">Severity</th>
-                <th className="px-3 py-3" scope="col">Title</th>
-                <th className="px-3 py-3" scope="col">Agent</th>
-                <th className="px-3 py-3" scope="col">Check</th>
-                <th className="px-3 py-3 w-32" scope="col">State</th>
-                <th className="px-3 py-3 w-36" scope="col">Created</th>
-                <th className="px-3 py-3 text-right w-56" scope="col">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800">
-              {isLoading && alerts.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-gray-400" role="status" aria-live="polite">
-                    Loading alerts…
-                  </td>
-                </tr>
-              ) : error ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-red-400" role="alert">
-                    Failed to load alerts: {error.message}
-                  </td>
-                </tr>
-              ) : paged.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-gray-400" role="status">
-                    No alerts match the current filter.
-                  </td>
-                </tr>
-              ) : (
-                paged.map((a) => (
-                  <RowItem
-                    key={a.id}
-                    alert={a}
-                    isSelected={selected.has(a.id)}
-                    onToggleSelect={() => toggleRow(a.id)}
-                    onOpen={() =>
-                      void navigate({ to: '/alerts/$alertId', params: { alertId: a.id } })
-                    }
-                    now={now}
-                  />
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        <div className="px-4 py-3 border-t border-slate-800 flex items-center justify-between text-sm">
-          <div className="text-gray-400" aria-live="polite">
-            Showing{' '}
-            <span className="text-gray-300">
-              {filtered.length === 0 ? 0 : currentPage * PAGE_SIZE + 1}
-            </span>
-            –
-            <span className="text-gray-300">
-              {Math.min((currentPage + 1) * PAGE_SIZE, filtered.length)}
-            </span>{' '}
-            of <span className="text-gray-300">{filtered.length}</span>
-          </div>
-          <div className="flex items-center gap-1" role="navigation" aria-label="Pagination">
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={currentPage === 0}
-              aria-label="Previous page"
-              className="h-8 px-3 inline-flex items-center justify-center rounded-md border border-slate-700 bg-slate-800 text-gray-300 disabled:opacity-40 hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
-            >
-              Prev
-            </button>
-            <span className="px-2 text-gray-300 tabular-nums" aria-label={`Page ${currentPage + 1} of ${totalPages}`}>
-              {currentPage + 1} / {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-              disabled={currentPage >= totalPages - 1}
-              aria-label="Next page"
-              className="h-8 px-3 inline-flex items-center justify-center rounded-md border border-slate-700 bg-slate-800 text-gray-300 disabled:opacity-40 hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      </div>
+      <AlertsTable
+        isLoading={isLoading}
+        error={error}
+        filtered={filtered}
+        paged={paged}
+        selected={selected}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        now={now}
+        onToggleRow={toggleRow}
+        onNavigate={(id) => void navigate({ to: '/alerts/$alertId', params: { alertId: id } })}
+        onTogglePage={togglePage}
+        onSetPage={setPage}
+      />
     </div>
   );
 }
 
+export const Route = createFileRoute('/alerts/')({
+  component: AlertsInboxPage,
+});

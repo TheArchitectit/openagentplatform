@@ -1,4 +1,5 @@
 import { StateBadge, formatTime } from './alert_detail_components';
+import { formatRelative } from './alertPage.helpers';
 // Alert inbox — the operational landing page for alerts.
 //
 // Features:
