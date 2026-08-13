@@ -31,16 +31,19 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch, ApiError } from './api';
 import { usePatchWebSocket } from './usePatches_ws'
 import type { Status } from './websocket';
+import {
+  buildCatalogParams,
+  buildScanParams,
+  applyJobToJobs,
+  mergeScans,
+  unwrapList,
+} from './usePatches.helpers';
+import { usePatchJobOps } from './usePatches.operations';
 
 import type {
   PatchJob, PatchCatalogItem, PatchCatalogFilters, PatchTarget, PatchApproval,
   PatchReboot, PatchScanResult, CreatePatchJobInput, UsePatchesResult,
 } from './usePatches_types'
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 
 export type {
   PatchJobStatus, PatchSeverity, PatchCategory, RebootStatus, InstallStatus,
@@ -74,11 +77,9 @@ export function usePatches(): UsePatchesResult {
       );
       if (!mountedRef.current) return;
       if (Array.isArray(res)) {
-        setJobs(res);
-        setJobsTotal(res.length);
+        setJobs(res); setJobsTotal(res.length);
       } else {
-        setJobs(res.jobs ?? []);
-        setJobsTotal(res.total ?? (res.jobs?.length ?? 0));
+        setJobs(res.jobs ?? []); setJobsTotal(res.total ?? (res.jobs?.length ?? 0));
       }
       setError(null);
     } catch (err) {
@@ -93,41 +94,24 @@ export function usePatches(): UsePatchesResult {
     mountedRef.current = true;
     setIsLoading(true);
     void fetchJobs();
-    return () => {
-      mountedRef.current = false;
-    };
+    return () => { mountedRef.current = false; };
   }, [fetchJobs]);
 
-  // WebSocket updates handled by usePatchWebSocket hook
   usePatchWebSocket(mountedRef, setJobs, setStatus, setScans);
+
   // --- Catalog ---------------------------------------------------------
 
   const fetchCatalog = useCallback(
     async (filters?: PatchCatalogFilters): Promise<void> => {
       setCatalogLoading(true);
       try {
-        const params = new URLSearchParams();
-        if (filters?.os) params.set('os', filters.os);
-        if (filters?.severity) params.set('severity', filters.severity);
-        if (filters?.category) params.set('category', filters.category);
-        if (filters?.search) params.set('search', filters.search);
-        params.set('limit', String(filters?.limit ?? 200));
-        if (filters?.offset !== undefined) params.set('offset', String(filters.offset));
-
-        const qs = params.toString();
+        const qs = buildCatalogParams(filters);
         const res = await apiFetch<
           { items?: PatchCatalogItem[]; total?: number } | PatchCatalogItem[]
         >(`/patches/catalog${qs ? `?${qs}` : ''}`);
-
         if (!mountedRef.current) return;
-        if (Array.isArray(res)) {
-          setCatalog(res);
-          setCatalogTotal(res.length);
-        } else {
-          setCatalog(res.items ?? []);
-          setCatalogTotal(res.total ?? (res.items?.length ?? 0));
-        }
-        setCatalogError(null);
+        const { list, total } = unwrapList<PatchCatalogItem>(res, 'items');
+        setCatalog(list); setCatalogTotal(total); setCatalogError(null);
       } catch (err) {
         if (!mountedRef.current) return;
         setCatalogError(err instanceof Error ? err : new ApiError(0, 'Unknown', String(err)));
@@ -144,14 +128,10 @@ export function usePatches(): UsePatchesResult {
     async (filters?: { agent_id?: string; job_id?: string }): Promise<PatchScanResult[]> => {
       setScansLoading(true);
       try {
-        const params = new URLSearchParams();
-        if (filters?.agent_id) params.set('agent_id', filters.agent_id);
-        if (filters?.job_id) params.set('job_id', filters.job_id);
-        params.set('limit', '500');
-        const res = await apiFetch<
-          { scans?: PatchScanResult[] } | PatchScanResult[]
-        >(`/patches/catalog/scan?${params.toString()}`);
-
+        const qs = buildScanParams(filters);
+        const res = await apiFetch<{ scans?: PatchScanResult[] } | PatchScanResult[]>(
+          `/patches/catalog/scan?${qs}`
+        );
         const list = Array.isArray(res) ? res : res.scans ?? [];
         if (!mountedRef.current) return list;
         setScans(list);
@@ -168,82 +148,29 @@ export function usePatches(): UsePatchesResult {
 
   const scanMissing = useCallback(
     async (agentIds?: string[]): Promise<PatchScanResult[]> => {
-      const res = await apiFetch<
-        { scans?: PatchScanResult[] } | PatchScanResult[]
-      >('/patches/catalog/scan', {
-        method: 'POST',
-        json: agentIds && agentIds.length > 0 ? { agent_ids: agentIds } : undefined,
-      });
+      const res = await apiFetch<{ scans?: PatchScanResult[] } | PatchScanResult[]>(
+        '/patches/catalog/scan',
+        { method: 'POST', json: agentIds && agentIds.length > 0 ? { agent_ids: agentIds } : undefined }
+      );
       const list = Array.isArray(res) ? res : res.scans ?? [];
       if (!mountedRef.current) return list;
-      setScans((prev) => {
-        const map = new Map(prev.map((s) => [s.id, s]));
-        for (const s of list) map.set(s.id, s);
-        return Array.from(map.values()).slice(0, 500);
-      });
+      setScans((prev) => mergeScans(prev, list));
       return list;
     },
     []
   );
 
-  // --- Single job ------------------------------------------------------
+  // --- Single job mutation (used by usePatchJobOps) --------------------
 
   const applyJobMutation = useCallback((updated: PatchJob): PatchJob => {
-    setJobs((prev) => {
-      const idx = prev.findIndex((x) => x.id === updated.id);
-      if (idx === -1) return [updated, ...prev];
-      const next = prev.slice();
-      next[idx] = { ...next[idx], ...updated };
-      return next;
-    });
+    setJobs((prev) => applyJobToJobs(prev, updated));
     return updated;
   }, []);
-
-  const fetchJob = useCallback(
-    async (id: string): Promise<PatchJob> => {
-      const j = await apiFetch<PatchJob>(`/patches/${encodeURIComponent(id)}`);
-      return applyJobMutation(j);
-    },
-    [applyJobMutation]
-  );
-
-  const createJob = useCallback(async (input: CreatePatchJobInput): Promise<PatchJob> => {
-    const j = await apiFetch<PatchJob>('/patches/jobs', {
-      method: 'POST',
-      json: input,
-    });
-    setJobs((prev) => {
-      if (prev.some((x) => x.id === j.id)) return prev;
-      return [j, ...prev];
-    });
-    return j;
-  }, []);
-
-  const cancelJob = useCallback(
-    async (id: string): Promise<PatchJob> => {
-      const j = await apiFetch<PatchJob>(`/patches/${encodeURIComponent(id)}/cancel`, {
-        method: 'POST',
-      });
-      return applyJobMutation(j);
-    },
-    [applyJobMutation]
-  );
-
-  const rollbackJob = useCallback(
-    async (id: string): Promise<PatchJob> => {
-      const j = await apiFetch<PatchJob>(`/patches/${encodeURIComponent(id)}/rollback`, {
-        method: 'POST',
-      });
-      return applyJobMutation(j);
-    },
-    [applyJobMutation]
-  );
 
   const approveJob = useCallback(
     async (id: string, note?: string): Promise<PatchJob> => {
       const j = await apiFetch<PatchJob>(`/patches/${encodeURIComponent(id)}/approve`, {
-        method: 'POST',
-        json: note ? { note } : undefined,
+        method: 'POST', json: note ? { note } : undefined,
       });
       return applyJobMutation(j);
     },
@@ -253,175 +180,26 @@ export function usePatches(): UsePatchesResult {
   const rejectJob = useCallback(
     async (id: string, note?: string): Promise<PatchJob> => {
       const j = await apiFetch<PatchJob>(`/patches/${encodeURIComponent(id)}/reject`, {
-        method: 'POST',
-        json: note ? { note } : undefined,
+        method: 'POST', json: note ? { note } : undefined,
       });
       return applyJobMutation(j);
     },
     [applyJobMutation]
   );
 
-  // --- Batch -----------------------------------------------------------
-
-  const runBatchDecision = useCallback(
-    async (
-      ids: string[],
-      action: 'approve' | 'reject',
-      note?: string
-    ): Promise<{ succeeded: string[]; failed: string[] }> => {
-      const succeeded: string[] = [];
-      const failed: string[] = [];
-      await Promise.all(
-        ids.map(async (id) => {
-          try {
-            if (action === 'approve') {
-              await approveJob(id, note);
-            } else {
-              await rejectJob(id, note);
-            }
-            succeeded.push(id);
-          } catch {
-            failed.push(id);
-          }
-        })
-      );
-      return { succeeded, failed };
-    },
-    [approveJob, rejectJob]
-  );
-
-  const batchApprove = useCallback(
-    (ids: string[], note?: string) => runBatchDecision(ids, 'approve', note),
-    [runBatchDecision]
-  );
-
-  const batchReject = useCallback(
-    (ids: string[], note?: string) => runBatchDecision(ids, 'reject', note),
-    [runBatchDecision]
-  );
-
-  // --- Job details endpoints -------------------------------------------
-
-  const fetchJobTargets = useCallback(async (jobId: string): Promise<PatchTarget[]> => {
-    const res = await apiFetch<{ targets: PatchTarget[] } | PatchTarget[]>(
-      `/patches/jobs/${encodeURIComponent(jobId)}/targets`
-    );
-    const list = Array.isArray(res) ? res : res.targets ?? [];
-
-    // Merge into the cached job record.
-    setJobs((prev) =>
-      prev.map((j) =>
-        j.id === jobId
-          ? { ...j, targets: list }
-          : j
-      )
-    );
-    return list;
-  }, []);
-
-  const fetchJobApprovals = useCallback(async (jobId: string): Promise<PatchApproval[]> => {
-    const res = await apiFetch<{ approvals: PatchApproval[] } | PatchApproval[]>(
-      `/patches/jobs/${encodeURIComponent(jobId)}/approvals`
-    );
-    const list = Array.isArray(res) ? res : res.approvals ?? [];
-    setJobs((prev) =>
-      prev.map((j) => (j.id === jobId ? { ...j, approvals: list } : j))
-    );
-    return list;
-  }, []);
-
-  const fetchJobReboots = useCallback(async (jobId: string): Promise<PatchReboot[]> => {
-    const res = await apiFetch<{ reboots: PatchReboot[] } | PatchReboot[]>(
-      `/patches/jobs/${encodeURIComponent(jobId)}/reboots`
-    );
-    const list = Array.isArray(res) ? res : res.reboots ?? [];
-    setJobs((prev) =>
-      prev.map((j) => (j.id === jobId ? { ...j, reboots: list } : j))
-    );
-    return list;
-  }, []);
-
-  const rebootAgentNow = useCallback(
-    async (jobId: string, agentId: string): Promise<PatchReboot> => {
-      const r = await apiFetch<PatchReboot>(
-        `/patches/jobs/${encodeURIComponent(jobId)}/reboots/${encodeURIComponent(agentId)}/reboot-now`,
-        { method: 'POST' }
-      );
-      setJobs((prev) =>
-        prev.map((j) => {
-          if (j.id !== jobId) return j;
-          const existing = j.reboots ?? [];
-          const idx = existing.findIndex((x) => x.id === r.id || x.agent_id === agentId);
-          const nextReboots =
-            idx === -1
-              ? [...existing, r]
-              : existing.map((x) => (x.id === r.id || x.agent_id === agentId ? { ...x, ...r } : x));
-          return { ...j, reboots: nextReboots };
-        })
-      );
-      return r;
-    },
-    []
-  );
-
-  const scheduleReboot = useCallback(
-    async (jobId: string, agentId: string, scheduledAt: string): Promise<PatchReboot> => {
-      const r = await apiFetch<PatchReboot>(
-        `/patches/jobs/${encodeURIComponent(jobId)}/reboots/${encodeURIComponent(agentId)}/schedule`,
-        { method: 'POST', json: { scheduled_at: scheduledAt } }
-      );
-      setJobs((prev) =>
-        prev.map((j) => {
-          if (j.id !== jobId) return j;
-          const existing = j.reboots ?? [];
-          const idx = existing.findIndex((x) => x.id === r.id || x.agent_id === agentId);
-          const nextReboots =
-            idx === -1
-              ? [...existing, r]
-              : existing.map((x) => (x.id === r.id || x.agent_id === agentId ? { ...x, ...r } : x));
-          return { ...j, reboots: nextReboots };
-        })
-      );
-      return r;
-    },
-    []
-  );
+  const ops = usePatchJobOps({ mountedRef, setJobs, applyJobMutation, approveJob, rejectJob });
 
   return {
-    // catalog
-    catalog,
-    catalogTotal,
-    catalogLoading,
-    catalogError,
-    fetchCatalog,
-    scanMissing,
-    // jobs
-    jobs,
-    jobsTotal,
-    isLoading,
-    error,
-    status,
-    refresh: fetchJobs,
-    fetchJob,
-    createJob,
-    cancelJob,
-    rollbackJob,
-    approveJob,
-    rejectJob,
-    batchApprove,
-    batchReject,
-    // job details
-    fetchJobTargets,
-    fetchJobApprovals,
-    fetchJobReboots,
-    rebootAgentNow,
-    scheduleReboot,
-    // scans
-    scans,
-    scansLoading,
-    fetchScans,
+    catalog, catalogTotal, catalogLoading, catalogError, fetchCatalog, scanMissing,
+    jobs, jobsTotal, isLoading, error, status, refresh: fetchJobs,
+    fetchJob: ops.fetchJob, createJob: ops.createJob, cancelJob: ops.cancelJob,
+    rollbackJob: ops.rollbackJob, approveJob, rejectJob,
+    batchApprove: ops.batchApprove, batchReject: ops.batchReject,
+    fetchJobTargets: ops.fetchJobTargets, fetchJobApprovals: ops.fetchJobApprovals,
+    fetchJobReboots: ops.fetchJobReboots, rebootAgentNow: ops.rebootAgentNow,
+    scheduleReboot: ops.scheduleReboot,
+    scans, scansLoading, fetchScans,
   };
 }
 
 export default usePatches;
-

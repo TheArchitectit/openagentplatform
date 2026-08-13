@@ -70,7 +70,6 @@ async function fetchWithRetry<T>(
 			}
 		}
 	}
-	// eslint-disable-next-line @typescript-eslint/no-throw-literal
 	throw lastError ?? new Error("fetchWithRetry: unexpected null error");
 }
 
@@ -95,8 +94,8 @@ export function useApi<T = unknown>(options: UseApiOptions): UseApiResult<T> {
 	const [error, setError] = useState<Error | null>(null);
 
 	const mountedRef = useRef(true);
-	const pollTimerRef = useRef<ReturnType<typeof setInterval>>();
-	const abortRef = useRef<AbortController>();
+	const pollTimerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+	const abortRef = useRef<AbortController | undefined>(undefined);
 
 	const fetchFn = useCallback(async () => {
 		// Cancel any in-flight request.

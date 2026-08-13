@@ -14,72 +14,27 @@
 //   assignAgent:    assign an agent to a check
 //   unassignAgent:  remove an agent assignment
 //   fetchResults:   fetch recent results for a check (for the detail page)
-//
-// WebSocket integration:
-//   The "checks" channel delivers events like:
-//     { type: "event", channel: "checks", event: "check.created",   data: Check }
-//     { type: "event", channel: "checks", event: "check.updated",   data: Check }
-//     { type: "event", channel: "checks", event: "check.deleted",   data: { id } }
-//     { type: "event", channel: "checks", event: "check.result",    data: CheckResult }
-//     { type: "event", channel: "checks", event: "check.completed", data: CheckResult }
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch, ApiError } from './api';
 import { getWsClient, type WsEnvelope, type Status } from './websocket';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+export type {
+  CheckStatus, CheckType, Check, CheckResult,
+  AgentAssignment, CreateCheckInput, UpdateCheckInput,
+} from './useChecks.helpers'
+export { isCheckEvent } from './useChecks.helpers'
+import { isCheckEvent } from './useChecks.helpers'
+import type {
+  Check, AgentAssignment, CheckResult, CheckStatus,
+  CreateCheckInput, UpdateCheckInput,
+} from './useChecks.helpers'
 
-export type CheckStatus = 'ok' | 'warning' | 'critical' | 'disabled';
-export type CheckType =
-  | 'http'
-  | 'tcp'
-  | 'ping'
-  | 'disk_usage'
-  | 'memory_usage'
-  | 'cpu_usage'
-  | 'process'
-  | 'service'
-  | 'tls_cert'
-  | 'script'
-  | 'log_watch';
-
-export interface Check {
-  id: string;
-  name: string;
-  type: CheckType;
-  config: Record<string, unknown>;
-  interval_secs: number;
-  enabled: boolean;
-  site_id?: string;
-  created_at?: string;
-  updated_at?: string;
-  // Derived/aggregated fields the server may include in list responses:
-  last_status?: CheckStatus;
-  last_run?: string;
-  assigned_agents?: number;
-}
-
-export interface CheckResult {
-  id?: string;
-  check_id: string;
-  agent_id: string;
-  timestamp: string;
-  status: CheckStatus | string;
-  value?: number;
-  message?: string;
-  duration_ms?: number;
-}
-
-export interface AgentAssignment {
-  id: string;
-  agent_id: string;
-  check_id: string;
-  hostname?: string;
-  last_status?: CheckStatus | string;
-  last_run?: string;
-  enabled: boolean;
+interface CheckListResponse {
+  checks: Check[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface UseChecksResult {
@@ -98,48 +53,6 @@ export interface UseChecksResult {
   unassignAgent: (checkId: string, agentId: string) => Promise<void>;
   fetchResults: (checkId: string, limit?: number) => Promise<CheckResult[]>;
   fetchAssignments: (checkId: string) => Promise<AgentAssignment[]>;
-}
-
-export interface CreateCheckInput {
-  name: string;
-  type: CheckType;
-  config: Record<string, unknown>;
-  interval_secs: number;
-  enabled?: boolean;
-  site_id?: string;
-}
-
-export interface UpdateCheckInput {
-  name?: string;
-  config?: Record<string, unknown>;
-  interval_secs?: number;
-  enabled?: boolean;
-}
-
-interface CheckListResponse {
-  checks: Check[];
-  total: number;
-  limit: number;
-  offset: number;
-}
-
-// ---------------------------------------------------------------------------
-// WebSocket envelope narrowing
-// ---------------------------------------------------------------------------
-
-type WsCheckEvent =
-  | { event: 'check.created'; data: Check }
-  | { event: 'check.updated'; data: Check }
-  | { event: 'check.deleted'; data: { id: string } }
-  | { event: 'check.result' | 'check.completed'; data: CheckResult };
-
-function isCheckEvent(env: WsEnvelope): env is WsEnvelope & WsCheckEvent {
-  if (env.type !== 'event' || env.channel !== 'checks') return false;
-  const ev = env.event;
-  if (ev !== 'check.created' && ev !== 'check.updated' && ev !== 'check.deleted' && ev !== 'check.result' && ev !== 'check.completed') {
-    return false;
-  }
-  return typeof env.data === 'object' && env.data !== null;
 }
 
 // ---------------------------------------------------------------------------

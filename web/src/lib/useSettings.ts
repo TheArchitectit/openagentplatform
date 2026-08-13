@@ -1,32 +1,20 @@
-// useSettings — manages user accounts, roles, API keys, SSO providers,
-// and audit events.
-//
-// Exposed operations:
-//   fetchUsers / inviteUser / updateUser / deactivateUser
-//   fetchRoles / createRole / updateRole / deleteRole
-//   fetchAPIKeys / createAPIKey / revokeAPIKey
-//   fetchSSOProviders / createSSOProvider / updateSSOProvider /
-//     deleteSSOProvider / testSSOConnection
-//   fetchAuditEvents
+// useSettings — user/role/API-key/SSO/audit management hook.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from './api';
 
+import { BUILT_IN_ROLES } from './useSettings_types'
+
+// Local type bindings used by the hook body below.
 import type {
-  UserStatus, User, InviteUserInput, UpdateUserInput,
+  User, UserStatus, InviteUserInput, UpdateUserInput,
   Role, CreateRoleInput, UpdateRoleInput,
   APIKey, CreateAPIKeyInput, CreateAPIKeyResult,
   SSOSSOProvider, CreateSSOProviderInput,
   UpdateSSOProviderInput, SSOTestResult,
 } from './useSettings_types'
 
-import { BUILT_IN_ROLES } from './useSettings_types'
-
-// ---------------------------------------------------------------------------
-// Types — Users
-// ---------------------------------------------------------------------------
-
-
+// Public types/constants remain reachable from this path.
 export type {
   UserRole, UserStatus, User, InviteUserInput, UpdateUserInput,
   PermissionAction, PermissionCategory, Role, CreateRoleInput, UpdateRoleInput,
@@ -34,85 +22,15 @@ export type {
   CreateAPIKeyResult, SSOProviderType, SSOSSOProvider, CreateSSOProviderInput,
   UpdateSSOProviderInput, SSOTestResult,
 } from './useSettings_types'
-
 export {
   PERMISSION_CATEGORIES, API_KEY_SCOPES, BUILT_IN_ROLES,
 } from './useSettings_types'
 
-
-// ---------------------------------------------------------------------------
-// Types — Audit
-// ---------------------------------------------------------------------------
-
-export type AuditOutcome = 'success' | 'failure' | 'denied';
-
-export interface AuditEvent {
-  id: string;
-  timestamp: string;
-  actor: string;
-  actor_id?: string;
-  action: string;
-  resource_type: string;
-  resource_id?: string;
-  outcome: AuditOutcome;
-  ip_address?: string;
-  user_agent?: string;
-  details?: Record<string, unknown>;
-}
-
-export interface AuditFilter {
-  actor?: string;
-  action?: string;
-  resource_type?: string;
-  from?: string;
-  to?: string;
-  outcome?: AuditOutcome;
-  limit?: number;
-  offset?: number;
-}
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
-
-export interface UseSettingsResult {
-  // Users
-  users: User[];
-  isLoadingUsers: boolean;
-  fetchUsers: () => Promise<void>;
-  inviteUser: (input: InviteUserInput) => Promise<User>;
-  updateUser: (id: string, input: UpdateUserInput) => Promise<User>;
-  deactivateUser: (id: string) => Promise<void>;
-
-  // Roles
-  roles: Role[];
-  isLoadingRoles: boolean;
-  fetchRoles: () => Promise<void>;
-  createRole: (input: CreateRoleInput) => Promise<Role>;
-  updateRole: (id: string, input: UpdateRoleInput) => Promise<Role>;
-  deleteRole: (id: string) => Promise<void>;
-
-  // API Keys
-  apiKeys: APIKey[];
-  isLoadingAPIKeys: boolean;
-  fetchAPIKeys: () => Promise<void>;
-  createAPIKey: (input: CreateAPIKeyInput) => Promise<CreateAPIKeyResult>;
-  revokeAPIKey: (id: string) => Promise<void>;
-
-  // SSO
-  ssoProviders: SSOSSOProvider[];
-  isLoadingSSO: boolean;
-  fetchSSOProviders: () => Promise<void>;
-  createSSOProvider: (input: CreateSSOProviderInput) => Promise<SSOSSOProvider>;
-  updateSSOProvider: (id: string, input: UpdateSSOProviderInput) => Promise<SSOSSOProvider>;
-  deleteSSOProvider: (id: string) => Promise<void>;
-  testSSOConnection: (id: string) => Promise<SSOTestResult>;
-
-  // Audit
-  auditEvents: AuditEvent[];
-  isLoadingAudit: boolean;
-  fetchAuditEvents: (filter?: AuditFilter) => Promise<AuditEvent[]>;
-}
+// Audit event types + query builder (defined in useSettings.helpers.ts).
+export type { AuditEvent, AuditFilter, UseSettingsResult, AuditOutcome } from './useSettings.helpers'
+export { buildAuditQuery } from './useSettings.helpers'
+import { buildAuditQuery } from './useSettings.helpers'
+import type { AuditEvent, AuditFilter, UseSettingsResult } from './useSettings.helpers'
 
 export function useSettings(): UseSettingsResult {
   const [users, setUsers] = useState<User[]>([]);
@@ -325,16 +243,7 @@ export function useSettings(): UseSettingsResult {
     async (filter?: AuditFilter): Promise<AuditEvent[]> => {
       setIsLoadingAudit(true);
       try {
-        const params = new URLSearchParams();
-        if (filter?.actor) params.set('actor', filter.actor);
-        if (filter?.action) params.set('action', filter.action);
-        if (filter?.resource_type) params.set('resource_type', filter.resource_type);
-        if (filter?.from) params.set('from', filter.from);
-        if (filter?.to) params.set('to', filter.to);
-        if (filter?.outcome) params.set('outcome', filter.outcome);
-        params.set('limit', String(filter?.limit ?? 200));
-        if (filter?.offset) params.set('offset', String(filter.offset));
-        const qs = params.toString();
+        const qs = buildAuditQuery(filter);
         const res = await apiFetch<{ events?: AuditEvent[] } | AuditEvent[]>(
           `/audit?${qs}`
         );
