@@ -90,7 +90,7 @@ services:
       APP_ENV: development
       LOG_LEVEL: info
       POSTGRES_DSN: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
-      NATS_URL: ${NATS_URL}
+      NATS_URL: ${NATS_URL:-nats://nats:4222}
       OIDC_ISSUER_URL: ${OIDC_ISSUER_URL}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
