@@ -57,6 +57,7 @@ SECRETS_ALLOWLIST=(
   # carry real keys — value-level rules (Generic long key=/entropy) still
   # catch a genuine credential even if dropped here.
   "docs/agentmcp/*.txt|architecture/design notes (ScrubPII example references PEM header as a pattern)"
+  "deploy/docker-compose.yml|compose env templates use \${VAR} interpolation for POSTGRES_DSN/NATS/OIDC, no literal credentials"
 )
 # Compile the allowlist into grep -E alternation (kept for reference / the
 # value may still be useful, but file filtering below uses glob matching to

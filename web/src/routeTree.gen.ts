@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as Dashboard_componentsRouteImport } from './routes/dashboard_components'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ShellRecordingsIndexRouteImport } from './routes/shell-recordings/index'
@@ -31,6 +32,8 @@ import { Route as ScriptsNewRouteImport } from './routes/scripts/new'
 import { Route as ScriptsScriptIdRouteImport } from './routes/scripts/$scriptId'
 import { Route as PoliciesPolicyIdRouteImport } from './routes/policies/$policyId'
 import { Route as PatchesJobIdRouteImport } from './routes/patches/$jobId'
+import { Route as ChecksCheck_detail_componentsRouteImport } from './routes/checks/check_detail_components'
+import { Route as ChecksCheck_componentsRouteImport } from './routes/checks/check_components'
 import { Route as ChecksCheckIdRouteImport } from './routes/checks/$checkId'
 import { Route as AlertsAlertIdRouteImport } from './routes/alerts/$alertId'
 import { Route as AgentsAgentIdRouteImport } from './routes/agents/$agentId'
@@ -44,6 +47,11 @@ import { Route as ScriptsScriptIdRunsRunIdRouteImport } from './routes/scripts/$
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Dashboard_componentsRoute = Dashboard_componentsRouteImport.update({
+  id: '/dashboard_components',
+  path: '/dashboard_components',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -152,6 +160,17 @@ const PatchesJobIdRoute = PatchesJobIdRouteImport.update({
   path: '/patches/$jobId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChecksCheck_detail_componentsRoute =
+  ChecksCheck_detail_componentsRouteImport.update({
+    id: '/checks/check_detail_components',
+    path: '/checks/check_detail_components',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ChecksCheck_componentsRoute = ChecksCheck_componentsRouteImport.update({
+  id: '/checks/check_components',
+  path: '/checks/check_components',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChecksCheckIdRoute = ChecksCheckIdRouteImport.update({
   id: '/checks/$checkId',
   path: '/checks/$checkId',
@@ -202,12 +221,15 @@ const ScriptsScriptIdRunsRunIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/dashboard_components': typeof Dashboard_componentsRoute
   '/login': typeof LoginRoute
   '/a2a/costs': typeof A2aCostsRoute
   '/a2a/tasks': typeof A2aTasksRouteWithChildren
   '/agents/$agentId': typeof AgentsAgentIdRouteWithChildren
   '/alerts/$alertId': typeof AlertsAlertIdRoute
   '/checks/$checkId': typeof ChecksCheckIdRoute
+  '/checks/check_components': typeof ChecksCheck_componentsRoute
+  '/checks/check_detail_components': typeof ChecksCheck_detail_componentsRoute
   '/patches/$jobId': typeof PatchesJobIdRoute
   '/policies/$policyId': typeof PoliciesPolicyIdRoute
   '/scripts/$scriptId': typeof ScriptsScriptIdRouteWithChildren
@@ -235,12 +257,15 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/dashboard_components': typeof Dashboard_componentsRoute
   '/login': typeof LoginRoute
   '/a2a/costs': typeof A2aCostsRoute
   '/a2a/tasks': typeof A2aTasksRouteWithChildren
   '/agents/$agentId': typeof AgentsAgentIdRouteWithChildren
   '/alerts/$alertId': typeof AlertsAlertIdRoute
   '/checks/$checkId': typeof ChecksCheckIdRoute
+  '/checks/check_components': typeof ChecksCheck_componentsRoute
+  '/checks/check_detail_components': typeof ChecksCheck_detail_componentsRoute
   '/patches/$jobId': typeof PatchesJobIdRoute
   '/policies/$policyId': typeof PoliciesPolicyIdRoute
   '/scripts/$scriptId': typeof ScriptsScriptIdRouteWithChildren
@@ -269,12 +294,15 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/dashboard_components': typeof Dashboard_componentsRoute
   '/login': typeof LoginRoute
   '/a2a/costs': typeof A2aCostsRoute
   '/a2a/tasks': typeof A2aTasksRouteWithChildren
   '/agents/$agentId': typeof AgentsAgentIdRouteWithChildren
   '/alerts/$alertId': typeof AlertsAlertIdRoute
   '/checks/$checkId': typeof ChecksCheckIdRoute
+  '/checks/check_components': typeof ChecksCheck_componentsRoute
+  '/checks/check_detail_components': typeof ChecksCheck_detail_componentsRoute
   '/patches/$jobId': typeof PatchesJobIdRoute
   '/policies/$policyId': typeof PoliciesPolicyIdRoute
   '/scripts/$scriptId': typeof ScriptsScriptIdRouteWithChildren
@@ -304,12 +332,15 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/dashboard_components'
     | '/login'
     | '/a2a/costs'
     | '/a2a/tasks'
     | '/agents/$agentId'
     | '/alerts/$alertId'
     | '/checks/$checkId'
+    | '/checks/check_components'
+    | '/checks/check_detail_components'
     | '/patches/$jobId'
     | '/policies/$policyId'
     | '/scripts/$scriptId'
@@ -337,12 +368,15 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
+    | '/dashboard_components'
     | '/login'
     | '/a2a/costs'
     | '/a2a/tasks'
     | '/agents/$agentId'
     | '/alerts/$alertId'
     | '/checks/$checkId'
+    | '/checks/check_components'
+    | '/checks/check_detail_components'
     | '/patches/$jobId'
     | '/policies/$policyId'
     | '/scripts/$scriptId'
@@ -370,12 +404,15 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/dashboard_components'
     | '/login'
     | '/a2a/costs'
     | '/a2a/tasks'
     | '/agents/$agentId'
     | '/alerts/$alertId'
     | '/checks/$checkId'
+    | '/checks/check_components'
+    | '/checks/check_detail_components'
     | '/patches/$jobId'
     | '/policies/$policyId'
     | '/scripts/$scriptId'
@@ -404,12 +441,15 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
+  Dashboard_componentsRoute: typeof Dashboard_componentsRoute
   LoginRoute: typeof LoginRoute
   A2aCostsRoute: typeof A2aCostsRoute
   A2aTasksRoute: typeof A2aTasksRouteWithChildren
   AgentsAgentIdRoute: typeof AgentsAgentIdRouteWithChildren
   AlertsAlertIdRoute: typeof AlertsAlertIdRoute
   ChecksCheckIdRoute: typeof ChecksCheckIdRoute
+  ChecksCheck_componentsRoute: typeof ChecksCheck_componentsRoute
+  ChecksCheck_detail_componentsRoute: typeof ChecksCheck_detail_componentsRoute
   PatchesJobIdRoute: typeof PatchesJobIdRoute
   PoliciesPolicyIdRoute: typeof PoliciesPolicyIdRoute
   ScriptsScriptIdRoute: typeof ScriptsScriptIdRouteWithChildren
@@ -439,6 +479,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard_components': {
+      id: '/dashboard_components'
+      path: '/dashboard_components'
+      fullPath: '/dashboard_components'
+      preLoaderRoute: typeof Dashboard_componentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -588,6 +635,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PatchesJobIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/checks/check_detail_components': {
+      id: '/checks/check_detail_components'
+      path: '/checks/check_detail_components'
+      fullPath: '/checks/check_detail_components'
+      preLoaderRoute: typeof ChecksCheck_detail_componentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checks/check_components': {
+      id: '/checks/check_components'
+      path: '/checks/check_components'
+      fullPath: '/checks/check_components'
+      preLoaderRoute: typeof ChecksCheck_componentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/checks/$checkId': {
       id: '/checks/$checkId'
       path: '/checks/$checkId'
@@ -693,12 +754,15 @@ const ScriptsScriptIdRouteWithChildren = ScriptsScriptIdRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
+  Dashboard_componentsRoute: Dashboard_componentsRoute,
   LoginRoute: LoginRoute,
   A2aCostsRoute: A2aCostsRoute,
   A2aTasksRoute: A2aTasksRouteWithChildren,
   AgentsAgentIdRoute: AgentsAgentIdRouteWithChildren,
   AlertsAlertIdRoute: AlertsAlertIdRoute,
   ChecksCheckIdRoute: ChecksCheckIdRoute,
+  ChecksCheck_componentsRoute: ChecksCheck_componentsRoute,
+  ChecksCheck_detail_componentsRoute: ChecksCheck_detail_componentsRoute,
   PatchesJobIdRoute: PatchesJobIdRoute,
   PoliciesPolicyIdRoute: PoliciesPolicyIdRoute,
   ScriptsScriptIdRoute: ScriptsScriptIdRouteWithChildren,
