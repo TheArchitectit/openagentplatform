@@ -11,6 +11,8 @@ WORKDIR /src
 # friends); copy module files first so deps cache independently of source.
 COPY go.mod go.sum ./
 COPY go.work ./
+COPY a2a/go.mod a2a/go.sum ./a2a/
+COPY secrets/go.mod secrets/go.sum ./secrets/
 RUN go mod download
 
 # Copy the rest of the source and build the server binary.
