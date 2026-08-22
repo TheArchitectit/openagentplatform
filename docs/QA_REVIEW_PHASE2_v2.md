@@ -104,3 +104,17 @@ Every CRITICAL/HIGH fix below requires, before push:
 4. **P2-10 → P2-15** (envelope lock, dead code, UI error states) — hardening.
 
 Do NOT begin fixing until this plan is acknowledged. Follow Phase 1 sequencing: QA pass → report → fix in priority order, each through the deploy gate.
+
+## Findings Status (resolved 2026-08-22)
+
+All 15 findings (P2-1 → P2-15) are **CLOSED**. Verified by `go build ./...` (clean) and a fully-empty `.guardrails/failure-registry.jsonl` active set (FAIL-A2A-001..009 all `status: resolved`).
+
+- **P2-1..P2-9** (critical/high contract divergence): fixed in `6c473cb` — translation proxy `internal/api/a2a_proxy.go` + SSE `a2a_proxy_sse.go`, gateway wiring `cmd/server/server_init_a2a.go`, Python field aliases `py/oap/adapters/api_models.py`.
+- **P2-10** (envelope contract): locked + regression test `web/src/lib/a2a.test.ts` (`fetchTasks` dual-parses `{tasks:[]}` and bare array).
+- **P2-11** (swallowed RPC error): fixed in `78c6045` — `a2a/bridge/rpc_bridge.go` now captures/logs the `GetTaskInternal` error.
+- **P2-12** (dead `generateTaskID`): removed in `78c6045`.
+- **P2-13** (SSE failure UI): fixed in `e203d30` — `useA2ATasks` exposes `sseConnected` + error; `web/src/routes/a2a/tasks.tsx` shows a reconnecting indicator.
+- **P2-14 / P2-15** (cost dashboard + silent EventSource): resolved by the proxy layer routes (`/costs/summary`, `/tasks/events`) added in `6c473cb` and surfaced via P2-13. Note: verified at route/handler/mock level only; live end-to-end against a running Python adapter service is a future runtime check.
+
+Infra fixes for the deploy gate landed in `466876e`, `fd2e374` (Dockerfile `secrets/go.sum` removal, `.dockerignore`, web base `node:22`, `network: host` build), and release `v1.1.1` was tagged and pushed.
+
