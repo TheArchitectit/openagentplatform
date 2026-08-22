@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"time"
-	"github.com/google/uuid"
 	"github.com/openagentplatform/openagentplatform/a2a/gateway"
 	"github.com/openagentplatform/openagentplatform/a2a/models"
 )
@@ -185,7 +184,15 @@ func (rb *RPCBridge) dispatchSync(ctx context.Context, task *models.Task, adapte
 				)
 			}
 		}
-		current, _ = rb.gw.GetTaskInternal(ctx, task.ID)
+		current, err = rb.gw.GetTaskInternal(ctx, task.ID)
+		if err != nil {
+			if rb.log != nil {
+				rb.log.Warn("bridge: get task after adding response",
+					"task_id", task.ID,
+					"err", err,
+				)
+			}
+		}
 	}
 
 	// Transition to completed (or failed if error)
@@ -435,11 +442,6 @@ func (rb *RPCBridge) publishUpdateRaw(taskID, status, message string) {
 		Message:   message,
 		UpdatedAt: time.Now().UTC(),
 	})
-}
-
-// generateTaskID is a helper to generate a UUID v4 task ID.
-func generateTaskID() string {
-	return uuid.NewString()
 }
 
 // messageToParts converts an A2A models.Message into the bridge Part slice
