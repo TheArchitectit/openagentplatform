@@ -12,7 +12,9 @@ WORKDIR /src
 COPY go.mod go.sum ./
 COPY go.work ./
 COPY a2a/go.mod a2a/go.sum ./a2a/
-COPY secrets/go.mod secrets/go.sum ./secrets/
+# secrets/go.mod declares go 1.23 with no require block (zero deps), so no
+# secrets/go.sum is generated; copy the go.mod only.
+COPY secrets/go.mod ./secrets/
 RUN go mod download
 
 # Copy the rest of the source and build the server binary.

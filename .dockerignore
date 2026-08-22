@@ -1,0 +1,40 @@
+# Build artifacts / host binaries (must not bake into images)
+server
+agent
+*.exe
+dist/
+web/dist/
+
+# Dependency trees (reinstalled inside the image)
+node_modules/
+web/node_modules/
+
+# Python
+__pycache__/
+*.pyc
+
+# Tooling / caches
+.pi/
+.cache/
+.turbo/
+coverage/
+*.log
+
+# VCS / CI
+.git/
+.github/
+
+# Local env
+.env
+.env.local
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Repo documentation / non-runtime assets (keep build context lean)
+docs/
+.mcp/
+systems-we-are-building/
+agent-guardrails-template/
