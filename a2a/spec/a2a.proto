@@ -34,6 +34,12 @@ message AgentCard {
   repeated string tags         = 8;
   repeated Skill skills        = 9;
   AuthScheme authentication   = 10;
+  string provider_name         = 11;
+  string provider_url          = 12;
+  bool   streaming             = 13;
+  bool   push_notifications    = 14;
+  repeated string default_input_modes  = 15;
+  repeated string default_output_modes = 16;
 }
 
 message Skill {
@@ -97,3 +103,32 @@ message TaskStatusUpdate {
   string message  = 3;
   string updated_at = 4;
 }
+
+// ============================================================
+// A2A Service
+// ============================================================
+
+service A2AService {
+  rpc SendTask(SendTaskRequest)          returns (SendTaskResponse);
+  rpc GetTask(GetTaskRequest)            returns (GetTaskResponse);
+  rpc ListTasks(ListTasksRequest)        returns (ListTasksResponse);
+  rpc CancelTask(CancelTaskRequest)      returns (CancelTaskResponse);
+  rpc SendSubscribeTask(SendTaskRequest) returns (stream TaskStatusUpdate);
+  rpc SubscribeTask(SubscribeTaskRequest) returns (stream TaskStatusUpdate);
+  rpc RegisterAgent(RegisterAgentRequest) returns (RegisterAgentResponse);
+  rpc ListAgents(ListAgentsRequest)      returns (ListAgentsResponse);
+}
+
+message SendTaskRequest     { Task task = 1; }
+message SendTaskResponse    { Task task = 1; }
+message GetTaskRequest      { string task_id = 1; }
+message GetTaskResponse     { Task task = 1; }
+message ListTasksRequest    { string session_id = 1; string status = 2; string agent_id = 3; int32 limit = 4; int32 offset = 5; }
+message ListTasksResponse   { repeated Task tasks = 1; int32 total = 2; }
+message CancelTaskRequest   { string task_id = 1; }
+message CancelTaskResponse  { bool success = 1; }
+message SubscribeTaskRequest{ string task_id = 1; }
+message RegisterAgentRequest{ AgentCard card = 1; }
+message RegisterAgentResponse{ AgentCard card = 1; }
+message ListAgentsRequest   {}
+message ListAgentsResponse  { repeated AgentCard agents = 1; }

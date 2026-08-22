@@ -15,7 +15,6 @@ import (
 	"github.com/openagentplatform/openagentplatform/a2a/router"
 	"github.com/openagentplatform/openagentplatform/internal/api"
 	"github.com/openagentplatform/openagentplatform/internal/audit"
-	"github.com/openagentplatform/openagentplatform/internal/auth"
 	"github.com/openagentplatform/openagentplatform/internal/billing"
 	"github.com/openagentplatform/openagentplatform/internal/config"
 	"github.com/openagentplatform/openagentplatform/internal/events"
@@ -79,43 +78,14 @@ func buildA2AGateway(apiServer *api.Server, pool *pgxpool.Pool, natsClient *even
 // gateway under /a2a alongside the API server, wraps the router with tracing
 // and rate-limiting middleware, and builds the *http.Server. Extracted from
 // NewServer so that file stays under the file-size soft limit.
-func buildHTTPServer(apiServer *api.Server, cfg *config.Config, a2aGw *gateway.Gateway, rateLimiter *resilience.RateLimiter, log *slog.Logger) (*http.Server, error) {
+func buildHTTPServer(apiServer *api.Server, cfg *config.Config, a2aGw *gateway.Gateway, rateLimiter *resilience.RateLimiter, a2aAuth *gateway.Authenticator, log *slog.Logger) (*http.Server, error) {
 	// Build a top-level router that delegates the API to apiServer.Router()
 	// and mounts the A2A gateway handlers under /a2a/.
 	//
 	// The A2A gateway runs with RequireAuth=true, so its per-RPC authorize()
-	// checks require an identity. We build a gateway Authenticator whose
-	// token validator reuses the API server's SessionMinter, so callers
-	// authenticate against the same session JWT the REST API accepts.
-	a2aAuth := gateway.NewAuthenticator(gateway.Config{RequireAuth: true})
-	if sm := apiServer.SessionMinter(); sm != nil {
-		a2aAuth.SetTokenValidator(func(token string) (*gateway.Identity, error) {
-			claims, err := sm.Parse(token)
-			if err != nil || claims == nil {
-				return nil, gateway.ErrInvalidCredentials
-			}
-			md := map[string]string{
-				"email": claims.Email,
-				"role":  claims.Role,
-			}
-			if claims.OrgID != "" {
-				md["org_id"] = claims.OrgID
-			}
-			// Map the session role to A2A permission scopes: viewers get
-			// a2a:read; admin/technician/operator also get a2a:send + a2a:admin.
-			scopes := []string{gateway.PermRead}
-			switch claims.Role {
-			case auth.RoleAdmin, auth.RoleTechnician, auth.RoleOperator:
-				scopes = append(scopes, gateway.PermSend, gateway.PermAdmin)
-			}
-			return &gateway.Identity{
-				Subject:  claims.Subject,
-				Method:   gateway.AuthBearer,
-				Scopes:   scopes,
-				Metadata: md,
-			}, nil
-		})
-	}
+	// checks require an identity. The Authenticator is built once in NewServer
+	// (newA2AAuthenticator) and shared between the HTTP and gRPC transports, so
+	// both authenticate against the same session JWT the REST API accepts.
 	rootHandler := newA2ARouter(apiServer.Router(), a2aGw, a2aAuth)
 
 	// Wrap with the OpenTelemetry HTTP middleware so every request gets a

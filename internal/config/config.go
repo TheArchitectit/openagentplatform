@@ -11,6 +11,7 @@ import (
 
 type Config struct {
 	HTTPPort      string
+	GRPCPort      string
 	Env           string
 	LogLevel      string
 
@@ -52,6 +53,7 @@ type Config struct {
 func Load() (*Config, error) {
 	c := &Config{
 		HTTPPort:        getEnv("HTTP_PORT", "8080"),
+		GRPCPort:        getEnv("GRPC_PORT", "9090"),
 		Env:             getEnv("APP_ENV", "development"),
 		LogLevel:        getEnv("LOG_LEVEL", "info"),
 		PostgresDSN:     os.Getenv("POSTGRES_DSN"),
