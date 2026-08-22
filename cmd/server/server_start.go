@@ -69,6 +69,17 @@ func (s *Server) Start(ctx context.Context) error {
 		}
 	}()
 
+	// Start the A2A gRPC transport on its own port. The gRPC server is optional
+	// (nil when the port could not be bound in NewServer); skip silently.
+	if s.grpcServer != nil && s.grpcListener != nil {
+		go func() {
+			s.log.Info("starting grpc server", "addr", s.grpcListener.Addr().String())
+			if err := s.grpcServer.Serve(s.grpcListener); err != nil {
+				s.log.Error("grpc server error", "err", err)
+			}
+		}()
+	}
+
 	return nil
 }
 
@@ -115,6 +126,14 @@ func (s *Server) Shutdown(ctx context.Context) error {
 		s.rpcBridge.Stop()
 		return nil
 	}))
+	// gRPC server: stop accepting new RPCs and wait for in-flight calls to
+	// finish before closing the listener.
+	if s.grpcServer != nil {
+		s.graceful.Register("grpc-server", resilience.CloserFunc(func(_ context.Context) error {
+			s.grpcServer.GracefulStop()
+			return nil
+		}))
+	}
 	s.graceful.Register("patch-scheduler", resilience.CloserFunc(func(_ context.Context) error {
 		s.patchScheduler.Close()
 		return nil

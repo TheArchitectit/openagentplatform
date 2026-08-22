@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/openagentplatform/openagentplatform/a2a/bridge"
 	"github.com/openagentplatform/openagentplatform/internal/alerts"
+	"google.golang.org/grpc"
 	"github.com/openagentplatform/openagentplatform/internal/api"
 	"github.com/openagentplatform/openagentplatform/internal/billing"
 	"github.com/openagentplatform/openagentplatform/internal/checks"
@@ -46,6 +48,10 @@ type Server struct {
 	patchScheduler *patches.PatchScheduler
 	eventBridge    *bridge.Bridge
 	rpcBridge      *bridge.RPCBridge
+	// grpcServer serves the A2A gRPC transport on cfg.GRPCPort. nil when
+	// the gRPC transport fails to bind (logged, non-fatal).
+	grpcServer   *grpc.Server
+	grpcListener net.Listener
 	// secretsSweeper cleans up expired credential injections. nil when
 	// no resolver/injector was configured.
 	secretsSweeper *inject.Sweeper
@@ -198,9 +204,21 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 	}
 
 	// --- HTTP server with A2A routes mounted ---------------------------
-	httpServer, err := buildHTTPServer(apiServer, cfg, a2aGw, svc.rateLimiter, log)
+	a2aAuth := newA2AAuthenticator(apiServer)
+	httpServer, err := buildHTTPServer(apiServer, cfg, a2aGw, svc.rateLimiter, a2aAuth, log)
 	if err != nil {
 		return nil, err
+	}
+
+	// --- gRPC server for the A2A transport ------------------------------
+	// The gRPC transport is optional: if the port is already in use we log
+	// and continue with REST+JSON-RPC only.
+	var grpcServer *grpc.Server
+	var grpcListener net.Listener
+	if gs, lis, gErr := buildGRPCServer(a2aGw, a2aAuth, cfg.GRPCPort, log); gErr != nil {
+		log.Warn("grpc server not started", "port", cfg.GRPCPort, "error", gErr)
+	} else {
+		grpcServer, grpcListener = gs, lis
 	}
 
 	// --- Tenancy retention purger ---------------------------------------
@@ -236,6 +254,8 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		rateLimiter:       svc.rateLimiter,
 		adapterBreaker:    svc.adapterBreaker,
 		graceful:          svc.graceful,
+		grpcServer:        grpcServer,
+		grpcListener:      grpcListener,
 	}, nil
 }
 
