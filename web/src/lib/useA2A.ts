@@ -149,7 +149,10 @@ export function useA2ATasks(params: UseA2ATasksParams = {}): UseA2ATasksResult {
         if (mountedRef.current) setSseConnected(true);
       };
       es.onerror = () => {
-        setSseConnected(false);
+        if (mountedRef.current) {
+          setSseConnected(false);
+          setError((prev) => prev ?? new ApiError(0, 'SSEError', 'Task-event stream disconnected'));
+        }
         es?.close();
         scheduleReconnect();
       };

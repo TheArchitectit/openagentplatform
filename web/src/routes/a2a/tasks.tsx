@@ -92,7 +92,7 @@ function formatCost(cost: number | undefined): string {
 }
 
 function TaskMonitorPage() {
-  const { tasks, isLoading, error, refresh } = useA2ATasks();
+  const { tasks, isLoading, error, refresh, sseConnected } = useA2ATasks();
   const [filter, setFilter] = useState<FilterTab>('all');
 
   const filtered = useMemo(() => {
@@ -127,6 +127,11 @@ function TaskMonitorPage() {
             <p className="text-gray-300 text-sm mt-0.5">
               Real-time A2A task stream with auto-refresh
             </p>
+            {!sseConnected && (
+              <p className="text-yellow-400 text-xs mt-1" role="status">
+                Live task updates paused — reconnecting…
+              </p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
