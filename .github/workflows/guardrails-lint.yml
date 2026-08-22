@@ -2,7 +2,7 @@ name: Guardrails Compliance Check
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, 'sprint/**']
 
 permissions:
   contents: read

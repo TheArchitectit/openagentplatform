@@ -2,12 +2,12 @@ name: Web
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'sprint/**']
     paths:
       - "web/**"
       - ".github/workflows/web.yml"
   pull_request:
-    branches: [main]
+    branches: [main, 'sprint/**']
     paths:
       - "web/**"
       - ".github/workflows/web.yml"

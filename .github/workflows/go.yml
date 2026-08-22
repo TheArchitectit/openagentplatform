@@ -2,20 +2,22 @@ name: Go
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'sprint/**']
     paths:
       - "cmd/**"
       - "internal/**"
       - "pkg/**"
+      - "a2a/**"
       - "go.mod"
       - "go.sum"
       - ".github/workflows/go.yml"
   pull_request:
-    branches: [main]
+    branches: [main, 'sprint/**']
     paths:
       - "cmd/**"
       - "internal/**"
       - "pkg/**"
+      - "a2a/**"
       - "go.mod"
       - "go.sum"
       - ".github/workflows/go.yml"

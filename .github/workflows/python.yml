@@ -2,12 +2,12 @@ name: Python
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'sprint/**']
     paths:
       - "py/**"
       - ".github/workflows/python.yml"
   pull_request:
-    branches: [main]
+    branches: [main, 'sprint/**']
     paths:
       - "py/**"
       - ".github/workflows/python.yml"

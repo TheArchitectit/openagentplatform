@@ -1,6 +1,6 @@
 # Roadmap & Sprint Plan
 
-> **Version:** 1.0.0 | **Last Updated:** 2026-06-15 | **Status:** Authoritative Blueprint
+> **Version:** 2.0.0 | **Last Updated:** 2026-08-22 | **Status:** Authoritative Blueprint
 
 ---
 
@@ -14,7 +14,7 @@ Phase 0  Phase 1    Phase 2  Phase 3  Phase 4  Phase 5       Phase 6
 ├────┤├──────────┤├──────┤├──────┤├──────┤├────────────┤├────────────┤
 Found.   Core RMM    A2A+    Secret   React     Production    Commercial
                       Agents   Mgmt     UI        Hardening     Tiering
-                                                                    
+
 v0.1α ──→ v0.1α ──→ v0.3α ──→ v0.4β ──→ v0.5β ──→ v1.0 GA ──→ v1.1
 ```
 
@@ -34,175 +34,381 @@ v0.1α ──→ v0.1α ──→ v0.3α ──→ v0.4β ──→ v0.5β ─�
 
 ---
 
-## 3. Phase 0 Sprint Breakdown
+## 3. Phase 0 Sprint Breakdown — COMPLETE
 
-### Sprint 0.1 (Week 1-2)
+### Sprint 0.1 (Week 1-2) ✓
 
-| Story | Description | Stream | Complexity |
-|-------|-------------|--------|------------|
-| 0.1.1 | **As a developer, I want a monorepo scaffold** with Go workspace, Python venv, and TypeScript workspace so that I can develop across all languages in one repo. Acceptance: `go build ./...`, `python -m pytest`, `npm run build` all succeed. | A (Backend) | M |
-| 0.1.2 | **As a developer, I want CI pipelines** for Go, Python, and TypeScript so that every PR is automatically tested. Acceptance: PR triggers lint+test matrix. | D (Infra) | M |
-| 0.1.3 | **As a developer, I want PostgreSQL schema** with migrations 01-09 so that all base tables exist. Acceptance: `python manage.py migrate` succeeds; 9 tables created. | A (Backend) | L |
-| 0.1.4 | **As a developer, I want NATS with mTLS** and SPIFFE mappings so that agent connections are authenticated. Acceptance: Agent connects via client cert; plaintext rejected. | D (Infra) | M |
-| 0.1.5 | **As a user, I want OIDC auth** with Dex test IdP so that I can log in. Acceptance: Login via Dex redirect; JWT issued; API returns user identity. | A (Backend) | L |
-| 0.1.6 | **As a developer, I want OpenAPI 3.1 spec** generation so that API is documented. Acceptance: `/docs/swagger` renders complete API spec. | A (Backend) | M |
-| 0.1.7 | **As a user, I want a React shell** with TanStack Router and Query so that I can navigate the app. Acceptance: App loads, sidebar renders, login redirects. | C (Frontend) | M |
+| Story | Description | Status |
+|-------|-------------|--------|
+| 0.1.1 | Monorepo scaffold (Go workspace, Python venv, TypeScript workspace) | ✓ |
+| 0.1.2 | CI pipelines for Go, Python, TypeScript | ✓ |
+| 0.1.3 | PostgreSQL schema with migrations 01-09 | ✓ |
+| 0.1.4 | NATS with mTLS and SPIFFE mappings | ✓ |
+| 0.1.5 | OIDC auth with Dex test IdP | ✓ |
+| 0.1.6 | OpenAPI 3.1 spec generation | ✓ |
+| 0.1.7 | React shell with TanStack Router and Query | ✓ |
 
-### Sprint 0.2 (Week 3-4)
+### Sprint 0.2 (Week 3-4) ✓
 
-| Story | Description | Stream | Complexity |
-|-------|-------------|--------|------------|
-| 0.2.1 | **As an admin, I want an agent CLI binary** (Go, cross-compiled) so that I can deploy to Windows/Linux/macOS. Acceptance: Binary connects to NATS, registers, sends heartbeat. | B (Agent) | XL |
-| 0.2.2 | **As a user, I want agent registration and heartbeat** flow so that devices appear in the dashboard. Acceptance: Agent registers, heartbeats every 60s, status updates in UI. | A+B | L |
-| 0.2.3 | **As a user, I want an endpoint list page** with real-time updates so that I can see all managed devices. Acceptance: Agent list shows hostname, status, last seen; updates live via WebSocket. | C (Frontend) | M |
-| 0.2.4 | **As a compliance officer, I want audit log** infrastructure so that all actions are tracked. Acceptance: Login, API call, and agent action produce audit records. | A (Backend) | M |
-| 0.2.5 | **As a developer, I want a 5-minute setup guide** so that new contributors can start quickly. Acceptance: Fresh clone → `docker compose up` → dashboard visible in <5 minutes. | D (Infra) | S |
-
----
-
-## 4. Phase 1 Sprint Breakdown
-
-### Sprint 1.1 (Week 5-6): Checks
-
-| Story | Description | Stream | Complexity |
-|-------|-------------|--------|------------|
-| 1.1.1 | **As an admin, I want Check CRUD API** so that I can define monitoring checks. Acceptance: Create/read/update/delete checks via REST; all 10 check types supported. | A | L |
-| 1.1.2 | **As an agent, I want a check executor** so that I can run checks locally and report results. Acceptance: Agent receives check command, executes, sends result via NATS. | B | L |
-| 1.1.3 | **As an admin, I want a built-in check library** (ping, CPU, memory, disk, service) so that common checks are ready out-of-the-box. Acceptance: 5 check types work end-to-end; results visible in UI. | A | XL |
-| 1.1.4 | **As a system, I want a check result ingest pipeline** so that results are stored and thresholds evaluated. Acceptance: Result posted → stored in DB → alert triggered if threshold exceeded. | A | M |
-| 1.1.5 | **As a user, I want a checks dashboard** with live status so that I can see check health at a glance. Acceptance: Table of checks with status indicators; auto-refresh every 30s. | C | M |
-
-### Sprint 1.2 (Week 7-8): Alerts
-
-| Story | Description | Stream | Complexity |
-|-------|-------------|--------|------------|
-| 1.2.1 | **As a system, I want an alert rule engine** with state machine so that alerts fire on threshold breaches. Acceptance: 3 consecutive check failures → alert created; state machine transitions tested. | A | XL |
-| 1.2.2 | **As an admin, I want notification channels** (email, Slack, webhook) so that alerts reach the right people. Acceptance: Alert fires → email sent, Slack message posted, webhook called. | A | L |
-| 1.2.3 | **As a user, I want an alert inbox and detail page** so that I can triage alerts. Acceptance: List alerts, acknowledge, resolve, snooze; detail page shows timeline. | C | M |
-| 1.2.4 | **As an admin, I want alert preferences and routing** so that alerts go to the right team. Acceptance: Configure per-severity routing; silence periods work. | A | M |
-
-### Sprint 1.3 (Week 9-10): Policies
-
-| Story | Description | Stream | Complexity |
-|-------|-------------|--------|------------|
-| 1.3.1 | **As an admin, I want OPA integration** for policy evaluation so that I can enforce compliance rules. Acceptance: Policy defined → agent actions evaluated against OPA → violations logged. | A | XL |
-| 1.3.2 | **As a system, I want compliance collectors** so that agent state is checked against policies. Acceptance: Collector runs on schedule; non-compliant agents flagged. | A | L |
-| 1.3.3 | **As a user, I want a policy library and editor UI** so that I can create and modify policies. Acceptance: Create policy with rules, assign scope, preview affected agents. | A+C | L |
-| 1.3.4 | **As a system, I want policy violation alerts** so that non-compliance triggers notifications. Acceptance: Policy violated → alert created → notification sent. | A | M |
-
-### Sprint 1.4 (Week 11-12): Patches
-
-| Story | Description | Stream | Complexity |
-|-------|-------------|--------|------------|
-| 1.4.1 | **As an admin, I want patch inventory and scan** so that I can see available patches for each agent. Acceptance: Scan triggered → results in DB → per-agent patch list in UI. | A+B | L |
-| 1.4.2 | **As an admin, I want a patch approval workflow** so that patches are reviewed before deployment. Acceptance: Patches pending_approval → approve/reject → state transitions logged. | A | L |
-| 1.4.3 | **As a system, I want a patch deployment engine** so that approved patches are installed on schedule. Acceptance: Batch deploy to 10 agents; progress tracked; failures retried. | A | XL |
-| 1.4.4 | **As a user, I want a patch status UI** with reboot coordination so that I can track deployment progress. Acceptance: Compliance scorecard; per-agent patch status; reboot prompts. | A+C | M |
-
-### Sprint 1.5 (Week 13-14): Scripts/Remote
-
-| Story | Description | Stream | Complexity |
-|-------|-------------|--------|------------|
-| 1.5.1 | **As an admin, I want script library CRUD** so that I can manage reusable scripts. Acceptance: Create/edit/delete scripts with metadata; 5 runtime types supported. | A | M |
-| 1.5.2 | **As an agent, I want a 4-runtime script executor** so that I can run PowerShell, Python, Bash, and Node scripts. Acceptance: Script dispatched → executed → stdout/stderr streamed → result stored. | B | XL |
-| 1.5.3 | **As a user, I want a script UI** with Monaco editor so that I can write and test scripts. Acceptance: Syntax highlighting, execution form, live output console. | C | L |
-| 1.5.4 | **As a user, I want SSH/WinRM remote shell** (xterm.js + noVNC) so that I can access endpoints remotely. Acceptance: Terminal session opens; keystrokes transmitted; VNC desktop viewable. | B+C | XL |
-| 1.5.5 | **As a compliance officer, I want remote session audit** and recording playback so that access is traceable. Acceptance: Session duration logged; recording available for replay; audit trail complete. | A+B | M |
+| Story | Description | Status |
+|-------|-------------|--------|
+| 0.2.1 | Agent CLI binary (Go, cross-compiled) | ✓ |
+| 0.2.2 | Agent registration and heartbeat flow | ✓ |
+| 0.2.3 | Endpoint list page with real-time updates | ✓ |
+| 0.2.4 | Audit log infrastructure | ✓ |
+| 0.2.5 | 5-minute setup guide | ✓ |
 
 ---
 
-## 5. Phase 2-6 Overviews
+## 4. Phase 1 Sprint Breakdown — COMPLETE
 
-### Phase 2: A2A + Agents (6 weeks)
-- A2A gateway with JSON-RPC, REST, gRPC bindings
-- 6 framework adapters (LangGraph, CrewAI, AutoGen, Semantic Kernel, OpenAI, Anthropic)
-- ProcessPool with warm agent instances
-- Event-to-Task bridge (8 RMM event types → A2A Tasks)
-- Human-in-the-loop approval workflow
+### Sprint 1.1 (Week 5-6): Checks ✓
 
-### Phase 3: Secret Management (4 weeks)
-- SecretBackend abstraction with 5 implementations
-- HashiCorp Vault integration (AppRole, K8s, JWT auth)
-- Infisical integration
-- Secret Reference URI resolution pipeline
-- Credential injection (env, file, stdin)
-- A2A auth token management (EdDSA JWTs)
-- MCP OAuth 2.1 server
+| Story | Description | Status |
+|-------|-------------|--------|
+| 1.1.1 | Check CRUD API (10 check types) | ✓ |
+| 1.1.2 | Agent check executor | ✓ |
+| 1.1.3 | Built-in check library (ping, CPU, memory, disk, service) | ✓ |
+| 1.1.4 | Check result ingest pipeline with threshold evaluation | ✓ |
+| 1.1.5 | Checks dashboard with live status | ✓ |
 
-### Phase 4: Frontend (6 weeks)
-- Full React 19 SPA (20 pages in 10 feature modules)
-- Dashboard, Agent Management, Monitoring, Patches, Remote Access
-- Script Editor (Monaco), A2A Dashboard, Policy Editor
-- Settings (Users, RBAC, SSO, API Keys)
-- Real-time updates via WebSocket
+### Sprint 1.2 (Week 7-8): Alerts ✓
 
-### Phase 5: Production (8 weeks)
-- OpenTelemetry instrumentation for all services
-- Prometheus + Grafana + Loki observability stack
-- k6 + Locust load testing (10K endpoint target)
-- OWASP ZAP + gitleaks security testing
-- chaos-mesh resilience testing
-- MkDocs Material documentation site
-- CI/CD hardening (12 GitHub Actions workflows)
+| Story | Description | Status |
+|-------|-------------|--------|
+| 1.2.1 | Alert rule engine with state machine | ✓ |
+| 1.2.2 | Notification channels (email, Slack, webhook) | ✓ |
+| 1.2.3 | Alert inbox and detail page | ✓ |
+| 1.2.4 | Alert preferences and routing | ✓ |
 
-### Phase 6: Commercial (8 weeks)
-- BSL 1.1 license file and contributor agreement
-- Feature gating with Ed25519 license validation
-- Multi-tenancy (tenant model, data isolation)
-- Managed A2A relay service
-- Enterprise reporting (templates, scheduled delivery)
-- Stripe Billing integration
+### Sprint 1.3 (Week 9-10): Policies ✓
 
----
+| Story | Description | Status |
+|-------|-------------|--------|
+| 1.3.1 | OPA integration for policy evaluation | ✓ |
+| 1.3.2 | Compliance collectors | ✓ |
+| 1.3.3 | Policy library and editor UI | ✓ |
+| 1.3.4 | Policy violation alerts | ✓ |
 
-## 6. Parallel Work Streams
+### Sprint 1.4 (Week 11-12): Patches ✓
 
-| Stream | Focus | Languages | Sync Cadence |
-|--------|-------|-----------|-------------|
-| A — Backend | API, data models, NATS, business logic | Go, Python | Daily standup |
-| B — Agent | Endpoint binary, OS integrations, script execution | Go | Weekly arch review |
-| C — Frontend | UI, design system, real-time updates | TypeScript | Bi-weekly sprint planning/retro |
-| D — Infrastructure | CI/CD, monitoring, docs, deployments | K8s, Terraform | Monthly roadmap review |
+| Story | Description | Status |
+|-------|-------------|--------|
+| 1.4.1 | Patch inventory and scan | ✓ |
+| 1.4.2 | Patch approval workflow | ✓ |
+| 1.4.3 | Patch deployment engine | ✓ |
+| 1.4.4 | Patch status UI with reboot coordination | ✓ |
+
+### Sprint 1.5 (Week 13-14): Scripts/Remote ✓
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 1.5.1 | Script library CRUD | ✓ |
+| 1.5.2 | 4-runtime script executor (PowerShell, Python, Bash, Node) | ✓ |
+| 1.5.3 | Script UI with Monaco editor | ✓ |
+| 1.5.4 | SSH/WinRM remote shell (xterm.js + noVNC) | ✓ |
+| 1.5.5 | Remote session audit and recording playback | ✓ |
 
 ---
 
-## 7. Release Strategy
+## 5. Phase 2 Sprint Breakdown — IN PROGRESS
 
-| Release | Tag | Phase | Audience | Channels |
-|---------|-----|-------|----------|----------|
-| Alpha 0.1 | `v0.1.0-alpha` | End Phase 1 | Design partners | alpha |
-| Alpha 0.2/0.3 | `v0.2/0.3-alpha` | Phase 2 | Design partners | alpha |
-| Beta 0.4 | `v0.4.0-beta` | End Phase 3 | Public beta | beta |
-| Beta 0.5 | `v0.5.0-beta` | End Phase 4 | Public beta | beta |
-| **GA 1.0** | `v1.0.0` | End Phase 5 | General availability | stable |
-| Commercial 1.1 | `v1.1.0` | End Phase 6 | Paying customers | stable |
+### Sprint 2.1: A2A Gateway REST + JSON-RPC ✓
 
-**Channels:** nightly (every main push), alpha, beta, stable, LTS (quarterly with 6-month support).
+**Branch:** `main` (merged)
+**Spec:** `openspec/specs/a2a-gateway/spec.md`
 
-**SemVer policy:** Major for breaking API changes, minor for features, patch for fixes.
+| Story | Description | Status |
+|-------|-------------|--------|
+| 2.1.1 | Canonical data model (Task, Message, AgentCard, Part, Artifact) | ✓ |
+| 2.1.2 | REST binding (`/a2a/v1/tasks`, `/a2a/v1/agents`) | ✓ |
+| 2.1.3 | JSON-RPC binding (`tasks/send`, `tasks/get`, `tasks/cancel`) | ✓ |
+| 2.1.4 | Auth middleware (bearer token, API key, scope-based) | ✓ |
+| 2.1.5 | SSE task status streaming (`/a2a/v1/tasks/{id}/subscribe`) | ✓ |
 
-**Release process:** Feature freeze → 2 RCs → smoke tests → sign-off → tag → 72h war room monitoring.
+### Sprint 2.2: A2A Gateway gRPC ✓
+
+**Branch:** `sprint/2.2-a2a-grpc` (pushed, PR pending)
+**Spec:** `openspec/specs/a2a-gateway/spec.md`
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 2.2.1 | Protobuf schema (`a2a/spec/a2a.proto` — 8 RPCs, all message types) | ✓ |
+| 2.2.2 | Generated Go bindings (`a2a.pb.go`, `a2a_grpc.pb.go`) | ✓ |
+| 2.2.3 | gRPC adapter (`a2a/gateway/grpc_adapter.go` — 454 lines, 8 RPC methods) | ✓ |
+| 2.2.4 | Server wiring (auth/logging/recovery interceptors, shared authenticator) | ✓ |
+| 2.2.5 | Config (GRPCPort default 9090, start/shutdown lifecycle) | ✓ |
+| 2.2.6 | bufconn tests (6 tests: SendTask, GetTask, ListTasks, CancelTask, ListAgents, SubscribeTask) | ✓ |
+
+### Sprint 2.3: A2A Translation Proxy + Frontend Bridge ✓
+
+**Branch:** `main` (merged)
+**Spec:** `openspec/specs/a2a-gateway/spec.md`
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 2.3.1 | Go reverse-proxy (`internal/api/a2a_proxy.go`) forwarding frontend→gateway | ✓ |
+| 2.3.2 | SSE proxy (`internal/api/a2a_proxy_sse.go`) for task event streaming | ✓ |
+| 2.3.3 | Python adapter field aliases (cost fields, auth_schemes type alignment) | ✓ |
+| 2.3.4 | Frontend envelope contract locked (`web/src/lib/a2a.test.ts`) | ✓ |
+| 2.3.5 | SSE error surfacing in UI (reconnecting indicator) | ✓ |
+| 2.3.6 | RPC bridge error handling fix + dead code removal | ✓ |
+
+### Sprint 2.4: Task Manager + Agent Registry ✓
+
+**Branch:** `main` (merged)
+**Spec:** `openspec/specs/a2a-task-manager/spec.md`, `openspec/specs/a2a-agent-registry/spec.md`
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 2.4.1 | Task lifecycle state machine (submitted→working→input-required→completed/failed) | ✓ |
+| 2.4.2 | Task store (in-memory, with artifact + message storage) | ✓ |
+| 2.4.3 | Agent card registry (store + validation) | ✓ |
+| 2.4.4 | NATS JetStream-backed task persistence (planned, in-memory currently) | planned |
+
+### Sprint 2.5: ProcessPool (Warm Agent Instances)
+
+**Branch:** `sprint/2.5-process-pool` (to be created)
+**Spec:** `openspec/specs/process-pool/spec.md`
+**Phase:** 2 | **Status:** PLANNED
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 2.5.1 | ProcessPool manager (spawn, health-check, recycle warm instances) | planned |
+| 2.5.2 | Resource limits (CPU, memory, process count per adapter) | planned |
+| 2.5.3 | Instance lifecycle (warm-up, idle timeout, crash recovery) | planned |
+| 2.5.4 | Pool metrics (active/idle/count, latency histograms) | planned |
+
+### Sprint 2.6: Event-to-Task Bridge
+
+**Branch:** `sprint/2.6-event-task-bridge` (to be created)
+**Spec:** `openspec/specs/event-task-bridge/spec.md`
+**Phase:** 2 | **Status:** PLANNED
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 2.6.1 | Event consumer (8 RMM event types: check-fail, alert-fire, patch-ready, policy-violation, agent-offline, script-complete, heartbeat-miss, threshold-breach) | planned |
+| 2.6.2 | Event→Task mapper (event type + payload → A2A Task with parts) | planned |
+| 2.6.3 | Auto-dispatch to appropriate agent adapter | planned |
+| 2.6.4 | Task→Event feedback loop (task completion generates RMM event) | planned |
+
+### Sprint 2.7: Human-in-the-Loop Approval
+
+**Branch:** `sprint/2.7-hitl-approval` (to be created)
+**Spec:** `openspec/specs/hitl-approval/spec.md`
+**Phase:** 2 | **Status:** PLANNED
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 2.7.1 | Approval request API (create/approve/reject with reason) | planned |
+| 2.7.2 | HITL notification (email/Slack/webhook for pending approvals) | planned |
+| 2.7.3 | Timeout + escalation (auto-reject or auto-escalate after N hours) | planned |
+| 2.7.4 | Audit trail (who approved what, when, with what justification) | planned |
+| 2.7.5 | Frontend approval queue UI | planned |
+
+### Sprint 2.8: Framework Adapters (6 Adapters)
+
+**Branch:** `sprint/2.8-framework-adapters` (to be created)
+**Spec:** `openspec/specs/a2a-framework-adapters/spec.md`
+**Phase:** 2 | **Status:** PLANNED
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 2.8.1 | LangGraph adapter (Python, LangChain ecosystem) | planned |
+| 2.8.2 | CrewAI adapter (Python, multi-agent orchestration) | planned |
+| 2.8.3 | AutoGen adapter (Python, Microsoft multi-agent) | planned |
+| 2.8.4 | Semantic Kernel adapter (C#/.NET, Microsoft) | planned |
+| 2.8.5 | OpenAI adapter (Python, Responses API) | planned |
+| 2.8.6 | Anthropic adapter (Python, Messages API) | planned |
+| 2.8.7 | Adapter SDK (shared adapter base, health/card/task primitives) | planned |
+| 2.8.8 | Adapter conformance test suite | planned |
 
 ---
 
-## 8. Open Questions
+## 6. Phase 3 Sprint Breakdown — NOT STARTED
 
-| # | Question | Owner | Decision Date |
-|---|----------|-------|---------------|
-| O1 | Should agent binary use CGO for prlimit or pure-Go syscall? | agent-lead | Phase 1 Sprint 1 |
-| O2 | PostgreSQL RLS vs schema-per-tenant for multi-tenancy? | backend-lead | Phase 6 Sprint 1 |
-| O3 | Should A2A streaming use SSE or WebSocket from gateway to frontend? | a2a-lead | Phase 2 Sprint 1 |
-| O4 | CDN vs self-hosted for frontend static assets? | devops-lead | Phase 4 Sprint 1 |
-| O5 | Vault namespace support for enterprise multi-tenancy? | secrets-lead | Phase 3 Sprint 2 |
-| O6 | Should agent binary auto-update or require explicit approval? | product | Phase 1 Sprint 5 |
-| O7 | Commercial license enforcement: online-only or offline grace period? | product | Phase 6 Sprint 1 |
-| O8 | Should MCP tools reference A2A skills directly or via indirection layer? | mcp-lead | Phase 2 Sprint 1 |
-| O9 | k6 vs Locust vs Artillery for primary load testing tool? | test-lead | Phase 5 Sprint 1 |
-| O10 | Should Helm chart use KEDA for NATS-prometheus-based scaling? | devops-lead | Phase 5 Sprint 3 |
+### Sprint 3.1: Secret Backend Abstraction
+
+**Branch:** `sprint/3.1-secret-backends` (to be created)
+**Spec:** `openspec/specs/secret-management/spec.md`
+**Phase:** 3 | **Status:** PLANNED
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 3.1.1 | SecretBackend interface (Get, Set, Delete, List, Rotate) | planned |
+| 3.1.2 | HashiCorp Vault integration (AppRole, K8s, JWT auth) | planned |
+| 3.1.3 | Infisical integration (universal secret management) | planned |
+| 3.1.4 | DB-backed backend (current `internal/billing/secrets.go` refactored) | planned |
+
+### Sprint 3.2: Secret Reference Pipeline
+
+**Branch:** `sprint/3.2-secret-references` (to be created)
+**Spec:** `openspec/specs/secret-management/spec.md`
+**Phase:** 3 | **Status:** PLANNED
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 3.2.1 | URI resolution (`vault://secret-name/field`, `infisical://project/path`) | planned |
+| 3.2.2 | Credential injection (env vars, file mounts, stdin) | planned |
+| 3.2.3 | Secret caching with TTL + invalidation | planned |
+| 3.2.4 | A2A auth token management (EdDSA JWTs) | planned |
+| 3.2.5 | MCP OAuth 2.1 server for tool authentication | planned |
 
 ---
 
-## 9. Risk Register
+## 7. Phase 4 Sprint Breakdown — PARTIAL
+
+### Sprint 4.1: Dashboard + Agent Management
+
+**Branch:** `sprint/4.1-dashboard` (to be created)
+**Spec:** `openspec/specs/frontend-react/spec.md`
+**Phase:** 4 | **Status:** PARTIAL (shell + A2A tasks dashboard exist)
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 4.1.1 | Dashboard home (KPI cards, recent alerts, agent status) | partial |
+| 4.1.2 | Agent management (list, detail, health, capabilities) | partial |
+| 4.1.3 | Settings (Users, RBAC, SSO, API Keys) | partial |
+| 4.1.4 | Real-time updates via WebSocket | planned |
+
+### Sprint 4.2: Monitoring + Policy UI
+
+**Branch:** `sprint/4.2-monitoring-ui` (to be created)
+**Spec:** `openspec/specs/frontend-react/spec.md`
+**Phase:** 4 | **Status:** PLANNED
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 4.2.1 | Checks dashboard (live status, run history, assignments) | planned |
+| 4.2.2 | Alerts inbox (list, acknowledge, resolve, snooze) | planned |
+| 4.2.3 | Policy editor (OPA rules, scope assignment, violation history) | planned |
+| 4.2.4 | Patch status (compliance scorecard, per-agent status) | planned |
+
+### Sprint 4.3: A2A + Remote Access UI
+
+**Branch:** `sprint/4.3-a2a-remote-ui` (to be created)
+**Spec:** `openspec/specs/frontend-react/spec.md`
+**Phase:** 4 | **Status:** PARTIAL (A2A tasks dashboard exists)
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 4.3.1 | A2A dashboard (tasks list, agent cards, adapter health) | partial |
+| 4.3.2 | Script editor (Monaco, execution, live output) | partial |
+| 4.3.3 | Remote shell (xterm.js + noVNC integration) | planned |
+| 4.3.4 | Session audit playback | planned |
+
+---
+
+## 8. Phase 5 Sprint Breakdown — NOT STARTED
+
+### Sprint 5.1: Observability
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 5.1.1 | OpenTelemetry instrumentation (Go + Python + TypeScript) | planned |
+| 5.1.2 | Prometheus metrics export | planned |
+| 5.1.3 | Grafana dashboards (system, A2A, agent health) | planned |
+| 5.1.4 | Loki log aggregation | planned |
+
+### Sprint 5.2: Load Testing + Security
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 5.2.1 | k6 load testing (10K endpoint target) | planned |
+| 5.2.2 | Locust stress testing (sustained load) | planned |
+| 5.2.3 | OWASP ZAP security scan | planned |
+| 5.2.4 | gitleaks + secret scan hardening | planned |
+
+### Sprint 5.3: Resilience + Documentation
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 5.3.1 | chaos-mesh resilience testing | planned |
+| 5.3.2 | MkDocs Material documentation site | planned |
+| 5.3.3 | API reference generation (OpenAPI → docs) | planned |
+| 5.3.4 | Contributor guide + architecture decision records | planned |
+
+### Sprint 5.4: CI/CD Hardening
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 5.4.1 | 12 GitHub Actions workflows (lint, test, build, scan, deploy) | partial (8 exist) |
+| 5.4.2 | Branch protection rules (require reviews, status checks) | planned |
+| 5.4.3 | Release automation (changelog, tag, Docker publish) | partial (deploy.sh exists) |
+| 5.4.4 | Dependency auto-update (Dependabot / Renovate) | planned |
+
+---
+
+## 9. Phase 6 Sprint Breakdown — NOT STARTED
+
+### Sprint 6.1: Feature Gating + Licensing
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 6.1.1 | BSL 1.1 license file + contributor agreement | planned |
+| 6.1.2 | Feature gating (Ed25519 license validation) | planned |
+| 6.1.3 | License tiers (Community, Pro, Enterprise) | planned |
+
+### Sprint 6.2: Multi-Tenancy
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 6.2.1 | Tenant model (PostgreSQL RLS) | planned |
+| 6.2.2 | Data isolation (per-tenant secrets, configs) | planned |
+| 6.2.3 | Tenant admin UI | planned |
+
+### Sprint 6.3: Billing + Enterprise
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 6.3.1 | Stripe Billing integration | planned |
+| 6.3.2 | Usage tracking + metering | planned |
+| 6.3.3 | Enterprise reporting (templates, scheduled delivery) | planned |
+| 6.3.4 | Managed A2A relay service | planned |
+
+---
+
+## 10. Branch Naming Convention
+
+All sprint branches follow: `sprint/<phase>.<sprint-number>-<short-name>`
+
+Examples:
+- `sprint/2.2-a2a-grpc` (completed)
+- `sprint/2.5-process-pool` (next)
+- `sprint/3.1-secret-backends` (future)
+
+---
+
+## 11. Spec Format
+
+All capability specs follow OpenSpec format under `openspec/specs/<capability>/spec.md`.
+
+Each spec contains:
+- **Description** — what the capability does
+- **User Story** — who uses it and why
+- **Requirements** — numbered, with nested sub-requirements
+- **Status** — COMPLETE | PARTIAL | PLANNED
+- **Phase** — which phase this belongs to
+
+---
+
+## 12. Open Questions
+
+| # | Question | Owner | Decision Date | Status |
+|---|----------|-------|---------------|--------|
+| O1 | Should agent binary use CGO for prlimit or pure-Go syscall? | agent-lead | Phase 1 Sprint 1 | CLOSED — pure-Go |
+| O2 | PostgreSQL RLS vs schema-per-tenant for multi-tenancy? | backend-lead | Phase 6 Sprint 1 | OPEN |
+| O3 | A2A streaming: SSE or WebSocket from gateway to frontend? | a2a-lead | Phase 2 Sprint 1 | CLOSED — SSE |
+| O4 | CDN vs self-hosted for frontend static assets? | devops-lead | Phase 4 Sprint 1 | OPEN |
+| O5 | Vault namespace support for enterprise multi-tenancy? | secrets-lead | Phase 3 Sprint 2 | OPEN |
+| O6 | Agent binary auto-update or require explicit approval? | product | Phase 1 Sprint 5 | OPEN |
+| O7 | Commercial license: online-only or offline grace period? | product | Phase 6 Sprint 1 | OPEN |
+| O8 | MCP tools reference A2A skills directly or via indirection? | mcp-lead | Phase 2 Sprint 1 | OPEN |
+| O9 | k6 vs Locust vs Artillery for primary load testing? | test-lead | Phase 5 Sprint 1 | OPEN |
+
+---
+
+## 13. Risk Register
 
 | # | Risk | Likelihood | Impact | Mitigation |
 |---|------|-----------|--------|------------|

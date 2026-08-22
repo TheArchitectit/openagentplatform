@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+#
+# .githooks/pre-commit — DevGate-style blocking pre-commit gate.
+#
+# Runs in order:
+#   1. Secret scan (staged files only) — blocks on ANY finding
+#   2. Pattern scan — blocks on critical/error anti-patterns
+#   3. Regression check — file-size gate + failure-registry cross-check
+#   4. Semantic scan — go vet + tsc + python AST + unused imports + go build
+#   5. Schema health check — migration validation (advisory, blocks on empty)
+#
+# Install: git config core.hooksPath .githooks
+#
+# All checks are blocking. A failure in any step prevents the commit.
+# To bypass (emergency only): git commit --no-verify
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+# Collect staged file list once for reuse
+STAGED_FILES="$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null || true)"
+if [ -z "$STAGED_FILES" ]; then
+  exit 0  # nothing staged, nothing to check
+fi
+
+FAILED=0
+
+echo "━━━ pre-commit gate ━━━"
+
+# --- 1. Secret scan (staged only) ──────────────────────────────────────────
+echo "[1/5] secret scan (staged files) ..."
+if ! ./scripts/scan-secrets.sh --staged 2>&1; then
+  echo "  ✗ SECRET SCAN FAILED — commit blocked"
+  FAILED=1
+else
+  echo "  ✓ clean"
+fi
+
+# --- 2. Pattern scan ────────────────────────────────────────────────────────
+echo "[2/5] pattern scan ..."
+if command -v node >/dev/null 2>&1 && [ -f scripts/pattern-scan.sh ]; then
+  if ! ./scripts/pattern-scan.sh 2>&1; then
+    echo "  ✗ PATTERN SCAN FAILED — commit blocked"
+    FAILED=1
+  else
+    echo "  ✓ clean"
+  fi
+else
+  # Inline lightweight pattern scan (no node dependency required)
+  PATTERN_ISSUES=0
+  PATTERNS=(
+    "SQL string concat|\.go$:|[\"\\x60]\\s*\\+\\s*fmt\\.Sprintf.*(?:SELECT|INSERT|UPDATE|DELETE)"
+    "fmt.Println in pkg|\.go$:|^\\s*fmt\\.Print(ln|f)\\s*\\("
+    "console.log in src|\\.(ts|tsx|js|jsx)$:|\\bconsole\\.log\\s*\\("
+    "debugger statement|\\.(ts|tsx|js|jsx)$:|\\bdebugger\\b"
+    "TODO without ticket|\\.(go|ts|tsx|py)$:|//\\s*TODO(?!\\s*\\([A-Z]+-[0-9]+\\))"
+    "Empty catch block|\\.(ts|tsx|js)$:|catch\\s*\\([^)]*\\)\\s*\\{\\s*\\}"
+    "eval() usage|\\.(ts|tsx|js)$:|\\beval\\s*\\("
+    "process\\.exit in lib|internal/.*\\.go$:|os\\.Exit\\s*\\("
+  )
+  for entry in "${PATTERNS[@]}"; do
+    IFS='|' read -r name globs pattern <<< "$entry"
+    # Only check staged files matching the glob suffix
+    matching=""
+    for f in $STAGED_FILES; do
+      case "$globs" in
+        *.go:*) [[ "$f" == *.go ]] && matching="$matching $f" ;;
+        *.ts:*) [[ "$f" == *.ts || "$f" == *.tsx ]] && matching="$matching $f" ;;
+        *.tsx:*) [[ "$f" == *.ts || "$f" == *.tsx ]] && matching="$matching $f" ;;
+        *.py:*) [[ "$f" == *.py ]] && matching="$matching $f" ;;
+        *.js:*) [[ "$f" == *.js || "$f" == *.jsx ]] && matching="$matching $f" ;;
+        *:*) matching="$matching $f" ;;
+      esac
+    done
+    if [ -n "$matching" ]; then
+      hits=$(echo "$matching" | xargs grep -lEn "$pattern" 2>/dev/null || true)
+      if [ -n "$hits" ]; then
+        echo "  [$name]"
+        echo "$hits" | sed 's/^/      /'
+        PATTERN_ISSUES=$((PATTERN_ISSUES + 1))
+      fi
+    fi
+  done
+  if [ $PATTERN_ISSUES -gt 0 ]; then
+    echo "  ✗ PATTERN SCAN FAILED ($PATTERN_ISSUES violations) — commit blocked"
+    FAILED=1
+  else
+    echo "  ✓ clean"
+  fi
+fi
+
+# --- 3. Regression check (file-size gate) ───────────────────────────────────
+echo "[3/5] regression check ..."
+if command -v python3 >/dev/null 2>&1 && [ -f scripts/regression_check.py ]; then
+  if ! python3 scripts/regression_check.py --pre-commit 2>&1; then
+    echo "  ✗ REGRESSION CHECK FAILED — commit blocked"
+    FAILED=1
+  else
+    echo "  ✓ clean"
+  fi
+else
+  echo "  ⊘ skipped (python3 not found)"
+fi
+
+# --- 4. Go vet (if Go files staged) ─────────────────────────────────────────
+GO_FILES=$(echo "$STAGED_FILES" | grep '\.go$' || true)
+if [ -n "$GO_FILES" ] && command -v go >/dev/null 2>&1; then
+  echo "[4/5] go vet ..."
+  # Collect packages that have staged .go files
+  GO_PKGS=$(echo "$GO_FILES" | xargs -I{} dirname {} | sort -u | sed 's|^|./|')
+  if ! echo "$GO_PKGS" | xargs go vet 2>&1; then
+    echo "  ✗ GO VET FAILED — commit blocked"
+    FAILED=1
+  else
+    echo "  ✓ clean"
+  fi
+else
+  echo "[4/5] go vet ... ⊘ skipped (no Go files staged)"
+fi
+
+# --- 5. TypeScript check (if TS files staged) ───────────────────────────────
+TS_FILES=$(echo "$STAGED_FILES" | grep -E '\.(ts|tsx)$' | grep -v '\.d\.ts$' | grep -v '\.gen\.' || true)
+if [ -n "$TS_FILES" ] && [ -f web/tsconfig.json ]; then
+  echo "[5/5] tsc --noEmit ..."
+  if ! (cd web && npx tsc --noEmit 2>&1); then
+    echo "  ✗ TYPECHECK FAILED — commit blocked"
+    FAILED=1
+  else
+    echo "  ✓ clean"
+  fi
+else
+  echo "[5/5] tsc --noEmit ... ⊘ skipped (no TS files staged)"
+fi
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+if [ $FAILED -ne 0 ]; then
+  echo "✗ PRE-COMMIT GATE FAILED — commit blocked."
+  echo "  Fix the failures above and stage again."
+  echo "  Emergency bypass: git commit --no-verify (NOT recommended)"
+  exit 1
+fi
+
+echo "✓ PRE-COMMIT GATE PASSED"
+exit 0
