@@ -1,6 +1,6 @@
 # Roadmap & Sprint Plan
 
-> **Version:** 2.0.0 | **Last Updated:** 2026-08-22 | **Status:** Authoritative Blueprint
+> **Version:** 2.1.0 | **Last Updated:** 2026-08-22 | **Status:** Authoritative Blueprint
 
 ---
 
@@ -318,49 +318,51 @@ v0.1α ──→ v0.1α ──→ v0.3α ──→ v0.4β ──→ v0.5β ─�
 
 ---
 
-## 8. Phase 5 Sprint Breakdown — NOT STARTED
+## 8. Phase 5 Sprint Breakdown — COMPLETE ✓
 
-### Sprint 5.1: Observability
+> **Completed:** 2026-08-22 | **QA Review:** 40 findings resolved | **Tests:** 59 new tests, race detector clean
 
-| Story | Description | Status |
-|-------|-------------|--------|
-| 5.1.1 | Metrics collection (Prometheus/OpenTelemetry) | planned |
-| 5.1.2 | Distributed tracing | planned |
-| 5.1.1 | OpenTelemetry instrumentation (Go + Python + TypeScript) | planned |
-| 5.1.2 | Prometheus metrics export | planned |
-| 5.1.3 | Grafana dashboards (system, A2A, agent health) | planned |
-| 5.1.4 | Loki log aggregation | planned |
-
-### Sprint 5.2: Load Testing + Security
+### Sprint 5.1: Observability ✓
 
 | Story | Description | Status |
 |-------|-------------|--------|
-| 5.2.1 | k6 load testing (10K endpoint target) | planned |
-| 5.2.2 | Locust stress testing (sustained load) | planned |
-| 5.2.3 | OWASP ZAP security scan | planned |
-| 5.2.4 | gitleaks + secret scan hardening | planned |
+| 5.1.1 | Metrics collection (Prometheus/OpenTelemetry) | ✓ |
+| 5.1.2 | Distributed tracing | ✓ |
+| 5.1.1 | OpenTelemetry instrumentation (Go + Python + TypeScript) | ✓ |
+| 5.1.2 | Prometheus metrics export | ✓ |
+| 5.1.3 | Grafana dashboards (system, A2A, agent health) | ✓ |
+| 5.1.4 | Loki log aggregation | ✓ |
 
-### Sprint 5.3: Resilience + Documentation
-
-| Story | Description | Status |
-|-------|-------------|--------|
-| 5.3.1 | chaos-mesh resilience testing | planned |
-| 5.3.2 | MkDocs Material documentation site | planned |
-| 5.3.3 | API reference generation (OpenAPI → docs) | planned |
-| 5.3.4 | Contributor guide + architecture decision records | planned |
-
-### Sprint 5.4: CI/CD Hardening
+### Sprint 5.2: Load Testing + Security ✓
 
 | Story | Description | Status |
 |-------|-------------|--------|
-| 5.4.1 | 12 GitHub Actions workflows (lint, test, build, scan, deploy) | partial (8 exist) |
-| 5.4.2 | Branch protection rules (require reviews, status checks) | planned |
-| 5.4.3 | Release automation (changelog, tag, Docker publish) | partial (deploy.sh exists) |
-| 5.4.4 | Dependency auto-update (Dependabot / Renovate) | planned |
+| 5.2.1 | k6 load testing (10K endpoint target) | ✓ |
+| 5.2.2 | Locust stress testing (sustained load) | ✓ |
+| 5.2.3 | OWASP ZAP security scan | ✓ |
+| 5.2.4 | gitleaks + secret scan hardening | ✓ |
+
+### Sprint 5.3: Resilience + Documentation ✓
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 5.3.1 | chaos-mesh resilience testing | ✓ |
+| 5.3.2 | MkDocs Material documentation site | ✓ |
+| 5.3.3 | API reference generation (OpenAPI → docs) | ✓ |
+| 5.3.4 | Contributor guide + architecture decision records | ✓ |
+
+### Sprint 5.4: CI/CD Hardening ✓
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 5.4.1 | 12 GitHub Actions workflows (lint, test, build, scan, deploy) | ✓ |
+| 5.4.2 | Branch protection rules (require reviews, status checks) | ✓ |
+| 5.4.3 | Release automation (changelog, tag, Docker publish) | ✓ |
+| 5.4.4 | Dependency auto-update (Dependabot / Renovate) | ✓ |
 
 ---
 
-## 9. Phase 6 Sprint Breakdown — NOT STARTED
+## 9. Phase 6 Sprint Breakdown — IN PROGRESS
 
 ### Sprint 6.1: Feature Gating + Licensing
 

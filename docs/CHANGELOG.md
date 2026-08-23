@@ -8,6 +8,89 @@ for the BSL-licensed releases.
 
 ---
 
+## [1.0.0] - 2026-08-22 -- Phase 5: Production Hardening COMPLETE
+
+### Summary
+
+Phase 5 (Production Hardening) is now complete with all 4 sprints delivered and QA-reviewed. The codebase has undergone comprehensive security hardening, observability instrumentation, resilience testing, and documentation.
+
+### QA Review Results
+
+- **40 findings** identified and resolved (5 CRITICAL, 8 HIGH, 12 MEDIUM, 15 LOW)
+- **59 new tests** replacing 3 placeholder stubs
+- **19 packages** pass with race detector clean
+- **1,867 lines** of test coverage added
+
+### Key Fixes
+
+#### Security
+- SQL injection prevention via table name validation (`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+- Path traversal protection with `filepath.Clean` + `HasPrefix` containment
+- SSRF protection for webhook notifications (multi-IP validation)
+- Generic error messages to clients (no internal details leaked)
+- OAuth token cleanup goroutine for expired tokens/codes/nonces
+
+#### Reliability
+- HealthChecker race condition fixed with `sync.RWMutex`
+- CAS TOCTOU race fixed with atomic conditional INSERT
+- CircuitBreaker `recordSuccess` mutex protection
+- MemoryBackend per-path version counter (`map[string]int`)
+- Injector double-append removed, cleanup zeroing added
+
+#### Correctness
+- W3C traceparent format (`version-traceID-spanID-flags`)
+- `errors.As` usage for proper error type checking
+- YAML comment false positive filtering
+- Placeholder filter checks matched value, not entire line
+- TokenType returns "Bearer" vs "DPoP" based on key presence
+
+#### Observability
+- OpenTelemetry instrumentation (Go + Python + TypeScript)
+- Prometheus metrics export with `InitMeter` storing serviceName
+- Distributed tracing with W3C traceparent propagation
+- Grafana dashboards for system, A2A, and agent health
+
+#### Resilience
+- Circuit breaker with half-open probe and mutex protection
+- Retry config validation (reject `InitialDelay=0` when `MaxAttempts>1`)
+- Chaos-mesh resilience testing infrastructure
+- Load testing with k6 (10K endpoint target)
+
+#### Documentation
+- MkDocs Material documentation site
+- API reference generation from OpenAPI specs
+- Contributor guide + architecture decision records
+- QA review documentation (`docs/QA_REVIEW_PHASE3-5.md`)
+
+### Test Coverage
+
+| Package | Tests | Coverage |
+|---------|-------|----------|
+| secrets/ | 45+ | SQL injection, path traversal, SSRF, token cleanup |
+| gate/ | 25+ | SecretScan, SchemaScan, GateRunner integration |
+| resilience/ | 15+ | Circuit breaker, retry validation |
+| internal/checks/ | 19 | Threshold evaluation, severity mapping |
+| internal/events/ | 22 | NATS dispatch, heartbeat, retry |
+| internal/notify/ | 18 | Slack/webhook/email, HMAC signing |
+| internal/monitoring/ | 8 | HealthChecker concurrent safety |
+| internal/audit/ | 10 | Route pattern extraction, 3xx handling |
+| internal/api/ | 12 | RBAC enforcement |
+
+### Commits
+
+- `0131b66` — 21 CRITICAL/HIGH/MEDIUM bug fixes (19 files)
+- `fa83309` — All remaining findings (20+ files)
+- `c71dfd2` — Placeholder test replacement + new test coverage (5 files, +1,867 lines)
+
+### Next Phase
+
+Phase 6 (Commercial Tiering) begins with:
+- Sprint 6.1: Feature Gating + Licensing
+- Sprint 6.2: Multi-Tenancy
+- Sprint 6.3: Billing + Enterprise
+
+---
+
 ## [1.5.0] - 2026-06-15 -- Sprint 1.5: Scripts, Remote Shell, Monaco
 
 ### Added
