@@ -1,9 +1,15 @@
 # Endpoint API Architecture
 
-> **Status:** Authoritative Design Document
+> **Status:** Historical Design Document (superseded in part — see banner)
 > **Audience:** Engineers implementing or extending the OAP endpoint-api subsystem
 > **Date:** 2026-06-15
 > **Source Plan:** `docs/plans/MASTER_IMPLEMENTATION_PLAN.md` S5
+>
+> ⚠️ **PATH CORRECTIONS (2026-08-23):** paths below reflect pre-implementation plan
+> layout. Actual: auth middleware lives in `internal/auth/middleware.go` (+ `oidc.go`),
+> not `internal/middleware/`; the agent is `cmd/agent` + `pkg/agent/`, not
+> `agents/oap-agent/`. Specs citing this doc: `openspec/specs/auth-rbac`,
+> `openspec/specs/endpoint-agent`. Audit: `docs/QA_REVIEW_OPENSPEC_COVERAGE.md`.
 
 ---
 

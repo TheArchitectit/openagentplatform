@@ -3,7 +3,7 @@
 > **Phase:** 0 (Foundation) / 2 (A2A + Agents)
 > **STATUS: COMPLETE**
 > **Source:** `docs/architecture/ENDPOINT_API.md` §2, §9; `docs/architecture/A2A_PROTOCOL.md` §7
-> **App Path:** `internal/middleware/auth.go`, `internal/handlers/auth.go`
+> **App Path:** `internal/auth/middleware.go`, `internal/auth/oidc.go`
 
 ---
 

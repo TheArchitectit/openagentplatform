@@ -3,7 +3,7 @@
 > **Phase:** 0 (Foundation) / 1 (Core RMM)
 > **STATUS: COMPLETE**
 > **Source:** `docs/architecture/ENDPOINT_API.md` §4, §5
-> **App Path:** `agents/oap-agent/` (Go module)
+> **App Path:** `cmd/agent` + `pkg/agent/` (Go module, single static binary)
 
 ---
 

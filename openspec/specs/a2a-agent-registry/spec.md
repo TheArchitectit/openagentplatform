@@ -3,7 +3,7 @@
 > **Phase:** 2 (A2A + Agents)
 > **STATUS: COMPLETE**
 > **Source:** `docs/architecture/A2A_PROTOCOL.md` §3, §6, §12
-> **App Path:** `a2a/internal/registry/agent_card.go`
+> **App Path:** `a2a/registry/registry.go`, `a2a/models/` (agent card types)
 
 ---
 

@@ -2,9 +2,15 @@
 
 **Domain:** a2a (Agent-to-Agent Protocol Gateway)
 **Version:** 1.0.0
-**Status:** Implementation-Ready
+**Status:** Implemented (plan paths historical — see note)
 **Date:** 2026-06-15
 **Target Release:** Q3 2026
+
+> ⚠️ **PATH CORRECTION (2026-08-23):** the implemented `a2a` Go module is flat —
+> `a2a/{bridge,gateway,hitl,manager,models,pool,registry,router,spec}/`. There is no
+> `a2a/internal/` directory; references below to `a2a/internal/pb|task|states|models`
+> map to `a2a/models/`, `a2a/manager/statemachine.go`, etc. Specs:
+> `openspec/specs/a2a-*`. Audit: `docs/QA_REVIEW_OPENSPEC_COVERAGE.md`.
 
 ---
 

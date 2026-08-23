@@ -2,7 +2,7 @@
 
 > **Phase:** Infrastructure
 > **STATUS: COMPLETE**
-> **Source:** `.github/workflows/*.yml` (8 workflows)
+> **Source:** `.github/workflows/*.yml` (10 workflows incl. security-scan.yml + release.yml)
 > **App Path:** `.github/workflows/`
 
 ---

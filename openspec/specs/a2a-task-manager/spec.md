@@ -3,7 +3,7 @@
 > **Phase:** 2 (A2A + Agents)
 > **STATUS: COMPLETE**
 > **Source:** `docs/architecture/A2A_PROTOCOL.md` §3, §4, §12
-> **App Path:** `a2a/internal/states/`, `a2a/internal/models/`
+> **App Path:** `a2a/manager/statemachine.go`, `a2a/models/models.go`
 
 ---
 
