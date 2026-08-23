@@ -112,6 +112,154 @@ func TestRBACMutatingRoutesGateByRole(t *testing.T) {
 	}
 }
 
+// TestRBACPutRoutesGateByRole verifies that PUT routes are gated by the same
+// RBAC stack as POST routes. PUT routes for resource updates require admin or
+// editor roles; viewers and anonymous users must be denied.
+func TestRBACPutRoutesGateByRole(t *testing.T) {
+	sm, err := auth.NewSessionMinter("oap-test", "oap-test", time.Hour, "")
+	if err != nil {
+		t.Fatalf("NewSessionMinter: %v", err)
+	}
+
+	newRouter := func() http.Handler {
+		r := chi.NewRouter()
+		r.Group(func(r chi.Router) {
+			r.Use(auth.VerifierMiddleware(sm, nil, sessionCookieName))
+			r.Use(orgContextMiddleware)
+			r.Route("/api/v1/scripts/{id}", func(r chi.Router) {
+				r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician, auth.RoleOperator)).Put("/", stubOK)
+			})
+			r.Route("/api/v1/policies/{id}", func(r chi.Router) {
+				r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician, auth.RoleOperator)).Put("/", stubOK)
+			})
+		})
+		return r
+	}
+
+	mintFor := func(t *testing.T, groups []string) string {
+		t.Helper()
+		tok, err := sm.Mint(&auth.Claims{
+			Subject: "user-rbac-put",
+			Email:   "rbac-put@example.com",
+			OrgID:   "org-1",
+			Groups:  groups,
+		})
+		if err != nil {
+			t.Fatalf("Mint: %v", err)
+		}
+		return tok
+	}
+
+	cases := []struct {
+		name   string
+		path   string
+		groups []string
+		want   int
+	}{
+		// Authenticated viewers are denied PUT.
+		{"viewer cannot update script", "/api/v1/scripts/123", []string{"oap-viewers"}, http.StatusForbidden},
+		{"viewer cannot update policy", "/api/v1/policies/123", []string{"oap-viewers"}, http.StatusForbidden},
+
+		// Elevated roles pass PUT.
+		{"admin can update script", "/api/v1/scripts/123", []string{"oap-admins"}, http.StatusOK},
+		{"technician can update script", "/api/v1/scripts/123", []string{"oap-technicians"}, http.StatusOK},
+		{"operator can update policy", "/api/v1/policies/123", []string{"oap-operators"}, http.StatusOK},
+
+		// Anonymous user is denied PUT (401).
+		{"anonymous cannot update script", "/api/v1/scripts/123", nil, http.StatusUnauthorized},
+		{"anonymous cannot update policy", "/api/v1/policies/123", nil, http.StatusUnauthorized},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			router := newRouter()
+			req := httptest.NewRequest(http.MethodPut, tc.path, nil)
+			if tc.groups != nil {
+				req.Header.Set("Authorization", "Bearer "+mintFor(t, tc.groups))
+			}
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+			if rec.Code != tc.want {
+				t.Errorf("PUT %s groups=%v: got %d, want %d (body=%s)",
+					tc.path, tc.groups, rec.Code, tc.want, rec.Body.String())
+			}
+		})
+	}
+}
+
+// TestRBACDeleteRoutesGateByRole verifies that DELETE routes are admin-only.
+// Only users in the oap-admins group should be permitted to delete resources.
+func TestRBACDeleteRoutesGateByRole(t *testing.T) {
+	sm, err := auth.NewSessionMinter("oap-test", "oap-test", time.Hour, "")
+	if err != nil {
+		t.Fatalf("NewSessionMinter: %v", err)
+	}
+
+	newRouter := func() http.Handler {
+		r := chi.NewRouter()
+		r.Group(func(r chi.Router) {
+			r.Use(auth.VerifierMiddleware(sm, nil, sessionCookieName))
+			r.Use(orgContextMiddleware)
+			r.Route("/api/v1/scripts/{id}", func(r chi.Router) {
+				r.With(auth.RequireRole(auth.RoleAdmin)).Delete("/", stubOK)
+			})
+			r.Route("/api/v1/policies/{id}", func(r chi.Router) {
+				r.With(auth.RequireRole(auth.RoleAdmin)).Delete("/", stubOK)
+			})
+		})
+		return r
+	}
+
+	mintFor := func(t *testing.T, groups []string) string {
+		t.Helper()
+		tok, err := sm.Mint(&auth.Claims{
+			Subject: "user-rbac-delete",
+			Email:   "rbac-delete@example.com",
+			OrgID:   "org-1",
+			Groups:  groups,
+		})
+		if err != nil {
+			t.Fatalf("Mint: %v", err)
+		}
+		return tok
+	}
+
+	cases := []struct {
+		name   string
+		path   string
+		groups []string
+		want   int
+	}{
+		// Only admin can delete.
+		{"admin can delete script", "/api/v1/scripts/123", []string{"oap-admins"}, http.StatusOK},
+		{"admin can delete policy", "/api/v1/policies/123", []string{"oap-admins"}, http.StatusOK},
+
+		// Non-admin roles are denied DELETE (403).
+		{"technician cannot delete script", "/api/v1/scripts/123", []string{"oap-technicians"}, http.StatusForbidden},
+		{"operator cannot delete script", "/api/v1/scripts/123", []string{"oap-operators"}, http.StatusForbidden},
+		{"viewer cannot delete script", "/api/v1/scripts/123", []string{"oap-viewers"}, http.StatusForbidden},
+		{"technician cannot delete policy", "/api/v1/policies/123", []string{"oap-technicians"}, http.StatusForbidden},
+
+		// Anonymous user is denied DELETE (401).
+		{"anonymous cannot delete script", "/api/v1/scripts/123", nil, http.StatusUnauthorized},
+		{"anonymous cannot delete policy", "/api/v1/policies/123", nil, http.StatusUnauthorized},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			router := newRouter()
+			req := httptest.NewRequest(http.MethodDelete, tc.path, nil)
+			if tc.groups != nil {
+				req.Header.Set("Authorization", "Bearer "+mintFor(t, tc.groups))
+			}
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+			if rec.Code != tc.want {
+				t.Errorf("DELETE %s groups=%v: got %d, want %d (body=%s)",
+					tc.path, tc.groups, rec.Code, tc.want, rec.Body.String())
+			}
+		})
+	}
+}
+
 // TestRequireRoleDeniesNilClaims guards against a nil-claims panic in the
 // RequireRole middleware. VerifierMiddleware never stores a nil claims value,
 // but the middleware must not dereference a nil if it ever encounters one.
