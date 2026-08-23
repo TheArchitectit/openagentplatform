@@ -111,6 +111,26 @@ Closes #<issue-number>
 
 Reviewers should be able to understand the behavior change, reproduce validation, and identify a rollback path from the pull request alone.
 
+## Contributor License Agreement
+
+Before your first contribution can be merged, you must sign the Contributor License Agreement (CLA). This is required because OpenAgentPlatform is licensed under the Business Source License 1.1 (BSL 1.1).
+
+**To sign the CLA:**
+
+1. Download the CLA template from [CLA.md](../CLA.md)
+2. Fill in your name, email, date, and GitHub username
+3. Either:
+   - Submit a pull request adding your signed CLA to the `contributors/` directory, OR
+   - Email your signed CLA to cla@openagentplatform.com
+
+**Corporate contributors:** If you are contributing on behalf of your employer, please use the Corporate Contributor License Agreement (CCLA). Contact cla@openagentplatform.com for the CCLA template.
+
+The CLA ensures that:
+- Your contributions are properly licensed under BSL 1.1
+- You retain copyright to your contributions
+- OpenAgentPlatform, Inc. can distribute your contributions under the project license
+- The project can convert to MIT License on the Change Date (January 1, 2030)
+
 ## Reporting issues
 
 Include expected and actual behavior, minimal reproduction steps, logs with sensitive data removed, and the relevant operating system and tool versions. Report security vulnerabilities privately through the repository security policy rather than a public issue.

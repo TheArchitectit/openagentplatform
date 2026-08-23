@@ -1,12 +1,30 @@
 Business Source License 1.1
 
-Licensor:  OpenAgentPlatform Contributors
+Licensor:  OpenAgentPlatform, Inc.
 Licensed Work:  OpenAgentPlatform (the "Work")
-Change Date:    2029-01-01
-Change License: Apache License, Version 2.0
+Change Date:    2030-01-01
+Change License: MIT License
 
 Additional Use Grant:
-  You may use the Work for any non-production purpose.
-  Production use requires a separate commercial agreement with the Licensor.
+  You may use the Work for any non-production purpose, including
+  development, testing, staging, and evaluation. Production use
+  requires a separate commercial agreement with the Licensor.
 
 For full terms see: https://mariadb.com/bsl11/
+
+---
+
+Additional Terms:
+
+1. The Licensed Work includes all source code, documentation, and
+   associated files in this repository.
+
+2. The Change License will apply to all versions of the Licensed Work
+   released before the Change Date, starting from the Change Date.
+
+3. The Licensor may offer commercial licenses for production use at
+   https://openagentplatform.com/licensing.
+
+4. Contributors must sign the Contributor License Agreement (CLA)
+   before their contributions can be merged. See CONTRIBUTING.md
+   for details.
