@@ -1,7 +1,7 @@
 # ProcessPool
 
 > **Phase:** 2 (A2A + Agents)
-> **STATUS: PLANNED**
+> **STATUS: COMPLETE**
 > **Source:** `docs/architecture/ROADMAP_AND_SPRINTS.md` §5 (Phase 2)
 > **App Path:** `py/` (Python adapter service)
 

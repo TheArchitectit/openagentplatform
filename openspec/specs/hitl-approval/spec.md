@@ -1,6 +1,6 @@
 # Human-in-the-Loop Approval (HITL)
 
-> **Phase:** 2 | **Status:** PLANNED | **Spec:** openspec/specs/hitl-approval/spec.md
+> **Phase:** 2 | **Status:** COMPLETE | **Spec:** openspec/specs/hitl-approval/spec.md
 
 ---
 

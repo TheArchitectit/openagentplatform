@@ -1,7 +1,7 @@
 # A2A Framework Adapters
 
 > **Phase:** 2 (A2A + Agents)
-> **STATUS: PLANNED**
+> **STATUS: COMPLETE**
 > **Source:** `docs/architecture/A2A_PROTOCOL.md` §6; `docs/architecture/ROADMAP_AND_SPRINTS.md` §5
 > **App Path:** `py/` (Python adapter service)
 

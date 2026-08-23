@@ -1,7 +1,7 @@
 # Commercial Licensing
 
 > **Phase:** 5 (Production) / 6 (Commercial)
-> **STATUS: PLANNED**
+> **STATUS: COMPLETE**
 > **Source:** `docs/architecture/ROADMAP_AND_SPRINTS.md` §5 (Phase 6), §8 (O7), §9 (R7)
 > **License:** BSL 1.1
 

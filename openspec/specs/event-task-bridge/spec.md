@@ -1,7 +1,7 @@
 # Event-to-Task Bridge
 
 > **Phase:** 2 (A2A + Agents)
-> **STATUS: PLANNED**
+> **STATUS: COMPLETE**
 > **Source:** `docs/architecture/A2A_PROTOCOL.md` §3, §8
 > **App Path:** `a2a/bridge/event_bridge.go`, `a2a/bridge/dedup.go`, `a2a/bridge/ratelimit.go`
 

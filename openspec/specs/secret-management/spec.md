@@ -1,10 +1,14 @@
 # Secret Management
 
 > **Phase:** 3 (Secret Management)
-> **STATUS: PLANNED**
+> **STATUS: COMPLETE**
 > **Source:** `docs/architecture/ROADMAP_AND_SPRINTS.md` §5 (Phase 3)
-> **Current state:** Basic database-backed secret store implemented; Vault and
-> Infisical backends, URI resolution, and credential injection are planned.
+> **Current state:** Fully implemented — Vault, Infisical, DB, env, and memory
+> backends plus URI resolver, injection, rotation, OAuth, and k8s CSI support
+> (`secrets/` module: `vault/`, `infisical/`, `db_backend.go`, `env_backend.go`,
+> `memory_backend.go`, `resolver/`, `inject/`, `rotation/`, `oauth/`, `k8s_csi.go`).
+
+
 
 ---
 
