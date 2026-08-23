@@ -39,6 +39,21 @@ func TestRemoteShellCreation(t *testing.T) {
 	}
 }
 
+type readResult struct {
+	data []byte
+	err  error
+}
+
+func readStream(reader io.Reader, result chan<- readResult) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			result <- readResult{err: errors.New("terminal: panic during read")}
+		}
+	}()
+	data, err := io.ReadAll(reader)
+	result <- readResult{data: data, err: err}
+}
+
 func TestRemoteShellIO(t *testing.T) {
 	shell := NewRemoteShell(func(ctx context.Context) *exec.Cmd {
 		if runtime.GOOS == "windows" {
@@ -67,14 +82,20 @@ func TestRemoteShellIO(t *testing.T) {
 	if err := stdin.Close(); err != nil {
 		t.Fatal(err)
 	}
-	stdoutData, err := io.ReadAll(stdout)
-	if err != nil {
-		t.Fatal(err)
+	stdoutResult := make(chan readResult, 1)
+	stderrResult := make(chan readResult, 1)
+	go readStream(stdout, stdoutResult)
+	go readStream(stderr, stderrResult)
+	stdoutRead := <-stdoutResult
+	if stdoutRead.err != nil {
+		t.Fatal(stdoutRead.err)
 	}
-	stderrData, err := io.ReadAll(stderr)
-	if err != nil {
-		t.Fatal(err)
+	stderrRead := <-stderrResult
+	if stderrRead.err != nil {
+		t.Fatal(stderrRead.err)
 	}
+	stdoutData := stdoutRead.data
+	stderrData := stderrRead.data
 	if err := shell.Wait(); err != nil {
 		t.Fatal(err)
 	}
@@ -84,6 +105,15 @@ func TestRemoteShellIO(t *testing.T) {
 	if !strings.Contains(string(stderrData), "problem") {
 		t.Fatalf("stderr = %q", stderrData)
 	}
+}
+
+func closeShell(shell *RemoteShell, done chan<- error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			done <- errors.New("terminal: panic during close")
+		}
+	}()
+	done <- shell.Close()
 }
 
 func TestRemoteShellCleanup(t *testing.T) {
@@ -97,7 +127,7 @@ func TestRemoteShellCleanup(t *testing.T) {
 		t.Fatal(err)
 	}
 	done := make(chan error, 1)
-	go func() { done <- shell.Close() }()
+	go closeShell(shell, done)
 	select {
 	case err := <-done:
 		if err != nil {

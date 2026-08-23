@@ -28,6 +28,8 @@ type RemoteShell struct {
 	stdin   io.WriteCloser
 	stdout  io.ReadCloser
 	stderr  io.ReadCloser
+	stdoutW io.WriteCloser
+	stderrW io.WriteCloser
 	started bool
 	closed  bool
 	waitErr error
@@ -60,27 +62,24 @@ func (s *RemoteShell) Start(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		_ = stdin.Close()
-		return err
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		_ = stdin.Close()
-		_ = stdout.Close()
-		return err
-	}
+	stdout, stdoutW := io.Pipe()
+	stderr, stderrW := io.Pipe()
+	cmd.Stdout = stdoutW
+	cmd.Stderr = stderrW
 	if err := cmd.Start(); err != nil {
 		_ = stdin.Close()
 		_ = stdout.Close()
+		_ = stdoutW.Close()
 		_ = stderr.Close()
+		_ = stderrW.Close()
 		return err
 	}
 	s.cmd = cmd
 	s.stdin = stdin
 	s.stdout = stdout
 	s.stderr = stderr
+	s.stdoutW = stdoutW
+	s.stderrW = stderrW
 	s.started = true
 	go s.wait(cmd)
 	return nil
@@ -90,7 +89,10 @@ func (s *RemoteShell) wait(cmd *exec.Cmd) {
 	err := cmd.Wait()
 	s.mu.Lock()
 	s.waitErr = err
+	stdoutW, stderrW := s.stdoutW, s.stderrW
 	s.mu.Unlock()
+	_ = stdoutW.Close()
+	_ = stderrW.Close()
 	close(s.waitCh)
 }
 
@@ -161,16 +163,19 @@ func (s *RemoteShell) Close() error {
 		return nil
 	}
 	stdin, stdout, stderr := s.stdin, s.stdout, s.stderr
+	stdoutW, stderrW := s.stdoutW, s.stderrW
 	process := s.cmd.Process
 	waitCh := s.waitCh
 	s.mu.Unlock()
 
 	_ = stdin.Close()
-	_ = stdout.Close()
-	_ = stderr.Close()
 	if process != nil {
 		_ = process.Kill()
 	}
+	_ = stdoutW.Close()
+	_ = stderrW.Close()
+	_ = stdout.Close()
+	_ = stderr.Close()
 	<-waitCh
 	return nil
 }
