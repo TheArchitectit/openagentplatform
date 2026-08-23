@@ -1625,3 +1625,67 @@
 **Document Owner:** Project Maintainers
 **Last Updated:** 2026-05-12
 **Status:** Complete - all documents and headers accurately mapped
+
+---
+
+## STATUS.md (root)
+
+| Line | Header |
+|------|--------|
+| 1 | # Project Status — OpenAgentPlatform |
+| 15 | ## What This Is |
+| 31 | ## Phase Status |
+| 45 | ## Known Issues / Outstanding Work |
+| 59 | ## Verification Gates |
+
+---
+
+## PROJECT_PLAN.md (root)
+
+| Line | Header |
+|------|--------|
+| 1 | # OpenAgentPlatform — Project Plan |
+| 17 | ## Mission |
+| 21 | ## Architecture (5 deployable units) |
+| 35 | ## Roadmap Summary |
+| 47 | ## What's Next |
+
+---
+
+## openspec/specs/rmm-core/spec.md
+
+| Line | Header |
+|------|--------|
+| 1 | # RMM Core (PARTIAL — rewritten 2026-08-23) |
+| 20 | ## Description |
+| 38 | ## Requirements |
+| 40 | ### 1. Dual-Transport Architecture |
+| 65 | ### 2. Data Models |
+| 88 | ### 3. Enums and Status Fields |
+| 96 | ### 4. State Machines (2 implemented, 4 not) |
+| 130 | ### 5. NATS Subject Taxonomy (oap.*) |
+| 152 | ### 6. Checks |
+| 168 | ### 7. Alerts |
+| 183 | ### 8. Policies |
+| 197 | ### 9. Patches |
+| 212 | ### 10. Scripts and Remote Access |
+| 232 | ### 11. Engines and Service Boundaries |
+| 248 | ### 12. Background Processing (Go schedulers, no Celery) |
+| 259 | ### 13. Agent Liveness |
+| 269 | ### 14. Planned Extensions (not implemented) |
+
+---
+
+## docs/QA_REVIEW_OPENSPEC_COVERAGE.md
+
+| Line | Header |
+|------|--------|
+| 1 | # OpenAgentPlatform — OpenSpec Coverage Audit (2026-08-23) |
+| 9 | ## Executive Summary |
+| 29 | ## 1. Spec Inventory Table (all 21) |
+| 64 | ## 2. Spec-vs-Implementation Mismatches |
+| 134 | ## 3. "PLANNED" specs that are actually fully built |
+| 164 | ## 4. Features with NO spec at all |
+| 195 | ## 5. RMM parity gap vs Ninja RMM |
+| 239 | ## 6. Stale top-level metadata |
+| 259 | ## 7. Recommendations (ranked by severity) |
