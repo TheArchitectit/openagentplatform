@@ -364,20 +364,20 @@ v0.1α ──→ v0.1α ──→ v0.3α ──→ v0.4β ──→ v0.5β ─�
 
 ## 9. Phase 6 Sprint Breakdown — IN PROGRESS
 
-### Sprint 6.1: Feature Gating + Licensing
+### Sprint 6.1: Feature Gating + Licensing ✓
 
 | Story | Description | Status |
 |-------|-------------|--------|
-| 6.1.1 | BSL 1.1 license file + contributor agreement | planned |
-| 6.1.2 | Feature gating (Ed25519 license validation) | planned |
-| 6.1.3 | License tiers (Community, Pro, Enterprise) | planned |
+| 6.1.1 | BSL 1.1 license file + contributor agreement | ✓ |
+| 6.1.2 | Feature gating (Ed25519 license validation) | ✓ |
+| 6.1.3 | License tiers (Community, Pro, Enterprise) | ✓ |
 
-### Sprint 6.2: Multi-Tenancy
+### Sprint 6.2: Multi-Tenancy ✓
 
 | Story | Description | Status |
 |-------|-------------|--------|
-| 6.2.1 | Tenant model (PostgreSQL RLS) | planned |
-| 6.2.2 | Data isolation (per-tenant secrets, configs) | planned |
+| 6.2.1 | Tenant model (PostgreSQL RLS) | ✓ |
+| 6.2.2 | Data isolation (per-tenant secrets, configs) | ✓ |
 | 6.2.3 | Tenant admin UI | planned |
 
 ### Sprint 6.3: Billing + Enterprise
