@@ -25,6 +25,8 @@
 | review | CODE_REVIEW.md | docs/workflows/ | Code review process |
 | checkpoint | MCP_CHECKPOINTING.md | docs/workflows/ | MCP auto-checkpoint |
 | docs | DOCUMENTATION_UPDATES.md | docs/workflows/ | Post-sprint doc updates |
+| contributing | CONTRIBUTING.md | docs/ | Contributor setup, workflow, style, and PR guidance |
+| adr | adr/ | docs/adr/ | Architecture decision records for protocol, secrets, and agent processes |
 | logging | LOGGING_PATTERNS.md | docs/standards/ | Array-based logging |
 | hooks | LOGGING_INTEGRATION.md | docs/standards/ | External logging hooks |
 | modular | MODULAR_DOCUMENTATION.md | docs/standards/ | 500-line rule |

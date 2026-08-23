@@ -16,6 +16,57 @@
 
 ---
 
+## docs/CONTRIBUTING.md
+
+| Line | Header |
+|------|--------|
+| 1 | # Contributing |
+| 5 | ## Development setup |
+| 30 | ## Development workflow |
+| 48 | ## Code style |
+| 82 | ## Commit messages |
+| 94 | ## Pull request template |
+| 121 | ## Reporting issues |
+| 125 | ## Code of conduct |
+
+---
+
+## docs/adr/001-a2a-protocol.md
+
+| Line | Header |
+|------|--------|
+| 1 | # ADR 001: A2A protocol uses gRPC and SSE |
+| 6 | ## Context |
+| 14 | ## Decision |
+| 24 | ## Consequences |
+| 32 | ## Alternatives considered |
+
+---
+
+## docs/adr/002-secrets-backend.md
+
+| Line | Header |
+|------|--------|
+| 1 | # ADR 002: Secrets use a backend abstraction |
+| 6 | ## Context |
+| 14 | ## Decision |
+| 24 | ## Consequences |
+| 32 | ## Alternatives considered |
+
+---
+
+## docs/adr/003-agent-process-model.md
+
+| Line | Header |
+|------|--------|
+| 1 | # ADR 003: Agents run as supervised subprocesses |
+| 6 | ## Context |
+| 14 | ## Decision |
+| 24 | ## Consequences |
+| 33 | ## Alternatives considered |
+
+---
+
 ## TOC.md
 
 | Line | Header |
