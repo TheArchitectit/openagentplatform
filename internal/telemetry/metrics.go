@@ -69,6 +69,10 @@ var (
 	registry    *prometheus.Registry
 	registryMu  sync.Mutex
 	initialized bool
+
+	// serviceName stores the service name passed to InitMeter for use as
+	// a constant label on all metrics.
+	serviceName string
 )
 
 // InitMeter registers the OAP Prometheus instruments on a private registry
@@ -78,7 +82,7 @@ var (
 //
 // It is safe to call more than once – subsequent calls return the same
 // handler.  serviceName is recorded as a constant label.
-func InitMeter(_ context.Context, _ string) (http.Handler, error) {
+func InitMeter(_ context.Context, svc string) (http.Handler, error) {
 	registryMu.Lock()
 	defer registryMu.Unlock()
 
@@ -249,6 +253,7 @@ func InitMeter(_ context.Context, _ string) (http.Handler, error) {
 	}
 
 	registry = reg
+	serviceName = svc
 	initialized = true
 
 	return promhttp.HandlerFor(registry, promhttp.HandlerOpts{}), nil

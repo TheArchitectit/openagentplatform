@@ -32,6 +32,13 @@ type ParsedRef struct {
 	Key         string
 }
 
+// Result holds the outcome of a single Resolve call within ResolveMany.
+// Callers can inspect each result independently.
+type Result struct {
+	Value *secrets.SecretValue
+	Err   error
+}
+
 // SecretResolver resolves OAP secret reference URIs to their underlying values.
 type SecretResolver struct {
 	registry *secrets.BackendRegistry
@@ -173,14 +180,14 @@ func (r *SecretResolver) Resolve(ctx context.Context, uri string, authCtx *AuthC
 }
 
 // ResolveMany resolves multiple secret reference URIs in parallel with a
-// concurrency limit of 16.
-func (r *SecretResolver) ResolveMany(ctx context.Context, uris []string, authCtx *AuthContext) ([]*secrets.SecretValue, error) {
+// concurrency limit of 16. It returns a Result slice of the same length
+// as uris; each result carries its own error so callers can distinguish
+// partial successes from total failures.
+func (r *SecretResolver) ResolveMany(ctx context.Context, uris []string, authCtx *AuthContext) ([]Result, error) {
 	const maxConcurrency = 16
 	sem := make(chan struct{}, maxConcurrency)
-	results := make([]*secrets.SecretValue, len(uris))
+	results := make([]Result, len(uris))
 	var wg sync.WaitGroup
-	var firstErr error
-	var errMu sync.Mutex
 
 	for i, uri := range uris {
 		wg.Add(1)
@@ -189,20 +196,21 @@ func (r *SecretResolver) ResolveMany(ctx context.Context, uris []string, authCtx
 			defer wg.Done()
 			defer func() { <-sem }()
 			val, err := r.Resolve(ctx, u, authCtx)
-			if err != nil {
-				errMu.Lock()
-				if firstErr == nil {
-					firstErr = err
-				}
-				errMu.Unlock()
-				return
-			}
-			results[idx] = val
+			results[idx] = Result{Value: val, Err: err}
 		}(i, uri)
 	}
 	wg.Wait()
-	if firstErr != nil {
-		return nil, firstErr
+
+	// Return a non-nil error only if ALL resolves failed.
+	var anySuccess bool
+	for _, res := range results {
+		if res.Err == nil {
+			anySuccess = true
+			break
+		}
+	}
+	if !anySuccess && len(results) > 0 {
+		return results, results[0].Err
 	}
 	return results, nil
 }

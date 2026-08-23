@@ -54,7 +54,8 @@ const (
 	SubjectHeartbeatPrefix = "oap.agents.*.heartbeat"
 
 	// SubjectCheckResultsPrefix is the wildcard subject agents publish
-	// check results on.
+	// check results on. SubjectCheckResultPrefix is an alias used by the
+	// ingest pipeline — both point to the same NATS subject.
 	SubjectCheckResultsPrefix = "oap.agents.*.results"
 
 	// SubjectAgentEvents is where the server publishes lifecycle events
@@ -66,10 +67,9 @@ const (
 	SubjectCheckAssignmentPrefix = "oap.agents"
 
 	// SubjectCheckResultPrefix is the wildcard subject the check result
-	// ingest pipeline subscribes to. It mirrors SubjectCheckResultsPrefix
-	// but is named with a "Result" suffix to disambiguate from the existing
-	// result subject consumed by CheckDispatcher.
-	SubjectCheckResultPrefix = "oap.agents.*.results"
+	// ingest pipeline subscribes to. It is an alias for
+	// SubjectCheckResultsPrefix, kept for backward compatibility.
+	SubjectCheckResultPrefix = SubjectCheckResultsPrefix
 
 	// SubjectAlertEvents is the wildcard subject the threshold evaluator
 	// publishes alert lifecycle events on. Consumers (WebSocket hub, pager
@@ -249,8 +249,14 @@ func (c *Client) wrapHandler(subject string, handler nats.MsgHandler) nats.MsgHa
 
 		// Replace the message's context with our traced one so the
 		// downstream handler can call telemetry.StartSpan and join the
-		// same trace.
-		msg.Header.Set("traceparent", span.SpanContext().TraceID().String())
+		// same trace. The traceparent header follows the W3C format:
+		// version-traceID-parentID-traceFlags.
+		sc := span.SpanContext()
+		traceparent := fmt.Sprintf("00-%s-%s-%s",
+			sc.TraceID().String(),
+			sc.SpanID().String(),
+			fmt.Sprintf("%02x", sc.TraceFlags()))
+		msg.Header.Set("traceparent", traceparent)
 		handler(msg)
 
 		// If the handler called span.RecordError via the context, the
@@ -258,7 +264,7 @@ func (c *Client) wrapHandler(subject string, handler nats.MsgHandler) nats.MsgHa
 		// when the handler itself returns an error (signalled via
 		// context.Value sentinel) -- but nats.MsgHandler has no error
 		// return, so we leave status at Unset for handler-level errors.
-		_ = ctx
+		_ = ctx // reserved for future handler error propagation
 	}
 }
 
@@ -269,7 +275,11 @@ func (c *Client) Close() {
 		return
 	}
 	c.subsMu.Lock()
-	for _, s := range c.subs {
+	subs := c.subs
+	c.subs = nil
+	c.subsMu.Unlock()
+
+	for _, s := range subs {
 		if s == nil {
 			continue
 		}
@@ -277,8 +287,6 @@ func (c *Client) Close() {
 			c.log.Warn("nats sub drain failed", "subject", s.Subject, "err", err)
 		}
 	}
-	c.subs = nil
-	c.subsMu.Unlock()
 
 	if c.conn != nil {
 		c.conn.Drain()

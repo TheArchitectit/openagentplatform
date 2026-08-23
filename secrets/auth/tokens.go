@@ -301,6 +301,8 @@ func (t *TokenIssuer) Exchange(parentToken string, requestedScopes []string) (st
 		return "", errors.New("auth: parent TTL too short for further delegation")
 	}
 
+	now := time.Now()
+
 	// Extend delegation chain.
 	newChain := make([]DelegationEntry, len(parent.DelegationChain)+1)
 	copy(newChain, parent.DelegationChain)
@@ -308,14 +310,14 @@ func (t *TokenIssuer) Exchange(parentToken string, requestedScopes []string) (st
 		Issuer:      parent.Subject,
 		DelegatedTo: parent.Audience,
 		Scopes:      requestedScopes,
-		Exp:         time.Now().Add(newTTL).Unix(),
+		Exp:         now.Add(newTTL).Unix(),
 	}
 
 	// Issue child token.
 	childClaims := TokenClaims{
 		Subject:         parent.Subject,
 		Audience:        parent.Audience,
-		ExpiresAt:       time.Now().Add(newTTL).Unix(),
+		ExpiresAt:       now.Add(newTTL).Unix(),
 		Scopes:          requestedScopes,
 		DelegationChain: newChain,
 	}

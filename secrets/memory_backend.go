@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -12,9 +13,9 @@ import (
 // MemoryBackend is an in-process backend for testing only.
 // It panics if instantiated in production.
 type MemoryBackend struct {
-	mu      sync.RWMutex
-	store   map[string][]memoryEntry
-	counter int
+	mu       sync.RWMutex
+	store    map[string][]memoryEntry
+	counters map[string]int // per-path version counter
 }
 
 type memoryEntry struct {
@@ -31,7 +32,8 @@ func NewMemoryBackend() *MemoryBackend {
 		panic("MemoryBackend cannot be used in production")
 	}
 	return &MemoryBackend{
-		store: make(map[string][]memoryEntry),
+		store:    make(map[string][]memoryEntry),
+		counters: make(map[string]int),
 	}
 }
 
@@ -92,10 +94,10 @@ func (m *MemoryBackend) Set(ctx context.Context, path string, data map[string]an
 		}
 	}
 
-	m.counter++
+	m.counters[path]++
 	entry := memoryEntry{
 		data:    copyMap(data),
-		version: m.counter,
+		version: m.counters[path],
 		created: time.Now(),
 		labels:  opts.Labels,
 	}
@@ -156,7 +158,7 @@ func (m *MemoryBackend) List(ctx context.Context, opts ListOptions) ([]string, e
 
 	var paths []string
 	for path := range m.store {
-		if opts.Prefix == "" || hasPrefix(path, opts.Prefix) {
+		if opts.Prefix == "" || strings.HasPrefix(path, opts.Prefix) {
 			paths = append(paths, path)
 		}
 	}
@@ -195,7 +197,7 @@ func (m *MemoryBackend) Rotate(ctx context.Context, path string, opts RotateOpti
 		return nil, fmt.Errorf("secret not found: %s", path)
 	}
 
-	m.counter++
+	m.counters[path]++
 	newData := opts.NewData
 	if newData == nil {
 		newData = entries[len(entries)-1].data
@@ -203,7 +205,7 @@ func (m *MemoryBackend) Rotate(ctx context.Context, path string, opts RotateOpti
 
 	entry := memoryEntry{
 		data:    copyMap(newData),
-		version: m.counter,
+		version: m.counters[path],
 		created: time.Now(),
 	}
 	entries = append(entries, entry)
@@ -245,8 +247,4 @@ func copyMap(m map[string]any) map[string]any {
 		c[k] = v
 	}
 	return c
-}
-
-func hasPrefix(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }

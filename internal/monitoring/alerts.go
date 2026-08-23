@@ -162,5 +162,7 @@ func cloneAlert(alert Alert) Alert {
 		value := *alert.ResolvedAt
 		alert.ResolvedAt = &value
 	}
+	// Note: Alert has no mutable map/slice fields that need deep cloning.
+	// The struct is passed by value, so the clone is independent.
 	return alert
 }

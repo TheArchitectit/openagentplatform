@@ -16,7 +16,7 @@ func TestOutcomeFromStatus(t *testing.T) {
 		{200, OutcomeSuccess},
 		{201, OutcomeSuccess},
 		{204, OutcomeSuccess},
-		{301, OutcomeError},        // 3xx not explicitly success
+		{301, OutcomeSuccess},      // 3xx redirects are successful responses
 		{401, OutcomeDenied},
 		{403, OutcomeDenied},
 		{400, OutcomeFailure},

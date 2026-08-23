@@ -59,24 +59,30 @@ func walkLines(ctx context.Context, paths []string, visit func(sourceLine)) erro
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		file, err := os.Open(path)
-		if err != nil {
-			errs = append(errs, err)
-			continue
+		if scanErr := scanFile(path, visit); scanErr != nil {
+			errs = append(errs, scanErr)
 		}
-		scanner := bufio.NewScanner(file)
-		scanner.Buffer(make([]byte, 64*1024), 1024*1024)
-		line := 0
-		for scanner.Scan() {
-			line++
-			visit(sourceLine{path: path, number: line, text: scanner.Text()})
-		}
-		if err := scanner.Err(); err != nil {
-			errs = append(errs, err)
-		}
-		file.Close()
 	}
 	return errors.Join(errs...)
+}
+
+// scanFile opens a single file, walks its lines calling visit, and returns
+// any scanner or open error. The file is always closed via defer.
+func scanFile(path string, visit func(sourceLine)) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
+	line := 0
+	for scanner.Scan() {
+		line++
+		visit(sourceLine{path: path, number: line, text: scanner.Text()})
+	}
+	return scanner.Err()
 }
 
 func expandPaths(paths []string) ([]string, error) {

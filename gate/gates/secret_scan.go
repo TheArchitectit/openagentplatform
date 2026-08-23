@@ -26,6 +26,10 @@ func NewSecretScan() *SecretScan {
 		{rule: "github-token", message: "GitHub token detected", re: regexp.MustCompile(`\bgh[opusr]_[A-Za-z0-9]{30,255}\b`)},
 		{rule: "private-key", message: "private key detected", re: regexp.MustCompile(`-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----`)},
 		{rule: "assigned-secret", message: "hardcoded credential detected", re: regexp.MustCompile(`(?i)\b(?:api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret|password|passwd)\b\s*[:=]\s*["'][^"'\s]{8,}["']`)},
+		{rule: "gcp-service-account", message: "GCP service account key detected", re: regexp.MustCompile(`"type"\s*:\s*"service_account"`)},
+		{rule: "azure-storage-key", message: "Azure storage key detected", re: regexp.MustCompile(`(?i)\bAccountKey\s*=\s*[A-Za-z0-9+/=]{44}\b`)},
+		{rule: "npm-token", message: "npm access token detected", re: regexp.MustCompile(`\bnpm_[A-Za-z0-9]{36}\b`)},
+		{rule: "stripe-key", message: "Stripe API key detected", re: regexp.MustCompile(`\bsk_(?:live|test)_[A-Za-z0-9]{24,}\b`)},
 	}}
 }
 

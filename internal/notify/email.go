@@ -244,7 +244,8 @@ func buildMIMEMessage(fromAddr, fromName string, toAddrs []string, subject, text
 
 // sendMail delivers the message via SMTP, supporting implicit TLS, STARTTLS,
 // and plaintext. It is blocking but respects ctx cancellation between
-// connection attempts.
+// connection attempts. When the context is cancelled, the underlying SMTP
+// goroutine may still be running; the connection will time out naturally.
 func sendMail(ctx context.Context, cfg EmailConfig, addr string, msg []byte) error {
 	done := make(chan error, 1)
 	go func() {
@@ -254,6 +255,8 @@ func sendMail(ctx context.Context, cfg EmailConfig, addr string, msg []byte) err
 	case err := <-done:
 		return err
 	case <-ctx.Done():
+		// Context cancelled; the goroutine will finish when the SMTP
+		// connection times out. We do not block waiting for it.
 		return ctx.Err()
 	}
 }

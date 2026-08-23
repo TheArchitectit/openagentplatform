@@ -3,6 +3,7 @@ package secrets
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -53,6 +54,9 @@ func NewK8sCSIBackend(cfg K8sCSIConfig) *K8sCSIBackend {
 	// Try to read the service account token.
 	if data, err := os.ReadFile(cfg.SAToken); err == nil {
 		backend.saToken = strings.TrimSpace(string(data))
+	} else {
+		slog.Debug("k8s_csi: could not read service account token",
+			"path", cfg.SAToken, "err", err)
 	}
 
 	return backend

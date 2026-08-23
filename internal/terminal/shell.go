@@ -89,10 +89,19 @@ func (s *RemoteShell) wait(cmd *exec.Cmd) {
 	err := cmd.Wait()
 	s.mu.Lock()
 	s.waitErr = err
+	// Nil out the writer references so Close() will not double-close them.
+	// Both wait() and Close() race to close the pipe writers; by niling them
+	// here under the lock, only one caller will actually close each writer.
 	stdoutW, stderrW := s.stdoutW, s.stderrW
+	s.stdoutW = nil
+	s.stderrW = nil
 	s.mu.Unlock()
-	_ = stdoutW.Close()
-	_ = stderrW.Close()
+	if stdoutW != nil {
+		_ = stdoutW.Close()
+	}
+	if stderrW != nil {
+		_ = stderrW.Close()
+	}
 	close(s.waitCh)
 }
 
@@ -164,6 +173,9 @@ func (s *RemoteShell) Close() error {
 	}
 	stdin, stdout, stderr := s.stdin, s.stdout, s.stderr
 	stdoutW, stderrW := s.stdoutW, s.stderrW
+	// Nil the struct fields so wait() sees nil writers and skips its close.
+	s.stdoutW = nil
+	s.stderrW = nil
 	process := s.cmd.Process
 	waitCh := s.waitCh
 	s.mu.Unlock()
@@ -172,8 +184,12 @@ func (s *RemoteShell) Close() error {
 	if process != nil {
 		_ = process.Kill()
 	}
-	_ = stdoutW.Close()
-	_ = stderrW.Close()
+	if stdoutW != nil {
+		_ = stdoutW.Close()
+	}
+	if stderrW != nil {
+		_ = stderrW.Close()
+	}
 	_ = stdout.Close()
 	_ = stderr.Close()
 	<-waitCh

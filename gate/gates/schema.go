@@ -3,6 +3,7 @@ package gates
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -53,32 +54,42 @@ func (s *SchemaScan) Check(ctx context.Context, paths []string) ([]gate.Finding,
 }
 
 func jsonErrorPosition(content []byte, err error) (int, int) {
-	offset := int64(1)
+	// Try *json.SyntaxError first (has byte offset).
 	var syntaxErr *json.SyntaxError
-	if ok := errorAs(err, &syntaxErr); ok {
-		offset = syntaxErr.Offset
-	}
-	line, column := 1, 1
-	for i, value := range content {
-		if int64(i+1) >= offset {
-			break
+	if errors.As(err, &syntaxErr) {
+		offset := syntaxErr.Offset
+		line, column := 1, 1
+		for i, value := range content {
+			if int64(i+1) >= offset {
+				break
+			}
+			if value == '\n' {
+				line++
+				column = 1
+			} else {
+				column++
+			}
 		}
-		if value == '\n' {
-			line++
-			column = 1
-		} else {
-			column++
+		return line, column
+	}
+	// Try *json.UnmarshalTypeError (has Offset since Go 1.21).
+	var typeErr *json.UnmarshalTypeError
+	if errors.As(err, &typeErr) && typeErr.Offset > 0 {
+		line, column := 1, 1
+		for i, value := range content {
+			if int64(i+1) >= typeErr.Offset {
+				break
+			}
+			if value == '\n' {
+				line++
+				column = 1
+			} else {
+				column++
+			}
 		}
+		return line, column
 	}
-	return line, column
-}
-
-func errorAs(err error, target **json.SyntaxError) bool {
-	value, ok := err.(*json.SyntaxError)
-	if ok {
-		*target = value
-	}
-	return ok
+	return 1, 1
 }
 
 func validateYAML(name, path, content string) []gate.Finding {

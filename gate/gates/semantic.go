@@ -91,7 +91,18 @@ func terminates(statement ast.Stmt) bool {
 			return false
 		}
 		identifier, ok := selector.X.(*ast.Ident)
-		return ok && identifier.Name == "os" && selector.Sel.Name == "Exit"
+		if !ok {
+			return false
+		}
+		// os.Exit(...) terminates the program.
+		if identifier.Name == "os" && selector.Sel.Name == "Exit" {
+			return true
+		}
+		// log.Fatal*, log.Fatalf*, log.Fatalln* all call os.Exit(1).
+		if identifier.Name == "log" && strings.HasPrefix(selector.Sel.Name, "Fatal") {
+			return true
+		}
+		return false
 	default:
 		return false
 	}

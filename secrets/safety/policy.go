@@ -270,7 +270,7 @@ var secretValuePatterns = []*regexp.Regexp{
 	regexp.MustCompile(`^AKIA[0-9A-Z]{16}$`),                        // AWS access keys
 	regexp.MustCompile(`^AIza[0-9A-Za-z_-]{35}$`),                   // Google API keys
 	regexp.MustCompile(`^glpat-[A-Za-z0-9_-]{20,}$`),                // GitLab PAT
-	regexp.MustCompile(`^[A-Za-z0-9+/]{40,}={0,2}$`),               // base64 blobs >= 40 chars
+	regexp.MustCompile(`^[A-Za-z0-9+/]{64,}={0,2}$`),               // base64 blobs >= 64 chars (reduces false positives)
 }
 
 // refPattern matches a secret reference URI like ref:oap://...
@@ -352,9 +352,11 @@ func looksLikeSecret(key, value string) bool {
 }
 
 // redactValue truncates a value for safe logging, showing only the first 4
-// characters followed by a redaction marker.
+// characters (or fewer for very short values) followed by a redaction marker.
+// Values shorter than 8 characters are fully redacted to avoid leaking
+// short secrets like PINs or short tokens.
 func redactValue(v string) string {
-	if len(v) <= 4 {
+	if len(v) < 8 {
 		return "***"
 	}
 	return v[:4] + "***"

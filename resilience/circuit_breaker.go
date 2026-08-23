@@ -23,6 +23,8 @@ var (
 	ErrCircuitOpen = errors.New("resilience: circuit breaker is open")
 	// ErrInvalidCircuitBreakerConfig is returned for invalid breaker settings.
 	ErrInvalidCircuitBreakerConfig = errors.New("resilience: invalid circuit breaker config")
+	// ErrNilOperation is returned when Execute is called with a nil function.
+	ErrNilOperation = errors.New("resilience: operation is nil")
 )
 
 // CircuitBreakerConfig controls when a circuit opens and recovers.
@@ -63,7 +65,7 @@ func NewCircuitBreaker(config CircuitBreakerConfig) (*CircuitBreaker, error) {
 // Execute runs operation when the circuit permits a call.
 func (breaker *CircuitBreaker) Execute(ctx context.Context, operation func(context.Context) error) error {
 	if operation == nil {
-		return errors.New("resilience: operation is nil")
+		return ErrNilOperation
 	}
 	if !breaker.allow(time.Now()) {
 		return ErrCircuitOpen

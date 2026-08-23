@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/openagentplatform/openagentplatform/internal/auth"
 )
 
@@ -144,33 +145,38 @@ func eventActionFromMethod(method, path string) string {
 // routePattern returns a stable identifier for the matched route when chi's
 // RouteContext is available, otherwise the raw path.
 func routePattern(r *http.Request) string {
-	// chi stores the route pattern in a context value; we import the type
-	// lazily to avoid adding a hard dependency in this file's package
-	// (audit already depends on chi's siblings elsewhere). Fall back to
-	// the raw path if the pattern is not present.
-	type ctxKey struct{}
-	if rc := r.Context().Value("chi.routeContext"); rc != nil {
-		if getter, ok := rc.(interface{ RoutePattern() string }); ok {
-			if p := getter.RoutePattern(); p != "" {
-				return p
-			}
-		}
+	rctx := chi.RouteContext(r.Context())
+	if rctx == nil {
+		return r.URL.Path
+	}
+	if p := rctx.RoutePattern(); p != "" {
+		return p
 	}
 	return r.URL.Path
 }
 
 // clientIP returns the best-effort client IP, preferring the X-Forwarded-For
-// header if present (set by chi's RealIP middleware).
+// header if present (set by chi's RealIP middleware). Falls back to
+// r.RemoteAddr if neither header is set or if headers contain empty values.
 func clientIP(r *http.Request) string {
 	if h := r.Header.Get("X-Forwarded-For"); h != "" {
 		// Take the first entry (original client).
 		if comma := strings.Index(h, ","); comma >= 0 {
-			return strings.TrimSpace(h[:comma])
+			ip := strings.TrimSpace(h[:comma])
+			if ip != "" {
+				return ip
+			}
 		}
-		return strings.TrimSpace(h)
+		ip := strings.TrimSpace(h)
+		if ip != "" {
+			return ip
+		}
 	}
 	if h := r.Header.Get("X-Real-IP"); h != "" {
-		return strings.TrimSpace(h)
+		ip := strings.TrimSpace(h)
+		if ip != "" {
+			return ip
+		}
 	}
 	return r.RemoteAddr
 }
@@ -182,7 +188,7 @@ func outcomeFromStatus(status int) Outcome {
 		// request produced no real response — treat as an error rather
 		// than silently recording it as a success in the audit trail.
 		return OutcomeError
-	case status >= 200 && status < 300:
+	case status >= 200 && status < 400:
 		return OutcomeSuccess
 	case status == http.StatusUnauthorized || status == http.StatusForbidden:
 		return OutcomeDenied

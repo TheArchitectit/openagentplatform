@@ -278,8 +278,9 @@ func (e *ThresholdEvaluator) flapWindow(checkDef *models.CheckDefinition, cfg Th
 	return cfg.LookbackWindow
 }
 
-// severityOf maps a check status string to an alert severity. Anything
-// not recognised as non-OK is treated as SeverityOK.
+// severityOf maps a check status string to an alert severity. Unrecognized
+// statuses are treated as critical to surface misconfigurations rather than
+// silently suppressing alerts.
 func severityOf(status string) string {
 	switch status {
 	case StatusOK, "OK":
@@ -292,6 +293,6 @@ func severityOf(status string) string {
 		// Errors are treated as critical for alerting purposes.
 		return SeverityCrit
 	default:
-		return SeverityOK
+		return SeverityCrit
 	}
 }

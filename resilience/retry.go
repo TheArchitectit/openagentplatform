@@ -67,6 +67,9 @@ func validateRetryConfig(config RetryConfig) error {
 	if config.InitialDelay < 0 {
 		return fmt.Errorf("%w: initial delay cannot be negative", ErrInvalidRetryConfig)
 	}
+	if config.InitialDelay == 0 && config.MaxAttempts > 1 {
+		return fmt.Errorf("%w: initial delay must be positive when max attempts > 1", ErrInvalidRetryConfig)
+	}
 	if config.MaxDelay < config.InitialDelay {
 		return fmt.Errorf("%w: max delay cannot be less than initial delay", ErrInvalidRetryConfig)
 	}

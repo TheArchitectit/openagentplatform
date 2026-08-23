@@ -71,7 +71,7 @@ func (e *EnvBackend) List(ctx context.Context, opts ListOptions) ([]string, erro
 				varName := env[:idx]
 				path := strings.TrimPrefix(varName, e.prefix)
 				path = strings.ToLower(strings.ReplaceAll(path, "_", "/"))
-				if opts.Prefix == "" || hasPrefix(path, opts.Prefix) {
+				if opts.Prefix == "" || strings.HasPrefix(path, opts.Prefix) {
 					paths = append(paths, path)
 				}
 			}

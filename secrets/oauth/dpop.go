@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"hash"
 	"math/big"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -441,12 +442,8 @@ func canonicalJSONEncode(m map[string]string) ([]byte, error) {
 	for k := range m {
 		keys = append(keys, k)
 	}
-	// Sort lexicographically using bubble sort (no import needed).
-	for i := 1; i < len(keys); i++ {
-		for j := i; j > 0 && keys[j-1] > keys[j]; j-- {
-			keys[j-1], keys[j] = keys[j], keys[j-1]
-		}
-	}
+	// Sort lexicographically.
+	sort.Strings(keys)
 
 	// Build the JSON manually to guarantee key ordering.
 	var buf strings.Builder

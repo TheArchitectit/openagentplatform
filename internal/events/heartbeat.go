@@ -184,6 +184,18 @@ func (h *HeartbeatHandler) markOffline(agentID string) {
 	delete(h.online, agentID)
 }
 
+// onlineAgentIDs returns a snapshot of all known online agent IDs.
+// Used by sweepStale to clean up agents that went stale.
+func (h *HeartbeatHandler) onlineAgentIDs() []string {
+	h.onlineMu.Lock()
+	defer h.onlineMu.Unlock()
+	ids := make([]string, 0, len(h.online))
+	for id := range h.online {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
 func (h *HeartbeatHandler) emitLifecycle(ctx context.Context, eventType, agentID string, payload *models.Heartbeat) {
 	evt := map[string]any{
 		"type":      eventType,

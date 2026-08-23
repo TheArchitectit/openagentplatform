@@ -140,25 +140,7 @@ func (rs *RotationScheduler) Policies() []RotationPolicy {
 func (rs *RotationScheduler) NeedsRotation(path string) bool {
 	rs.mu.RLock()
 	defer rs.mu.RUnlock()
-
-	policy, ok := rs.policies[path]
-	if !ok || !policy.Enabled {
-		return false
-	}
-
-	record, ok := rs.records[path]
-	if !ok {
-		return true
-	}
-
-	now := time.Now()
-	if policy.MaxAge > 0 && now.Sub(record.LastRotated) >= policy.MaxAge {
-		return true
-	}
-	if policy.Interval > 0 && now.Sub(record.LastRotated) >= policy.Interval {
-		return true
-	}
-	return false
+	return rs.needsRotationLocked(path)
 }
 
 // RotateNow forces an immediate rotation for the given path, executing
