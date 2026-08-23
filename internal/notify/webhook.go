@@ -150,6 +150,13 @@ func webhookDialContext(ctx context.Context, network, addr string) (net.Conn, er
 		if len(ips) == 0 {
 			return nil, fmt.Errorf("webhook: no addresses for %s", host)
 		}
+		// Check ALL resolved IPs — not just the first — to prevent
+		// multi-IP bypass where the first is public but others are private.
+		for _, resolved := range ips {
+			if isBlockedIP(resolved.IP) {
+				return nil, fmt.Errorf("webhook: dial to blocked address %s refused (resolved from %s)", resolved.IP, host)
+			}
+		}
 		ip = ips[0].IP
 	}
 	if isBlockedIP(ip) {

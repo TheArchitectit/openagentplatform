@@ -5,9 +5,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 )
+
+// tableNamePattern restricts table names to safe SQL identifiers.
+var tableNamePattern = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
 // DBQuerier abstracts the database operations used by DBBackend,
 // allowing tests to substitute a mock or real *sql.DB.
@@ -40,6 +44,9 @@ func NewDBBackend(db *sql.DB, cfg DBBackendConfig) (*DBBackend, error) {
 	if cfg.TableName == "" {
 		cfg.TableName = "secrets"
 	}
+	if !tableNamePattern.MatchString(cfg.TableName) {
+		return nil, fmt.Errorf("db_backend: invalid table name %q (must match %s)", cfg.TableName, tableNamePattern.String())
+	}
 	b := &DBBackend{db: db, tableName: cfg.TableName}
 	if err := b.migrate(context.Background()); err != nil {
 		return nil, fmt.Errorf("db_backend: migrate: %w", err)
@@ -49,11 +56,14 @@ func NewDBBackend(db *sql.DB, cfg DBBackendConfig) (*DBBackend, error) {
 
 // NewDBBackendFromQuerier creates a DBBackend using any DBQuerier implementation.
 // Used for testing with mock databases.
-func NewDBBackendFromQuerier(db DBQuerier, cfg DBBackendConfig) *DBBackend {
+func NewDBBackendFromQuerier(db DBQuerier, cfg DBBackendConfig) (*DBBackend, error) {
 	if cfg.TableName == "" {
 		cfg.TableName = "secrets"
 	}
-	return &DBBackend{db: db, tableName: cfg.TableName}
+	if !tableNamePattern.MatchString(cfg.TableName) {
+		return nil, fmt.Errorf("db_backend: invalid table name %q (must match %s)", cfg.TableName, tableNamePattern.String())
+	}
+	return &DBBackend{db: db, tableName: cfg.TableName}, nil
 }
 
 // migrate creates the secrets table if it doesn't exist.

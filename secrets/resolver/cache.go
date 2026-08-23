@@ -3,6 +3,7 @@ package resolver
 import (
 	"container/list"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -117,14 +118,21 @@ func (c *LRUCache) Invalidate(path string) {
 	}
 }
 
-// containsPath checks if a cache key contains the given path segment.
+// containsPath checks if a cache key contains the given path as a
+// colon-delimited segment. The cache key format is
+// "backendType:workspaceID:path:version", so we match on the path
+// segment specifically to avoid over-invalidation from naive substring
+// matching (e.g. path "secret" should not match "secretariat").
 func containsPath(key, path string) bool {
-	// Cache key format: "backendType:workspaceID:path:version"
-	// We do a simple substring check for invalidation.
-	for i := 0; i < len(key)-len(path)+1; i++ {
-		if key[i:i+len(path)] == path {
-			return true
-		}
+	// Fast check: path must appear in the key at all.
+	idx := strings.Index(key, path)
+	if idx < 0 {
+		return false
 	}
-	return false
+	// Check that the match is bounded by ':' delimiters or string boundaries.
+	// A valid match means the path is a complete segment in the key.
+	startOK := idx == 0 || key[idx-1] == ':'
+	endIdx := idx + len(path)
+	endOK := endIdx == len(key) || key[endIdx] == ':'
+	return startOK && endOK
 }

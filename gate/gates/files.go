@@ -11,6 +11,38 @@ import (
 	"strings"
 )
 
+// binaryExtensions lists file extensions that should be skipped by scan gates
+// to avoid false positives from compiled/binary content.
+var binaryExtensions = map[string]bool{
+	".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".ico": true,
+	".svg": true, ".woff": true, ".woff2": true, ".ttf": true, ".eot": true,
+	".pdf": true, ".zip": true, ".gz": true, ".tar": true, ".bz2": true,
+	".exe": true, ".dll": true, ".so": true, ".dylib": true, ".wasm": true,
+	".pyc": true, ".pyo": true, ".class": true, ".o": true, ".a": true,
+}
+
+// isBinaryFile checks the first 512 bytes for null bytes, which is a
+// reliable heuristic for detecting binary content.
+func isBinaryFile(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false // let the caller handle the open error
+	}
+	defer f.Close()
+
+	buf := make([]byte, 512)
+	n, err := f.Read(buf)
+	if err != nil && n == 0 {
+		return false
+	}
+	for _, b := range buf[:n] {
+		if b == 0 {
+			return true
+		}
+	}
+	return false
+}
+
 type sourceLine struct {
 	path   string
 	number int
@@ -42,9 +74,7 @@ func walkLines(ctx context.Context, paths []string, visit func(sourceLine)) erro
 		if err := scanner.Err(); err != nil {
 			errs = append(errs, err)
 		}
-		if err := file.Close(); err != nil {
-			errs = append(errs, err)
-		}
+		file.Close()
 	}
 	return errors.Join(errs...)
 }
@@ -100,5 +130,17 @@ func skipFile(path string) bool {
 	if strings.HasSuffix(name, "_test.go") || strings.HasSuffix(name, ".min.js") {
 		return true
 	}
-	return name == "go.sum" || name == "package-lock.json"
+	if name == "go.sum" || name == "package-lock.json" {
+		return true
+	}
+	// Skip known binary extensions.
+	ext := strings.ToLower(filepath.Ext(name))
+	if binaryExtensions[ext] {
+		return true
+	}
+	// Detect binary content via null-byte heuristic.
+	if isBinaryFile(path) {
+		return true
+	}
+	return false
 }

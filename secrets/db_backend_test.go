@@ -138,7 +138,10 @@ func TestDBBackend_RevokeLease(t *testing.T) {
 
 func TestDBBackend_Delete_Paths(t *testing.T) {
 	m := NewMockQuerier()
-	b := NewDBBackendFromQuerier(m, DBBackendConfig{})
+	b, err := NewDBBackendFromQuerier(m, DBBackendConfig{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	ctx := context.Background()
 
 	// Delete all — no versions arg.
@@ -167,8 +170,11 @@ func TestDBBackend_Delete_Paths(t *testing.T) {
 
 func TestDBBackend_Healthcheck(t *testing.T) {
 	m := &mockQuerier{pingErr: fmt.Errorf("db down")}
-	b := NewDBBackendFromQuerier(m, DBBackendConfig{})
-	err := b.Healthcheck(context.Background())
+	b, err := NewDBBackendFromQuerier(m, DBBackendConfig{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err = b.Healthcheck(context.Background())
 	if err == nil || err.Error() != "db down" {
 		t.Fatalf("expected 'db down', got %v", err)
 	}

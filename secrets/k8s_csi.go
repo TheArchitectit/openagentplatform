@@ -65,6 +65,12 @@ func (k *K8sCSIBackend) Get(ctx context.Context, path string, version *int) (*Se
 
 	// Try CSI mounted file first.
 	filePath := filepath.Join(k.mountPath, path)
+	// Guard against path traversal: the resolved path must stay within mountPath.
+	cleanMount := filepath.Clean(k.mountPath)
+	cleanFile := filepath.Clean(filePath)
+	if !strings.HasPrefix(cleanFile, cleanMount+string(os.PathSeparator)) && cleanFile != cleanMount {
+		return nil, fmt.Errorf("path traversal detected: %s resolves outside mount", path)
+	}
 	if data, err := os.ReadFile(filePath); err == nil {
 		return &SecretValue{
 			Path:    path,

@@ -118,9 +118,22 @@ func (breaker *CircuitBreaker) recordSuccess() {
 	breaker.mu.Lock()
 	defer breaker.mu.Unlock()
 
-	breaker.state = StateClosed
-	breaker.failures = 0
-	breaker.halfOpenProbe = false
+	// Only reset failure count when in Closed state (normal operation).
+	// In HalfOpen state, a successful probe closes the circuit but we
+	// should not unconditionally overwrite state — a concurrent failure
+	// may have already opened it.
+	switch breaker.state {
+	case StateClosed:
+		breaker.failures = 0
+	case StateHalfOpen:
+		// Probe succeeded — close the circuit.
+		breaker.state = StateClosed
+		breaker.failures = 0
+		breaker.halfOpenProbe = false
+	case StateOpen:
+		// Should not happen (open circuit rejects calls), but guard
+		// against a race between allow() and recordSuccess().
+	}
 }
 
 func (breaker *CircuitBreaker) recordFailure(now time.Time) {

@@ -35,12 +35,14 @@ func (s *SecretScan) Name() string { return "secret-scan" }
 func (s *SecretScan) Check(ctx context.Context, paths []string) ([]gate.Finding, error) {
 	var findings []gate.Finding
 	err := walkLines(ctx, paths, func(line sourceLine) {
-		if isSecretPlaceholder(line.text) {
-			return
-		}
 		for _, pattern := range s.patterns {
 			location := pattern.re.FindStringIndex(line.text)
 			if location == nil {
+				continue
+			}
+			// Check if the matched secret value itself looks like a placeholder.
+			matched := line.text[location[0]:location[1]]
+			if isSecretPlaceholder(matched) {
 				continue
 			}
 			findings = append(findings, gate.Finding{
@@ -52,8 +54,12 @@ func (s *SecretScan) Check(ctx context.Context, paths []string) ([]gate.Finding,
 	return findings, err
 }
 
-func isSecretPlaceholder(line string) bool {
-	lower := strings.ToLower(line)
+// isSecretPlaceholder checks if a matched secret value looks like a placeholder
+// rather than a real credential. The check is on the matched value, not the
+// entire line, to avoid false negatives where real secrets share a line with
+// placeholder keywords.
+func isSecretPlaceholder(value string) bool {
+	lower := strings.ToLower(value)
 	placeholders := []string{"example", "placeholder", "changeme", "your_", "your-", "<token>", "${", "os.getenv", "os.environ", "getenv("}
 	for _, placeholder := range placeholders {
 		if strings.Contains(lower, placeholder) {

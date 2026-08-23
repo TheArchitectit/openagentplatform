@@ -138,6 +138,7 @@ func (a *AuthorizationServer) DeleteClient(ctx context.Context, clientID string)
 }
 
 // GetClient retrieves a registered client by ID.
+// Returns a defensive copy to prevent callers from mutating internal state.
 func (a *AuthorizationServer) GetClient(clientID string) (*RegisteredClient, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -145,7 +146,9 @@ func (a *AuthorizationServer) GetClient(clientID string) (*RegisteredClient, err
 	if !ok {
 		return nil, ErrClientNotFound
 	}
-	return client, nil
+	// Return a shallow copy so callers cannot mutate internal map entries.
+	copy := *client
+	return &copy, nil
 }
 
 // VerifyClientSecret checks the provided client secret against the stored hash.

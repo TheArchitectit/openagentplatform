@@ -175,7 +175,8 @@ func (n *SlackNotifier) Notify(ctx context.Context, alert *models.Alert, channel
 
 	client := n.HTTPClient
 	if client == nil {
-		client = &http.Client{Timeout: 10 * time.Second}
+		// Use the SSRF-hardened client to prevent DNS-rebinding attacks.
+		client = webhookHTTPClient(10 * time.Second)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cfg.WebhookURL, bytes.NewReader(payload))

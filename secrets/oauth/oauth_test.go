@@ -177,8 +177,8 @@ func TestExchangeCode_Success(t *testing.T) {
 	if resp.RefreshToken == "" {
 		t.Fatal("expected non-empty refresh_token")
 	}
-	if resp.TokenType != "DPoP" {
-		t.Fatalf("expected DPoP, got %s", resp.TokenType)
+	if resp.TokenType != "Bearer" {
+		t.Fatalf("expected Bearer, got %s", resp.TokenType)
 	}
 	if resp.Scope != "task:create" {
 		t.Fatalf("expected task:create, got %s", resp.Scope)

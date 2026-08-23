@@ -208,9 +208,13 @@ func (a *AuthorizationServer) ExchangeCode(ctx context.Context, req TokenRequest
 		fmt.Sprintf("grant=authorization_code scope=%s dpop_bound=%t",
 			code.Scope, req.DPoPKeyThumbprint != ""))
 
+	tokenType := "Bearer"
+	if req.DPoPKeyThumbprint != "" {
+		tokenType = "DPoP"
+	}
 	resp := &TokenResponse{
 		AccessToken:  accessToken,
-		TokenType:    "DPoP",
+		TokenType:    tokenType,
 		ExpiresIn:    int(AccessTokenTTL.Seconds()),
 		RefreshToken: refreshToken,
 		Scope:        code.Scope,

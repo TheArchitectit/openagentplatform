@@ -111,7 +111,11 @@ func validateYAML(name, path, content string) []gate.Finding {
 		}
 		colon := strings.Index(value, ":")
 		if colon < 1 {
-			findings = append(findings, schemaFinding(name, path, line, indent+1, "expected YAML mapping key and colon", "yaml-structure"))
+			// Scalar list items (e.g. "- apple") have no colon and are valid YAML.
+			// Only flag it as an error if this line is NOT a list item (no leading '-').
+			if !strings.HasPrefix(trimmed, "-") {
+				findings = append(findings, schemaFinding(name, path, line, indent+1, "expected YAML mapping key and colon", "yaml-structure"))
+			}
 			continue
 		}
 		key := strings.TrimSpace(value[:colon])

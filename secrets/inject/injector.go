@@ -180,10 +180,6 @@ func (in *Injector) Execute(ctx context.Context, specs []InjectionSpec) []Inject
 		}
 	}
 
-	in.mu.Lock()
-	in.specs = append(in.specs, specs...)
-	in.mu.Unlock()
-
 	return results
 }
 
@@ -196,29 +192,30 @@ func (in *Injector) Cleanup(ctx context.Context) {
 	in.specs = nil
 	in.mu.Unlock()
 
-	for _, s := range specs {
+	for i := range specs {
+		s := &specs[i]
 		switch s.Method {
 		case MethodEnv:
-			if err := in.env.cleanup(s); err != nil {
+			if err := in.env.cleanup(*s); err != nil {
 				in.logger.Warn("env cleanup failed", "key", s.Key, "err", err)
 			}
 		case MethodFile:
-			if err := in.file.cleanup(s); err != nil {
+			if err := in.file.cleanup(*s); err != nil {
 				in.logger.Warn("file cleanup failed", "key", s.Key, "err", err)
 			}
 		case MethodStdin:
-			if err := in.stdin.cleanup(s); err != nil {
+			if err := in.stdin.cleanup(*s); err != nil {
 				in.logger.Warn("stdin cleanup failed", "key", s.Key, "err", err)
 			}
 		}
 
 		if s.LeaseID != "" {
-			in.revokeLease(ctx, s)
+			in.revokeLease(ctx, *s)
 		}
 
-		// Zero the in-memory copy.
-		for i := range s.Value {
-			s.Value[i] = 0
+		// Zero the credential bytes in the original slice entry.
+		for j := range specs[i].Value {
+			specs[i].Value[j] = 0
 		}
 	}
 }

@@ -194,6 +194,10 @@ type AuthorizationServer struct {
 
 	audit  *audit.AuditService
 	logger *slog.Logger
+
+	// cleanup goroutine control
+	cleanupStop chan struct{}
+	cleanupDone chan struct{}
 }
 
 // NewAuthorizationServer creates a new OAuth 2.1 authorization server.
@@ -221,6 +225,81 @@ func NewAuthorizationServer(
 		nonces:              make(map[string]time.Time),
 		audit:               auditSvc,
 		logger:              logger,
+	}
+}
+
+// cleanupInterval is how often the background goroutine purges expired tokens.
+const cleanupInterval = 5 * time.Minute
+
+// StartCleanup launches a background goroutine that periodically purges
+// expired authorization codes, access tokens, refresh tokens, and nonces.
+// Call StopCleanup to terminate the goroutine.
+func (a *AuthorizationServer) StartCleanup() {
+	a.mu.Lock()
+	if a.cleanupStop != nil {
+		a.mu.Unlock()
+		return // already running
+	}
+	a.cleanupStop = make(chan struct{})
+	a.cleanupDone = make(chan struct{})
+	a.mu.Unlock()
+
+	go func() {
+		defer close(a.cleanupDone)
+		ticker := time.NewTicker(cleanupInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				a.purgeExpired()
+			case <-a.cleanupStop:
+				return
+			}
+		}
+	}()
+}
+
+// StopCleanup terminates the background cleanup goroutine and waits for it to exit.
+func (a *AuthorizationServer) StopCleanup() {
+	a.mu.Lock()
+	stop := a.cleanupStop
+	done := a.cleanupDone
+	a.mu.Unlock()
+	if stop != nil {
+		close(stop)
+		<-done
+	}
+}
+
+// purgeExpired removes all expired tokens, codes, and nonces from memory.
+func (a *AuthorizationServer) purgeExpired() {
+	now := time.Now()
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	// Purge expired auth codes.
+	for k, code := range a.codes {
+		if code.Used || now.After(code.ExpiresAt) {
+			delete(a.codes, k)
+		}
+	}
+	// Purge expired access tokens.
+	for k, tok := range a.tokens {
+		if tok.Revoked || now.After(tok.ExpiresAt) {
+			delete(a.tokens, k)
+		}
+	}
+	// Purge expired refresh tokens.
+	for k, rt := range a.refresh {
+		if rt.Revoked || now.After(rt.ExpiresAt) {
+			delete(a.refresh, k)
+		}
+	}
+	// Purge expired nonces.
+	for k, exp := range a.nonces {
+		if now.After(exp) {
+			delete(a.nonces, k)
+		}
 	}
 }
 

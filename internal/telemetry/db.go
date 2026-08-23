@@ -8,27 +8,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// TraceDB wraps the given pool's connection config with the otelpgx tracer
-// so every query acquires a "db.query" span automatically.  The pool
-// instance is returned unchanged; pgx reads the tracer from the pool config
-// each time it acquires a new connection.
+// TraceDB is a no-op for already-created pools — pgxpool.Config is immutable
+// after pool creation, so the tracer cannot be injected post-hoc.
 //
-// Callers should pass the result back wherever they would have used the
-// original pool so subsequent queries participate in the active trace.
-//
-// If pool is nil the function returns nil without panicking so callers can
-// use the same code path in environments that omit a database.
+// Deprecated: Use TraceDBFromDSN to wire the otelpgx tracer before pool
+// creation, or set cfg.ConnConfig.Tracer in your own pgxpool.Config before
+// calling pgxpool.NewWithConfig.
 func TraceDB(pool *pgxpool.Pool) *pgxpool.Pool {
-	if pool == nil {
-		return nil
-	}
-	cfg := pool.Config()
-	if cfg.ConnConfig.Tracer == nil {
-		cfg.ConnConfig.Tracer = otelpgx.NewTracer(
-			otelpgx.WithIncludeQueryParameters(),
-		)
-	}
-	return pool
+	return pool // no-op; tracer must be set before pool creation
 }
 
 // TraceDBFromDSN parses dsn, builds a pool, and wires the otelpgx tracer

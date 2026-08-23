@@ -5,6 +5,7 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strings"
 )
@@ -55,7 +56,10 @@ func A2AAuthMiddleware(issuer *TokenIssuer) func(http.Handler) http.Handler {
 			// Verify token.
 			claims, err := issuer.Verify(tokenStr)
 			if err != nil {
-				writeAuthError(w, http.StatusUnauthorized, "token verification failed: "+err.Error())
+				// Log the full error server-side but return a generic message
+				// to avoid leaking token structure or key configuration details.
+				slog.Warn("token verification failed", "err", err)
+				writeAuthError(w, http.StatusUnauthorized, "token verification failed")
 				return
 			}
 

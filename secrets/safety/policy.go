@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/openagentplatform/openagentplatform/internal/audit"
 )
@@ -54,6 +55,7 @@ type ScriptRequest struct {
 
 // Validator validates script requests against the credential safety policy.
 type Validator struct {
+	mu     sync.RWMutex
 	policy SafetyPolicy
 	audit  *audit.AuditService
 	logger *slog.Logger
@@ -73,11 +75,15 @@ func NewValidator(policy SafetyPolicy, auditSvc *audit.AuditService, logger *slo
 
 // Policy returns the active safety policy.
 func (v *Validator) Policy() SafetyPolicy {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
 	return v.policy
 }
 
 // SetPolicy updates the active safety policy.
 func (v *Validator) SetPolicy(p SafetyPolicy) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
 	v.policy = p
 }
 
@@ -92,17 +98,21 @@ func (v *Validator) SetPolicy(p SafetyPolicy) {
 //     are rejected (PolicyNoEnvSecrets).
 //  3. All violations are emitted as audit events.
 func (v *Validator) ValidateScriptRequest(ctx context.Context, req ScriptRequest) []Violation {
+	v.mu.RLock()
+	policy := v.policy
+	v.mu.RUnlock()
+
 	var violations []Violation
 
 	// Check args for secret references.
-	if v.policy.Contains(PolicyNoScriptArgSecrets) {
+	if policy.Contains(PolicyNoScriptArgSecrets) {
 		violations = append(violations, v.checkArgs(req.Script, req.Args)...)
 	}
 
 	// Check env vars for secret values.
-	if v.policy.Contains(PolicyNoEnvSecrets) {
+	if policy.Contains(PolicyNoEnvSecrets) {
 		violations = append(violations, v.checkEnvNoSecrets(req.Script, req.Env)...)
-	} else if v.policy.Contains(PolicyEnvSecretsWithOAPPrefixOnly) {
+	} else if policy.Contains(PolicyEnvSecretsWithOAPPrefixOnly) {
 		violations = append(violations, v.checkEnvPrefixOnly(req.Script, req.Env)...)
 	}
 
