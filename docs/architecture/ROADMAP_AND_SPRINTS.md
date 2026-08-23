@@ -384,8 +384,8 @@ v0.1α ──→ v0.1α ──→ v0.3α ──→ v0.4β ──→ v0.5β ─�
 
 | Story | Description | Status |
 |-------|-------------|--------|
-| 6.3.1 | Stripe Billing integration | planned |
-| 6.3.2 | Usage tracking + metering | planned |
+| 6.3.1 | Stripe Billing integration | ✓ |
+| 6.3.2 | Usage tracking + metering | ✓ |
 | 6.3.3 | Enterprise reporting (templates, scheduled delivery) | planned |
 | 6.3.4 | Managed A2A relay service | planned |
 
