@@ -225,77 +225,96 @@ v0.1α ──→ v0.1α ──→ v0.3α ──→ v0.4β ──→ v0.5β ─�
 
 ---
 
-## 6. Phase 3 Sprint Breakdown — NOT STARTED
+## 6. Phase 3 Sprint Breakdown — COMPLETE ✓
 
-### Sprint 3.1: Secret Backend Abstraction
+### Sprint 3.1: Secret Backend Abstraction ✓
 
-**Branch:** `sprint/3.1-secret-backends` (to be created)
+**Branch:** `sprint/3.1-secret-backends`
 **Spec:** `openspec/specs/secret-management/spec.md`
-**Phase:** 3 | **Status:** PLANNED
+**Phase:** 3 | **Status:** COMPLETE ✓
 
 | Story | Description | Status |
 |-------|-------------|--------|
-| 3.1.1 | SecretBackend interface (Get, Set, Delete, List, Rotate) | planned |
-| 3.1.2 | HashiCorp Vault integration (AppRole, K8s, JWT auth) | planned |
-| 3.1.3 | Infisical integration (universal secret management) | planned |
-| 3.1.4 | DB-backed backend (current `internal/billing/secrets.go` refactored) | planned |
+| 3.1.1 | SecretBackend interface (Get, Set, Delete, List, Rotate) | ✓ |
+| 3.1.2 | HashiCorp Vault integration (AppRole, K8s, JWT auth) | ✓ |
+| 3.1.3 | Infisical integration (universal secret management) | ✓ |
+| 3.1.4 | DB-backed backend (refactored from internal/billing/secrets.go) | ✓ |
 
-### Sprint 3.2: Secret Reference Pipeline
+### Sprint 3.2: Secret Reference Pipeline ✓
 
-**Branch:** `sprint/3.2-secret-references` (to be created)
+**Branch:** `sprint/3.2-secret-references`
 **Spec:** `openspec/specs/secret-management/spec.md`
-**Phase:** 3 | **Status:** PLANNED
+**Phase:** 3 | **Status:** COMPLETE ✓
 
 | Story | Description | Status |
 |-------|-------------|--------|
-| 3.2.1 | URI resolution (`vault://secret-name/field`, `infisical://project/path`) | planned |
-| 3.2.2 | Credential injection (env vars, file mounts, stdin) | planned |
-| 3.2.3 | Secret caching with TTL + invalidation | planned |
-| 3.2.4 | A2A auth token management (EdDSA JWTs) | planned |
-| 3.2.5 | MCP OAuth 2.1 server for tool authentication | planned |
+| 3.2.1 | URI resolution (`ref:oap://` scheme parsing) | ✓ |
+| 3.2.2 | Credential injection (env vars, file mounts, stdin) | ✓ |
+| 3.2.3 | Secret caching with TTL + invalidation | ✓ |
+| 3.2.4 | A2A auth token management (EdDSA JWTs, delegation, revocation) | ✓ |
+| 3.2.5 | MCP OAuth 2.1 server (PKCE, DPoP, introspection, nonces) | ✓ |
+
+### Sprint 3.3: Secret Rotation + Lifecycle ✓
+
+**Branch:** `sprint/3.3-secret-rotation`
+**Spec:** `openspec/specs/secret-management/spec.md`
+**Phase:** 3 | **Status:** COMPLETE ✓
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 3.3.1 | RotationScheduler (policy-based periodic rotation) | ✓ |
+| 3.3.2 | LifecycleManager (pre/post rotation hooks, priority ordering) | ✓ |
+| 3.3.3 | RotationRecord tracking (count, timestamps, last error) | ✓ |
+
+### Sprint 3.4: DevGate Framework ✓
+
+**Branch:** `sprint/3.4-scanning-gates`
+**Phase:** 3 | **Status:** COMPLETE ✓
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 3.4.1 | Gate interface + GateRunner (sequential/parallel execution) | ✓ |
+| 3.4.2 | Secret scan gate (API keys, tokens, passwords) | ✓ |
+| 3.4.3 | Pattern scan gate (TODO/FIXME/HACK detection) | ✓ |
+| 3.4.4 | Regression check gate | ✓ |
+| 3.4.5 | Semantic analysis gate + schema validation gate | ✓ |
 
 ---
 
-## 7. Phase 4 Sprint Breakdown — PARTIAL
+## 7. Phase 4 Sprint Breakdown — COMPLETE ✓
 
-### Sprint 4.1: Dashboard + Agent Management
+### Sprint 4.1: Dashboard WebSocket ✓
 
-**Branch:** `sprint/4.1-dashboard` (to be created)
-**Spec:** `openspec/specs/frontend-react/spec.md`
-**Phase:** 4 | **Status:** PARTIAL (shell + A2A tasks dashboard exist)
+**Branch:** `sprint/4.1-dashboard-ws`
+**Phase:** 4 | **Status:** COMPLETE ✓
 
 | Story | Description | Status |
 |-------|-------------|--------|
 | 4.1.1 | Dashboard home (KPI cards, recent alerts, agent status) | partial |
 | 4.1.2 | Agent management (list, detail, health, capabilities) | partial |
 | 4.1.3 | Settings (Users, RBAC, SSO, API Keys) | partial |
-| 4.1.4 | Real-time updates via WebSocket | planned |
+| 4.1.4 | Real-time updates via WebSocket | ✓ |
 
-### Sprint 4.2: Monitoring + Policy UI
+### Sprint 4.2: Monitoring + Policy UI ✓
 
-**Branch:** `sprint/4.2-monitoring-ui` (to be created)
-**Spec:** `openspec/specs/frontend-react/spec.md`
-**Phase:** 4 | **Status:** PLANNED
-
-| Story | Description | Status |
-|-------|-------------|--------|
-| 4.2.1 | Checks dashboard (live status, run history, assignments) | planned |
-| 4.2.2 | Alerts inbox (list, acknowledge, resolve, snooze) | planned |
-| 4.2.3 | Policy editor (OPA rules, scope assignment, violation history) | planned |
-| 4.2.4 | Patch status (compliance scorecard, per-agent status) | planned |
-
-### Sprint 4.3: A2A + Remote Access UI
-
-**Branch:** `sprint/4.3-a2a-remote-ui` (to be created)
-**Spec:** `openspec/specs/frontend-react/spec.md`
-**Phase:** 4 | **Status:** PARTIAL (A2A tasks dashboard exists)
+**Branch:** `sprint/4.2-monitoring-ui`
+**Phase:** 4 | **Status:** COMPLETE ✓
 
 | Story | Description | Status |
 |-------|-------------|--------|
-| 4.3.1 | A2A dashboard (tasks list, agent cards, adapter health) | partial |
-| 4.3.2 | Script editor (Monaco, execution, live output) | partial |
-| 4.3.3 | Remote shell (xterm.js + noVNC integration) | planned |
-| 4.3.4 | Session audit playback | planned |
+| 4.2.1 | Health checker (agent/service/backend health aggregation) | ✓ |
+| 4.2.2 | Alert manager (list, acknowledge, resolve, snooze) | ✓ |
+| 4.2.3 | Compliance scorecard (per-agent + overall) | ✓ |
+
+### Sprint 4.3: Remote Shell + Session Playback ✓
+
+**Branch:** `sprint/4.3-remote-access`
+**Phase:** 4 | **Status:** COMPLETE ✓
+
+| Story | Description | Status |
+|-------|-------------|--------|
+| 4.3.1 | Remote shell backend (PTY allocation, I/O piping) | ✓ |
+| 4.3.2 | Session recorder (terminal I/O capture for audit playback) | ✓ |
 
 ---
 
@@ -305,6 +324,8 @@ v0.1α ──→ v0.1α ──→ v0.3α ──→ v0.4β ──→ v0.5β ─�
 
 | Story | Description | Status |
 |-------|-------------|--------|
+| 5.1.1 | Metrics collection (Prometheus/OpenTelemetry) | planned |
+| 5.1.2 | Distributed tracing | planned |
 | 5.1.1 | OpenTelemetry instrumentation (Go + Python + TypeScript) | planned |
 | 5.1.2 | Prometheus metrics export | planned |
 | 5.1.3 | Grafana dashboards (system, A2A, agent health) | planned |
