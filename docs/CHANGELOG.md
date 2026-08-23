@@ -8,6 +8,63 @@ for the BSL-licensed releases.
 
 ---
 
+## [1.1.0] - 2026-08-22 -- Phase 6: Commercial Tiering COMPLETE
+
+### Summary
+
+Phase 6 (Commercial Tiering) is now complete with all 3 sprints delivered. The platform now supports commercial licensing, multi-tenant isolation, Stripe billing, enterprise reporting, and managed A2A relay.
+
+### Sprint 6.1: Feature Gating + Licensing ✓
+
+- **BSL 1.1 License**: Business Source License with Change Date 2030-01-01
+- **Contributor License Agreement**: CLA template for external contributors
+- **Ed25519 License Validation**: Cryptographic license verification with tamper detection
+- **License Tiers**: Community, Pro, Enterprise with feature gating
+- **Grace Period**: 30-day offline grace period for license validation
+- **Endpoint Limits**: Per-tier endpoint limits with clear error messages
+
+### Sprint 6.2: Multi-Tenancy ✓
+
+- **PostgreSQL RLS**: Row Level Security for tenant data isolation
+- **Tenant Model**: UUID-based tenant identification with slug
+- **Tenant Store**: CRUD operations for tenant management
+- **Per-Tenant Config**: Isolated configuration storage per tenant
+- **Migration System**: Versioned migrations for tenant schema
+
+### Sprint 6.3: Billing + Enterprise ✓
+
+- **Stripe Billing**: Customer creation, subscription management, webhook handling
+- **Usage Metering**: Agent count, A2A tasks, API calls tracked per tenant
+- **Enterprise Reporting**: 4 report templates (compliance, patch status, alerts, endpoints)
+- **Scheduled Reports**: Daily, weekly, monthly delivery with CSV export
+- **Managed A2A Relay**: Cross-network agent communication with tenant isolation
+
+### Test Coverage
+
+| Package | Tests | Coverage |
+|---------|-------|----------|
+| internal/licensing/ | 8 | License validation, features, tiers, endpoints |
+| internal/tenancy/ | 25 | RLS migrations, tenant store, config store |
+| internal/billing/ | 3 | Stripe client, metering service |
+| internal/reporting/ | 25 | Templates, reports, schedules, CSV export |
+| internal/relay/ | 20 | Connections, metrics, cleanup |
+
+### Commits
+
+- `88b27ed` — BSL 1.1 license file + contributor agreement
+- `22ecd69` — Ed25519 license validation + feature gating
+- `ef7fefc` — PostgreSQL RLS migration for multi-tenant isolation
+- `84697d4` — Tenant store + per-tenant config storage
+- `6d6105a` — Stripe client with subscription management
+- `c142f2d` — Enterprise reporting with templates and scheduling
+- `fcf49af` — Managed A2A relay service
+
+### Next Phase
+
+All phases complete. Platform is ready for v1.1.0 release.
+
+---
+
 ## [1.0.0] - 2026-08-22 -- Phase 5: Production Hardening COMPLETE
 
 ### Summary
