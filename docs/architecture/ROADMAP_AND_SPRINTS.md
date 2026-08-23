@@ -166,62 +166,62 @@ v0.1α ──→ v0.1α ──→ v0.3α ──→ v0.4β ──→ v0.5β ─�
 | 2.4.3 | Agent card registry (store + validation) | ✓ |
 | 2.4.4 | NATS JetStream-backed task persistence (planned, in-memory currently) | planned |
 
-### Sprint 2.5: ProcessPool (Warm Agent Instances)
+### Sprint 2.5: ProcessPool (Warm Agent Instances) ✓
 
-**Branch:** `sprint/2.5-process-pool` (to be created)
+**Branch:** `main` (merged)
 **Spec:** `openspec/specs/process-pool/spec.md`
-**Phase:** 2 | **Status:** PLANNED
+**Phase:** 2 | **Status:** COMPLETE
 
 | Story | Description | Status |
 |-------|-------------|--------|
-| 2.5.1 | ProcessPool manager (spawn, health-check, recycle warm instances) | planned |
-| 2.5.2 | Resource limits (CPU, memory, process count per adapter) | planned |
-| 2.5.3 | Instance lifecycle (warm-up, idle timeout, crash recovery) | planned |
-| 2.5.4 | Pool metrics (active/idle/count, latency histograms) | planned |
+| 2.5.1 | ProcessPool manager (spawn, health-check, recycle warm instances) | ✓ |
+| 2.5.2 | Resource limits (CPU, memory, process count per adapter) | ✓ |
+| 2.5.3 | Instance lifecycle (warm-up, idle timeout, crash recovery) | ✓ |
+| 2.5.4 | Pool metrics (active/idle/count, latency histograms) | ✓ |
 
-### Sprint 2.6: Event-to-Task Bridge
+### Sprint 2.6: Event-to-Task Bridge ✓
 
-**Branch:** `sprint/2.6-event-task-bridge` (to be created)
+**Branch:** `main` (merged)
 **Spec:** `openspec/specs/event-task-bridge/spec.md`
-**Phase:** 2 | **Status:** PLANNED
+**Phase:** 2 | **Status:** COMPLETE
 
 | Story | Description | Status |
 |-------|-------------|--------|
-| 2.6.1 | Event consumer (8 RMM event types: check-fail, alert-fire, patch-ready, policy-violation, agent-offline, script-complete, heartbeat-miss, threshold-breach) | planned |
-| 2.6.2 | Event→Task mapper (event type + payload → A2A Task with parts) | planned |
-| 2.6.3 | Auto-dispatch to appropriate agent adapter | planned |
-| 2.6.4 | Task→Event feedback loop (task completion generates RMM event) | planned |
+| 2.6.1 | Event consumer (8 RMM event types → A2A skill tags) | ✓ |
+| 2.6.2 | Event→Task mapper (dedup, rate limit, circuit breaker) | ✓ |
+| 2.6.3 | Auto-dispatch to appropriate agent adapter | ✓ |
+| 2.6.4 | Task→Event feedback loop (task completion generates RMM event) | ✓ |
 
-### Sprint 2.7: Human-in-the-Loop Approval
+### Sprint 2.7: Human-in-the-Loop Approval ✓
 
-**Branch:** `sprint/2.7-hitl-approval` (to be created)
+**Branch:** `main` (merged)
 **Spec:** `openspec/specs/hitl-approval/spec.md`
-**Phase:** 2 | **Status:** PLANNED
+**Phase:** 2 | **Status:** COMPLETE
 
 | Story | Description | Status |
 |-------|-------------|--------|
-| 2.7.1 | Approval request API (create/approve/reject with reason) | planned |
-| 2.7.2 | HITL notification (email/Slack/webhook for pending approvals) | planned |
-| 2.7.3 | Timeout + escalation (auto-reject or auto-escalate after N hours) | planned |
-| 2.7.4 | Audit trail (who approved what, when, with what justification) | planned |
+| 2.7.1 | Approval request API (create/approve/reject with reason) | ✓ |
+| 2.7.2 | HITL notification (email/Slack/webhook for pending approvals) | ✓ |
+| 2.7.3 | Timeout + escalation (auto-reject or auto-escalate after N hours) | ✓ |
+| 2.7.4 | Audit trail (who approved what, when, with what justification) | ✓ |
 | 2.7.5 | Frontend approval queue UI | planned |
 
-### Sprint 2.8: Framework Adapters (6 Adapters)
+### Sprint 2.8: Framework Adapters (6 Adapters) ✓
 
-**Branch:** `sprint/2.8-framework-adapters` (to be created)
+**Branch:** `main` (merged)
 **Spec:** `openspec/specs/a2a-framework-adapters/spec.md`
-**Phase:** 2 | **Status:** PLANNED
+**Phase:** 2 | **Status:** COMPLETE
 
 | Story | Description | Status |
 |-------|-------------|--------|
-| 2.8.1 | LangGraph adapter (Python, LangChain ecosystem) | planned |
-| 2.8.2 | CrewAI adapter (Python, multi-agent orchestration) | planned |
-| 2.8.3 | AutoGen adapter (Python, Microsoft multi-agent) | planned |
-| 2.8.4 | Semantic Kernel adapter (C#/.NET, Microsoft) | planned |
-| 2.8.5 | OpenAI adapter (Python, Responses API) | planned |
-| 2.8.6 | Anthropic adapter (Python, Messages API) | planned |
-| 2.8.7 | Adapter SDK (shared adapter base, health/card/task primitives) | planned |
-| 2.8.8 | Adapter conformance test suite | planned |
+| 2.8.1 | LangGraph adapter (Python, LangChain ecosystem) | ✓ |
+| 2.8.2 | CrewAI adapter (Python, multi-agent orchestration) | ✓ |
+| 2.8.3 | AutoGen adapter (Python, Microsoft multi-agent) | ✓ |
+| 2.8.4 | Semantic Kernel adapter (C#/.NET, Microsoft) | ✓ |
+| 2.8.5 | OpenAI adapter (Python, Responses API) | ✓ |
+| 2.8.6 | Anthropic adapter (Python, Messages API) | ✓ |
+| 2.8.7 | Adapter SDK (shared adapter base, health/card/task primitives) | ✓ |
+| 2.8.8 | Adapter conformance test suite | ✓ |
 
 ---
 
