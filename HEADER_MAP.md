@@ -1689,3 +1689,20 @@
 | 195 | ## 5. RMM parity gap vs Ninja RMM |
 | 239 | ## 6. Stale top-level metadata |
 | 259 | ## 7. Recommendations (ranked by severity) |
+
+---
+
+## openspec/specs/billing-stripe/spec.md
+
+| Line | Header |
+|------|--------|
+| 1 | # Stripe Billing (COMPLETE, Phase 6) |
+| 19 | ## Description |
+| 37 | ## User Story |
+| 45 | ### 1. Configuration and Secrets |
+| 60 | ### 2. StripeClient (client.go) |
+| 79 | ### 3. BillingService (billing.go) |
+| 100 | ### 4. MeteringService (metering.go) |
+| 112 | ### 5. HTTP API (internal/api/billing.go) |
+| 133 | ### 6. Server Wiring |
+| 140 | ### 7. Known Limitations (honest-state notes) |

@@ -163,6 +163,7 @@
 | **STATUS.md (root)** | OAP phase status 0–6, known issues, gates | When checking project state |
 | **PROJECT_PLAN.md (root)** | OAP plan summary; canonical roadmap = docs/plans/MASTER_IMPLEMENTATION_PLAN.md | When planning work |
 | **openspec/specs/rmm-core** | RMM core spec (rewritten 2026-08-23 to Go reality; §14 = planned gaps) | When implementing RMM features |
+| **openspec/specs/billing-stripe** | Stripe billing spec — client/service/metering/API routes, env vars, known limits | When touching internal/billing or /billing endpoints |
 | **SECRETS_MANAGEMENT.md** | GitHub Secrets setup and rotation | When handling credentials |
 | **examples/** | Multi-language guardrails implementation examples | When exploring code examples |
 | **regression-prevention/** | Bug tracking & regression prevention examples | When logging bugs or creating prevention rules |
