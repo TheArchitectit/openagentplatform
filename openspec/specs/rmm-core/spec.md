@@ -1,9 +1,19 @@
 # RMM Core
 
 > **Phase:** 1 (Core RMM)
-> **STATUS: COMPLETE**
-> **Source:** `docs/architecture/RMM_CORE.md`
-> **App Path:** `backend/apps/rmm/`
+> **STATUS: PARTIAL** — core capabilities implemented in Go; named state machines,
+> automation entities, and some service boundaries below are still aspirational.
+> See §4.7, §12, and the "Not Yet Implemented" notes throughout.
+> **Source:** `docs/architecture/RMM_CORE.md` *(historical design doc — partially stale,
+> see its correction banner)*
+> **App Path:** `internal/checks/`, `internal/alerts/`, `internal/policy/`,
+> `internal/patches/`, `internal/api/scripts*.go`, `internal/remote/`,
+> `internal/events/`, `internal/checklib/`, `pkg/models/`, `cmd/agent`, `pkg/agent/`
+
+> Reconciliation note (2026-08-23): this spec was previously authored against a
+> Python/Django blueprint (`backend/apps/rmm/`, Django mixins, Celery beat, `rmm.*`
+> subjects) that was never built. It has been rewritten against the actual Go
+> implementation. Audit trail: `docs/QA_REVIEW_OPENSPEC_COVERAGE.md`.
 
 ---
 
@@ -11,8 +21,8 @@
 
 RMM Core is the deterministic backbone of OpenAgentPlatform: device
 registration, monitoring checks, policy propagation, patch management, alert
-lifecycle, script execution, remote access, and the NATS JetStream
-orchestration layer that connects them.
+lifecycle, script execution, remote access, and the NATS orchestration layer
+that connects them.
 
 In a traditional RMM, automation is rigid — checks fire alerts, alerts notify
 humans, humans remediate. RMM Core keeps that reliable spine but adds a second
@@ -22,10 +32,8 @@ layer must be trustworthy on its own, because the agent layer is built on top
 of it.
 
 Two transports are used deliberately. REST carries CRUD, queries, and large
-idempotent payloads. NATS JetStream carries real-time command dispatch,
-streaming output, and event fan-out. Neither transport serves both patterns
-well, and this split is validated in production by Tactical RMM and
-MeshCentral.
+idempotent payloads. NATS carries real-time command dispatch, streaming output,
+and event fan-out. Neither transport serves both patterns well.
 
 ## User Story
 
@@ -42,237 +50,272 @@ AI agent for triage without giving up the deterministic guarantees underneath.
 
 ### 1. Dual-Transport Architecture
 
-1.1. The system MUST use REST for CRUD operations, periodic check-ins, queries,
-and reporting; and NATS JetStream for real-time commands, streaming output, and
-event distribution.
+1.1. The system MUST use REST for CRUD operations, registration, inventory
+check-ins, queries, and reporting; and NATS for real-time agent commands,
+streaming output, and event distribution.
 
 1.2. Transport selection MUST follow these rules:
 
 | Pattern | Transport | Rationale |
 |---------|-----------|-----------|
+| Agent registration | REST | One-time, request/response, token issuance |
 | Agent full inventory snapshot | REST | Large, infrequent, idempotent |
 | Agent heartbeat | NATS | Small, frequent (60s), fire-and-forget |
-| Server dispatches script | NATS | Sub-second delivery, streaming response |
-| Agent streams stdout | NATS | Chunked, real-time, one-way |
+| Server dispatches check/script run | NATS | Sub-second delivery |
+| Agent streams results/output | NATS | Chunked, real-time, one-way |
 | Technician queries agent list | REST | Paginated, filtered, read-heavy |
 | Check failure → A2A task | NATS | Event-driven pub-sub fan-out |
 
-1.3. Agent→Server messages MUST use msgpack (binary efficiency on constrained
-endpoints). Server→Agent commands MUST use JSON (debuggable; agent dispatches
-on a `Func` string field).
+1.3. Agent identity MUST persist across restarts: the agent stores its
+`agent_id` and `auth_token` in its local config (Windows:
+`%PROGRAMDATA%\OpenAgentPlatform\agent.yaml`; Linux/macOS equivalent path) and
+re-registers idempotently.
 
-1.4. msgpack fields MUST use numeric tags so schema can evolve without breaking
-older deployed agents.
+1.4. The agent MUST be a single static Go binary communicating outbound-only
+(REST + NATS); no inbound listeners on the endpoint.
 
 ### 2. Data Models
 
-2.1. Ten models MUST be implemented: `Agent`, `Check`, `AgentCheck`,
-`CheckResult`, `Policy`, `PolicyScope`, `WinUpdate`, `AutomatedTask`, `Alert`,
-`ScriptResult`.
+Implemented in `pkg/models/` (PostgreSQL via migrations):
 
-2.2. Models MUST compose shared mixins: `UUIDPrimaryKeyMixin`,
-`TimestampedMixin`, `OrgScopedMixin`, `SoftDeleteMixin`.
+2.1. These models MUST exist: `Agent`, `Site`, `User`, `CheckDefinition`,
+`CheckAssignment`, `CheckResult`, `Alert`, `AlertRule`, `NotificationRecord`,
+`Policy`, `PolicyAssignment`, `PolicyViolation`, `PatchJob`, `PatchJobTarget`,
+`ApprovalRecord`, `ScriptDefinition`, `ScriptRun`, `AuditEvent`.
 
-2.3. `Check` MUST use **flat-table polymorphism**: all check types on one table
-with a `check_type` discriminator and nullable type-specific fields. Joined-table
-inheritance MUST NOT be used, because a single table outperforms it at 100K+
-check results.
+2.2. `CheckDefinition` uses flat-table polymorphism: one table, type
+discriminator, nullable type-specific fields — chosen over joined-table
+inheritance for high-volume result writes.
 
-2.4. `AgentCheck` MUST enforce `UNIQUE(agent, check)`.
+2.3. `CheckAssignment` links checks to agents/sites; `CheckResult` is a separate
+high-write time-series table with independent retention pruning.
 
-2.5. `CheckResult` MUST be a separate table from `Check`, because results are
-high-write time-series data requiring independent retention and pruning.
+2.4. Org/site scoping MUST index on the scope columns as leading columns so
+multi-tenant queries stay selective. Tenant isolation is enforced at the
+database level via row-level security (see `internal/tenancy/`).
 
-2.6. `WinUpdate` MUST enforce `UNIQUE(agent, kb)`.
+2.5. Not implemented (previously claimed by this spec, moved to planned):
+`WinUpdate` (per-KB Windows update tracking), `AutomatedTask`
+(`schedule_bitmask` scheduled automation). See §14.
 
-2.7. `PolicyScope` MUST enforce a XOR constraint: exactly one of `client`,
-`site`, or `agent` set per row.
+### 3. Enums and Status Fields
 
-2.8. `AutomatedTask` MUST encode schedules in a 21-bit `schedule_bitmask`
-(bits 0-6 weekdays, 7-10 hours, 11-17 days of month, 18-20 months). Cron string
-parsing MUST NOT be used.
+3.1. Status/type fields MUST be typed constants declared next to the domain
+that owns them (e.g. severity/states in `internal/alerts`, approval states in
+`internal/patches`). A centralized enum package is NOT required, but string
+literals scattered at call sites MUST NOT be used where a constant exists.
 
-2.9. All org-scoped models MUST index on `org` as the leading column so
-multi-tenant queries remain selective.
+3.2. Check types supported by the built-in library (`pkg/agent/checkers/`,
+`internal/checklib/`): `ping`, `http`, `tcp`, `dns`, `cpu`, `memory`, `disk`,
+`service`, `script`.
 
-### 3. Enums
-
-3.1. Twelve enums MUST be defined: `AgentStatus`, `AgentPlatform`, `CheckType`,
-`CheckStatus`, `PolicyEnforcementMode`, `WinUpdateState`,
-`AutomatedTaskActionType`, `AlertSeverity`, `AlertState`, `ScriptRuntime`,
-`RemoteSessionProtocol`, `RemoteSessionState`.
-
-3.2. `CheckType` MUST support 10 types: `ping`, `cpu`, `memory`, `disk`,
-`service`, `script`, `event_log`, `process`, `wmi`, `custom`.
-
-3.3. `AlertSeverity` MUST have 5 levels: `critical`, `high`, `medium`, `low`,
-`info`.
+3.3. `AlertSeverity` levels: `critical`, `high`, `medium`, `low`, `info`.
 
 ### 4. State Machines
 
-4.1. Five state machines MUST be implemented with explicit transition tables:
-Alert (6 states), WinUpdate (8 states), Agent (5 states), ScriptResult
-(6 states), RemoteSession (7 states).
+4.1. State machines MUST use explicit transition tables (a
+`ValidTransitions`-style map) and MUST reject invalid transitions with tests
+asserting rejection explicitly.
 
-4.2. **Alert** transitions MUST be: `acknowledge` (new/snoozed → acknowledged),
-`resolve` (new/acknowledged/in_progress → resolved), `snooze`
-(new/acknowledged/in_progress → snoozed), `close` (any → closed), `reopen`
-(resolved/closed → new).
+4.2. **Alert** state machine — IMPLEMENTED (`internal/alerts/statemachine.go`):
+states covering new / acknowledged / in_progress / snoozed / resolved / closed
+with acknowledge, resolve, snooze, close, reopen transitions.
 
-4.3. **WinUpdate** transitions MUST be: `auto_approve` and `approve`
-(pending_approval → approved), `reject` (pending_approval → rejected),
-`start_install` (approved → installing), `complete_install` (installing →
-installed), `fail_install` (installing → failed), `mark_reboot_required`
-(installed → reboot_required), `retry` (failed → installing).
+4.3. **PatchJob approval** state machine — IMPLEMENTED
+(`internal/patches/approval.go`): pending → approved/rejected → deploying →
+completed/failed, with the approving user recorded.
 
-4.4. **Agent** transitions MUST be: `check_in`
-(pending/offline/degraded → online), `mark_offline` (online → offline, on 90s
-heartbeat TTL breach), `mark_degraded` (online → degraded), `recover`
-(degraded → online), `uninstall` (any → uninstalled).
+4.4. NOT YET IMPLEMENTED (do not claim COMPLETE):
+- **ScriptRun** lifecycle machine (pending/running/success/error/timeout/cancelled).
+- **RemoteSession** lifecycle machine (requested/active/closed states).
+- **Agent lifecycle** machine (pending/online/degraded/offline/uninstalled) —
+  liveness today is heartbeat-TTL based (§13), not a formal machine.
+- **WinUpdate** machine — depends on §14 scope decision.
 
-4.5. **ScriptResult** transitions MUST be: `start` (pending → running),
-`complete` (running → success), `fail` (running → error), `timeout` (running →
-timeout), `cancel` (pending/running → cancelled).
-
-4.6. Invalid transitions MUST be rejected, and tests MUST assert rejection
-explicitly — not merely that valid transitions succeed.
+4.5. When any §4.4 machine gets built, it MUST follow the §4.1 transition-table
+pattern and reuse the A2A manager's machine conventions (`a2a/manager/statemachine.go`)
+where applicable.
 
 ### 5. NATS Subject Taxonomy
 
-5.1. Agent→Server subjects (msgpack) MUST include: `rmm.agent.heartbeat`,
-`rmm.agent.checkin`, `rmm.check.result.{agent_id}`,
-`rmm.script.result.{agent_id}`, `rmm.script.chunk.{agent_id}`,
-`rmm.winupdate.scan.{agent_id}`, `rmm.winupdate.install.{agent_id}`,
-`rmm.agent.inventory.{agent_id}`, `rmm.remote.session.event.{agent_id}`.
+All platform subjects live under the `oap.` prefix. The legacy `rmm.*` taxonomy
+from earlier drafts of this spec was never implemented.
 
-5.2. Server→Agent subjects (JSON, per-agent inbox) MUST include:
-`rmm.cmd.{agent_id}.script.run`, `.script.cancel`, `.check.run`,
-`.winupdate.install`, `.winupdate.scan`, `.sync`, `.agent.update`,
-`.remote.open`, `.remote.close`, `.policy.push`, `.inventory.refresh`.
+5.1. Agent→Server (per-agent) subjects:
+- `oap.agents.{agent_id}.heartbeat`
+- `oap.agents.{agent_id}.results` (check results)
+- `oap.agents.{agent_id}.scripts` (script output/results)
+- `oap.agents.{agent_id}.compliance.results`
+- `oap.agents.{agent_id}.patch_scan.results`
 
-5.3. Broadcast subjects MUST include `rmm.broadcast.all` and
-`rmm.broadcast.org.{org_id}`.
+5.2. Server→Agent (per-agent command inbox):
+- `oap.agents.{agent_id}.checks` (dispatch check runs)
+- `oap.agents.{agent_id}.scripts` (dispatch script runs)
+- `oap.agents.{agent_id}.scripts.cancel`
 
-5.4. Commands MUST be addressed to a per-agent inbox subject so a command
-cannot be delivered to the wrong endpoint.
+Per-agent addressing ensures a command cannot be delivered to the wrong
+endpoint. Wildcard consumers (e.g. `oap.agents.*.heartbeat`) are used server-side.
+
+5.3. Event fan-out (server-side pub-sub, consumed by engines/A2A bridge/UI):
+`oap.events.agent.online`, `oap.events.alerts.*`, `oap.events.checks.result`,
+`oap.events.patches`, `oap.events.policy.evaluate`, `oap.events.policy.evaluated`,
+`oap.events.remediation`, `oap.events.scripts`.
 
 ### 6. Checks
 
-6.1. Full CRUD MUST be available for check definitions over REST, covering all
-10 check types.
+6.1. Full CRUD MUST be available for check definitions over REST.
 
-6.2. A built-in check library MUST ship with ping, CPU, memory, disk, and
-service checks working end-to-end.
+6.2. A built-in check library MUST ship with the §3.2 checker set working
+end-to-end (agent-side `pkg/agent/checkers/`, server-side catalog
+`internal/checklib/`).
 
-6.3. `interval_seconds` MUST be at least 30; `timeout_seconds` MUST be at most
-3600. Both MUST be enforced by database constraints, not application code alone.
+6.3. Scheduling bounds: `interval_seconds` ≥ 30; `timeout_seconds` ≤ 3600;
+enforced by validation, not call-site convention alone.
 
-6.4. The CheckEngine MUST schedule due checks, dispatch them over NATS, ingest
-results, and evaluate thresholds.
+6.4. The check pipeline MUST schedule due checks, dispatch them over NATS
+(`oap.agents.{id}.checks`), ingest results, and evaluate thresholds.
 
-6.5. A check MUST alert only after `fail_threshold` consecutive failures, so a
-single transient failure does not page a human.
+6.5. A check MUST alert only after `fail_threshold` consecutive failures.
 
-6.6. Check results MUST be pruned on a schedule per `check_history_prune_days`
-(default 30).
+6.6. Check results MUST be pruned on a schedule per retention policy
+(retention purger: `internal/tenancy/cleanup.go`).
 
 ### 7. Alerts
 
-7.1. The AlertEngine MUST generate deduplication keys and suppress duplicate
-alerts for the same underlying condition.
+7.1. The alert engine (`internal/alerts/engine_*.go`) MUST generate
+deduplication keys and suppress duplicate alerts for the same condition.
 
-7.2. Notification channels MUST include email, Slack, and webhook.
+7.2. Notification channels MUST include email, Slack, and webhook
+(`internal/notify/`).
 
-7.3. Per-severity routing and silence periods MUST be configurable.
+7.3. Per-severity routing and snooze/silence MUST be configurable
+(`AlertRule`, notification preferences).
 
-7.4. Resolved alerts MUST be pruned per `resolved_alerts_prune_days`.
+7.4. Resolved alerts MUST be pruned per retention policy.
 
-7.5. Alert state changes MUST be driven exclusively through the Alert state
-machine.
+7.5. Alert state changes MUST go exclusively through the Alert state machine.
+
+7.6. Scheduled maintenance windows (suppress alerts during defined periods) are
+NOT implemented — see §14.
 
 ### 8. Policies
 
-8.1. Policies MUST resolve through a **Client > Site > Agent** hierarchy,
-evaluated bottom-up: Agent → Site → Client → Organization.
+8.1. Policies MUST resolve through the Client > Site > Agent hierarchy,
+evaluated bottom-up (Agent → Site → Client → Organization).
 
-8.2. `enforcement_mode` MUST support `inherit`, `enforce`, and `exclude`. The
-`enforce` mode MUST discard agent-level overrides.
+8.2. Enforcement modes MUST support inherit/exclude semantics; conflicts
+resolved by priority, higher winning.
 
-8.3. `block_policy_inheritance` MUST stop propagation at that level.
+8.3. OPA MUST evaluate policy; agent actions evaluated against policy produce
+`PolicyViolation` records.
 
-8.4. Conflicts MUST be resolved by `priority`, higher winning.
+8.4. Policy violations MUST create alerts and dispatch notifications.
 
-8.5. OPA MUST be integrated for policy evaluation; agent actions MUST be
-evaluated against policy and violations logged.
+8.5. Policy evaluation events flow over `oap.events.policy.evaluate` /
+`.evaluated`; changes propagate to affected agents by delta computation, not
+full-state resend.
 
-8.6. Policy violations MUST create alerts and dispatch notifications.
-
-8.7. Policy changes MUST propagate to affected agents by delta computation and
-NATS publish, not by full-state resend to every agent.
+8.6. Policy scheduling/evaluation loops run server-side
+(`internal/policy/engine_scheduler.go`).
 
 ### 9. Patches
 
-9.1. Patch scans MUST be triggerable per agent, with results stored and exposed
-as a per-agent patch list.
+9.1. Patch scans MUST be triggerable per agent, results reported over
+`oap.agents.{id}.patch_scan.results` and exposed as a per-agent patch list.
 
-9.2. Patches MUST pass through an approval workflow; state transitions MUST be
-logged with the approving user.
+9.2. Patches MUST pass through the approval state machine; transitions logged
+with the approving user.
 
 9.3. Policy MUST be able to auto-approve patches by severity.
 
-9.4. Batch deployment MUST track progress per agent and retry failures.
+9.4. Batch deployment MUST track progress per target (`PatchJobTarget`) and
+retry failures.
 
-9.5. Reboot coordination MUST be supported, including `needs_reboot` reporting
-and reboot prompts.
+9.5. `NeedsReboot` reporting exists on patch targets; full reboot coordination
+(reboot prompts, maintenance-window scheduling of reboots) is NOT implemented —
+see §14.
 
-9.6. CVE IDs MUST be correlated to patch records.
+9.6. CVE correlation to patch records is NOT yet implemented.
 
 ### 10. Scripts and Remote Access
 
-10.1. A script library MUST support CRUD with metadata across 5 runtime types
-(`powershell`, `cmd`, `python`, `shell`, `nushell`).
+10.1. A script library MUST support CRUD across runtime types including
+powershell, cmd, python, shell (`internal/api/scripts.go`, `script_store.go`).
 
-10.2. Script stdout/stderr MUST stream in real time over
-`rmm.script.chunk.{agent_id}` rather than only being delivered on completion.
+10.2. Script stdout/stderr MUST stream in real time over NATS during execution,
+not only on completion (server `internal/api/scripts_run.go`, agent
+`pkg/agent/scripts.go` + `executor/` + `shell/`).
 
-10.3. Script results MUST be pruned per `agent_history_prune_days` (default 60).
+10.3. Script runs MUST be prunable per retention policy.
 
-10.4. Remote access MUST support SSH, WinRM, VNC, RDP, and web terminal
-protocols.
+10.4. Remote access MUST support SSH and WinRM transports tunneled over NATS
+plus a web terminal (`internal/remote/natsbridge.go`,
+`shell_manager.go`, `internal/terminal/`). VNC/RDP proxying is NOT implemented.
 
-10.5. Remote sessions MUST be audited: duration logged, recording available for
-replay, complete audit trail.
+10.5. Remote sessions MUST be recorded and replayable
+(`internal/session/`, `internal/remote/recorder.go`) with audit trail.
 
-### 11. Services
+### 11. Engines and Service Boundaries
 
-11.1. Ten services MUST be implemented: `CheckEngine`, `PolicyEngine`,
-`AlertEngine`, `PatchEngine`, `ScriptEngine`, `InventoryCollector`,
-`CheckinHandler`, `Propagation`, `Enforcement`, `RemoteAccess`.
+11.1. Domain logic MUST live in engine/service packages reachable from REST
+handlers, NATS consumers, and background loops alike — not inline in handlers:
+- Checks: dispatch/ingest pipeline (`internal/checks/`, `internal/events/`)
+- Alerts: `internal/alerts/` (state machine + rules + channels)
+- Policy: `internal/policy/` (OPA engine, collectors, violations)
+- Patches: `internal/patches/` (approval, scheduler, deployer)
+- Scripts: `internal/api/scripts*.go` + agent executor
+- Remote: `internal/remote/` + `internal/terminal/`
 
-11.2. Business logic MUST live in the service layer, not in API handlers or
-model methods, so it is reachable from REST, NATS consumers, and background
-tasks alike.
+11.2. The formerly specified `ScriptEngine` / `InventoryCollector` /
+`Propagation` / `Enforcement` named services were Django-blueprint artifacts;
+their responsibilities are distributed as above.
 
-### 12. Background Tasks
+### 12. Background Processing
 
-12.1. Seven Celery task packages MUST be implemented: `check_tasks`,
-`patch_tasks`, `alert_tasks`, `policy_tasks`, `inventory_tasks`,
-`script_tasks`, and beat registration.
+12.1. Background processing MUST use in-process Go schedulers/loops, not a
+separate task queue. Celery is not part of this stack.
 
-12.2. Beat schedules MUST be: checks every 30s, alerts every 60s, scripts every
-30s, inventory hourly, patches daily at 02:00, policies on change.
+12.2. Required background jobs: check scheduling/dispatch, policy evaluation
+loop, patch scan scheduling, retention pruning (results, alerts, script runs,
+audit per tier quotas — `internal/tenancy/cleanup.go`).
 
-12.3. Tasks MUST be idempotent, because at-least-once delivery means retries
-will re-execute them.
+12.3. All background jobs MUST be idempotent (at-least-once delivery means
+retries re-execute them).
 
 ### 13. Agent Liveness
 
-13.1. Agents MUST heartbeat every 60 seconds over NATS.
+13.1. Agents MUST heartbeat every 60 seconds over NATS
+(`oap.agents.{id}.heartbeat`).
 
-13.2. An agent MUST be marked `offline` after a 90-second heartbeat TTL breach.
+13.2. An agent silent past the heartbeat TTL MUST be treated as offline by the
+server (`internal/events/heartbeat handler`).
 
-13.3. Full check-in with an inventory snapshot MUST occur every 5-15 minutes
-over REST.
+13.3. Full check-in with an inventory snapshot occurs over REST on registration
+and periodically thereafter.
 
-13.4. Consistent check failures MUST move an agent to `degraded`; a healthy
-check streak MUST recover it to `online`.
+13.4. Offline-agent SLA alerting ("agent silent > N hours" rules) is NOT
+implemented — see §14.
+
+### 14. Planned Extensions (not implemented — do not claim)
+
+Tracked RMM parity gaps (decision on scope pending; see
+`docs/GAP_ANALYSIS_RMM_PLATFORM.md` and `docs/QA_REVIEW_OPENSPEC_COVERAGE.md`):
+
+14.1. Windows Update management: per-KB tracking, approve/install/fail/reboot
+state machine, scan/install dispatch subjects.
+
+14.2. Scheduled automation tasks (`AutomatedTask`): recurring task execution
+with weekday/hour/dom/month scheduling.
+
+14.3. Maintenance windows: scheduled alert suppression periods.
+
+14.4. Offline-agent SLA alerting rules.
+
+14.5. Agent self-update channel (version reported today; push/update mechanism
+absent).
+
+14.6. Full reboot coordination workflow after patching.
+
+14.7. CVE-to-patch correlation.
+
+14.8. VNC/RDP remote protocols (SSH/WinRM/web-terminal only today).

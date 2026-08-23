@@ -1,6 +1,17 @@
 # RMM Core Architecture
 
-> **Version:** 1.0.0 | **Last Updated:** 2026-06-15 | **Status:** Authoritative Blueprint
+> **Version:** 1.1.0 | **Last Updated:** 2026-08-23 | **Status:** Historical Design Doc
+>
+> ⚠️ **CORRECTION (2026-08-23):** This document was written as a design blueprint
+> against a Python/Django stack (`backend/apps/rmm/`, Django mixins, Celery, `rmm.*`
+> NATS subjects) that was **never built**. The implemented RMM core is Go:
+> `internal/checks|alerts|policy|patches|remote|events/`, `pkg/models/`,
+> `cmd/agent` + `pkg/agent/`, with `oap.agents.*` / `oap.events.*` subjects.
+> The authoritative spec is [`openspec/specs/rmm-core/spec.md`](../../openspec/specs/rmm-core/spec.md)
+> (rewritten 2026-08-23). Read the Go spec for current truth; treat the Django/Celery
+> specifics below as historical intent only.
+>
+> Audit: `docs/QA_REVIEW_OPENSPEC_COVERAGE.md`.
 
 ---
 
@@ -10,7 +21,7 @@ The RMM Core is the heart of OpenAgentPlatform — it provides **device registra
 
 In a traditional RMM, automation is rigid: checks fire alerts, alerts notify humans, humans remediate. In OpenAgentPlatform's agent-first model, the RMM Core still provides the deterministic backbone — but every RMM event (check failure, alert, patch available) can be delegated to an LLM agent via the A2A protocol for intelligent triage, contextual risk assessment, and autonomous remediation (with human approval gates).
 
-**App Path:** `backend/apps/rmm/`
+**App Path:** `internal/` + `pkg/models/` + `cmd/agent` + `pkg/agent/` *(corrected from the never-built `backend/apps/rmm/`)*
 
 ---
 
