@@ -14,18 +14,20 @@ Exposes the OrchestrationService and CostManager over HTTP:
   GET  /api/v1/cost/budgets                          -- budget status
 
 The API is a FastAPI ``APIRouter`` designed to be mounted on the main
-application by ``oap.app``.
+application by ``oap.app``.  Dependency providers and shared request
+builders live in ``api_deps`` and ``api_util``.
 """
 
 from __future__ import annotations
 
 import time
 import uuid
-from collections.abc import AsyncIterator
+from typing import AsyncIterator
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
+from oap.adapters.api_deps import get_cost_manager, get_orchestrator
 from oap.adapters.api_models import (
     AdapterCardResponse,
     AdapterHealthResponse,
@@ -40,46 +42,21 @@ from oap.adapters.api_models import (
     ModelsResponse,
     StreamRequestModel,
 )
+from oap.adapters.api_util import build_invoke_request
 from oap.adapters.cost import CostManager
 from oap.adapters.orchestrator import AdapterInfo, OrchestrationService
 from oap.adapters.types import (
     HealthStatus,
-    InvokeRequest,
     InvokeResponse,
     StreamEvent,
 )
+
 
 # ---------------------------------------------------------------------------
 # Router
 # ---------------------------------------------------------------------------
 
 router = APIRouter(prefix="/api/v1", tags=["adapters"])
-
-
-# ---------------------------------------------------------------------------
-# Dependency providers
-# ---------------------------------------------------------------------------
-
-
-def get_orchestrator(request: Request) -> OrchestrationService:
-    """Return the application-level OrchestrationService from app.state."""
-    orchestrator: OrchestrationService | None = getattr(request.app.state, "orchestrator", None)
-    if orchestrator is None:
-        raise HTTPException(status_code=503, detail="Orchestrator not initialised")
-    return orchestrator
-
-
-def get_cost_manager(request: Request) -> CostManager:
-    """Return the application-level CostManager from app.state.
-
-    Falls back to creating a new CostManager with default models if none
-    is registered on app.state. This keeps the API functional even if the
-    cost subsystem has not been wired into the lifespan.
-    """
-    cost_manager: CostManager | None = getattr(request.app.state, "cost_manager", None)
-    if cost_manager is None:
-        cost_manager = CostManager()
-    return cost_manager
 
 
 # ---------------------------------------------------------------------------
@@ -90,7 +67,7 @@ def get_cost_manager(request: Request) -> CostManager:
 @router.post("/adapters/invoke", response_model=InvokeResponse)
 async def invoke_adapter(
     body: InvokeRequestModel,
-    orchestrator: OrchestrationService = Depends(get_orchestrator),  # noqa: B008
+    orchestrator: OrchestrationService = Depends(get_orchestrator),
 ) -> InvokeResponse:
     """Invoke an adapter and return the terminal response.
 
@@ -99,17 +76,7 @@ async def invoke_adapter(
     adapter based on skill overlap.
     """
     task_id = body.task_id or str(uuid.uuid4())
-
-    metadata = dict(body.metadata)
-    if body.adapter_name:
-        metadata["preferred_agent"] = body.adapter_name
-
-    request = InvokeRequest(
-        task_id=task_id,
-        messages=body.messages,
-        metadata=metadata,
-        timeout_seconds=body.timeout,
-    )
+    request = build_invoke_request(task_id, body)
 
     return await orchestrator.handle_task(task_id, request)
 
@@ -122,7 +89,7 @@ async def invoke_adapter(
 @router.post("/adapters/stream")
 async def stream_adapter(
     body: StreamRequestModel,
-    orchestrator: OrchestrationService = Depends(get_orchestrator),  # noqa: B008
+    orchestrator: OrchestrationService = Depends(get_orchestrator),
 ) -> StreamingResponse:
     """Invoke an adapter and stream events as Server-Sent Events.
 
@@ -130,17 +97,7 @@ async def stream_adapter(
     stream terminates with a final ``data: [DONE]`` line.
     """
     task_id = body.task_id or str(uuid.uuid4())
-
-    metadata = dict(body.metadata)
-    if body.adapter_name:
-        metadata["preferred_agent"] = body.adapter_name
-
-    request = InvokeRequest(
-        task_id=task_id,
-        messages=body.messages,
-        metadata=metadata,
-        timeout_seconds=body.timeout,
-    )
+    request = build_invoke_request(task_id, body)
 
     async def event_generator() -> AsyncIterator[str]:
         try:
@@ -175,7 +132,7 @@ async def stream_adapter(
 @router.post("/adapters/{task_id}/cancel", response_model=CancelResponse)
 async def cancel_task(
     task_id: str,
-    orchestrator: OrchestrationService = Depends(get_orchestrator),  # noqa: B008
+    orchestrator: OrchestrationService = Depends(get_orchestrator),
 ) -> CancelResponse:
     """Cancel an in-flight task by task_id."""
     cancelled = await orchestrator.cancel_task(task_id)
@@ -189,7 +146,7 @@ async def cancel_task(
 
 @router.get("/adapters", response_model=AdapterListResponse)
 async def list_adapters(
-    orchestrator: OrchestrationService = Depends(get_orchestrator),  # noqa: B008
+    orchestrator: OrchestrationService = Depends(get_orchestrator),
 ) -> AdapterListResponse:
     """List all registered adapters with their AgentCards and health status."""
     adapters: list[AdapterInfo] = orchestrator.supported_adapters()
@@ -212,7 +169,7 @@ async def list_adapters(
 @router.get("/adapters/{name}/card", response_model=AdapterCardResponse)
 async def get_adapter_card(
     name: str,
-    orchestrator: OrchestrationService = Depends(get_orchestrator),  # noqa: B008
+    orchestrator: OrchestrationService = Depends(get_orchestrator),
 ) -> AdapterCardResponse:
     """Return the AgentCard for a single adapter."""
     for info in orchestrator.supported_adapters():
@@ -229,7 +186,7 @@ async def get_adapter_card(
 @router.get("/adapters/{name}/health", response_model=AdapterHealthResponse)
 async def get_adapter_health(
     name: str,
-    orchestrator: OrchestrationService = Depends(get_orchestrator),  # noqa: B008
+    orchestrator: OrchestrationService = Depends(get_orchestrator),
 ) -> AdapterHealthResponse:
     """Return the health status for a single adapter."""
     health: HealthStatus = await orchestrator.adapter_health(name)
@@ -246,7 +203,7 @@ async def get_adapter_health(
 @router.get("/adapters/{name}/models", response_model=ModelsResponse)
 async def get_adapter_models(
     name: str,
-    cost_manager: CostManager = Depends(get_cost_manager),  # noqa: B008
+    cost_manager: CostManager = Depends(get_cost_manager),
 ) -> ModelsResponse:
     """Return supported cost models.
 
@@ -276,7 +233,7 @@ async def get_cost_usage(
     org_id: str = Query("", description="Organisation ID to filter by"),
     from_ts: float = Query(0.0, alias="from", description="Start of time range (Unix epoch)"),
     to_ts: float | None = Query(None, alias="to", description="End of time range (Unix epoch)"),
-    cost_manager: CostManager = Depends(get_cost_manager),  # noqa: B008
+    cost_manager: CostManager = Depends(get_cost_manager),
 ) -> CostUsageResponse:
     """Return a usage report for the given organisation and time range."""
     end = to_ts if to_ts is not None else time.time()
@@ -291,7 +248,7 @@ async def get_cost_usage(
 
 @router.get("/cost/budgets", response_model=BudgetResponse)
 async def get_cost_budgets(
-    cost_manager: CostManager = Depends(get_cost_manager),  # noqa: B008
+    cost_manager: CostManager = Depends(get_cost_manager),
 ) -> BudgetResponse:
     """Return budget status for all configured organisations."""
     budget_tracker = cost_manager.budget

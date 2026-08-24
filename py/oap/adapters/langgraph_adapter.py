@@ -4,6 +4,8 @@ LangGraph adapter for the OAP platform.
 Translates between the A2A InvokeRequest/Response protocol and the
 LangGraph / LangChain framework. Supports both invoke and streaming
 interactions against a compiled state graph.
+
+The framework-specific graph / LLM construction lives in ``langgraph_graph``.
 """
 
 from __future__ import annotations
@@ -11,10 +13,15 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-from collections.abc import AsyncIterator
-from typing import Any
+from typing import Any, AsyncIterator
 
 from oap.adapters.errors import FrameworkNotFoundError, InvocationError
+from oap.adapters.langgraph_graph import (
+    HEALTHY_COST_MODELS,  # noqa: F401  (re-exported public constant)
+    _build_graph,
+    _build_llm,
+    _parts_to_messages,
+)
 from oap.adapters.types import (
     AgentCard,
     AgentSkill,
@@ -25,22 +32,6 @@ from oap.adapters.types import (
     StreamEvent,
 )
 from oap.adapters.wrapper import AgentWrapper, register_adapter
-
-# Models this adapter supports.
-HEALTHY_COST_MODELS: list[str] = [
-    # Anthropic
-    "claude-opus-4-20250514",
-    "claude-sonnet-4-6",
-    "claude-haiku-4-5",
-    # OpenAI
-    "gpt-4o",
-    "gpt-4o-mini",
-    "o3",
-    "o4-mini",
-    # Google
-    "gemini-2.5-pro",
-    "gemini-2.0-flash",
-]
 
 
 @register_adapter("langgraph")
@@ -61,8 +52,8 @@ class LangGraphAdapter(AgentWrapper):
         **kwargs: Any,
     ) -> None:
         try:
-            from langchain_core.messages import AIMessage, HumanMessage  # noqa: F401
             from langgraph.graph import END, StateGraph  # noqa: F401
+            from langchain_core.messages import AIMessage, HumanMessage  # noqa: F401
         except ImportError as exc:
             raise FrameworkNotFoundError(
                 "langgraph is not installed. Run: pip install langgraph langchain-core",
@@ -117,71 +108,18 @@ class LangGraphAdapter(AgentWrapper):
             default_output_modes=["text"],
         )
 
-    # -- Helpers -----------------------------------------------------------
+    # -- Build helpers (delegate to langgraph_graph) -----------------------
 
     def _build_llm(self) -> Any:
         """Construct the framework-native chat model for the configured provider."""
-
-        if self._model.startswith("claude"):
-            from langchain_anthropic import ChatAnthropic
-
-            return ChatAnthropic(
-                model=self._model,
-                max_tokens=self._max_tokens,
-                temperature=self._temperature,
-            )
-        elif self._model.startswith("gpt") or self._model.startswith("o"):
-            from langchain_openai import ChatOpenAI
-
-            return ChatOpenAI(
-                model=self._model,
-                max_tokens=self._max_tokens,
-                temperature=self._temperature,
-            )
-        elif self._model.startswith("gemini"):
-            from langchain_google_genai import ChatGoogleGenerativeAI
-
-            return ChatGoogleGenerativeAI(
-                model=self._model,
-                max_output_tokens=self._max_tokens,
-                temperature=self._temperature,
-            )
-        else:
-            raise InvocationError(
-                f"Unsupported model for LangGraph adapter: {self._model}",
-                adapter_name="langgraph",
-            )
+        return _build_llm(self._model, self._max_tokens, self._temperature)
 
     def _build_graph(self) -> Any:
         """Compile a minimal two-node graph (agent -> END)."""
-        from typing import TypedDict
-
-        from langchain_core.messages import BaseMessage
-        from langgraph.graph import END, StateGraph
-
-        class GraphState(TypedDict):
-            messages: list[BaseMessage]
-
-        llm = self._build_llm()
-
-        def agent_node(state: GraphState) -> dict:
-            response = llm.invoke(state["messages"])
-            return {"messages": state["messages"] + [response]}
-
-        builder = StateGraph(GraphState)
-        builder.add_node("agent", agent_node)
-        builder.set_entry_point("agent")
-        builder.add_edge("agent", END)
-        return builder.compile()
+        return _build_graph(self._model, self._max_tokens, self._temperature)
 
     def _parts_to_messages(self, parts: list[Part]) -> list[Any]:
-        from langchain_core.messages import HumanMessage, SystemMessage
-
-        msgs: list[Any] = [SystemMessage(content=self._system_message)]
-        for p in parts:
-            if p.type == "text" and p.text:
-                msgs.append(HumanMessage(content=p.text))
-        return msgs
+        return _parts_to_messages(self._system_message, parts)
 
     def _register_task(self, task_id: str) -> threading.Event:
         ev = threading.Event()
@@ -230,13 +168,18 @@ class LangGraphAdapter(AgentWrapper):
                 await asyncio.sleep(0.05)
 
             if result_holder["error"]:
-                raise InvocationError(str(result_holder["error"]), adapter_name="langgraph")
+                raise InvocationError(
+                    str(result_holder["error"]), adapter_name="langgraph"
+                )
 
             final_messages = result_holder["result"]["messages"]
             last = final_messages[-1] if final_messages else None
             content = last.content if isinstance(last, AIMessage) else str(last)
 
-            tokens = sum(len(str(m.content).split()) for m in final_messages)
+            tokens = sum(
+                len(str(m.content).split())
+                for m in final_messages
+            )
 
             return InvokeResponse(
                 task_id=task_id,
@@ -281,7 +224,6 @@ class LangGraphAdapter(AgentWrapper):
                     for _node, node_state in event.items():
                         if isinstance(node_state, dict) and "messages" in node_state:
                             from langchain_core.messages import AIMessage
-
                             last = node_state["messages"][-1]
                             if isinstance(last, AIMessage):
                                 delta_text = str(last.content)

@@ -5,92 +5,32 @@ Provides an approval workflow that pauses task execution pending human
 authorisation. Supports automatic approval for low-cost actions, webhook
 integration for external approval systems, and A2A-compatible state
 management (input-required maps to approval pending).
+
+The approval models and constants live in ``approval_models``.
 """
 
 from __future__ import annotations
 
 import asyncio
-import enum
 import time
-import uuid
-from collections.abc import Awaitable, Callable
 from typing import Any
 
-from pydantic import BaseModel, Field
+from oap.adapters.approval_models import (
+    A2A_INPUT_REQUIRED,
+    DEFAULT_AUTO_APPROVE_LIMIT,
+    ApprovalRequest,
+    ApprovalStatus,
+    WebhookFn,
+)
 
-# ---------------------------------------------------------------------------
-# Approval status enum.
-# ---------------------------------------------------------------------------
-
-
-class ApprovalStatus(str, enum.Enum):  # noqa: UP042
-    """Lifecycle states for an ApprovalRequest."""
-
-    PENDING = "pending"
-    APPROVED = "approved"
-    REJECTED = "rejected"
-    TIMED_OUT = "timed_out"
-    AUTO_APPROVED = "auto_approved"
-
-
-# ---------------------------------------------------------------------------
-# ApprovalRequest — a single approval gate.
-# ---------------------------------------------------------------------------
-
-
-class ApprovalRequest(BaseModel):
-    """A request for human approval before proceeding with a task action.
-
-    Attributes:
-        approval_id: Unique identifier for this approval request.
-        task_id: The task this approval is gating.
-        adapter: The framework adapter requesting approval.
-        action: Description of the action that requires approval.
-        details: Additional context about the action.
-        options: Acceptable response options (e.g., ["approve", "reject"]).
-        estimated_cost: Estimated cost of the action in USD.
-        status: Current approval status.
-        timeout_seconds: Maximum seconds to wait before auto-action.
-        created_at: Unix epoch time when the request was created.
-        resolved_at: Unix epoch time when the request was resolved.
-        resolved_by: Identifier of the approver (human or system).
-    """
-
-    approval_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    task_id: str
-    adapter: str
-    action: str
-    details: dict[str, Any] = Field(default_factory=dict)
-    options: list[str] = Field(default_factory=lambda: ["approve", "reject"])
-    estimated_cost: float = 0.0
-    status: ApprovalStatus = ApprovalStatus.PENDING
-    timeout_seconds: float = 300.0
-    created_at: float = Field(default_factory=time.time)
-    resolved_at: float = 0.0
-    resolved_by: str = ""
-
-
-# ---------------------------------------------------------------------------
-# Webhook delivery function type.
-# ---------------------------------------------------------------------------
-
-WebhookFn = Callable[[ApprovalRequest], Awaitable[None]]
-
-# ---------------------------------------------------------------------------
-# A2A state mapping constant.
-# ---------------------------------------------------------------------------
-
-# In the A2A protocol, the task state "input-required" means the agent is
-# waiting for human input. We use this to signal that an approval is pending.
-A2A_INPUT_REQUIRED = "input-required"
-
-# Default auto-approval threshold in USD.
-DEFAULT_AUTO_APPROVE_LIMIT: float = 50.0
-
-
-# ---------------------------------------------------------------------------
-# ApprovalGate — the main human-in-the-loop controller.
-# ---------------------------------------------------------------------------
+__all__ = [
+    "ApprovalGate",
+    "ApprovalRequest",
+    "ApprovalStatus",
+    "WebhookFn",
+    "A2A_INPUT_REQUIRED",
+    "DEFAULT_AUTO_APPROVE_LIMIT",
+]
 
 
 class ApprovalGate:
@@ -222,7 +162,7 @@ class ApprovalGate:
 
         try:
             await asyncio.wait_for(event.wait(), timeout=effective_timeout)
-        except TimeoutError:
+        except asyncio.TimeoutError:
             # Timeout — mark as rejected.
             req.status = ApprovalStatus.TIMED_OUT
             req.resolved_at = time.time()
@@ -256,7 +196,9 @@ class ApprovalGate:
         """
         req = self._pending.pop(approval_id, None)
         if req is None:
-            raise KeyError(f"No pending approval request found with id: {approval_id}")
+            raise KeyError(
+                f"No pending approval request found with id: {approval_id}"
+            )
 
         req.status = ApprovalStatus.APPROVED if approved else ApprovalStatus.REJECTED
         req.resolved_at = time.time()

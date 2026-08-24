@@ -4,21 +4,30 @@ Process pool for adapter subprocess management.
 Each adapter runs in its own subprocess for fault isolation. The pool keeps
 warm processes pre-loaded, manages LRU eviction, and handles health checks
 via length-prefixed JSON over stdin/stdout.
+
+The protocol types and the spawn / evict / health-check internals live in
+``pool_types`` and ``pool_lifecycle`` respectively.
 """
 
 from __future__ import annotations
 
 import asyncio
-import enum
-import json
-import struct
 import time
 import uuid
-from collections.abc import AsyncIterator
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
+from oap.adapters.pool_lifecycle import PoolLifecycleMixin
+from oap.adapters.pool_types import (
+    PoolConfig,
+    PooledProcess,
+    ProcessState,
+    _MSG_CANCEL,
+    _MSG_HEALTH,
+    _MSG_INVOKE,
+    _MSG_STREAM_START,
+    _read_frame,
+    _write_frame,
+)
 from oap.adapters.types import (
     HealthStatus,
     InvokeRequest,
@@ -26,107 +35,10 @@ from oap.adapters.types import (
     StreamEvent,
 )
 
-# ---------------------------------------------------------------------------
-# Protocol constants
-# ---------------------------------------------------------------------------
-
-_MSG_INVOKE = "INVOKE"
-_MSG_CANCEL = "CANCEL"
-_MSG_HEALTH = "HEALTH"
-_MSG_STREAM_START = "STREAM_START"
-_MSG_STREAM_CANCEL = "STREAM_CANCEL"
-
-_FRAME_HEADER_LEN = 4  # length-prefix is 4 bytes (unsigned int, big-endian)
+__all__ = ["PoolConfig", "PooledProcess", "ProcessState", "ProcessPool"]
 
 
-# ---------------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class PoolConfig:
-    """Configuration for the process pool.
-
-    Attributes:
-        max_processes: Hard upper bound on concurrent subprocesses.
-        idle_timeout: Seconds an idle process may live before eviction.
-        health_check_interval: Seconds between health-check pings.
-        warm_adapter_count: Pre-spawned idle processes per adapter name.
-    """
-
-    max_processes: int = 16
-    idle_timeout: float = 300.0
-    health_check_interval: float = 15.0
-    warm_adapter_count: int = 3
-    adapters: list[str] = field(default_factory=list)
-
-
-# ---------------------------------------------------------------------------
-# Process state
-# ---------------------------------------------------------------------------
-
-
-class ProcessState(str, enum.Enum):  # noqa: UP042
-    """Lifecycle states for a pooled subprocess."""
-
-    STARTING = "starting"
-    IDLE = "idle"
-    BUSY = "busy"
-    DRAINING = "draining"
-    STOPPED = "stopped"
-
-
-# ---------------------------------------------------------------------------
-# PooledProcess — a single subprocess managed by the pool
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class PooledProcess:
-    """A single subprocess in the pool."""
-
-    process_id: str
-    adapter_name: str
-    process: asyncio.subprocess.Process
-    state: ProcessState = ProcessState.STARTING
-    last_used: float = field(default_factory=time.monotonic)
-    active_tasks: set[str] = field(default_factory=set)
-    health_ok: bool = True
-
-
-# ---------------------------------------------------------------------------
-# Frame I/O — length-prefixed JSON over stdin/stdout
-# ---------------------------------------------------------------------------
-
-
-async def _write_frame(stream: asyncio.StreamWriter, payload: dict[str, Any]) -> None:
-    """Write a single length-prefixed JSON frame to *stream*."""
-    data = json.dumps(payload, default=str).encode("utf-8")
-    header = struct.pack(">I", len(data))
-    stream.write(header + data)
-    await stream.drain()
-
-
-async def _read_frame(stream: asyncio.StreamReader) -> dict[str, Any] | None:
-    """Read a single length-prefixed JSON frame from *stream*.
-
-    Returns ``None`` on EOF.
-    """
-    header = await stream.readexactly(_FRAME_HEADER_LEN)
-    if not header:
-        return None
-    (length,) = struct.unpack(">I", header)
-    body = await stream.readexactly(length)
-    return json.loads(body.decode("utf-8"))
-
-
-# ---------------------------------------------------------------------------
-# ProcessPool
-# ---------------------------------------------------------------------------
-
-
-class ProcessPool:
+class ProcessPool(PoolLifecycleMixin):
     """Manages warm subprocesses for adapter isolation.
 
     On ``start()`` the pool spawns ``warm_adapter_count`` processes for each
@@ -164,7 +76,9 @@ class ProcessPool:
             for _ in range(self._config.warm_adapter_count):
                 await self._spawn(adapter_name)
 
-        self._health_task = asyncio.create_task(self._health_check_loop(), name="oap-pool-health")
+        self._health_task = asyncio.create_task(
+            self._health_check_loop(), name="oap-pool-health"
+        )
 
     async def stop(self) -> None:
         """Drain all processes and cancel background tasks."""
@@ -220,7 +134,9 @@ class ProcessPool:
             pooled.last_used = time.monotonic()
             pooled.active_tasks.clear()
 
-    async def invoke(self, adapter_name: str, request: InvokeRequest) -> InvokeResponse:
+    async def invoke(
+        self, adapter_name: str, request: InvokeRequest
+    ) -> InvokeResponse:
         """Send an INVOKE command to a pooled subprocess and await the
         response.
         """
@@ -278,110 +194,11 @@ class ProcessPool:
                     return HealthStatus(**frame.get("stats", {}))
         return HealthStatus(healthy=False, last_error="no process available")
 
-    # -- Internal helpers ---------------------------------------------------
-
-    async def _spawn(self, adapter_name: str) -> PooledProcess:
-        """Spawn a new subprocess for *adapter_name* and add it to the pool."""
-        proc = await asyncio.create_subprocess_exec(
-            "python",
-            self._worker_path,
-            adapter_name,
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        pooled = PooledProcess(
-            process_id=str(uuid.uuid4()),
-            adapter_name=adapter_name,
-            process=proc,
-            state=ProcessState.IDLE,
-        )
-        self._processes[pooled.process_id] = pooled
-        return pooled
-
-    async def _evict_lru(self) -> PooledProcess | None:
-        """Evict the least-recently-used IDLE process.  Returns the evicted
-        pooled object, or ``None`` if nothing was evictable.
-        """
-        lru: PooledProcess | None = None
-        for pooled in self._processes.values():
-            if pooled.state == ProcessState.IDLE:
-                if lru is None or pooled.last_used < lru.last_used:
-                    lru = pooled
-        if lru is not None:
-            await self._terminate(lru)
-            del self._processes[lru.process_id]
-        return lru
-
-    async def _evict_idle_timeout(self) -> None:
-        """Remove processes that have been idle longer than ``idle_timeout``."""
-        now = time.monotonic()
-        async with self._lock:
-            stale = [
-                p
-                for p in self._processes.values()
-                if p.state == ProcessState.IDLE and (now - p.last_used) > self._config.idle_timeout
-            ]
-            for pooled in stale:
-                await self._terminate(pooled)
-                del self._processes[pooled.process_id]
-
-    async def _terminate(self, pooled: PooledProcess) -> None:
-        """Terminate a pooled subprocess."""
-        pooled.state = ProcessState.STOPPED
-        try:
-            pooled.process.terminate()
-        except ProcessLookupError:
-            pass
-        try:
-            await asyncio.wait_for(pooled.process.wait(), timeout=5.0)
-        except TimeoutError:
-            pooled.process.kill()
-            await pooled.process.wait()
-
-    async def _health_check_loop(self) -> None:
-        """Periodically ping every process and restart unresponsive ones."""
-        while True:
-            try:
-                await asyncio.sleep(self._config.health_check_interval)
-            except asyncio.CancelledError:
-                return
-
-            async with self._lock:
-                dead: list[PooledProcess] = []
-                for pooled in list(self._processes.values()):
-                    if pooled.state == ProcessState.STOPPED:
-                        continue
-                    if pooled.process.returncode is not None:
-                        dead.append(pooled)
-                        continue
-                    try:
-                        assert pooled.process.stdin is not None
-                        await _write_frame(pooled.process.stdin, {"cmd": _MSG_HEALTH})
-                        assert pooled.process.stdout is not None
-                        frame = await asyncio.wait_for(
-                            _read_frame(pooled.process.stdout), timeout=5.0
-                        )
-                        if frame is None:
-                            dead.append(pooled)
-                        else:
-                            pooled.health_ok = frame.get("healthy", False)
-                    except (TimeoutError, BrokenPipeError, ConnectionResetError, OSError):
-                        dead.append(pooled)
-
-                for pooled in dead:
-                    await self._terminate(pooled)
-                    del self._processes[pooled.process_id]
-                    if pooled.state != ProcessState.STOPPED:
-                        # Replace with a fresh process.
-                        await self._spawn(pooled.adapter_name)
-
-            # Outside the lock: also evict long-idle processes.
-            await self._evict_idle_timeout()
-
     # -- Streaming support (skeleton) ---------------------------------------
 
-    async def stream(self, adapter_name: str, request: InvokeRequest) -> AsyncIterator[StreamEvent]:
+    async def stream(
+        self, adapter_name: str, request: InvokeRequest
+    ) -> AsyncIterator[StreamEvent]:  # type: ignore[name-defined]
         """Send STREAM_START and yield events from the subprocess.
 
         Yields:
