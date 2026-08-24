@@ -7,7 +7,7 @@ IN/DEFERRED split, and the open-decision register that every later RMM sprint
 gates on.
 **Priority:** P1 (Blocking)
 **Estimated Effort:** 3-4 hours
-**Status:** PENDING
+**Status:** COMPLETE — spec authored, rmm-core §14 linked, all 9 source anchors verified on current `main`
 **Dependencies:** none (baselines against current `main`)
 
 ---
@@ -127,9 +127,27 @@ git status   # confirm clean
 - `openspec/specs/rmm-core/spec.md` §14
 - Sprint order loader: see `docs/sprints/INDEX.md`
 
+## Completion Record
+
+All five acceptance criteria verified on current `main`:
+
+1. **8 domains present:** `openspec/specs/rmm-operations/spec.md` §2-§9 cover all
+   eight with IN/DEFERRED marked.
+2. **Source-anchored:** every `Already implemented` claim resolves (verified
+   2026-08-24): `RebootQueue`/`CoordinateReboots` (zero callers),
+   `sweepStale` (30s ticker), `HeartbeatStaleThreshold` (120s),
+   `MarkStaleAgentsOffline`, `QuietHours`/`UserAlertPreferences`, patch
+   `MaintenanceWindow`/`BlackoutWindow`, agent patcher windows/installer/handler,
+   `win_update_policy`/`automated_tasks` (0005_policies.py:38-40), `cve_ids`
+   (0006_patches.py:37), `usePatches_types.ts` cve_ids/cvss_score.
+3. **8 open decisions recorded** in spec §10; 10.2/10.5/10.8 left open.
+4. **rmm-core §14 links** to rmm-operations (lines 299-326); only §14 touched.
+5. **Spec-length gate:** `rmm-operations/spec.md` is 275 lines, rmm-core and this
+   sprint both under 500.
+
 ---
 
 **Created:** 2026-08-24
 **Authored by:** TheArchitectit
 **Last Updated:** 2026-08-24
-**Version:** 1.0
+**Version:** 1.0 → 1.1 (marked COMPLETE)
