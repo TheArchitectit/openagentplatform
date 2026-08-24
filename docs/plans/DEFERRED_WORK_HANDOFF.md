@@ -4,9 +4,9 @@
 **Status:** SEAM_VERIFIED — baseline pinned, dependency order fixed, vocabulary final
 **Date:** 2026-08-23
 **Baseline:** v1.2.0 (`git rev-parse --short HEAD` = `4194dac`)
-**Role:** Master / coordinator for the review-repository handoff of deferred RMM and
+**Role:** Master / coordinator for the spec-review publication of deferred RMM and
 RELAY work. This is the single authoritative entry point for reviewers and
-lower-capability agents working inside the isolated review repository.
+lower-capability agents working against the separate spec-review repository.
 **Related (operational):**
 - [SPEC_REVIEW_BUNDLE_HANDOFF.md](../reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md) — the
   companion review handoff (repo layout, audit role, seam-contract truth,
@@ -31,10 +31,11 @@ folded into v1.2.0:
    binary wiring decision; idle-reap is only partially refined; tenant isolation,
    observability, and Python-contract reconciliation remain open.
 
-These deferred items are handed off to a dedicated, isolated **review repository**
-where each item is authored as a spec/contract document, reviewed against the
-**v1.2.0 baseline**, and returned as a verified seam contract. No deferred item
-changes production code until it is SEAM_VERIFIED and APPROVED in that repository.
+These deferred items are published to a dedicated **separate spec-review repository**
+(per the publication runbook) where each item is authored as a spec/contract
+document, reviewed against the **v1.2.0 baseline**, and returned as a verified seam
+contract. No deferred item changes production code until it is SEAM_VERIFIED and
+APPROVED in that repository.
 
 ---
 
@@ -128,7 +129,7 @@ invent new statuses. Transitions are strictly forward.
 
 | Status | Meaning | Exit condition |
 |--------|---------|----------------|
-| `OPEN` | Not started; tracked, no doc authored yet | Doc created and pushed to review repo |
+| `OPEN` | Not started; tracked, no doc authored yet | Doc created and published to the separate review repo |
 | `IN_REVIEW` | Handoff doc authored; awaiting review | Reviewer (audit role) starts |
 | `SEAM_VERIFIED` | Seam contract validated against v1.2.0 baseline | All seam checks pass (see section 7) |
 | `APPROVED` | Review passed; contract accepted | Closeout in master |
@@ -141,7 +142,7 @@ invent new statuses. Transitions are strictly forward.
 `M` ~1 week, `L` 2+ weeks.
 
 Statuses appear in each anticipated RMM/RELAY document's header block and are
-aggregated in the review-repository state. Silently skipping a transition is a
+aggregated in the separate spec-review repository state. Silently skipping a transition is a
 protocol violation.
 
 ---
@@ -149,8 +150,9 @@ protocol violation.
 ## 5. Anticipated Handoff Documents
 
 The RMM-00..08 and RELAY-00..06 documents are authored by the sibling handoff
-agents and land in the review repository under `docs/reviews/deferred/`. They are
-**anticipated here** (master is written ahead of their landing); each must carry a
+agents and land in the separate spec-review repository under
+`docs/reviews/deferred/`. They are **anticipated here** (master is written ahead of
+their landing); each must carry a
 header status per section 4, `RMM-00` / `RELAY-00` being the track baseline that
 anchors all others.
 
@@ -192,9 +194,10 @@ A lower-capability agent (one that cannot complete a full review) uses this
 checklist to hand work off safely without corrupting the review repo or the
 baseline. Run in order; **stop at the first failure** (section 8).
 
-1. **Confirm location.** Verify you are inside the isolated review repository
-   (five-commit snapshot, placeholder origin). If you are in the real `origin`
-   tree, stop immediately and do nothing.
+1. **Confirm location.** Verify you are working against the separate spec-review
+   repository (five-commit snapshot, placeholder origin per the publication
+   runbook). If you are in the OAP repo or its real `origin`, stop immediately
+   and do nothing.
 2. **Never touch the baseline.** Do not modify any committed spec, the seam wire
    contract, or `E000`-style baseline markers.
 3. **One concern per handoff.** Write one handoff note per deferred item; do not
@@ -268,7 +271,7 @@ and leave the review repo untouched.
    than guess.
 
 Stopping is correct behavior, not failure. Every stop is logged with the rule id
-(S1..S8) in the review-repository state.
+(S1..S8) in the separate spec-review repository state.
 
 ---
 
