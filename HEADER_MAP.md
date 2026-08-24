@@ -1706,3 +1706,29 @@
 | 112 | ### 5. HTTP API (internal/api/billing.go) |
 | 133 | ### 6. Server Wiring |
 | 140 | ### 7. Known Limitations (honest-state notes) |
+
+---
+
+## openspec/specs/ — P2 capability specs (authored 2026-08-23)
+
+All follow the same structure: header block (Phase/STATUS/Source/App Path) →
+Description → User Story → Requirements (numbered N.M) → Known Limitations.
+Line counts: a2a-relay 151, adapter-service 312, audit-log 235, check-library 205,
+data-model 313, event-bus 256, multi-tenancy 239, notifications 271, observability
+272, platform-foundation 209, remote-access 306, reporting 248, resilience 209.
+
+| Spec | STATUS | Key finding |
+|------|--------|-------------|
+| multi-tenancy | PARTIAL | RLS + quota middleware authored but never wired; tier resolution stubbed to Community; purger queries nonexistent `alert_preferences` table |
+| observability | PARTIAL | monitoring pkg has zero importers; otelpgx no-op in server; metrics summary always empty |
+| reporting | PARTIAL | live pipeline unwired (all /reports endpoints 503); internal/reporting is unreachable dead code with inverted test coverage |
+| notifications | PARTIAL | notifier registry never wired → zero alert notifications sent in production |
+| resilience | PARTIAL | adapter circuit breaker constructed but never executed; requests rate-limited twice |
+| audit-log | COMPLETE | hash chain sound per-event but per-resource verify reports false breaks (global chain vs subset); no role gate on reads |
+| event-bus | PARTIAL | heartbeat decode broken (int64 vs time.Time) → agent heartbeats never persisted; check results inserted twice by two queue groups |
+| a2a-relay | PARTIAL | accounting core only — no listener/TLS/forwarding; not wired |
+| check-library | PARTIAL | 5 of 9 checker types cataloged; no override validation |
+| remote-access | PARTIAL | shell handlers never wired → all /shell routes 503; no shell.start publisher; recordings never attached live |
+| data-model | PARTIAL | no checked-in DDL; Agent struct/column drift (`total_ram`); RLS targets wrong table names |
+| adapter-service | PARTIAL | Go proxy paths disagree with Python routes (6/7 will 404); adapter registry empty at runtime (no imports fire @register_adapter) |
+| platform-foundation | COMPLETE | env-only config, fixed pool sizing, embedded OpenAPI; no migration tool despite roadmap claim |
