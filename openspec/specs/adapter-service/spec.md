@@ -240,56 +240,34 @@ A2A call 404s") was resolved only at the route/handler/mock level. That same
 document's own remediation note (line 117) records that **"verified only at
 route/handler/mock level; live end-to-end against a running Python adapter
 service is a future runtime check."** No reverse-proxy integration against a
-running adapter service has been verified end-to-end, and the QA finding's
-"orphaned service / missing proxy" (P2-2) and "missing SSE endpoints" (P2-4)
-remediations depend on that future runtime check. Cross-reference:
+running adapter service has been verified end-to-end. Cross-reference:
 `docs/QA_REVIEW_PHASE2_v2.md` P2-1, P2-2, P2-4 (findings) and the `6c473cb`
 remediation block.
 
-**Route-prefix mismatch between the two Go callers and the Python router.** The
-FastAPI adapter router is mounted with `prefix="/api/v1"` in
-`py/oap/adapters/api.py:60`. However `internal/api/a2a_proxy.go` forwards to the
-service at un-prefixed paths — `GET /adapters`, `GET /adapters/{name}/card`,
-`GET /adapters/{name}/models`, `GET /cost/usage`, `POST /adapters/invoke`,
-`POST /adapters/stream`, `POST /adapters/{id}/cancel`, `GET /adapters/tasks/events`
-— relying on the three legacy aliases in `app.py`. Only `GET /adapters` and
-`GET /adapters/{name}/health` resolve via those aliases; the remaining proxied
-paths (`/adapters/invoke`, `/adapters/stream`, `/adapters/{name}/card`,
-`/adapters/{name}/models`, `/adapters/{id}/cancel`, `/cost/usage`,
-`/adapters/tasks/events`) have no un-prefixed handler on the Python side and
-will 404 against a live service. By contrast, `a2a/bridge/client_methods.go`
-correctly targets the `/api/v1/adapters/*` paths, so the RPC-bridge code path is
-aligned while the frontend-facing proxy code path is not. The proxy's
-`a2a_proxy_test.go` passes because its `httptest` mock upstream registers the
-un-prefixed paths the proxy calls — it does not exercise the real FastAPI app.
+**Proxy↔Python contract (W7, resolved).** The former route-prefix mismatch,
+cost-param format mismatch, and empty-registry limitation described in
+QA_REVIEW_PHASE2_v2 ("orphaned" claim) are fixed as of the W7 commit:
 
-**Cost-usage query-format mismatch.** `GET /api/v1/cost/usage` declares `from`
-and `to` as `float` Unix epoch (`Query(0.0, alias="from")`). Both Go callers send
-RFC 3339 strings: `a2a/bridge/client_methods.go` `GetCostUsage` sets
-`q.Set("from", from.UTC().Format(time.RFC3339))`, and `a2a_proxy.go`
-`handleA2ACostSummary` does the same. A live call would fail Pydantic validation
-(422) rather than returning a report (QA P2-7 sibling of the response-shape
-mismatch).
+- All `internal/api/a2a_proxy.go` / `a2a_proxy_sse.go` upstream paths target the
+  versioned router — `/api/v1/adapters/*` and `/api/v1/cost/usage` — matching
+  the FastAPI mount in `py/oap/adapters/api.py`; the legacy un-prefixed aliases
+  in `app.py` are no longer relied on.
+- `handleA2ACostSummary` converts the frontend's RFC 3339 `start`/`end` params
+  to Unix epoch floats before forwarding (`strconv.FormatFloat` over
+  `UnixNano()/1e9`), satisfying FastAPI's `float` Query parser.
+- `py/oap/app.py` imports all seven adapter modules at assembly time so every
+  `@register_adapter` decorator fires; `ADAPTER_REGISTRY` is populated with
+  anthropic, autogen, crewai, langgraph, openai_agents, ozore,
+  semantic_kernel without requiring the framework packages to be installed
+  (their imports are lazy inside each wrapper's `start()`).
+- Task-events SSE ownership: `handleA2ATaskEvents` keeps proxying to the
+  adapter service with the keep-alive fallback as the designed degradation.
+  The Python service intentionally has no global task-event feed; a real feed
+  would require NATS-backed fan-out and is tracked separately.
 
-**Task-events SSE has no Python upstream.** `internal/api/a2a_proxy_sse.go`
-`handleA2ATaskEvents` proxies `GET /adapters/tasks/events`, but no such route
-exists in the Python service. The handler degrades to a 30-iteration, 10-second
-keep-alive fallback only on transport error; an HTTP 404 from the service is
-piped through to the client as a non-SSE response. The frontend's
-`/api/v1/a2a/tasks/events` EventSource therefore has no real event feed behind
-it (QA P2-4, partially remediated).
-
-**Empty adapter registry at runtime.** No production import path imports the
-adapter modules. `app.py` imports `oap.adapters.api`, which imports the
-orchestrator, types, and cost modules, but none of those imports
-`langgraph_adapter`, `crewai_adapter`, `autogen_adapter`,
-`semantic_kernel_adapter`, `openai_adapter`, `anthropic_adapter`, or
-`ozore_adapter`. The `@register_adapter` decorators therefore never run in the
-service process, `ADAPTER_REGISTRY` stays empty, and `OrchestrationService.start`
-registers zero adapters. Only `py/tests/test_adapter_conformance.py` populates
-the registry, via an explicit `importlib.import_module` loop with `except
-Exception: pass`. As shipped, `GET /adapters` returns an empty list and `POST
-/adapters/invoke` raises `FrameworkNotFoundError("No adapters are registered")`.
+The remaining gap for this subsystem is purely the live end-to-end runtime
+check above; unit-level contracts are pinned by `a2a_proxy_test.go` (mock
+upstreams now assert the versioned paths).
 
 **No authentication on the service.** The FastAPI app applies only CORS; there
 is no JWT/OIDC middleware despite `settings.py` declaring `oidc_*` and `jwt_*`

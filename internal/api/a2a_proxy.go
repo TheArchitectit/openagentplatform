@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"net/url"
 	"time"
 
@@ -25,7 +26,7 @@ var adapterHTTPClient = &http.Client{Timeout: 10 * time.Second}
 // service's /adapters. The service already returns the {adapters:[...]}
 // envelope the frontend parses, so this is a direct pass-through.
 func (s *Server) handleA2AListAdapters(w http.ResponseWriter, r *http.Request) {
-	s.proxyAdapter(w, r, http.MethodGet, "/adapters", nil)
+	s.proxyAdapter(w, r, http.MethodGet, "/api/v1/adapters", nil)
 }
 
 // handleA2AAdapterCard proxies GET /api/v1/a2a/adapters/{name}/card and
@@ -33,7 +34,7 @@ func (s *Server) handleA2AListAdapters(w http.ResponseWriter, r *http.Request) {
 // (the frontend renders card.models).
 func (s *Server) handleA2AAdapterCard(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
-	cardBody, cardStatus, cardErr := doAdapterRequest(r.Context(), http.MethodGet, fmt.Sprintf("/adapters/%s/card", url.PathEscape(name)), nil)
+	cardBody, cardStatus, cardErr := doAdapterRequest(r.Context(), http.MethodGet, fmt.Sprintf("/api/v1/adapters/%s/card", url.PathEscape(name)), nil)
 	if cardErr != nil {
 		writeJSONError(w, http.StatusBadGateway, "adapter service unavailable: "+cardErr.Error())
 		return
@@ -49,7 +50,7 @@ func (s *Server) handleA2AAdapterCard(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadGateway, "invalid card response: "+err.Error())
 		return
 	}
-	if modelsBody, modelsStatus, mErr := doAdapterRequest(r.Context(), http.MethodGet, fmt.Sprintf("/adapters/%s/models", url.PathEscape(name)), nil); mErr == nil && modelsStatus == http.StatusOK {
+	if modelsBody, modelsStatus, mErr := doAdapterRequest(r.Context(), http.MethodGet, fmt.Sprintf("/api/v1/adapters/%s/models", url.PathEscape(name)), nil); mErr == nil && modelsStatus == http.StatusOK {
 		var modelsResp struct {
 			Models []map[string]any `json:"models"`
 		}
@@ -64,13 +65,13 @@ func (s *Server) handleA2AAdapterCard(w http.ResponseWriter, r *http.Request) {
 // upstream already returns {models:[...]}.
 func (s *Server) handleA2AAdapterModels(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
-	s.proxyAdapter(w, r, http.MethodGet, fmt.Sprintf("/adapters/%s/models", url.PathEscape(name)), nil)
+	s.proxyAdapter(w, r, http.MethodGet, fmt.Sprintf("/api/v1/adapters/%s/models", url.PathEscape(name)), nil)
 }
 
 // handleA2AAdapterHealth proxies GET /api/v1/a2a/adapters/{name}/health.
 func (s *Server) handleA2AAdapterHealth(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
-	s.proxyAdapter(w, r, http.MethodGet, fmt.Sprintf("/adapters/%s/health", url.PathEscape(name)), nil)
+	s.proxyAdapter(w, r, http.MethodGet, fmt.Sprintf("/api/v1/adapters/%s/health", url.PathEscape(name)), nil)
 }
 
 // handleA2AListTasks delegates GET /api/v1/a2a/tasks to the Go A2A gateway
@@ -102,10 +103,13 @@ func (s *Server) handleA2ACostSummary(w http.ResponseWriter, r *http.Request) {
 	if org := q.Get("org"); org != "" {
 		fwd.Set("org_id", org)
 	}
-	fwd.Set("from", from.UTC().Format(time.RFC3339))
-	fwd.Set("to", to.UTC().Format(time.RFC3339))
+	// The adapter service expects Unix epoch floats for from/to, not
+	// RFC3339 (FAIL-A2A-010: RFC3339 params 422 on FastAPI's float
+	// Query parser).
+	fwd.Set("from", strconv.FormatFloat(float64(from.UnixNano())/float64(time.Second), 'f', -1, 64))
+	fwd.Set("to", strconv.FormatFloat(float64(to.UnixNano())/float64(time.Second), 'f', -1, 64))
 
-	body, status, err := doAdapterRequest(r.Context(), http.MethodGet, "/cost/usage?"+fwd.Encode(), nil)
+	body, status, err := doAdapterRequest(r.Context(), http.MethodGet, "/api/v1/cost/usage?"+fwd.Encode(), nil)
 	if err != nil {
 		writeJSONError(w, http.StatusBadGateway, "adapter service unavailable: "+err.Error())
 		return
@@ -186,7 +190,7 @@ func (s *Server) handleA2AInvoke(w http.ResponseWriter, r *http.Request) {
 		Metadata:    req.Metadata,
 	}
 	body, _ := json.Marshal(invokeReq)
-	respBody, status, err := doAdapterRequest(r.Context(), http.MethodPost, "/adapters/invoke", body)
+	respBody, status, err := doAdapterRequest(r.Context(), http.MethodPost, "/api/v1/adapters/invoke", body)
 	if err != nil {
 		writeJSONError(w, http.StatusBadGateway, "adapter service unavailable: "+err.Error())
 		return
@@ -200,5 +204,5 @@ func (s *Server) handleA2AInvoke(w http.ResponseWriter, r *http.Request) {
 // adapter service's /adapters/{id}/cancel endpoint.
 func (s *Server) handleA2ACancelTask(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	s.proxyAdapter(w, r, http.MethodPost, fmt.Sprintf("/adapters/%s/cancel", url.PathEscape(id)), nil)
+	s.proxyAdapter(w, r, http.MethodPost, fmt.Sprintf("/api/v1/adapters/%s/cancel", url.PathEscape(id)), nil)
 }

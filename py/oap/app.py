@@ -19,6 +19,21 @@ from oap.adapters.cost import CostManager
 from oap.adapters.orchestrator import AdapterInfo, OrchestrationService
 from oap.adapters.types import HealthStatus
 
+# -- Adapter module imports -------------------------------------------------
+# The orchestrator registers whatever classes have fired @register_adapter at
+# import time. Importing the adapter modules here is what populates
+# ADAPTER_REGISTRY; without these imports the registry is empty and every
+# /api/v1/adapters response lists zero adapters. All framework dependencies
+# (langgraph, crewai, ...) are imported lazily inside each wrapper's start()
+# so importing is safe without those packages installed.
+from oap.adapters.anthropic_adapter import AnthropicAdapter  # noqa: F401
+from oap.adapters.autogen_adapter import AutoGenAdapter  # noqa: F401
+from oap.adapters.crewai_adapter import CrewAIAdapter  # noqa: F401
+from oap.adapters.langgraph_adapter import LangGraphAdapter  # noqa: F401
+from oap.adapters.openai_adapter import OpenAIAgentsAdapter  # noqa: F401
+from oap.adapters.ozore_adapter import OzoreAdapter  # noqa: F401
+from oap.adapters.semantic_kernel_adapter import SemanticKernelAdapter  # noqa: F401
+
 
 # ---------------------------------------------------------------------------
 # Application factory

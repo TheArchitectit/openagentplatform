@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/openagentplatform/openagentplatform/a2a/models"
@@ -169,8 +170,10 @@ func (c *AdapterClient) GetCostUsage(ctx context.Context, orgID string, from, to
 	if orgID != "" {
 		q.Set("org_id", orgID)
 	}
-	q.Set("from", from.UTC().Format(time.RFC3339))
-	q.Set("to", to.UTC().Format(time.RFC3339))
+	// The service declares from/to as float Unix epoch (FastAPI Query
+	// parser) — RFC 3339 strings fail validation with a 422.
+	q.Set("from", strconv.FormatFloat(float64(from.UnixNano())/float64(time.Second), 'f', -1, 64))
+	q.Set("to", strconv.FormatFloat(float64(to.UnixNano())/float64(time.Second), 'f', -1, 64))
 
 	path := "/api/v1/cost/usage"
 	if encoded := q.Encode(); encoded != "" {

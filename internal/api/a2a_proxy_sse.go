@@ -100,7 +100,7 @@ func (s *Server) handleA2AStream(w http.ResponseWriter, r *http.Request) {
 	}
 	body, _ := json.Marshal(invokeReq)
 
-	req2, err := http.NewRequestWithContext(r.Context(), http.MethodPost, adapterBaseURL+"/adapters/stream", bytes.NewReader(body))
+	req2, err := http.NewRequestWithContext(r.Context(), http.MethodPost, adapterBaseURL+"/api/v1/adapters/stream", bytes.NewReader(body))
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "proxy: build request: "+err.Error())
 		return
@@ -141,7 +141,7 @@ func (s *Server) handleA2AStream(w http.ResponseWriter, r *http.Request) {
 // service's /adapters/tasks/events SSE stream. If the adapter service has no
 // global task-event feed it degrades to a keep-alive stream (P2-4).
 func (s *Server) handleA2ATaskEvents(w http.ResponseWriter, r *http.Request) {
-	target := adapterBaseURL + "/adapters/tasks/events"
+	target := adapterBaseURL + "/api/v1/adapters/tasks/events"
 	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, target, nil)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "proxy: build request: "+err.Error())

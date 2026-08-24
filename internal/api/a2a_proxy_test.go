@@ -14,7 +14,7 @@ import (
 func TestA2AInvokeBodyTranslation(t *testing.T) {
 	var gotBody map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/adapters/invoke" {
+		if r.URL.Path != "/api/v1/adapters/invoke" {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -63,7 +63,7 @@ func TestA2AInvokeBodyTranslation(t *testing.T) {
 // (P2-1 / FAIL-A2A-001).
 func TestA2AListAdaptersEnvelope(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/adapters" {
+		if r.URL.Path != "/api/v1/adapters" {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -100,7 +100,7 @@ func TestA2AListAdaptersEnvelope(t *testing.T) {
 // the frontend's A2ACostSummary shape (P2-5/P2-7 / FAIL-A2A-005/007).
 func TestA2ACostSummaryTranslation(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/cost/usage" {
+		if r.URL.Path != "/api/v1/cost/usage" {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
