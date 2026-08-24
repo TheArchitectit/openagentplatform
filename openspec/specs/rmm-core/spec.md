@@ -298,8 +298,12 @@ implemented — see §14.
 
 ### 14. Planned Extensions (not implemented — do not claim)
 
-Tracked RMM parity gaps (decision on scope pending; see
-`docs/GAP_ANALYSIS_RMM_PLATFORM.md` and `docs/QA_REVIEW_OPENSPEC_COVERAGE.md`):
+Scope, readiness (IN vs decision-gated), build order, and open decisions for
+the gaps below are the responsibility of
+**[`openspec/specs/rmm-operations/spec.md`](../rmm-operations/spec.md)** —
+this section links/deduplicates rather than re-specifying them. They originated
+from `docs/GAP_ANALYSIS_RMM_PLATFORM.md` and
+`docs/QA_REVIEW_OPENSPEC_COVERAGE.md` P3 items 10–11:
 
 14.1. Windows Update management: per-KB tracking, approve/install/fail/reboot
 state machine, scan/install dispatch subjects.
