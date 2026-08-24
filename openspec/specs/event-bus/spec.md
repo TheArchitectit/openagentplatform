@@ -50,7 +50,7 @@ reference them rather than hard-coding subjects.
 
 **As** a platform operator,
 **I want** agent heartbeats and check results flowing through NATS with
-durable subscriptions, lifecycle fan-out, and distributed tracing,
+wildcard and queue-group subscriptions, lifecycle fan-out, and distributed tracing,
 **so that** the dashboard shows accurate live endpoint status and downstream
 engines (alerts, policies, A2A bridges) react to endpoint events without
 polling.
