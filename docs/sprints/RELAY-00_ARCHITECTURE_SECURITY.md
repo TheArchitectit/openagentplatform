@@ -103,9 +103,9 @@ sprint must pass; a sprint that needs a decision absent here is BLOCKED.
 |---|----------|--------|--------|
 | R | WSS rendezvous (agents connect over WSS; relay matches legs) | APPROVED | RELAY-01/03 |
 | R | Dedicated `cmd/relay` binary, NOT wired into `cmd/server` (W8) | APPROVED | RELAY-01 |
-| I | Issued identity + entitlement registry before admission | APPROVED | RELAY-02 |
-| D | Discovery federation across relays | APPROVED | RELAY-05 |
-| E | E2E acceptance + private mode + load stage | APPROVED | RELAY-06 |
+| I | Issued identity + entitlement is required before admission | OUTCOME APPROVED; MECHANISM BLOCKED by I.3 | RELAY-02 |
+| D | Discovery federation is a product outcome | OUTCOME APPROVED; SEMANTICS BLOCKED by D.2 | RELAY-05 |
+| E | E2E/private/load acceptance is required | OUTCOME APPROVED; EXECUTION BLOCKED by I.3/D.2/E.4 | RELAY-06 |
 | — | Raw TCP byte forwarder | **UNAPPROVED** | blocked |
 
 ### STEP 3: Record blockers (unapproved choices)
@@ -117,7 +117,15 @@ sprint found inventing one is in scope violation:
 - **End-to-end encryption mechanism (spec E.4)** — how the relay is kept from
   reading payload secrets.
 - **Discovery wire protocol / federation semantics (spec D.2)**.
+- **Rendezvous handshake and matching semantics** — fields, namespace and tenant
+  binding, pairing lifecycle, timeouts, duplicate policy, and close/error behavior.
+- **Operator API security and metric contracts** — authentication, authorization,
+  listener binding, tenant visibility, metric names, and units.
 - **TLS/WSS test certificates** — generate at test time only; commit none.
+
+RELAY-02 through RELAY-06 MUST stop at their decision gates until every mechanism
+they depend on is approved. Approved outcomes are not authorization to invent the
+implementation contract.
 
 ---
 

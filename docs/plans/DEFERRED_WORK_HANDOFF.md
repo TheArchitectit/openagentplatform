@@ -87,26 +87,27 @@ F0. Baseline (v1.2.0) — established
 
 | Order | Item | Depends on |
 |------:|------|------------|
-| 1 | RMM-00 — RMM baseline & seam wire contract | F0 (established) |
-| 2 | RMM-01 — Windows patch automation (WinUpdate) | RMM-00 |
-| 3 | RMM-02 — Maintenance / silence windows | RMM-00 |
-| 4 | RMM-03 — Agent auto-update channel | RMM-02 (windowed maintenance) |
-| 5 | RMM-04 — Offline-agent SLA / alerting | RMM-03 (agent connectivity surface) |
-| 6 | RMM-05 — Scheduled report / digest cadence | RMM-00 |
-| 7 | RMM-06+ — Remaining RMM capacity checks | RMM-00 |
-| 8 | RMM-08 — RMM seam-contract verification & closeout | RMM-01..RMM-07 |
+| 1 | RMM-00 — Operations foundation and decision register | F0 (established) |
+| 2 | RMM-01 — Offline-agent SLA alerting | RMM-00 + threshold/cooldown decision |
+| 3 | RMM-02 — Fleet alert-suppression maintenance windows | RMM-00 + window/precedence decisions |
+| 4 | RMM-03 — Windows Update per-KB lifecycle | RMM-00 + state/identity decisions |
+| 5 | RMM-04 — Reboot coordination | RMM-00 + approved reboot command contract |
+| 6 | RMM-05 — CVE-to-patch correlation | RMM-00 + source/provenance decisions |
+| 7 | RMM-06 — Scheduled automation decision gate | RMM-00 + approved scheduling grammar |
+| 8 | RMM-07 — Agent self-update decision gate | RMM-00 + trust/rollout/transport decisions |
+| 9 | RMM-08 — VNC/RDP decision gate | RMM-00 + binary transport/consent/security decisions |
 
 ### 3.2 RELAY Track Order
 
 | Order | Item | Depends on |
 |------:|------|------------|
-| 1 | RELAY-00 — Relay baseline & seam wire contract | F0 (established) |
-| 2 | RELAY-01 — Wire RelayService into a binary (parked-library decision) | RELAY-00 |
-| 3 | RELAY-02 — Idle-reap finalized to last-activity semantics | RELAY-01 |
-| 4 | RELAY-03 — Tenant isolation across relay sessions | RELAY-01 |
-| 5 | RELAY-04 — Relay metrics / observability | RELAY-01 |
-| 6 | RELAY-05 — Relay contract reconciliation (Go lib vs Python) | RELAY-01 |
-| 7 | RELAY-06 — Relay seam-contract verification & closeout | RELAY-01..RELAY-05 |
+| 1 | RELAY-00 — Architecture and security decisions | F0 (established) |
+| 2 | RELAY-01 — Binary/config/deployment foundation; fail-closed WSS | RELAY-00 |
+| 3 | RELAY-02 — Issued identity and entitlement decision gate | RELAY-00; blocks admission |
+| 4 | RELAY-03 — WSS rendezvous decision + contingent forwarding | RELAY-01 + approved/implemented RELAY-02 |
+| 5 | RELAY-04 — Secure metering/observability contract | RELAY-03 + operator API decisions |
+| 6 | RELAY-05 — Discovery federation decision gate | RELAY-01..04 + D.2 approval |
+| 7 | RELAY-06 — E2E/private/load acceptance | RELAY-01..05 + I.3/D.2/E.4 approval |
 
 ### 3.3 Cross-Track Rule
 
@@ -146,40 +147,33 @@ Silently skipping a transition is a protocol violation.
 
 ---
 
-## 5. Anticipated Handoff Documents
+## 5. Authored Handoff Documents
 
 ### 5.1 RMM-00..08
 
-The RMM-00..08 documents are authored by the sibling handoff agents. They are
-**anticipated here** (master is written ahead of their landing); each carries a
-status per section 4, with `RMM-00` anchoring the track.
-
-| ID | Anticipated document | Focus |
-|----|----------------------|-------|
-| RMM-00 | `RMM-00_baseline_seam.md` | RMM deferred-work baseline + seam wire contract |
-| RMM-01 | `RMM-01_winupdate.md` | Windows patch automation (WinUpdate / AutomatedTask) |
-| RMM-02 | `RMM-02_maintenance_windows.md` | Maintenance / silence windows |
-| RMM-03 | `RMM-03_agent_autoupdate.md` | Agent auto-update channel (G-RMM-003) |
-| RMM-04 | `RMM-04_offline_sla.md` | Offline-agent SLA / alerting (G-RMM-004) |
-| RMM-05 | `RMM-05_report_digest.md` | Scheduled report / email digest (G-RMM-001) |
-| RMM-06 | `RMM-06_capacity_checks.md` | Remaining RMM capacity / parity checks |
-| RMM-07 | `RMM-07_policy_parity.md` | Policy-collector / model parity (if surfaced) |
-| RMM-08 | `RMM-08_closeout.md` | RMM seam-contract verification & closeout |
+| ID | Document | Focus |
+|----|----------|-------|
+| RMM-00 | `RMM-00_RMM_OPERATIONS_FOUNDATION.md` | Operations foundation and open-decision register |
+| RMM-01 | `RMM-01_OFFLINE_AGENT_SLA.md` | Offline-agent SLA alerting |
+| RMM-02 | `RMM-02_ALERT_MAINTENANCE_WINDOWS.md` | Fleet alert-suppression windows |
+| RMM-03 | `RMM-03_WINUPDATE_STATE_MACHINE.md` | Windows Update per-KB lifecycle |
+| RMM-04 | `RMM-04_REBOOT_COORDINATION.md` | Reboot coordination |
+| RMM-05 | `RMM-05_CVE_CORRELATION.md` | CVE-to-patch correlation |
+| RMM-06 | `RMM-06_SCHEDULED_AUTOMATION_DECISION.md` | Scheduled automation decision gate |
+| RMM-07 | `RMM-07_AGENT_SELF_UPDATE_DECISION.md` | Agent self-update decision gate |
+| RMM-08 | `RMM-08_VNC_RDP_DECISION.md` | VNC/RDP decision gate |
 
 ### 5.2 RELAY-00..06
 
-| ID | Anticipated document | Focus |
-|----|----------------------|-------|
-| RELAY-00 | `RELAY-00_baseline_seam.md` | Relay baseline + seam wire contract |
-| RELAY-01 | `RELAY-01_wire_binary.md` | RelayService wire-into-binary decision (parked today) |
-| RELAY-02 | `RELAY-02_idle_reap.md` | Idle-reap by last activity (finalize) |
-| RELAY-03 | `RELAY-03_tenant_isolation.md` | Tenant isolation across relay sessions |
-| RELAY-04 | `RELAY-04_observability.md` | Relay metrics / tracing |
-| RELAY-05 | `RELAY-05_python_parity.md` | Go-lib vs Python contract reconciliation |
-| RELAY-06 | `RELAY-06_closeout.md` | Relay seam-contract verification & closeout |
-
-Where an authored document differs from this anticipation, the authored document is
-authoritative; this master is updated at joint closeout (F9), not piecemeal.
+| ID | Document | Focus |
+|----|----------|-------|
+| RELAY-00 | `RELAY-00_ARCHITECTURE_SECURITY.md` | Architecture/security outcomes and blockers |
+| RELAY-01 | `RELAY-01_BINARY_CONFIG_DEPLOYMENT.md` | Fail-closed WSS binary/config/deployment foundation |
+| RELAY-02 | `RELAY-02_ISSUED_IDENTITY_ENTITLEMENT.md` | Identity/credential/entitlement decision gate |
+| RELAY-03 | `RELAY-03_WSS_MATCHING_FORWARDING.md` | Rendezvous decisions + contingent forwarding |
+| RELAY-04 | `RELAY-04_METERING_OBSERVABILITY.md` | Secure operator metering/observability contract |
+| RELAY-05 | `RELAY-05_DISCOVERY.md` | Discovery federation decision gate |
+| RELAY-06 | `RELAY-06_E2E_PRIVATE_LOAD.md` | Gated E2E/private/load acceptance |
 
 ### 5.3 Operational Deferred Item — Spec-Review Bundle Publication
 
@@ -285,7 +279,8 @@ closeout (F9).
 
 ## 10. Joint Closeout (F9)
 
-When both tracks reach `RELAY-06 COMPLETE` and `RMM-08 COMPLETE`, and the
+When every approved implementation item is complete, all decision-gated items are
+resolved, RELAY-06 acceptance passes without remaining I.3/D.2/E.4 blockers, and the
 spec-review publication item has resolved, the master runs joint closeout: aggregate
 every resolved handoff, re-run the section 7 validations over the whole set, and
 reconcile the anticipated document tables (sections 5.1/5.2) against what actually

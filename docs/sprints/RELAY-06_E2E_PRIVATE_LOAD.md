@@ -1,16 +1,14 @@
 # Sprint RELAY-06: E2E / Private / Load Acceptance Stage
 
 **Sprint Date:** 2026-08-23 (Saturday)
-**Archive After:** 2026-08-30 (+7 days)
-**Sprint Focus:** Final acceptance stage: an end-to-end relayed session over the
-approved stack, a private (non-open) relay mode, and a load/soak stage — plus a
-gate that keeps E2E-payload-encryption blocked pending its design (spec §7.4).
+**Sprint Focus:** Run acceptance only after authentication, rendezvous,
+observability, discovery, and payload-encryption decisions are approved and their
+required implementations exist.
 **Priority:** P2 (Normal)
-**Estimated Effort:** 2-3 hours
-**Status:** PENDING
+**Status:** BLOCKED — depends on I.3, D.2, and E.4
 
-Spec reference: `openspec/specs/a2a-relay/spec.md` §7.4 E.1–E.4. Decision gate:
-[RELAY-00](./RELAY-00_ARCHITECTURE_SECURITY.md). Prerequisites: RELAY-01..05.
+Spec reference: `openspec/specs/a2a-relay/spec.md` §7.4 E.1–E.4.
+Prerequisites: completed RELAY-01..05 plus an approved E.4 design.
 
 ---
 
@@ -18,183 +16,109 @@ Spec reference: `openspec/specs/a2a-relay/spec.md` §7.4 E.1–E.4. Decision gat
 
 | Check | Requirement | Verify |
 |-------|-------------|--------|
-| **READ FIRST** | Read the relay package summary + sprint docs RELAY-01..05 | [ ] |
-| **SCOPE LOCK** | Only files in scope below | [ ] |
-| **NO FEATURE CREEP** | Acceptance + private mode + load only | [ ] |
-| **PRODUCTION FIRST** | Private-mode enforcement before its tests | [ ] |
-| **DO NOT INVENT** | E2E encryption mechanism stays BLOCKED (spec E.4) | [ ] |
-| **BACKUP AWARENESS** | Rollback command known (below) | [ ] |
-
-Full guardrails: [docs/AGENT_GUARDRAILS.md](../AGENT_GUARDRAILS.md)
+| **READ FIRST** | Read approved designs and implemented contracts from RELAY-01..05 | [ ] |
+| **NO AUTH BYPASS** | Every deployed mode uses verified identity + entitlement | [ ] |
+| **TEST-ONLY FIXTURES** | Dev identities/bypasses never enter production config paths | [ ] |
+| **NO CRYPTO INVENTION** | E.4 mechanism must already be approved | [ ] |
+| **NO COMPLETION OVERSTATEMENT** | Report PARTIAL/BLOCKED while any dependency remains | [ ] |
 
 ---
 
 ## PROBLEM STATEMENT
 
-The stages built RELAY-01..05 in isolation; nothing yet proves the whole system
-works as one relayed session, enforces that the relay is NOT an open forwarder in
-a production-like restricted deployment, or establishes that per-tenant limits and
-metering hold under concurrency. This stage closes that with an E2E acceptance
-test, a private relay mode setting, and a load/soak suite. It explicitly does NOT
-implement E2E payload encryption, which remains a tracked blocker (spec E.4).
-
-**Root Cause:** End-to-end, production-behavior, and scale validation of the
-approved architecture are missing.
-
-**Where:** `internal/relay/` (test-only + a small `private` config mode) + `cmd/relay/`.
+Acceptance cannot compensate for unresolved security and discovery contracts.
+A production `-private` toggle paired with a config-supplied dev identity would
+create an authentication bypass, and clear-frame tests cannot satisfy E.4's
+requirement that the relay cannot read payload secrets. The stage therefore must
+remain blocked until the approved stack actually exists.
 
 ---
 
 ## SCOPE BOUNDARY
 
 ```
-IN SCOPE (may create/modify):
-  - File: internal/relay/acceptance_test.go NEW  E2E session across the stack
-  - File: internal/relay/privacy.go         NEW  private-mode enforcement (E.2)
-  - File: internal/relay/privacy_test.go    NEW  private-mode tests
-  - File: internal/relay/load_test.go       NEW  load/soak assertions (E.3)
-  - File: cmd/relay/config.go + main.go     ADDATIVE -private toggle
-  - File: internal/relay/README.md          NEW  operator + status guide
+IN SCOPE AFTER ALL GATES PASS:
+  - Full authenticated, entitled, matched, metered, discovered relayed session
+  - Private deployment profile with no authentication bypass
+  - Approved E2E payload protection acceptance
+  - Per-tenant concurrency/load/soak and failure tests
+  - Operator README/status that reports remaining limitations exactly
 
-OUT OF SCOPE (DO NOT TOUCH):
-  - NO E2E payload encryption (spec E.4 is BLOCKED) — the acceptance stage
-    proves a session relayed in clear frames; it does NOT encrypt them
-  - No changes to accounting methods (§1–§6)
-  - No discovery protocol work               (recap: D.2 still BLOCKED)
+OUT OF SCOPE:
+  - No production dev-identity or unauthenticated mode
+  - No new crypto, discovery, identity, or rendezvous protocol choices
+  - No claim that clear frames satisfy E2E payload encryption
+  - No wiring into cmd/server
 ```
 
 ---
 
 ## EXECUTION DIRECTIONS
 
-### Overview
+### STEP 1: Verify prerequisite evidence
 
-```
-STEP 1: Private mode ---------------------> restricted-only admission (E.2)
-STEP 2: E2E acceptance --------------------> one full relayed session (E.1)
-STEP 3: Load/soak -------------------------> limits + metering under load (E.3)
-STEP 4: README + gate ---------------------> status + E.4 blocker noted
-DONE:   Commit stage -----------------------> managed relay base is complete;
-                                              E2E crypto remains a blocker
-```
+Require links to approved I.3, rendezvous, operator API, D.2, and E.4 decisions,
+plus passing implementation tests. If any is absent, HALT and report BLOCKED.
 
----
+### STEP 2: Verify private deployment profile
 
-## STEP-BY-STEP EXECUTION
+Every deployed profile, private or managed, MUST require cryptographically
+verified platform-issued identity and entitlement. Development fixtures may exist
+only in test-only code and must not be selectable through production flags or
+environment variables.
 
-### STEP 1: Private relay mode (E.2)
+### STEP 3: Run full-stack acceptance
 
-**Action:** Create `internal/relay/privacy.go` + a `-private` toggle in `cmd/relay`.
+Exercise issuance/verification, entitlement, WSS rendezvous, matching,
+bidirectional protected frames, exact metering, discovery/federation, teardown,
+and audit behavior. Assert the relay cannot recover payload secrets according to
+the approved E.4 threat model.
 
-```go
-// PrivateMode is boolean config carried on RelayConfig (additive field).
-func (s *RelayService) enforcePrivateMode(identity *IssuedIdentity) bool
-```
+### STEP 4: Run load and soak
 
-- In private mode the relay MUST reject any admission that is not backed by an
-  issued + entitled identity (RELAY-02). It is the enforcement that the relay is
-  NOT a general open forwarder in restricted deployments. Rejected legs are
-  closed and never registered.
-- Non-private (dev) mode preserves RELAY-02 behaviour unchanged (still rejects
-  unknown/denied, but permits the config-supplied dev identity path).
+Validate per-tenant limits, backpressure, exact accounting units, revocation and
+reconnect behavior, discovery churn, shutdown, race safety, and zero session or
+goroutine leaks. Thresholds and durations must come from an approved acceptance
+plan; do not invent pass/fail numbers.
 
-### STEP 2: E2E acceptance (E.1)
+### STEP 5: Publish accurate status
 
-**Action:** Create `internal/relay/acceptance_test.go`. Drive one full session:
-
-issue identities → start WSS listener (RELAY-01) → admit two entitled legs
-(RELAY-02) → match (RELAY-03) → forward frames A→B and B→A (RELAY-03) → assert
-metering (RELAY-04) reflects bytes → assert `ListConnections`/isolation → close.
-
-Test name: `TestRelayAcceptance_FullSession`.
-
-Gate note: this proves the approved stack end-to-end with **clear** frames;
-encrypted frames are the E.4 blocker, not part of this test.
-
-### STEP 3: Load / soak (E.3)
-
-**Action:** Create `internal/relay/load_test.go`.
-
-Tests (exact names):
-- `TestRelayLoad_PerTenantLimitUnderConcurrency` — N concurrent sessions per
-  tenant stay within `MaxConnections`; no cross-tenant limit bleed (spec 3.2).
-- `TestRelayLoad_MeteringStableUnderPressure` — concurrent frame traffic leaves
-  `TotalBytesRelayed` and per-conn `BytesRelayed` exact (4.1).
-- `TestRelayLoad_SoakNoLeak` — a short soak (`-race`) with sessions churned; no
-  goroutine leak, `ConnectionCount` returns to baseline.
-
-### STEP 4: README + status
-
-**Action:** Create `internal/relay/README.md` (< 300 lines): what is implemented
-(accounting core §1–§6 + reference to RELAY-01..06), how to run the `cmd/relay`
-dev binary, the `-private` mode, and an explicit status table that marks
-per-leg-auth-verification crypto (I.3), E2E encryption (E.4), and the discovery
-wire protocol (D.2) as NOT implemented.
-
-**Validation loop (max 3):**
-```
-go build ./internal/relay/ ./cmd/relay/
-go test -race ./internal/relay/ -run 'TestRelay(Acceptance|Load|Privacy)' -v
-go test ./cmd/relay/ -v
-```
-
-**Decision Point:**
-- [ ] Green → the managed-relay base series is complete; report that E.4 stays a blocker
-- [ ] Red → fix, re-run (ROLLBACK if beyond scope)
+Document how to run the dedicated relay and its approved deployment profiles.
+Mark the overall relay PARTIAL or BLOCKED if any planned requirement or security
+acceptance remains incomplete. Never call the managed-relay base complete merely
+because clear-frame or local-only tests pass.
 
 ---
 
 ## ACCEPTANCE CRITERIA
 
-| # | Criterion | Test | Pass Condition |
-|---|-----------|------|----------------|
-| 1 | Private mode enforced | `..._Privacy*` | Non-issued admission rejected in private mode |
-| 2 | Full E2E session | `TestRelayAcceptance_FullSession` | Pass, clear frames |
-| 3 | Limits under load | `..._PerTenantLimitUnderConcurrency` | No bleed, per-tenant exact |
-| 4 | Metering exact under load | `..._MeteringStableUnderPressure` | No drift |
-| 5 | No encryption invented | Manual review of diff | No crypto in diff; E.4 noted in README |
+| # | Criterion | Pass Condition |
+|---|-----------|----------------|
+| 1 | All gates approved | I.3, rendezvous, operator API, D.2, E.4 evidence exists |
+| 2 | No deployed bypass | Every production admission cryptographically verified and entitled |
+| 3 | Full-stack session passes | Approved discovery, protected frames, metering, teardown work |
+| 4 | Load plan passes | Approved thresholds pass under race/soak testing |
+| 5 | Status truthful | Remaining blockers keep status PARTIAL/BLOCKED |
 
 ---
 
 ## ROLLBACK PROCEDURE
 
-```bash
-git checkout HEAD -- internal/relay/privacy.go cmd/relay/config.go cmd/relay/main.go
-git rm -f internal/relay/acceptance_test.go internal/relay/privacy_test.go internal/relay/load_test.go internal/relay/README.md
-git status
-```
+Remove every newly created acceptance/load/documentation file with `git rm -f`;
+restore only pre-existing production files modified by this sprint. Disable and
+roll back deployed relay configuration before reverting source. Never weaken
+identity checks as a rollback shortcut.
 
 ---
 
 ## BLOCKERS / DEFERRED
 
-- **E2E payload encryption (spec E.4)** — BLOCKED; this stage proves clear-frame
-  sessions and documents the blocker. Do NOT implement crypto.
-- **Identity-verification cryptography (spec I.3)** — BLOCKED; private mode uses
-  the registry, not a cryptographic verification mechanism.
-- **Discovery wire protocol (spec D.2)** — BLOCKED. 
-- **Wiring into `cmd/server`** — NOT done (W8 decision); the relay is a dedicated
-  binary.
-
----
-
-## QUICK REFERENCE CARD
-
-```
-+------------------------------------------------------------------+
-| RELAY-06 : E2E / private / load acceptance stage                  |
-| CREATE:    internal/relay/{privacy,acceptance_test,load_test}.go |
-|            README.md; cmd/relay -private toggle                  |
-| PROVES:    full session (E.1), private mode (E.2), load (E.3)    |
-| BLOCKED:   E2E crypto (E.4), identity crypto (I.3), discovery    |
-|            protocol (D.2) — all documented, none implemented     |
-| ROLLBACK:  checkout privacy.go + cmd/relay; rm stage files       |
-+------------------------------------------------------------------+
-```
+- I.3 authentication and credential lifecycle.
+- Approved rendezvous semantics and secure operator API.
+- D.2 discovery federation protocol and implementation.
+- E.4 end-to-end payload-encryption design and implementation.
 
 ---
 
 **Created:** 2026-08-23
-**Authored by:** TheArchitectit
-**Archive Date:** 2026-08-30
-**Version:** 1.0
+**Version:** 1.1

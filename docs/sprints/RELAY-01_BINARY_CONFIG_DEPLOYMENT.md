@@ -53,13 +53,13 @@ IN SCOPE (may create):
   - File: cmd/relay/config.go               NEW  parse + validate configuration
   - File: cmd/relay/config_test.go          NEW  config parse/validation tests
   - File: cmd/relay/main_test.go            NEW  build + start/stop smoke
-  - File: internal/relay/ws.go              NEW  WSS listener + upgrade (admission hook stubbed)
-  - File: internal/relay/ws_test.go         NEW  WSS handshake/upgrade tests
+  - File: internal/relay/ws.go              NEW  WSS listener + upgrade; reject until authenticated
+  - File: internal/relay/ws_test.go         NEW  WSS handshake/rejection tests
   - File: deploy/relay/ (new)               NEW  deployment foundation (systemd unit + README)
 
 OUT OF SCOPE (DO NOT TOUCH — listed so we do not creep):
-  - No byte forwarding / matching — this is RELAY-03. Accepted WSS conns are
-    admitted (registered) but not matched/forwarded.
+  - No byte forwarding / matching — this is RELAY-03. WSS upgrades are closed
+    without registration until RELAY-02 resolves I.3 and implements verified admission.
   - No identity issuance / entitlement    — RELAY-02
   - No metering/observability endpoints   — RELAY-04
   - No discovery federation               — RELAY-05
@@ -114,11 +114,11 @@ func (f *Flags) relayConfig() (relay.RelayConfig, error)
 
 - `ws.go`: `func (s *RelayService) ServeWS(ctx context.Context, ln net.Listener,
   upgrader Upgrader) error` that accepts TCP, terminates TLS, and upgrades to a
-  WebSocket. It registers each admitted connection via `EstablishConnection`
-  (admission hook — identity/entitlement fills this in RELAY-02, so the hook is
-  a clearly-marked TODO stub here).
-- After upgrade, the connection is admitted/registered but **not matched or
-  forwarded** — this is the deliberate boundary for RELAY-01.
+  WebSocket.
+- Because I.3 is unresolved, every upgraded session MUST be closed without
+  calling `EstablishConnection`. There is no unauthenticated admission stub.
+  RELAY-02 may replace this fail-closed boundary only after its authentication,
+  issuance, revocation, and entitlement decisions are approved.
 - `main.go`: build config, `NewRelayService`, start `ServeWS` in a goroutine,
   wait on SIGINT/SIGTERM (`signal.NotifyContext`), then a bounded shutdown that
   stops the WSS listener. (Explicit connection drain/`CloseConnection` ownership
@@ -145,8 +145,8 @@ self-signed TLS certs at test time (test-only helper; never commit keys).
 Tests (exact names):
 - `TestConfig_ParseAndValidate` — valid flags parse; missing `-cert`/`-key`
   errors.
-- `TestRelayWS_ServeWS_UpgradesAndRegisters` — WSS client handshake succeeds;
-  connection visible via `ListConnections(tenant)` as `active` (no forwarding).
+- `TestRelayWS_ServeWS_UpgradesThenRejectsUnauthenticated` — WSS upgrade may
+  complete, but the session closes and `ListConnections(tenant)` stays empty.
 - `TestRelayWS_ServeWS_HandshakeNoUpgrade_Rejected` — non-upgrade HTTP request
   rejected.
 - `TestRelayBinary_Smoke_StartStop` — binary starts, upgrades, stops on signal.
@@ -170,7 +170,7 @@ go test ./cmd/relay/ -v
 | # | Criterion | Test | Pass Condition |
 |---|-----------|------|----------------|
 | 1 | Config parses/validates | `TestConfig_ParseAndValidate` | Pass |
-| 2 | WSS upgrades + registers | `..._UpgradesAndRegisters` | active, no forwarding |
+| 2 | Unauthenticated WSS fails closed | `..._UpgradesThenRejectsUnauthenticated` | closed, never registered |
 | 3 | Non-WSS rejected | `..._HandshakeNoUpgrade_Rejected` | Pass |
 | 4 | No forwarding proven | test asserts no frame relay | Matched legs = 0 |
 | 5 | Contract intact | full `go test ./internal/relay/` | Prior tests pass |
@@ -180,9 +180,7 @@ go test ./cmd/relay/ -v
 ## ROLLBACK PROCEDURE
 
 ```bash
-git rm -rf cmd/relay deploy/relay
-git checkout HEAD -- internal/relay/ws.go
-git rm -f internal/relay/ws_test.go
+git rm -rf cmd/relay deploy/relay internal/relay/ws.go internal/relay/ws_test.go
 git status
 ```
 

@@ -112,9 +112,10 @@ for a tenant with no recorded activity MUST return a zeroed
 ### 5. Idle Connection Reaping
 
 5.1. `CleanupIdleConnections(ctx)` MUST close every active connection
-whose age exceeds `RelayConfig.IdleTimeout`, decrementing the tenant's
-active connection count, and MUST return the number of connections
-closed.
+whose inactivity since `LastActivityAt` exceeds `RelayConfig.IdleTimeout`,
+decrementing the tenant's active connection count, and MUST return the number
+of connections closed. `EstablishConnection` initializes `LastActivityAt` to
+the establishment time.
 
 5.2. `StartCleanupLoop(ctx)` MUST run the cleanup on a fixed 5-minute
 ticker in a background goroutine that exits when the supplied context is
@@ -153,10 +154,12 @@ flags/environment (WSS listen address, trust config for the issued-identity
 registry, per-tenant limits, idle timeout). It MUST NOT be wired into
 `cmd/server` (W8 decision).
 
-R.3. `[PLANNED]` The WSS listener MUST terminate TLS and validate a presented
+R.3. `[BLOCKED]` The WSS listener MUST terminate TLS and validate a presented
 agent identity against the issued-identity registry (§7.2) before admitting a
 rendezvous. Admission SHALL reuse `EstablishConnection` so per-tenant limits
-(3.2) and validation (3.3) apply at the edge.
+(3.2) and validation (3.3) apply at the edge. Implementation is blocked until
+the I.3 authentication design is approved; unauthenticated legs MUST be closed
+without registration.
 
 R.4. `[PLANNED]` Two admitted legs are matched by the relay only after the
 entitlement check passes for the target (I.1); matched legs then exchange
