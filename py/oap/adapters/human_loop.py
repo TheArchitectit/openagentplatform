@@ -162,7 +162,7 @@ class ApprovalGate:
 
         try:
             await asyncio.wait_for(event.wait(), timeout=effective_timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # Timeout — mark as rejected.
             req.status = ApprovalStatus.TIMED_OUT
             req.resolved_at = time.time()
@@ -196,9 +196,7 @@ class ApprovalGate:
         """
         req = self._pending.pop(approval_id, None)
         if req is None:
-            raise KeyError(
-                f"No pending approval request found with id: {approval_id}"
-            )
+            raise KeyError(f"No pending approval request found with id: {approval_id}")
 
         req.status = ApprovalStatus.APPROVED if approved else ApprovalStatus.REJECTED
         req.resolved_at = time.time()

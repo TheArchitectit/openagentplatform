@@ -16,7 +16,7 @@ import uuid
 from typing import Any
 
 from oap.adapters.cost_budget import BudgetTracker
-from oap.adapters.cost_models import CostModel, UsageReport, DEFAULT_COST_MODELS
+from oap.adapters.cost_models import DEFAULT_COST_MODELS, CostModel, UsageReport
 from oap.adapters.types import CostRecord
 
 __all__ = [

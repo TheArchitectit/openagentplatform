@@ -8,16 +8,16 @@ signature, and the default auto-approval threshold used by
 
 from __future__ import annotations
 
-import enum
 import time
 import uuid
 from collections.abc import Awaitable, Callable
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class ApprovalStatus(str, enum.Enum):
+class ApprovalStatus(StrEnum):
     """Lifecycle states for an ApprovalRequest."""
 
     PENDING = "pending"

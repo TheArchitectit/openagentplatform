@@ -8,10 +8,10 @@ Tracks cumulative spend per organisation and fires threshold-based alerts
 from __future__ import annotations
 
 from oap.adapters.cost_models import (
+    _THRESHOLDS,
     AlertSeverity,
     BudgetAlert,
     BudgetLimit,
-    _THRESHOLDS,
 )
 
 

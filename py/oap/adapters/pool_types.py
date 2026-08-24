@@ -10,11 +10,11 @@ dataclasses that describe a single pooled subprocess.
 from __future__ import annotations
 
 import asyncio
-import enum
 import json
 import struct
 import time
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Any
 
 # ---------------------------------------------------------------------------
@@ -84,7 +84,7 @@ class PoolConfig:
 # ---------------------------------------------------------------------------
 
 
-class ProcessState(str, enum.Enum):
+class ProcessState(StrEnum):
     """Lifecycle states for a pooled subprocess."""
 
     STARTING = "starting"

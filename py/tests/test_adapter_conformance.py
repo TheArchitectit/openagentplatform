@@ -14,15 +14,14 @@ from __future__ import annotations
 import inspect
 
 from .conftest import (
+    NAMES,
+    REGISTERED,
     AgentCard,
     AgentSkill,
     AgentWrapper,
-    NAMES,
-    REGISTERED,
     get_class,
     get_instance,
 )
-
 
 # ---------------------------------------------------------------------------
 # Conformance: Registration

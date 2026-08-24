@@ -1,3 +1,4 @@
+# ruff: noqa: B008
 """
 REST API for the OAP adapter subsystem.
 
@@ -22,7 +23,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -50,7 +51,6 @@ from oap.adapters.types import (
     InvokeResponse,
     StreamEvent,
 )
-
 
 # ---------------------------------------------------------------------------
 # Router

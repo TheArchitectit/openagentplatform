@@ -14,17 +14,18 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
+from collections.abc import AsyncIterator
 from pathlib import Path
 
 from oap.adapters.pool_lifecycle import PoolLifecycleMixin
 from oap.adapters.pool_types import (
-    PoolConfig,
-    PooledProcess,
-    ProcessState,
     _MSG_CANCEL,
     _MSG_HEALTH,
     _MSG_INVOKE,
     _MSG_STREAM_START,
+    PoolConfig,
+    PooledProcess,
+    ProcessState,
     _read_frame,
     _write_frame,
 )
@@ -76,9 +77,7 @@ class ProcessPool(PoolLifecycleMixin):
             for _ in range(self._config.warm_adapter_count):
                 await self._spawn(adapter_name)
 
-        self._health_task = asyncio.create_task(
-            self._health_check_loop(), name="oap-pool-health"
-        )
+        self._health_task = asyncio.create_task(self._health_check_loop(), name="oap-pool-health")
 
     async def stop(self) -> None:
         """Drain all processes and cancel background tasks."""
@@ -134,9 +133,7 @@ class ProcessPool(PoolLifecycleMixin):
             pooled.last_used = time.monotonic()
             pooled.active_tasks.clear()
 
-    async def invoke(
-        self, adapter_name: str, request: InvokeRequest
-    ) -> InvokeResponse:
+    async def invoke(self, adapter_name: str, request: InvokeRequest) -> InvokeResponse:
         """Send an INVOKE command to a pooled subprocess and await the
         response.
         """
@@ -196,9 +193,7 @@ class ProcessPool(PoolLifecycleMixin):
 
     # -- Streaming support (skeleton) ---------------------------------------
 
-    async def stream(
-        self, adapter_name: str, request: InvokeRequest
-    ) -> AsyncIterator[StreamEvent]:  # type: ignore[name-defined]
+    async def stream(self, adapter_name: str, request: InvokeRequest) -> AsyncIterator[StreamEvent]:  # type: ignore[name-defined]
         """Send STREAM_START and yield events from the subprocess.
 
         Yields:

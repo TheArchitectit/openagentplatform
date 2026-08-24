@@ -13,7 +13,8 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from oap.adapters.errors import FrameworkNotFoundError, InvocationError
 from oap.adapters.langgraph_graph import (
@@ -52,8 +53,8 @@ class LangGraphAdapter(AgentWrapper):
         **kwargs: Any,
     ) -> None:
         try:
-            from langgraph.graph import END, StateGraph  # noqa: F401
             from langchain_core.messages import AIMessage, HumanMessage  # noqa: F401
+            from langgraph.graph import END, StateGraph  # noqa: F401
         except ImportError as exc:
             raise FrameworkNotFoundError(
                 "langgraph is not installed. Run: pip install langgraph langchain-core",
@@ -168,18 +169,13 @@ class LangGraphAdapter(AgentWrapper):
                 await asyncio.sleep(0.05)
 
             if result_holder["error"]:
-                raise InvocationError(
-                    str(result_holder["error"]), adapter_name="langgraph"
-                )
+                raise InvocationError(str(result_holder["error"]), adapter_name="langgraph")
 
             final_messages = result_holder["result"]["messages"]
             last = final_messages[-1] if final_messages else None
             content = last.content if isinstance(last, AIMessage) else str(last)
 
-            tokens = sum(
-                len(str(m.content).split())
-                for m in final_messages
-            )
+            tokens = sum(len(str(m.content).split()) for m in final_messages)
 
             return InvokeResponse(
                 task_id=task_id,
@@ -224,6 +220,7 @@ class LangGraphAdapter(AgentWrapper):
                     for _node, node_state in event.items():
                         if isinstance(node_state, dict) and "messages" in node_state:
                             from langchain_core.messages import AIMessage
+
                             last = node_state["messages"][-1]
                             if isinstance(last, AIMessage):
                                 delta_text = str(last.content)

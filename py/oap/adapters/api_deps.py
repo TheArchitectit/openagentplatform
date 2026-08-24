@@ -15,9 +15,7 @@ from oap.adapters.orchestrator import OrchestrationService
 
 def get_orchestrator(request: Request) -> OrchestrationService:
     """Return the application-level OrchestrationService from app.state."""
-    orchestrator: OrchestrationService | None = getattr(
-        request.app.state, "orchestrator", None
-    )
+    orchestrator: OrchestrationService | None = getattr(request.app.state, "orchestrator", None)
     if orchestrator is None:
         raise HTTPException(status_code=503, detail="Orchestrator not initialised")
     return orchestrator

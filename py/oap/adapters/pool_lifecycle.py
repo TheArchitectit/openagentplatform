@@ -13,9 +13,9 @@ import time
 import uuid
 
 from oap.adapters.pool_types import (
+    _MSG_HEALTH,
     PooledProcess,
     ProcessState,
-    _MSG_HEALTH,
     _read_frame,
     _write_frame,
 )
@@ -68,8 +68,7 @@ class PoolLifecycleMixin:
             stale = [
                 p
                 for p in self._processes.values()
-                if p.state == ProcessState.IDLE
-                and (now - p.last_used) > self._config.idle_timeout
+                if p.state == ProcessState.IDLE and (now - p.last_used) > self._config.idle_timeout
             ]
             for pooled in stale:
                 await self._terminate(pooled)
@@ -84,7 +83,7 @@ class PoolLifecycleMixin:
             pass
         try:
             await asyncio.wait_for(pooled.process.wait(), timeout=5.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pooled.process.kill()
             await pooled.process.wait()
 
@@ -115,7 +114,7 @@ class PoolLifecycleMixin:
                             dead.append(pooled)
                         else:
                             pooled.health_ok = frame.get("healthy", False)
-                    except (asyncio.TimeoutError, BrokenPipeError, ConnectionResetError, OSError):
+                    except (TimeoutError, BrokenPipeError, ConnectionResetError, OSError):
                         dead.append(pooled)
 
                 for pooled in dead:

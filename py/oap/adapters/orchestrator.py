@@ -20,7 +20,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from oap.adapters.errors import AdapterError
 from oap.adapters.orchestrator_matching import AdapterMatchingMixin
@@ -221,7 +222,7 @@ class OrchestrationService(AdapterMatchingMixin):
                 self._pool.invoke(adapter_name, request),
                 timeout=request.timeout_seconds,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # Attempt to cancel on timeout, then release.
             try:
                 await self._pool.cancel(request.task_id)
@@ -244,7 +245,7 @@ class OrchestrationService(AdapterMatchingMixin):
             async with asyncio.timeout(request.timeout_seconds):
                 async for event in self._pool.stream(adapter_name, request):
                     yield event
-        except (asyncio.TimeoutError, TimeoutError):
+        except TimeoutError:
             try:
                 await self._pool.cancel(request.task_id)
             except Exception:

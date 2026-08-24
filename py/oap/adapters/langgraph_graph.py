@@ -67,8 +67,8 @@ def _build_graph(model: str, max_tokens: int, temperature: float) -> Any:
     """Compile a minimal two-node graph (agent -> END)."""
     from typing import TypedDict
 
-    from langgraph.graph import END, StateGraph
     from langchain_core.messages import BaseMessage
+    from langgraph.graph import END, StateGraph
 
     class GraphState(TypedDict):
         messages: list[BaseMessage]
