@@ -61,6 +61,7 @@ func (s *Server) registerRoutes(r chi.Router) {
 		r.Use(auth.VerifierMiddleware(s.sessionMinter, s.oidcVerifier, sessionCookieName))
 		r.Use(orgContextMiddleware)
 		r.Use(tenancy.TenantMiddleware(s.resolveOrgTier))
+		r.Use(tenancy.QuotaMiddleware(s.currentOrgUsage))
 		r.Route("/api/v1", func(r chi.Router) {
 			r.Get("/health", s.healthz)
 

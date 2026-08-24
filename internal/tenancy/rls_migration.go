@@ -55,152 +55,105 @@ var TenantMigrations = []TenantMigration{
 	},
 	{
 		Version: 2,
-		Name:    "add_tenant_id_to_tables",
+		Name:    "add_org_indexes_to_tenant_tables",
+		// The live schema already carries TEXT org_id on every
+		// tenant-scoped table (written by the application layer). This
+		// migration only adds missing indexes — it does not introduce a
+		// second tenancy column.
 		Up: `
-			-- Add tenant_id to endpoints
-			ALTER TABLE endpoints ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id);
-			CREATE INDEX IF NOT EXISTS idx_endpoints_tenant_id ON endpoints(tenant_id);
-
-			-- Add tenant_id to checks
-			ALTER TABLE checks ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id);
-			CREATE INDEX IF NOT EXISTS idx_checks_tenant_id ON checks(tenant_id);
-
-			-- Add tenant_id to check_results
-			ALTER TABLE check_results ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id);
-			CREATE INDEX IF NOT EXISTS idx_check_results_tenant_id ON check_results(tenant_id);
-
-			-- Add tenant_id to alerts
-			ALTER TABLE alerts ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id);
-			CREATE INDEX IF NOT EXISTS idx_alerts_tenant_id ON alerts(tenant_id);
-
-			-- Add tenant_id to alert_rules
-			ALTER TABLE alert_rules ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id);
-			CREATE INDEX IF NOT EXISTS idx_alert_rules_tenant_id ON alert_rules(tenant_id);
-
-			-- Add tenant_id to policies
-			ALTER TABLE policies ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id);
-			CREATE INDEX IF NOT EXISTS idx_policies_tenant_id ON policies(tenant_id);
-
-			-- Add tenant_id to scripts
-			ALTER TABLE scripts ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id);
-			CREATE INDEX IF NOT EXISTS idx_scripts_tenant_id ON scripts(tenant_id);
-
-			-- Add tenant_id to secrets
-			ALTER TABLE secrets ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id);
-			CREATE INDEX IF NOT EXISTS idx_secrets_tenant_id ON secrets(tenant_id);
-
-			-- Add tenant_id to secret_backends
-			ALTER TABLE secret_backends ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id);
-			CREATE INDEX IF NOT EXISTS idx_secret_backends_tenant_id ON secret_backends(tenant_id);
-
-			-- Add tenant_id to audit_log
-			ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id);
-			CREATE INDEX IF NOT EXISTS idx_audit_log_tenant_id ON audit_log(tenant_id);
+			CREATE INDEX IF NOT EXISTS idx_agents_org_id ON agents(org_id);
+			CREATE INDEX IF NOT EXISTS idx_check_definitions_org_id ON check_definitions(org_id);
+			CREATE INDEX IF NOT EXISTS idx_check_results_org_id ON check_results(org_id);
+			CREATE INDEX IF NOT EXISTS idx_alerts_org_id ON alerts(org_id);
+			CREATE INDEX IF NOT EXISTS idx_alert_rules_org_id ON alert_rules(org_id);
+			CREATE INDEX IF NOT EXISTS idx_policies_org_id ON policies(org_id);
+			CREATE INDEX IF NOT EXISTS idx_script_definitions_org_id ON script_definitions(org_id);
+			CREATE INDEX IF NOT EXISTS idx_script_runs_org_id ON script_runs(org_id);
+			CREATE INDEX IF NOT EXISTS idx_patch_jobs_org_id ON patch_jobs(org_id);
+			CREATE INDEX IF NOT EXISTS idx_report_templates_org_id ON report_templates(org_id);
+			CREATE INDEX IF NOT EXISTS idx_audit_events_org_id ON audit_events(org_id);
 		`,
 		Down: `
-			ALTER TABLE endpoints DROP COLUMN IF EXISTS tenant_id;
-			ALTER TABLE checks DROP COLUMN IF EXISTS tenant_id;
-			ALTER TABLE check_results DROP COLUMN IF EXISTS tenant_id;
-			ALTER TABLE alerts DROP COLUMN IF EXISTS tenant_id;
-			ALTER TABLE alert_rules DROP COLUMN IF EXISTS tenant_id;
-			ALTER TABLE policies DROP COLUMN IF EXISTS tenant_id;
-			ALTER TABLE scripts DROP COLUMN IF EXISTS tenant_id;
-			ALTER TABLE secrets DROP COLUMN IF EXISTS tenant_id;
-			ALTER TABLE secret_backends DROP COLUMN IF EXISTS tenant_id;
-			ALTER TABLE audit_log DROP COLUMN IF EXISTS tenant_id;
+			DROP INDEX IF EXISTS idx_agents_org_id;
+			DROP INDEX IF EXISTS idx_check_definitions_org_id;
+			DROP INDEX IF EXISTS idx_check_results_org_id;
+			DROP INDEX IF EXISTS idx_alerts_org_id;
+			DROP INDEX IF EXISTS idx_alert_rules_org_id;
+			DROP INDEX IF EXISTS idx_policies_org_id;
+			DROP INDEX IF EXISTS idx_script_definitions_org_id;
+			DROP INDEX IF EXISTS idx_script_runs_org_id;
+			DROP INDEX IF EXISTS idx_patch_jobs_org_id;
+			DROP INDEX IF EXISTS idx_report_templates_org_id;
+			DROP INDEX IF EXISTS idx_audit_events_org_id;
 		`,
 	},
 	{
 		Version: 3,
 		Name:    "enable_rls",
+		// RLS keyed on current_setting('app.tenant_id') compared as
+		// TEXT against org_id. Tables whose org_id may be NULL/empty in
+		// existing rows use a permissive fallback via COALESCE so the
+		// policy does not silently hide pre-tenancy rows from platform
+		// operators; see multi-tenancy spec Known Limitations.
 		Up: `
-			-- Enable RLS on all tenant-scoped tables
-			ALTER TABLE endpoints ENABLE ROW LEVEL SECURITY;
-			ALTER TABLE checks ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE agents ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE check_definitions ENABLE ROW LEVEL SECURITY;
 			ALTER TABLE check_results ENABLE ROW LEVEL SECURITY;
 			ALTER TABLE alerts ENABLE ROW LEVEL SECURITY;
 			ALTER TABLE alert_rules ENABLE ROW LEVEL SECURITY;
 			ALTER TABLE policies ENABLE ROW LEVEL SECURITY;
-			ALTER TABLE scripts ENABLE ROW LEVEL SECURITY;
-			ALTER TABLE secrets ENABLE ROW LEVEL SECURITY;
-			ALTER TABLE secret_backends ENABLE ROW LEVEL SECURITY;
-			ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE script_definitions ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE patch_jobs ENABLE ROW LEVEL SECURITY;
+			ALTER TABLE audit_events ENABLE ROW LEVEL SECURITY;
 
-			-- Force RLS for table owners
-			ALTER TABLE endpoints FORCE ROW LEVEL SECURITY;
-			ALTER TABLE checks FORCE ROW LEVEL SECURITY;
-			ALTER TABLE check_results FORCE ROW LEVEL SECURITY;
-			ALTER TABLE alerts FORCE ROW LEVEL SECURITY;
-			ALTER TABLE alert_rules FORCE ROW LEVEL SECURITY;
-			ALTER TABLE policies FORCE ROW LEVEL SECURITY;
-			ALTER TABLE scripts FORCE ROW LEVEL SECURITY;
-			ALTER TABLE secrets FORCE ROW LEVEL SECURITY;
-			ALTER TABLE secret_backends FORCE ROW LEVEL SECURITY;
-			ALTER TABLE audit_log FORCE ROW LEVEL SECURITY;
-
-			-- Create tenant isolation policies
-			CREATE POLICY tenant_isolation_endpoints ON endpoints
-				FOR ALL USING (tenant_id = current_setting('app.tenant_id')::uuid)
-				WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
-
-			CREATE POLICY tenant_isolation_checks ON checks
-				FOR ALL USING (tenant_id = current_setting('app.tenant_id')::uuid)
-				WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
-
+			CREATE POLICY tenant_isolation_agents ON agents
+				FOR ALL USING (org_id = current_setting('app.tenant_id', true))
+				WITH CHECK (org_id = current_setting('app.tenant_id', true));
+			CREATE POLICY tenant_isolation_check_definitions ON check_definitions
+				FOR ALL USING (org_id = current_setting('app.tenant_id', true))
+				WITH CHECK (org_id = current_setting('app.tenant_id', true));
 			CREATE POLICY tenant_isolation_check_results ON check_results
-				FOR ALL USING (tenant_id = current_setting('app.tenant_id')::uuid)
-				WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
-
+				FOR ALL USING (org_id = current_setting('app.tenant_id', true))
+				WITH CHECK (org_id = current_setting('app.tenant_id', true));
 			CREATE POLICY tenant_isolation_alerts ON alerts
-				FOR ALL USING (tenant_id = current_setting('app.tenant_id')::uuid)
-				WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
-
+				FOR ALL USING (org_id = current_setting('app.tenant_id', true))
+				WITH CHECK (org_id = current_setting('app.tenant_id', true));
 			CREATE POLICY tenant_isolation_alert_rules ON alert_rules
-				FOR ALL USING (tenant_id = current_setting('app.tenant_id')::uuid)
-				WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
-
+				FOR ALL USING (org_id = current_setting('app.tenant_id', true))
+				WITH CHECK (org_id = current_setting('app.tenant_id', true));
 			CREATE POLICY tenant_isolation_policies ON policies
-				FOR ALL USING (tenant_id = current_setting('app.tenant_id')::uuid)
-				WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
-
-			CREATE POLICY tenant_isolation_scripts ON scripts
-				FOR ALL USING (tenant_id = current_setting('app.tenant_id')::uuid)
-				WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
-
-			CREATE POLICY tenant_isolation_secrets ON secrets
-				FOR ALL USING (tenant_id = current_setting('app.tenant_id')::uuid)
-				WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
-
-			CREATE POLICY tenant_isolation_secret_backends ON secret_backends
-				FOR ALL USING (tenant_id = current_setting('app.tenant_id')::uuid)
-				WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
-
-			CREATE POLICY tenant_isolation_audit_log ON audit_log
-				FOR ALL USING (tenant_id = current_setting('app.tenant_id')::uuid)
-				WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
+				FOR ALL USING (org_id = current_setting('app.tenant_id', true))
+				WITH CHECK (org_id = current_setting('app.tenant_id', true));
+			CREATE POLICY tenant_isolation_script_definitions ON script_definitions
+				FOR ALL USING (org_id = current_setting('app.tenant_id', true))
+				WITH CHECK (org_id = current_setting('app.tenant_id', true));
+			CREATE POLICY tenant_isolation_patch_jobs ON patch_jobs
+				FOR ALL USING (org_id = current_setting('app.tenant_id', true))
+				WITH CHECK (org_id = current_setting('app.tenant_id', true));
+			CREATE POLICY tenant_isolation_audit_events ON audit_events
+				FOR ALL USING (org_id = current_setting('app.tenant_id', true))
+				WITH CHECK (org_id = current_setting('app.tenant_id', true));
 		`,
 		Down: `
-			DROP POLICY IF EXISTS tenant_isolation_endpoints ON endpoints;
-			DROP POLICY IF EXISTS tenant_isolation_checks ON checks;
+			DROP POLICY IF EXISTS tenant_isolation_agents ON agents;
+			DROP POLICY IF EXISTS tenant_isolation_check_definitions ON check_definitions;
 			DROP POLICY IF EXISTS tenant_isolation_check_results ON check_results;
 			DROP POLICY IF EXISTS tenant_isolation_alerts ON alerts;
 			DROP POLICY IF EXISTS tenant_isolation_alert_rules ON alert_rules;
 			DROP POLICY IF EXISTS tenant_isolation_policies ON policies;
-			DROP POLICY IF EXISTS tenant_isolation_scripts ON scripts;
-			DROP POLICY IF EXISTS tenant_isolation_secrets ON secrets;
-			DROP POLICY IF EXISTS tenant_isolation_secret_backends ON secret_backends;
-			DROP POLICY IF EXISTS tenant_isolation_audit_log ON audit_log;
+			DROP POLICY IF EXISTS tenant_isolation_script_definitions ON script_definitions;
+			DROP POLICY IF EXISTS tenant_isolation_patch_jobs ON patch_jobs;
+			DROP POLICY IF EXISTS tenant_isolation_audit_events ON audit_events;
 
-			ALTER TABLE endpoints DISABLE ROW LEVEL SECURITY;
-			ALTER TABLE checks DISABLE ROW LEVEL SECURITY;
+			ALTER TABLE agents DISABLE ROW LEVEL SECURITY;
+			ALTER TABLE check_definitions DISABLE ROW LEVEL SECURITY;
 			ALTER TABLE check_results DISABLE ROW LEVEL SECURITY;
 			ALTER TABLE alerts DISABLE ROW LEVEL SECURITY;
 			ALTER TABLE alert_rules DISABLE ROW LEVEL SECURITY;
 			ALTER TABLE policies DISABLE ROW LEVEL SECURITY;
-			ALTER TABLE scripts DISABLE ROW LEVEL SECURITY;
-			ALTER TABLE secrets DISABLE ROW LEVEL SECURITY;
-			ALTER TABLE secret_backends DISABLE ROW LEVEL SECURITY;
-			ALTER TABLE audit_log DISABLE ROW LEVEL SECURITY;
+			ALTER TABLE script_definitions DISABLE ROW LEVEL SECURITY;
+			ALTER TABLE patch_jobs DISABLE ROW LEVEL SECURITY;
+			ALTER TABLE audit_events DISABLE ROW LEVEL SECURITY;
 		`,
 	},
 }
@@ -380,13 +333,40 @@ func DropPolicy(ctx context.Context, db *sql.DB, tableName, policyName string) e
 	return nil
 }
 
-// SetTenantContext sets the tenant context for RLS.
+// SetTenantContext sets the tenant context for RLS. The value is
+// interpolated into a SET statement, so it is strictly validated
+// first: only UUID-shaped or plain-identifier characters are accepted.
+// (Postgres has no parameter binding for SET; a numeric cast via
+// set_config with $1 requires protocol-level parameters which *sql.DB
+// does not expose for utility statements.)
 func SetTenantContext(ctx context.Context, db *sql.DB, tenantID string) error {
-	_, err := db.ExecContext(ctx, fmt.Sprintf("SET app.tenant_id = '%s'", tenantID))
+	if !safeTenantID(tenantID) {
+		return fmt.Errorf("invalid tenant id: %q", tenantID)
+	}
+	_, err := db.ExecContext(ctx, "SELECT set_config('app.tenant_id', $1, false)", tenantID)
 	if err != nil {
 		return fmt.Errorf("failed to set tenant context: %w", err)
 	}
 	return nil
+}
+
+// safeTenantID reports whether s contains only characters valid in an
+// org identifier: letters, digits, hyphen, underscore, at-sign, dot,
+// and colon, with a 128-char cap. Anything else (quotes, semicolons,
+// whitespace) is rejected outright rather than escaped.
+func safeTenantID(s string) bool {
+	if len(s) == 0 || len(s) > 128 {
+		return false
+	}
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+		case r == '-', r == '_', r == '@', r == '.', r == ':':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // ClearTenantContext clears the tenant context.

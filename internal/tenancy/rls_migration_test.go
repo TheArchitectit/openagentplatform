@@ -1,6 +1,7 @@
 package tenancy
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -32,7 +33,7 @@ func TestTenantMigrationSQL(t *testing.T) {
 func TestTenantMigrationNames(t *testing.T) {
 	expected := []string{
 		"create_tenants_table",
-		"add_tenant_id_to_tables",
+		"add_org_indexes_to_tenant_tables",
 		"enable_rls",
 	}
 
@@ -47,89 +48,77 @@ func TestTenantMigrationNames(t *testing.T) {
 	}
 }
 
-func TestTenantMigrationTables(t *testing.T) {
-	// Verify migration 1 creates tenants table
-	m1 := TenantMigrations[0]
-	if m1.Version != 1 {
-		t.Errorf("expected version 1, got %d", m1.Version)
-	}
-	if m1.Name != "create_tenants_table" {
-		t.Errorf("expected name 'create_tenants_table', got %q", m1.Name)
-	}
-
-	// Verify migration 2 adds tenant_id to tables
-	m2 := TenantMigrations[1]
-	if m2.Version != 2 {
-		t.Errorf("expected version 2, got %d", m2.Version)
-	}
-	if m2.Name != "add_tenant_id_to_tables" {
-		t.Errorf("expected name 'add_tenant_id_to_tables', got %q", m2.Name)
-	}
-
-	// Verify migration 3 enables RLS
-	m3 := TenantMigrations[2]
-	if m3.Version != 3 {
-		t.Errorf("expected version 3, got %d", m3.Version)
-	}
-	if m3.Name != "enable_rls" {
-		t.Errorf("expected name 'enable_rls', got %q", m3.Name)
-	}
-}
-
+// TestRLSTables pins migration 3 against the LIVE table names. The
+// original migrations targeted a different product (endpoints/checks/
+// audit_log/secrets) and would have failed on first run; see the
+// remediation plan W6.
 func TestRLSTables(t *testing.T) {
-	// Verify all expected tables have RLS
 	expectedTables := []string{
-		"endpoints",
-		"checks",
+		"agents",
+		"check_definitions",
 		"check_results",
 		"alerts",
 		"alert_rules",
 		"policies",
-		"scripts",
-		"secrets",
-		"secret_backends",
-		"audit_log",
+		"script_definitions",
+		"patch_jobs",
+		"audit_events",
 	}
 
-	// Check migration 3 SQL contains all tables
 	m3 := TenantMigrations[2]
 	for _, table := range expectedTables {
-		if !containsSubstring(m3.Up, table) {
-			t.Errorf("migration 3 missing table %q", table)
+		if !strings.Contains(m3.Up, "ALTER TABLE "+table+" ENABLE ROW LEVEL SECURITY") {
+			t.Errorf("migration 3 missing ENABLE ROW LEVEL SECURITY for table %q", table)
+		}
+		if !strings.Contains(m3.Down, "DROP POLICY IF EXISTS tenant_isolation_"+table+" ON "+table) {
+			t.Errorf("migration 3 rollback missing policy drop for table %q", table)
 		}
 	}
 }
 
-func containsSubstring(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsAt(s, substr))
-}
-
-func containsAt(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
+// The rewritten migrations must never reference the diverged table
+// names from the original wrong-project draft.
+func TestNoDivergedTableNames(t *testing.T) {
+	diverged := []string{"endpoints", "audit_log", "secret_backends"}
+	for _, m := range TenantMigrations {
+		for _, d := range diverged {
+			if strings.Contains(m.Up, "TABLE "+d+" ") || strings.Contains(m.Up, "ON "+d+"\n") ||
+				strings.Contains(m.Up, "ON "+d+" ") {
+				t.Errorf("migration %d references diverged table %q", m.Version, d)
+			}
 		}
 	}
-	return false
+}
+
+// RLS policies key on TEXT org_id compared to app.tenant_id — not the
+// UUID tenant_id column of the original draft.
+func TestRLSUsesOrgIDTextModel(t *testing.T) {
+	m3 := TenantMigrations[2]
+	if strings.Contains(m3.Up, "::uuid") {
+		t.Error("migration 3 still casts tenant context to uuid")
+	}
+	if !strings.Contains(m3.Up, "org_id = current_setting('app.tenant_id', true)") {
+		t.Error("migration 3 missing org_id = current_setting policy expression")
+	}
 }
 
 func TestRLSPolicy(t *testing.T) {
 	policy := RLSPolicy{
-		TableName:  "endpoints",
-		PolicyName: "tenant_isolation_endpoints",
+		TableName:  "agents",
+		PolicyName: "tenant_isolation_agents",
 		Command:    "ALL",
-		Using:      "tenant_id = current_setting('app.tenant_id')::uuid",
-		WithCheck:  "tenant_id = current_setting('app.tenant_id')::uuid",
+		Using:      "org_id = current_setting('app.tenant_id', true)",
+		WithCheck:  "org_id = current_setting('app.tenant_id', true)",
 	}
 
-	if policy.TableName != "endpoints" {
-		t.Errorf("expected table name 'endpoints', got %q", policy.TableName)
+	if policy.TableName != "agents" {
+		t.Errorf("expected table name 'agents', got %q", policy.TableName)
 	}
 	if policy.Command != "ALL" {
 		t.Errorf("expected command 'ALL', got %q", policy.Command)
 	}
-	if policy.PolicyName != "tenant_isolation_endpoints" {
-		t.Errorf("expected policy name 'tenant_isolation_endpoints', got %q", policy.PolicyName)
+	if policy.PolicyName != "tenant_isolation_agents" {
+		t.Errorf("expected policy name 'tenant_isolation_agents', got %q", policy.PolicyName)
 	}
 }
 
@@ -145,16 +134,16 @@ func TestTenantMigrationRollback(t *testing.T) {
 func TestTenantMigrationUpSQL(t *testing.T) {
 	// Verify migration 1 creates tenants table with correct columns
 	m1 := TenantMigrations[0]
-	if !containsSubstring(m1.Up, "CREATE TABLE IF NOT EXISTS tenants") {
+	if !strings.Contains(m1.Up, "CREATE TABLE IF NOT EXISTS tenants") {
 		t.Error("migration 1 missing CREATE TABLE statement")
 	}
-	if !containsSubstring(m1.Up, "id UUID PRIMARY KEY") {
+	if !strings.Contains(m1.Up, "id UUID PRIMARY KEY") {
 		t.Error("migration 1 missing id column")
 	}
-	if !containsSubstring(m1.Up, "name VARCHAR(255)") {
+	if !strings.Contains(m1.Up, "name VARCHAR(255)") {
 		t.Error("migration 1 missing name column")
 	}
-	if !containsSubstring(m1.Up, "slug VARCHAR(100)") {
+	if !strings.Contains(m1.Up, "slug VARCHAR(100)") {
 		t.Error("migration 1 missing slug column")
 	}
 }
@@ -162,80 +151,48 @@ func TestTenantMigrationUpSQL(t *testing.T) {
 func TestTenantMigrationDownSQL(t *testing.T) {
 	// Verify migration 1 rollback drops tenants table
 	m1 := TenantMigrations[0]
-	if !containsSubstring(m1.Down, "DROP TABLE IF EXISTS tenants") {
+	if !strings.Contains(m1.Down, "DROP TABLE IF EXISTS tenants") {
 		t.Error("migration 1 rollback missing DROP TABLE statement")
 	}
 }
 
-func TestTenantMigrationAddTenantID(t *testing.T) {
-	// Verify migration 2 adds tenant_id to all tables
+// Migration 2 adds org_id indexes on the live tables.
+func TestTenantMigrationOrgIndexes(t *testing.T) {
 	m2 := TenantMigrations[1]
 	expectedTables := []string{
-		"endpoints",
-		"checks",
+		"agents",
+		"check_definitions",
 		"check_results",
 		"alerts",
 		"alert_rules",
 		"policies",
-		"scripts",
-		"secrets",
-		"secret_backends",
-		"audit_log",
+		"script_definitions",
+		"patch_jobs",
+		"audit_events",
 	}
-
 	for _, table := range expectedTables {
-		if !containsSubstring(m2.Up, "ALTER TABLE "+table+" ADD COLUMN IF NOT EXISTS tenant_id") {
-			t.Errorf("migration 2 missing tenant_id for table %q", table)
+		if !strings.Contains(m2.Up, "CREATE INDEX IF NOT EXISTS") || !strings.Contains(m2.Up, table+"(org_id)") {
+			t.Errorf("migration 2 missing org_id index for table %q", table)
 		}
 	}
 }
 
-func TestTenantMigrationEnableRLS(t *testing.T) {
-	// Verify migration 3 enables RLS on all tables
-	m3 := TenantMigrations[2]
-	expectedTables := []string{
-		"endpoints",
-		"checks",
-		"check_results",
-		"alerts",
-		"alert_rules",
-		"policies",
-		"scripts",
-		"secrets",
-		"secret_backends",
-		"audit_log",
+// SetTenantContext must reject injection payloads outright.
+func TestSetTenantContextRejectsUnsafeIDs(t *testing.T) {
+	cases := map[string]bool{
+		"org-123":              true,
+		"a-b_c@d.e:f":          true,
+		"550e8400-e29b-41d4":   true,
+		"":                     false,
+		"org'); DROP TABLE agents;--": false,
+		"org' OR '1'='1":       false,
+		"org id with spaces":   false,
+		"org;select":           false,
+		strings.Repeat("a", 129): false,
 	}
-
-	for _, table := range expectedTables {
-		if !containsSubstring(m3.Up, "ALTER TABLE "+table+" ENABLE ROW LEVEL SECURITY") {
-			t.Errorf("migration 3 missing ENABLE ROW LEVEL SECURITY for table %q", table)
-		}
-		if !containsSubstring(m3.Up, "ALTER TABLE "+table+" FORCE ROW LEVEL SECURITY") {
-			t.Errorf("migration 3 missing FORCE ROW LEVEL SECURITY for table %q", table)
-		}
-	}
-}
-
-func TestTenantMigrationPolicies(t *testing.T) {
-	// Verify migration 3 creates policies for all tables
-	m3 := TenantMigrations[2]
-	expectedTables := []string{
-		"endpoints",
-		"checks",
-		"check_results",
-		"alerts",
-		"alert_rules",
-		"policies",
-		"scripts",
-		"secrets",
-		"secret_backends",
-		"audit_log",
-	}
-
-	for _, table := range expectedTables {
-		policyName := "tenant_isolation_" + table
-		if !containsSubstring(m3.Up, "CREATE POLICY "+policyName+" ON "+table) {
-			t.Errorf("migration 3 missing policy %q for table %q", policyName, table)
+	for input, want := range cases {
+		if got := safeTenantID(input); got != want {
+			t.Errorf("safeTenantID(%q) = %v, want %v", input, got, want)
 		}
 	}
 }

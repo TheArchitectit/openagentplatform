@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log/slog"
 	"net"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	_ "github.com/jackc/pgx/v5/stdlib" // registers the "pgx" database/sql driver
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/openagentplatform/openagentplatform/a2a/bridge"
 	"github.com/openagentplatform/openagentplatform/internal/alerts"
@@ -127,6 +129,11 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 
 	auditSvc := newAuditService(pool)
 	apiServer := api.NewServer(cfg, log, pool, natsClient, auditSvc)
+
+	// Tier resolution from the platform license file (OAP_LICENSE_FILE +
+	// OAP_LICENSE_PUBLIC_KEY). Falls back to Community for all orgs when
+	// no valid license is present.
+	apiServer.SetTierResolver(newTierResolver(log))
 
 	agentStore := newAgentStoreAdapter(pool)
 	heartbeat := events.NewHeartbeatHandler(natsClient, agentStore, log)
@@ -252,6 +259,29 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		Logger: log,
 		Tables: []string{"audit_events", "check_results"},
 	})
+
+	// --- Tenant isolation migrations (opt-in) ----------------------------
+	// Applies org_id indexes and row-level-security policies. Opt-in via
+	// OAP_ENABLE_TENANT_MIGRATIONS=1 because it mutates shared schema at
+	// startup; the migrator uses database/sql over a stdlib bridge to the
+	// same Postgres DSN as the pool.
+	if os.Getenv("OAP_ENABLE_TENANT_MIGRATIONS") == "1" {
+		sqldb, err := sql.Open("pgx", cfg.PostgresDSN)
+		if err != nil {
+			log.Warn("tenant migrations: cannot open db", "error", err)
+		} else {
+			migrator := tenancy.NewTenantMigrator(sqldb)
+			mCtx, mCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer mCancel()
+			if err := migrator.Migrate(mCtx); err != nil {
+				log.Warn("tenant migrations failed", "error", err)
+			} else {
+				log.Info("tenant migrations applied")
+			}
+			// The migrator is one-shot at startup; close its handle.
+			_ = sqldb.Close()
+		}
+	}
 
 	return &Server{
 		cfg:               cfg,

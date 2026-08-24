@@ -124,6 +124,9 @@ type Server struct {
 	// a2aGateway is the A2A gateway used for native task CRUD + SSE. May
 	// be nil; task routes return 503 when unset.
 	a2aGateway *gateway.Gateway
+	// tierResolver resolves the commercial tier for an org ID from the
+	// platform license file. When nil, all orgs default to Community.
+	tierResolver func(orgID string) license.Tier
 }
 
 // Publisher is the subset of the events.Client interface used by API handlers.
@@ -183,17 +186,34 @@ func (s *Server) SessionMinter() *auth.SessionMinter {
 
 // resolveOrgTier returns the commercial tier for the given org ID.
 // It is used by the tenancy middleware to populate the TenantContext
-// with quota limits and feature flags.  The default returns Community
-// (the most permissive-free tier).  In production the license engine
-// resolves the tier from the org's license key; this method can be
-// extended to look up the tier from a database or license service.
+// with quota limits and feature flags. The tier comes from the
+// platform-wide license file resolved at startup (SetTierResolver);
+// when no resolver is wired every org is Community.
 func (s *Server) resolveOrgTier(orgID string) license.Tier {
-	if orgID == "" {
-		return license.TierCommunity
+	if s.tierResolver != nil {
+		if t := s.tierResolver(orgID); t != "" {
+			return t
+		}
 	}
-	// Future: query the license service or org_tiers table.
-	// For now all orgs default to Community unless overridden.
 	return license.TierCommunity
+}
+
+// SetTierResolver wires the license-file-backed tier resolution. The
+// resolver receives the org ID for future per-org licensing; today the
+// license is platform-wide.
+func (s *Server) SetTierResolver(resolve func(orgID string) license.Tier) {
+	s.tierResolver = resolve
+}
+
+// currentOrgUsage reports the org's API-call count for the current
+// month, as tracked by the billing metering service. It backs the
+// tenancy QuotaMiddleware; with no metering service wired, usage is 0
+// and quotas never trip.
+func (s *Server) currentOrgUsage(orgID string) int64 {
+	if s.MeteringService == nil {
+		return 0
+	}
+	return s.MeteringService.GetUsage(orgID).Counts[billing.MetricAPICallCount]
 }
 
 // SetAlertStore wires the alert persistence interface into the server.

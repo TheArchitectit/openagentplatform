@@ -200,10 +200,9 @@ func (rp *RetentionPurger) tick(ctx context.Context) {
 // than the grace period.
 //
 // The retention threshold is resolved per-tenant:
-//   - If the org has a row in the alerts_preferences table with a
-//     non-zero retention_days, that value is used.
-//   - Otherwise the tier default is used (30d community, 90d pro,
-//     365d enterprise).
+//   - If the org has a row in alert_global_preferences with a non-zero
+//     retention_days, that value is used.
+//   - Otherwise $1 (the tier default) is used.
 //
 // All queries filter on org_id so the purger can never delete
 // another tenant's data.
@@ -212,17 +211,19 @@ func (rp *RetentionPurger) purgeTable(ctx context.Context, table string) error {
 		return nil
 	}
 
-	// Phase 1: soft-delete expired records.
+	// Phase 1: soft-delete expired records. alert_global_preferences is
+	// the live org-preferences table written by alerts.UpsertGlobalPreferences;
+	// the previously referenced alert_preferences table does not exist.
 	softSQL := `
 		UPDATE ` + table + `
 		SET deleted_at = NOW()
 		WHERE deleted_at IS NULL
 		  AND created_at < NOW() - (
 		      COALESCE(
-		          (SELECT retention_days FROM alert_preferences
+		          (SELECT retention_days FROM alert_global_preferences
 		           WHERE org_id = ` + table + `.org_id AND retention_days > 0),
 		          $1::int
-		      ) || ' days')::interval
+		      )::text || ' days')::interval
 	`
 	res, err := rp.cfg.Pool.Exec(ctx, softSQL, rp.cfg.DefaultRetentionDays)
 	if err != nil {
