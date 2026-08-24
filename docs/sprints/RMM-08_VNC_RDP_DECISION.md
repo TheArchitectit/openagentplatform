@@ -60,7 +60,8 @@ OUT OF SCOPE (DO NOT TOUCH / DECIDE):
 
 Binary proxy data plane: framing, per-session transport, lifecycle, and
 recording model. The decision record MUST capture:
-- how raw TCP/pipes are tunneled over NATS (vs a new streaming subject scheme)
+- the binary-capable transport/data plane (NATS framing, WSS, or another
+  approved candidate) — do not preselect raw TCP tunneled over NATS
 - session admission + credential flow reuse from `internal/remote/`
 - recording/replay semantics for binary streams (existing recorder is text-oriented)
 - supported VNC/RDP versions and negotiation

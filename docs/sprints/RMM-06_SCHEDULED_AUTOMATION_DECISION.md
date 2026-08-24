@@ -26,13 +26,17 @@ resolves — not a missing implementation.
 Two incompatible scheduling models exist in the project's history:
 
 1. **21-bit `schedule_bitmask`** — from the original Django blueprint
-   (`docs/plans/MASTER_IMPLEMENTATION_PLAN.md` and the legacy RMM spec): fixed
-   weekday/hour/dom/month bitmask. Nothing in the current Go code implements it.
-2. **Cron-style recurrence** — the natural fit for the existing Go background
-   loops and the check scheduler's `interval_seconds` bounds (`rmm-core` §6.3).
+   (`docs/plans/MASTER_IMPLEMENTATION_PLAN.md` and the legacy RMM spec). It is
+   named in the legacy document but its weekday/hour/day-of-month/month
+   encoding semantics are not established, and nothing in the current Go code
+   implements it.
+2. **Cron-style recurrence** — a candidate grammar for the existing Go
+   background loops and the check scheduler's `interval_seconds` bounds
+   (`rmm-core` §6.3).
 
-Picking one is a product decision (which schedules must be expressible), not an
-engineering choice, and this sprint MUST NOT invent one (spec §3.2, §10.2).
+Both are candidates only. Picking one is a product decision (which schedules must
+be expressible), not an engineering choice, and this sprint MUST NOT invent one
+(spec §3.2, §10.2).
 
 **Why:** the two grammars change the `automated_tasks` JSONB schema, the entity,
 and the scheduler. Choosing wrong is a migration + schema rework.

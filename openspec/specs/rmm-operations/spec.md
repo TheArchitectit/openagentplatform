@@ -87,15 +87,21 @@ dispatch/result subjects (`pkg/agent/patcher/handler.go`:
 `.patch_install.results`). Server-side approval and batch deploy exist
 (`internal/patches/`, `internal/api/patches.go`).
 
-2.2. The gap: no per-KB *tracking table* and no WinUpdate *state machine*.
-`WinUpdate` is listed as not implemented in `rmm-core` §2.5/§4.4. The policy
-seam already exists: `win_update_policy` JSONB on `Policy`
-(`py/alembic/versions/0005_policies.py:40`).
+2.2. The gap is partial, not total. The migration already defines per-agent,
+per-catalog tracking with a lifecycle:
+`py/alembic/versions/0006_patches.py` defines `patch_job_targets` keyed by
+agent and `patch_catalog_id`, including an eight-state per-patch lifecycle
+constraint. `WinUpdate` is listed as not implemented in `rmm-core` §2.5/§4.4,
+and the policy seam exists (`win_update_policy` JSONB on `Policy`,
+`py/alembic/versions/0005_policies.py:40`). The live Go model/store does not
+expose or consistently use the migration's catalog and state columns.
 
-2.3. IN scope (RMM-03): a per-KB tracking table (agent ↔ KB linkage, state,
-severity) and an explicit transition-table state machine following the
-`rmm-core` §4.1 convention, driven by the existing scan/install subjects and the
-`win_update_policy` seam.
+2.3. IN scope (RMM-03): reconcile the migration's tracking/lifecycle columns
+with the live Go model and store, then add whatever per-KB tracking or
+transition-table state machine is still missing — following the `rmm-core` §4.1
+convention and driven by the existing scan/install subjects and the
+`win_update_policy` seam. Do not create a second tracking table where the
+migration already defines one.
 
 2.4. OUT of scope: inventing new NATS subjects or resurrecting `rmm.winupdate.*`
 topics. Reuse the existing `oap.agents.<id>.patch_*` subjects or add a sibling
@@ -131,7 +137,10 @@ alert-suppression window.
 4.3. IN scope (RMM-02): a fleet-level alert-suppression window entity
 (org/client/site-scoped, recurring or one-shot) that suppresses alert
 *notifications* during the window, reused by `internal/alerts/` — distinct from
-patch windows (§4.1) and from per-user quiet hours (§4.2).
+patch windows (§4.1) and from per-user quiet hours (§4.2). Two design choices
+must be approved before model/migration work: whether client scope is persisted
+directly or derived through site membership, and the one-shot/recurrence
+representation.
 
 4.4. OUT of scope: merging with the patch `MaintenanceWindow`; changing
 quiet-hours behavior.
@@ -155,6 +164,12 @@ silence. That is liveness, not an SLA alarm. The gap: no *alert-rule condition*
 than a configured duration (e.g. 24h), evaluated against `last_seen`. Reuse the
 existing alert engine (`internal/alerts/`) and rule store
 (`internal/alerts/store_alerts_rules.go`); do not change liveness semantics.
+Note: the alert engine reacts to incoming alert events and has no agent-lookup
+seam, so a new rule field alone cannot detect "silent for N hours" — RMM-01
+must first specify a source-backed trigger (periodic stale-agent evaluator with
+an explicit query seam, or conversion of lifecycle/staleness events into alert
+events with delayed evaluation) plus idempotency/deduplication and recovery
+semantics.
 
 5.4. OUT of scope: changing the 120s offline threshold or heartbeat TTL, or
 introducing graded SLA (open decision 10.4).
@@ -166,13 +181,17 @@ introducing graded SLA (open decision 10.4).
 (types at §299, coordinator at §350, staggered via `RebootStagger`) have ZERO
 callers. `NeedsReboot` is already reported on patch targets (`rmm-core` §9.5).
 
-6.2. IN scope (RMM-04): wire `CoordinateReboots` into the deploy-completion
-path and add a server→agent `oap.agents.<id>.reboot` command subject with an
-agent-side handler so reboots are orchestrated, not deferred to the agent's own
-`/r`.
+6.2. IN scope (RMM-04): wire the existing `CoordinateReboots` sequencing and
+health-check scaffold into the deploy-completion path. `CoordinateReboots` only
+waits, runs pre/post health checks, and records results — it does not invoke any
+reboot transport and contains no backoff. An approved ownership decision must
+define where the actual reboot action occurs between the pre- and post-checks
+before an `oap.agents.<id>.reboot` command subject and agent handler can be
+added.
 
 6.3. OUT of scope / open decision (10.6): whether reboots are server-coordinated
-(push) vs agent self-reboot — decide before finalizing the agent handler.
+(push) vs agent self-reboot — decide before finalizing any reboot transport or
+agent handler.
 
 ### 7. CVE-to-Patch Correlation — IN (RMM-05)
 
@@ -183,7 +202,10 @@ server-side ingestion, matching, or lookup.
 
 7.2. IN scope (RMM-05): server-side CVE intake (source + cadence per open
 decision 10.7), matching to patch KB records (populating `cve_ids`), and a
-look-up endpoint the web UI already expects.
+new CVE↔KB look-up API contract. The web type file
+(`web/src/lib/usePatches_types.ts`) already exposes `cve_ids` and `cvss_score`
+fields, but no endpoint contract exists for it — RMM-05 must design and approve
+that contract (OpenAPI/handler shape) before building it.
 
 7.3. OUT of scope / open decision (10.7): the CVE data source (NVD/OSV/MSRC)
 and cadence are undecided — the sprint MUST resolve this before building the
@@ -202,10 +224,12 @@ update channel; execution follows only after a security decision (open decision
 
 ### 9. VNC/RDP Remote Protocols — DEFERRED (RMM-08)
 
-9.1. Only SSH/WinRM over a text-PTY NATS bridge exist
-(`pkg/agent/shell/`, `internal/remote/natsbridge.go`, `shell_manager.go`).
-VNC/RDP are binary protocols; the text base64 I/O bridge cannot carry them
-without a new proxy data plane.
+9.1. Only SSH over a text-PTY NATS bridge is operational today
+(`pkg/agent/shell/`, `internal/remote/natsbridge.go`, `shell_manager.go`). The
+agent also has a WinRM protocol branch, but it is an explicit PowerShell
+`Read-Host` stub pending a real library and credentials — it is not operational
+WinRM support. VNC/RDP are binary protocols; the text base64 I/O bridge cannot
+carry them without a new binary-capable proxy data plane.
 
 9.2. DEFERRED: RMM-08 is the highest-risk decision gate — a new binary proxy
 data plane with no current code to anchor to. It resolves that design and MUST

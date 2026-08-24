@@ -71,8 +71,10 @@ STEP 2 (INGEST): Service that fetches CVEs from the approved source and upserts
 STEP 3 (MATCH): Match source KB↔CVE mappings to patch catalog records, populating
     cve_ids per (org, kb). Idempotent, at-least-once safe. TOOL: Write
 
-STEP 4 (API): Look-up endpoint(s) — CVE→KB and KB→CVE — matching what
-    usePatches_types.ts expects. TOOL: Edit
+STEP 4 (API): Design and approve the CVE↔KB look-up API contract (OpenAPI +
+    handler shape), then implement it. The web type file exposes `cve_ids` and
+    `cvss_score` but no endpoint contract exists yet — do not assume the UI's
+    types alone define the server contract. TOOL: Edit
 
 STEP 5 (SCHEDULE): Optional cadence loop for refresh (background loop convention,
     rmm-core §12). TOOL: Edit

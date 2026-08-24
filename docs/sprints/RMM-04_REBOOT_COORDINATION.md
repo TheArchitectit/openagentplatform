@@ -30,7 +30,11 @@ not implemented. The logic (`CoordinateReboots`) exists but is dead code, and
 there is no subject for the agent to receive a reboot directive.
 
 **Why:** Predictable, in-window reboots are core to patch operations; the
-building blocks already exist.
+building blocks already exist. `CoordinateReboots` is an unwired sequencing and
+health-check scaffold — it waits, runs pre/post checks, and records results, but
+it sends no reboot and has no backoff. An approved ownership decision must define
+where the actual reboot action occurs between the pre- and post-checks before
+this function can be wired.
 **Where:** `internal/patches/deployer_strategies.go` (callers),
 `cmd/agent/main.go` + `pkg/agent/patcher/` (new reboot handler),
 `internal/patches/store_*.go` (persist reboot scheduling).

@@ -102,8 +102,12 @@ STEP 5 (COMMIT): Commit with the project trailer convention (see Commit).
 
 ```bash
 # Discard spec + dedupe edits (this sprint only)
+# Record touched files first, then revert only those exact paths:
+git diff --name-only > /tmp/rmm-00-touched.txt
 git checkout HEAD -- openspec/specs/rmm-operations/spec.md openspec/specs/rmm-core/spec.md docs/sprints/RMM-00_RMM_OPERATIONS_FOUNDATION.md
 git status   # confirm clean
+# If a file was created (not modified) by this sprint, remove it with
+# `git rm -f` rather than checkout.
 ```
 
 ## Acceptance Criteria

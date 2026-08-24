@@ -76,8 +76,15 @@ STEP 3 (STORE): Persist/read the new column in store_alerts_rules.go CREATE/UPDA
 
 STEP 4 (ENGINE): In the alert evaluation path, when an AlertRule carries the
     silence condition, compare agent.last_seen to now - N; fire only when the
-    agent is silent longer than N (and otherwise matches). Reuse existing
-    agent lookup. TOOL: Edit
+    agent is silent longer than N (and otherwise matches). TOOL: Edit
+
+    IMPORTANT: the existing alert engine reacts to incoming alert events and has
+    no agent-lookup seam, so a rule field alone cannot detect "silent for N
+    hours." Before this step, choose and implement one source-backed trigger:
+    either a periodic stale-agent evaluator with an explicit agent-query seam,
+    or conversion of lifecycle/staleness events into alert events with delayed
+    evaluation. Add idempotency/deduplication and recovery semantics so a
+    flapping agent does not spam the mailbox on every sweep.
 
 STEP 5 (API VALIDATION): Where alert-rule fields are validated on input, accept
     and bound the new condition. TOOL: Edit

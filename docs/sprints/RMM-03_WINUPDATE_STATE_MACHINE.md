@@ -66,15 +66,21 @@ install dispatch.
 ## Production-Before-Test Sequence
 
 ```
-STEP 1 (STATE MACHINE): Declare the WinUpdate transition table (scanned →
-    approved → installing → installed | reboot_required | failed), modeled on
-    internal/patches/approval.go and the rmm-core §4.1 convention, with
-    ValidTransitions-style rejection of illegal moves. TOOL: Write
+STEP 1 (RECONCILE): Compare the migration constraint
+    (`py/alembic/versions/0006_patches.py` `patch_job_targets`, keyed by agent +
+    patch_catalog_id with its eight-state per-patch lifecycle), the live Go
+    deployment statuses, and the desired contract. Approve ONE canonical
+    transition table — do not invent a second lifecycle. The migration already
+    includes states such as `pending_approval` and `rejected` that any new table
+    must account for. TOOL: Write
 
-STEP 2 (MODEL): Add the per-KB tracking struct (agent, kb, severity, state,
-    approved_by) to pkg/models/. TOOL: Edit
+STEP 2 (MODEL): Adapt the existing table/model/store to expose the approved
+    state columns; only add what the migration does not already define.
+    TOOL: Edit
 
-STEP 3 (MIGRATION): Additive per-KB table. TOOL: Write alembic version
+STEP 3 (MIGRATION): Additive only; do not replace the existing
+    `patch_job_targets` table unless an approved migration explicitly requires it.
+    TOOL: Write alembic version
 
 STEP 4 (STORE): Persist scan results from existing patch_scan.results into the
     per-KB table (link by KB id), and apply install transitions from the
