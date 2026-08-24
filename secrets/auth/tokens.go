@@ -1,5 +1,7 @@
 // Package auth provides A2A authentication token management.
-// This file implements the TokenIssuer with EdDSA (Ed25519) JWT signing/verification.
+// This file defines the token types, errors, Ed25519 key helpers, and the
+// TokenIssuer constructor. JWT signing/verification lives in token_issue.go
+// and delegation/revocation logic in token_exchange.go.
 package auth
 
 import (
@@ -7,11 +9,9 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -65,12 +65,12 @@ type jwtHeader struct {
 
 // TokenIssuer issues and verifies EdDSA (Ed25519) signed JWTs for A2A communication.
 type TokenIssuer struct {
-	privateKey   ed25519.PrivateKey
-	publicKey    ed25519.PublicKey
-	keyID        string
-	issuer       string
-	revocation   *RevocationList
-	defaultTTL   time.Duration
+	privateKey ed25519.PrivateKey
+	publicKey  ed25519.PublicKey
+	keyID      string
+	issuer     string
+	revocation *RevocationList
+	defaultTTL time.Duration
 }
 
 // NewTokenIssuer creates a new TokenIssuer with the given Ed25519 key pair.
@@ -135,216 +135,6 @@ func DecodePrivateKeyPEM(pemData []byte) (ed25519.PrivateKey, error) {
 		return nil, errors.New("auth: key is not Ed25519")
 	}
 	return privKey, nil
-}
-
-// Issue creates and signs a new JWT with the given claims.
-// The issuer's configured "iss" value is automatically set; iss in the provided
-// claims is overridden. iat and nbf are set to now. exp must be set in claims.
-// A JTI is auto-generated if not provided.
-func (t *TokenIssuer) Issue(claims TokenClaims) (string, error) {
-	now := time.Now()
-
-	// Auto-generate JTI if not provided.
-	if claims.JTI == "" {
-		jti, err := generateJTI()
-		if err != nil {
-			return "", fmt.Errorf("auth: generate JTI: %w", err)
-		}
-		claims.JTI = jti
-	}
-
-	// Enforce issuer.
-	claims.Issuer = t.issuer
-
-	// Set timestamps.
-	claims.IssuedAt = now.Unix()
-	if claims.NotBefore == 0 {
-		claims.NotBefore = now.Unix()
-	}
-	if claims.ExpiresAt == 0 {
-		return "", errors.New("auth: ExpiresAt must be set in claims")
-	}
-	if claims.ExpiresAt <= now.Unix() {
-		return "", errors.New("auth: ExpiresAt must be in the future")
-	}
-
-	// Ensure scopes is never nil for JSON consistency.
-	if claims.Scopes == nil {
-		claims.Scopes = []string{}
-	}
-	if claims.DelegationChain == nil {
-		claims.DelegationChain = []DelegationEntry{}
-	}
-
-	// Build header.
-	header := jwtHeader{
-		Alg: "EdDSA",
-		Typ: "JWT",
-		Kid: t.keyID,
-	}
-
-	headerJSON, err := json.Marshal(header)
-	if err != nil {
-		return "", fmt.Errorf("auth: marshal header: %w", err)
-	}
-
-	payloadJSON, err := json.Marshal(claims)
-	if err != nil {
-		return "", fmt.Errorf("auth: marshal claims: %w", err)
-	}
-
-	headerB64 := base64.RawURLEncoding.EncodeToString(headerJSON)
-	payloadB64 := base64.RawURLEncoding.EncodeToString(payloadJSON)
-	signingInput := headerB64 + "." + payloadB64
-
-	sig := ed25519.Sign(t.privateKey, []byte(signingInput))
-	sigB64 := base64.RawURLEncoding.EncodeToString(sig)
-
-	return signingInput + "." + sigB64, nil
-}
-
-// Verify parses, validates signature, expiry, nbf, and revocation status of a JWT.
-// It does NOT check scope requirements; use Matches() for that after verification.
-func (t *TokenIssuer) Verify(tokenStr string) (*TokenClaims, error) {
-	parts := strings.Split(tokenStr, ".")
-	if len(parts) != 3 {
-		return nil, ErrInvalidTokenFormat
-	}
-
-	headerB64, payloadB64, sigB64 := parts[0], parts[1], parts[2]
-
-	// Decode and validate header.
-	headerJSON, err := base64.RawURLEncoding.DecodeString(headerB64)
-	if err != nil {
-		return nil, fmt.Errorf("auth: decode header: %w", err)
-	}
-	var header jwtHeader
-	if err := json.Unmarshal(headerJSON, &header); err != nil {
-		return nil, fmt.Errorf("auth: parse header: %w", err)
-	}
-	if header.Alg != "EdDSA" {
-		return nil, fmt.Errorf("%w: %s", ErrInvalidAlgorithm, header.Alg)
-	}
-
-	// Verify signature.
-	sig, err := base64.RawURLEncoding.DecodeString(sigB64)
-	if err != nil {
-		return nil, fmt.Errorf("auth: decode signature: %w", err)
-	}
-	signingInput := headerB64 + "." + payloadB64
-	if !ed25519.Verify(t.publicKey, []byte(signingInput), sig) {
-		return nil, ErrInvalidSignature
-	}
-
-	// Decode claims.
-	payloadJSON, err := base64.RawURLEncoding.DecodeString(payloadB64)
-	if err != nil {
-		return nil, fmt.Errorf("auth: decode payload: %w", err)
-	}
-	var claims TokenClaims
-	if err := json.Unmarshal(payloadJSON, &claims); err != nil {
-		return nil, fmt.Errorf("auth: parse claims: %w", err)
-	}
-
-	now := time.Now().Unix()
-
-	// Check expiration.
-	if claims.ExpiresAt <= now {
-		return nil, ErrTokenExpired
-	}
-
-	// Check not-before.
-	if claims.NotBefore > now {
-		return nil, ErrTokenNotYetValid
-	}
-
-	// Check issuer matches (prevents tokens from other issuers being accepted).
-	if claims.Issuer != t.issuer {
-		return nil, fmt.Errorf("auth: unexpected issuer: %s", claims.Issuer)
-	}
-
-	// Check revocation.
-	if t.revocation.Contains(claims.JTI) {
-		return nil, ErrTokenRevoked
-	}
-
-	// Compute remaining TTL.
-	claims.RemainingTTL = time.Duration(claims.ExpiresAt-now) * time.Second
-
-	return &claims, nil
-}
-
-// Exchange creates a new down-scoped token from a parent token. The child token
-// has a subset of the parent's scopes, an extended delegation chain, and a
-// reduced TTL (50% per hop). Maximum delegation depth is 3.
-func (t *TokenIssuer) Exchange(parentToken string, requestedScopes []string) (string, error) {
-	parent, err := t.Verify(parentToken)
-	if err != nil {
-		return "", fmt.Errorf("auth: verify parent: %w", err)
-	}
-
-	// Check delegation depth.
-	currentDepth := len(parent.DelegationChain)
-	if currentDepth >= MaxDelegationDepth {
-		return "", fmt.Errorf("%w: current depth %d", ErrMaxDelegationDepth, currentDepth)
-	}
-
-	// Down-scope: requested scopes must be a subset of parent scopes.
-	if !Matches(requestedScopes, parent.Scopes) {
-		return "", fmt.Errorf("%w: requested scopes not all granted by parent", ErrScopeNotAllowed)
-	}
-
-	// Reduce TTL by 50% per hop.
-	parentTTL := parent.RemainingTTL
-	newTTL := time.Duration(float64(parentTTL) * ttlReductionFactor)
-	if newTTL <= 0 {
-		return "", errors.New("auth: parent TTL too short for further delegation")
-	}
-
-	now := time.Now()
-
-	// Extend delegation chain.
-	newChain := make([]DelegationEntry, len(parent.DelegationChain)+1)
-	copy(newChain, parent.DelegationChain)
-	newChain[currentDepth] = DelegationEntry{
-		Issuer:      parent.Subject,
-		DelegatedTo: parent.Audience,
-		Scopes:      requestedScopes,
-		Exp:         now.Add(newTTL).Unix(),
-	}
-
-	// Issue child token.
-	childClaims := TokenClaims{
-		Subject:         parent.Subject,
-		Audience:        parent.Audience,
-		ExpiresAt:       now.Add(newTTL).Unix(),
-		Scopes:          requestedScopes,
-		DelegationChain: newChain,
-	}
-
-	return t.Issue(childClaims)
-}
-
-// Revoke adds a JTI to the revocation list with the given TTL.
-// The TTL should typically be the remaining lifetime of the token.
-func (t *TokenIssuer) Revoke(jti string, ttl time.Duration) {
-	expiresAt := time.Now().Add(ttl)
-	t.revocation.Add(jti, expiresAt)
-}
-
-// IsRevoked reports whether the given JTI is in the revocation list.
-func (t *TokenIssuer) IsRevoked(jti string) bool {
-	return t.revocation.Contains(jti)
-}
-
-// PublicKey returns the Ed25519 public key for external verification.
-func (t *TokenIssuer) PublicKey() ed25519.PublicKey {
-	return t.publicKey
-}
-
-// KeyID returns the configured key identifier.
-func (t *TokenIssuer) KeyID() string {
-	return t.keyID
 }
 
 // generateJTI creates a random unique token identifier.
