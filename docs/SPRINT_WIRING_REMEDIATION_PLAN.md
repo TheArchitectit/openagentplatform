@@ -135,5 +135,5 @@ integration tests named in each section. One item per commit.
 | W4 reports wiring | done | 61b29e8 |
 | W5 shell wiring | done | 4da9d9e |
 | W6 tenancy wiring | done | 3ad3f4f |
-| W7 adapter proxy | pending | — |
+| W7 adapter proxy | done | b5963b7 |
 | W8 small items | pending | — |
