@@ -2,21 +2,19 @@
 // The URL, method, headers, and body template are all configurable. Each
 // request is signed with HMAC-SHA256 in the X-OAP-Signature header so
 // the receiving end can verify the payload came from the platform.
+//
+// SSRF guardrails live in webhook_ssrf.go; body rendering and HMAC signing
+// live in webhook_body.go.
 package notify
 
 import (
 	"bytes"
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"text/template"
 	"time"
@@ -26,13 +24,13 @@ import (
 
 // WebhookConfig is the type-specific configuration for the generic webhook.
 type WebhookConfig struct {
-	URL          string            `json:"url"`
-	Method       string            `json:"method"`          // "POST" or "PUT"
-	Headers      map[string]string `json:"headers,omitempty"`
-	BodyTemplate string            `json:"body_template,omitempty"` // Go text/template; "" => default JSON
-	Secret       string            `json:"secret,omitempty"`        // HMAC signing key
-	TimeoutSeconds int             `json:"timeout_seconds,omitempty"`
-	MaxRetries   int               `json:"max_retries,omitempty"`   // per-call; capped by Dispatch
+	URL            string            `json:"url"`
+	Method         string            `json:"method"` // "POST" or "PUT"
+	Headers        map[string]string `json:"headers,omitempty"`
+	BodyTemplate   string            `json:"body_template,omitempty"` // Go text/template; "" => default JSON
+	Secret         string            `json:"secret,omitempty"`        // HMAC signing key
+	TimeoutSeconds int               `json:"timeout_seconds,omitempty"`
+	MaxRetries     int               `json:"max_retries,omitempty"` // per-call; capped by Dispatch
 }
 
 // Validate verifies the webhook channel configuration.
@@ -65,121 +63,6 @@ func (w *WebhookConfig) Validate() error {
 	return nil
 }
 
-// validateWebhookURL blocks outbound requests to internal addresses to
-// prevent Server-Side Request Forgery. It rejects loopback, link-local,
-// private (RFC1918), and unicast-mesh (RFC4193) hosts, as well as the
-// cloud-instance metadata endpoints (169.254.169.254) and hostnames that
-// already resolve to a blocked IP. Hosts that don't resolve yet are allowed
-// through validation; the dial-time check in webhookHTTPClient re-verifies
-// the resolved IP to defeat DNS rebinding.
-func validateWebhookURL(rawURL string) error {
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return fmt.Errorf("webhook: invalid url: %w", err)
-	}
-	host := u.Hostname()
-	if host == "" {
-		return errors.New("webhook: url has no host")
-	}
-	// Reject well-known internal hostnames outright.
-	if isBlockedHostname(host) {
-		return fmt.Errorf("webhook: host %q is blocked (internal/loopback address)", host)
-	}
-	// If the host is already a literal IP, validate it directly.
-	if ip := net.ParseIP(host); ip != nil {
-		if isBlockedIP(ip) {
-			return fmt.Errorf("webhook: host %q is blocked (internal/loopback address)", host)
-		}
-		return nil
-	}
-	// Resolve the hostname and reject if any A/AAAA record is internal.
-	ips, err := net.LookupIP(host)
-	if err != nil {
-		// Unresolvable now — allow; the dial check catches rebinding later.
-		return nil
-	}
-	for _, ip := range ips {
-		if isBlockedIP(ip) {
-			return fmt.Errorf("webhook: host %q resolves to blocked address %s", host, ip)
-		}
-	}
-	return nil
-}
-
-// isBlockedHostname matches hostnames that should never be a webhook target.
-func isBlockedHostname(host string) bool {
-	switch strings.ToLower(strings.TrimSuffix(host, ".")) {
-	case "localhost", "localhost.localdomain", "ip6-localhost", "ip6-loopback",
-		"metadata", "metadata.google.internal":
-		return true
-	}
-	return false
-}
-
-// isBlockedIP reports whether an IP is internal/metadata and must not be a
-// webhook destination.
-func isBlockedIP(ip net.IP) bool {
-	if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
-		ip.IsInterfaceLocalMulticast() || ip.IsPrivate() || ip.IsUnspecified() {
-		return true
-	}
-	// AWS / GCP / Azure / OpenStack instance-metadata endpoint.
-	if ip.Equal(net.IPv4(169, 254, 169, 254)) {
-		return true
-	}
-	// IPv6 unicast mesh/local (fc00::/7, fe80::/10) are already covered by
-	// IsPrivate/IsLinkLocalUnicast, but keep an explicit guard for clarity.
-	return false
-}
-
-// webhookDialContext wraps net.Dialer.DialContext and rejects any resolved
-// address that is internal/metadata. This is the authoritative SSRF guard:
-// even if a hostname passed validation because it was unresolvable, the
-// dialer re-checks the IP the resolver actually returns at connect time.
-func webhookDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
-	host, port, err := net.SplitHostPort(addr)
-	if err != nil {
-		return nil, err
-	}
-	ip := net.ParseIP(host)
-	if ip == nil {
-		ips, lerr := net.DefaultResolver.LookupIPAddr(ctx, host)
-		if lerr != nil {
-			return nil, lerr
-		}
-		if len(ips) == 0 {
-			return nil, fmt.Errorf("webhook: no addresses for %s", host)
-		}
-		// Check ALL resolved IPs — not just the first — to prevent
-		// multi-IP bypass where the first is public but others are private.
-		for _, resolved := range ips {
-			if isBlockedIP(resolved.IP) {
-				return nil, fmt.Errorf("webhook: dial to blocked address %s refused (resolved from %s)", resolved.IP, host)
-			}
-		}
-		ip = ips[0].IP
-	}
-	if isBlockedIP(ip) {
-		return nil, fmt.Errorf("webhook: dial to blocked address %s refused", ip)
-	}
-	d := net.Dialer{Timeout: 10 * time.Second}
-	return d.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
-}
-
-// webhookHTTPClient returns an *http.Client whose transport re-checks the
-// resolved destination IP on every dial, defeating DNS-rebinding SSRF.
-func webhookHTTPClient(timeout time.Duration) *http.Client {
-	return &http.Client{
-		Timeout: timeout,
-		Transport: &http.Transport{
-			DialContext: webhookDialContext,
-		},
-	}
-}
-
-// defaultWebhookBody is the default JSON payload sent to the webhook.
-const defaultWebhookBody = `{"alert_id":"{{.AlertID}}","severity":"{{.Severity}}","state":"{{.State}}","check_id":"{{.CheckID}}","agent_id":"{{.AgentID}}","message":{{quote .Message}},"timestamp":"{{.Timestamp}}","platform_url":"{{.PlatformURL}}","alert_url":"{{.AlertURL}}"}`
-
 // WebhookNotifier delivers alerts via generic HTTP webhooks with
 // optional HMAC-SHA256 body signing.
 type WebhookNotifier struct {
@@ -211,25 +94,25 @@ func (w *WebhookNotifier) Notify(ctx context.Context, alert *models.Alert, chann
 	}
 
 	data := struct {
-		AlertID    string
-		Severity   string
-		State      string
-		CheckID    string
-		AgentID    string
-		Message    string
-		Timestamp  string
+		AlertID     string
+		Severity    string
+		State       string
+		CheckID     string
+		AgentID     string
+		Message     string
+		Timestamp   string
 		PlatformURL string
-		AlertURL   string
+		AlertURL    string
 	}{
-		AlertID:    alert.ID,
-		Severity:   alert.Severity,
-		State:      alert.State,
-		CheckID:    alert.CheckID,
-		AgentID:    alert.AgentID,
-		Message:    alert.Message,
-		Timestamp:  alert.CreatedAt.UTC().Format(time.RFC3339),
+		AlertID:     alert.ID,
+		Severity:    alert.Severity,
+		State:       alert.State,
+		CheckID:     alert.CheckID,
+		AgentID:     alert.AgentID,
+		Message:     alert.Message,
+		Timestamp:   alert.CreatedAt.UTC().Format(time.RFC3339),
 		PlatformURL: platformURL,
-		AlertURL:   alertURL,
+		AlertURL:    alertURL,
 	}
 
 	body, err := renderBody(cfg.BodyTemplate, data)
@@ -287,37 +170,4 @@ func (w *WebhookNotifier) ValidateConfig(raw json.RawMessage) error {
 		return fmt.Errorf("webhook: invalid json: %w", err)
 	}
 	return cfg.Validate()
-}
-
-// renderBody renders the body template against data, or returns the
-// default JSON payload when no template is configured.
-func renderBody(tplText string, data any) ([]byte, error) {
-	if tplText == "" {
-		tplText = defaultWebhookBody
-	}
-	funcs := template.FuncMap{
-		"quote": func(s string) (string, error) {
-			b, err := json.Marshal(s)
-			if err != nil {
-				return "", err
-			}
-			return string(b), nil
-		},
-	}
-	tpl, err := template.New("body").Funcs(funcs).Parse(tplText)
-	if err != nil {
-		return nil, err
-	}
-	var buf bytes.Buffer
-	if err := tpl.Execute(&buf, data); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
-// signHMAC returns the lowercase hex HMAC-SHA256 of msg using key.
-func signHMAC(key string, msg []byte) string {
-	mac := hmac.New(sha256.New, []byte(key))
-	mac.Write(msg)
-	return hex.EncodeToString(mac.Sum(nil))
 }

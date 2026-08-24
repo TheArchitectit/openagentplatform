@@ -7,48 +7,6 @@ import (
 	"time"
 )
 
-// --- agentIDFromSubject tests ---
-
-func TestAgentIDFromSubject(t *testing.T) {
-	tests := []struct {
-		subject string
-		want    string
-	}{
-		{"oap.agents.agent-1.heartbeat", "agent-1"},
-		{"oap.agents.a1.heartbeat", "a1"},
-		{"oap.agents.my.dotted.id.heartbeat", "my.dotted.id"},
-		// Too few parts
-		{"oap.agents.heartbeat", ""},
-		{"oap.agents", ""},
-		{"oap", ""},
-		{"", ""},
-		// Wrong prefix
-		{"wrong.agents.a1.heartbeat", ""},
-		{"oap.agents.a1.other", "a1"}, // technically "a1" between agents and last
-		// Edge: just "oap.agents.X" (3 parts)
-		{"oap.agents.x", ""},
-	}
-	for _, tt := range tests {
-		t.Run(tt.subject, func(t *testing.T) {
-			got := agentIDFromSubject(tt.subject)
-			if got != tt.want {
-				t.Errorf("agentIDFromSubject(%q) = %q, want %q", tt.subject, got, tt.want)
-			}
-		})
-	}
-}
-
-
-// --- CheckAssignmentSubject test ---
-
-func TestCheckAssignmentSubject(t *testing.T) {
-	got := CheckAssignmentSubject("agent-42")
-	want := "oap.agents.agent-42.checks"
-	if got != want {
-		t.Errorf("CheckAssignmentSubject = %q, want %q", got, want)
-	}
-}
-
 // --- HeartbeatHandler markOnline / markOffline / onlineAgentIDs ---
 
 func TestHeartbeatHandler_MarkOnlineOffline(t *testing.T) {
@@ -102,7 +60,7 @@ func TestHeartbeatHandler_MarkOnlineIdempotent(t *testing.T) {
 	}
 }
 
-// --- NewHeartbeatHandler / NewCheckDispatcher nil-safe construction ---
+// --- NewHeartbeatHandler nil-safe construction ---
 
 func TestNewHeartbeatHandler_NilLogger(t *testing.T) {
 	h := NewHeartbeatHandler(nil, nil, nil)
@@ -114,73 +72,6 @@ func TestNewHeartbeatHandler_NilLogger(t *testing.T) {
 	}
 	if h.stopCh == nil {
 		t.Error("stopCh should be initialized")
-	}
-}
-
-func TestNewCheckDispatcher_NilLogger(t *testing.T) {
-	d := NewCheckDispatcher(nil, nil, nil, nil)
-	if d == nil {
-		t.Fatal("NewCheckDispatcher returned nil")
-	}
-	if d.stopCh == nil {
-		t.Error("stopCh should be initialized")
-	}
-}
-
-// --- Client.Close idempotency ---
-
-func TestClient_CloseNil(t *testing.T) {
-	// Should not panic.
-	var c *Client
-	c.Close()
-}
-
-func TestClient_CloseIdempotent(t *testing.T) {
-	// We can't easily create a real NATS client in tests without a server,
-	// but we can test that Close is safe to call on a zero-value Client
-	// (nil conn).
-	c := &Client{log: nil}
-	// Close should handle nil conn gracefully.
-	// Note: Close calls c.conn.Drain() when conn != nil, so with conn == nil
-	// it should return early after draining subs (which is nil).
-	c.Close()
-	c.Close() // second call should not panic
-}
-
-func TestClient_IsConnected_NilClient(t *testing.T) {
-	var c *Client
-	if c.IsConnected() {
-		t.Error("nil client should report not connected")
-	}
-}
-
-func TestClient_IsConnected_NilConn(t *testing.T) {
-	c := &Client{}
-	if c.IsConnected() {
-		t.Error("client with nil conn should report not connected")
-	}
-}
-
-// --- NewHeaderCarrier tests ---
-
-func TestNewHeaderCarrier(t *testing.T) {
-	carrier := NewHeaderCarrier(nil)
-	carrier.Set("key1", "val1")
-	if got := carrier.Get("key1"); got != "val1" {
-		t.Errorf("Get = %q, want %q", got, "val1")
-	}
-	keys := carrier.Keys()
-	if len(keys) != 1 || keys[0] != "key1" {
-		t.Errorf("Keys = %v, want [key1]", keys)
-	}
-}
-
-func TestNewHeaderCarrier_NilHeader(t *testing.T) {
-	carrier := NewHeaderCarrier(nil)
-	// Should still work: creates internal header.
-	carrier.Set("foo", "bar")
-	if got := carrier.Get("foo"); got != "bar" {
-		t.Errorf("Get = %q, want %q", got, "bar")
 	}
 }
 
@@ -270,24 +161,6 @@ func TestHeartbeatHandler_StartNilClient(t *testing.T) {
 	}
 }
 
-func TestCheckDispatcher_StartNilClient(t *testing.T) {
-	d := NewCheckDispatcher(nil, nil, nil, nil)
-	err := d.Start(nil)
-	if err == nil {
-		t.Error("Start with nil client should return error")
-	}
-}
-
-// --- AssignCheck nil client ---
-
-func TestCheckDispatcher_AssignCheckNilClient(t *testing.T) {
-	d := NewCheckDispatcher(nil, nil, nil, nil)
-	err := d.AssignCheck(nil, "agent-1", "test")
-	if err == nil {
-		t.Error("AssignCheck with nil client should return error")
-	}
-}
-
 // --- sweepStale context cancellation ---
 
 func TestHeartbeatHandler_SweepStale_ContextCancel(t *testing.T) {
@@ -300,7 +173,6 @@ func TestHeartbeatHandler_SweepStale_ContextCancel(t *testing.T) {
 	h.wg.Wait() // should not deadlock
 }
 
-// Use time.Sleep-based approach for sweepStale cancellation.
 func TestHeartbeatHandler_SweepStale_Stop(t *testing.T) {
 	// This tests that the handler can be constructed and its stop channel
 	// can be closed without panic.

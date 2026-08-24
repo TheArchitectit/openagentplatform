@@ -11,94 +11,8 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
-
-// tracerName is the instrumentation name used for all NATS-related spans.
-const tracerName = "openagentplatform/nats"
-
-// natsHeaderCarrier adapts a nats.Header to the otel TextMapCarrier interface
-// so the trace context can be serialised into NATS message headers.
-type natsHeaderCarrier struct{ hdr nats.Header }
-
-// NewHeaderCarrier returns a TextMapCarrier backed by a nats.Header.
-// Used internally by Publish/Subscribe to inject/extract trace context.
-func NewHeaderCarrier(hdr nats.Header) propagation.TextMapCarrier {
-	if hdr == nil {
-		hdr = nats.Header{}
-	}
-	return &natsHeaderCarrier{hdr: hdr}
-}
-
-func (c *natsHeaderCarrier) Get(key string) string {
-	return c.hdr.Get(key)
-}
-
-func (c *natsHeaderCarrier) Set(key, value string) {
-	c.hdr.Set(key, value)
-}
-
-func (c *natsHeaderCarrier) Keys() []string {
-	keys := make([]string, 0, len(c.hdr))
-	for k := range c.hdr {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
-const (
-	// SubjectHeartbeatPrefix is the wildcard subject every agent publishes
-	// heartbeats on. Each agent's full subject is
-	// oap.agents.<agent_id>.heartbeat.
-	SubjectHeartbeatPrefix = "oap.agents.*.heartbeat"
-
-	// SubjectCheckResultsPrefix is the wildcard subject agents publish
-	// check results on. SubjectCheckResultPrefix is an alias used by the
-	// ingest pipeline — both point to the same NATS subject.
-	SubjectCheckResultsPrefix = "oap.agents.*.results"
-
-	// SubjectAgentEvents is where the server publishes lifecycle events
-	// (AgentOnline, AgentOffline, etc.) for downstream consumers.
-	SubjectAgentEvents = "oap.events.agent"
-
-	// SubjectCheckAssignmentPrefix is the per-agent subject check
-	// assignments are published on.
-	SubjectCheckAssignmentPrefix = "oap.agents"
-
-	// SubjectCheckResultPrefix is the wildcard subject the check result
-	// ingest pipeline subscribes to. It is an alias for
-	// SubjectCheckResultsPrefix, kept for backward compatibility.
-	SubjectCheckResultPrefix = SubjectCheckResultsPrefix
-
-	// SubjectAlertEvents is the wildcard subject the threshold evaluator
-	// publishes alert lifecycle events on. Consumers (WebSocket hub, pager
-	// integrations) subscribe to this subject to receive AlertFired /
-	// AlertResolved notifications.
-	SubjectAlertEvents = "oap.events.alerts"
-
-	// SubjectCheckResultEvent is the wildcard subject the ingest pipeline
-	// publishes to whenever a new check result is persisted. The WebSocket
-	// hub subscribes here to broadcast live result updates to connected
-	// dashboards.
-	SubjectCheckResultEvent = "oap.events.checks.result"
-
-	// SubjectPatchEvents is the wildcard subject the patch management
-	// subsystem publishes to whenever a patch is approved, deployed,
-	// rolled back, or its status changes. The WebSocket hub subscribes
-	// here to broadcast live patch updates to connected dashboards.
-	SubjectPatchEvents = "oap.events.patches"
-
-	// SubjectScriptEvents is the wildcard subject the script execution
-	// subsystem publishes to whenever a script is run, completes, or
-	// its status changes. The WebSocket hub subscribes here to broadcast
-	// live script updates to connected dashboards.
-	SubjectScriptEvents = "oap.events.scripts"
-)
-
-// HeartbeatStaleThreshold is the duration after which a silent agent is
-// considered offline.
-const HeartbeatStaleThreshold = 120 * 1_000_000_000 // 120s in ns; kept as a hint for callers using time.Duration elsewhere
 
 type Client struct {
 	conn   *nats.Conn
@@ -220,52 +134,6 @@ func (c *Client) SubscribeQueue(subject, queue string, handler nats.MsgHandler) 
 	c.subs = append(c.subs, sub)
 	c.subsMu.Unlock()
 	return sub, nil
-}
-
-// wrapHandler returns a nats.MsgHandler that extracts the producer's trace
-// context from the message headers, starts a consumer span, and invokes
-// the user-provided handler.  The consumer span ends when the handler
-// returns.
-func (c *Client) wrapHandler(subject string, handler nats.MsgHandler) nats.MsgHandler {
-	tracer := otel.Tracer(tracerName)
-	propagator := otel.GetTextMapPropagator()
-
-	return func(msg *nats.Msg) {
-		parentCtx := context.Background()
-		if msg.Header != nil {
-			parentCtx = propagator.Extract(parentCtx, NewHeaderCarrier(msg.Header))
-		}
-		ctx, span := tracer.Start(parentCtx, "nats.subscribe "+msg.Subject,
-			trace.WithSpanKind(trace.SpanKindConsumer),
-			trace.WithAttributes(
-				attribute.String("messaging.system", "nats"),
-				attribute.String("messaging.source", msg.Subject),
-				attribute.String("messaging.destination", subject),
-				attribute.String("messaging.operation", "subscribe"),
-				attribute.Int("messaging.message.body.size", len(msg.Data)),
-			),
-		)
-		defer span.End()
-
-		// Replace the message's context with our traced one so the
-		// downstream handler can call telemetry.StartSpan and join the
-		// same trace. The traceparent header follows the W3C format:
-		// version-traceID-parentID-traceFlags.
-		sc := span.SpanContext()
-		traceparent := fmt.Sprintf("00-%s-%s-%s",
-			sc.TraceID().String(),
-			sc.SpanID().String(),
-			fmt.Sprintf("%02x", sc.TraceFlags()))
-		msg.Header.Set("traceparent", traceparent)
-		handler(msg)
-
-		// If the handler called span.RecordError via the context, the
-		// span status is already set. We only mark the span as failed
-		// when the handler itself returns an error (signalled via
-		// context.Value sentinel) -- but nats.MsgHandler has no error
-		// return, so we leave status at Unset for handler-level errors.
-		_ = ctx // reserved for future handler error propagation
-	}
 }
 
 // Close drains every tracked subscription and the underlying connection.
