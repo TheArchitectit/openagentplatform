@@ -112,8 +112,12 @@ loop (§3.6).
 
 3.2. Per-org billing state (`OrgBillingState`: Stripe customer ID,
 subscription ID, price ID, tier, status, current period end) MUST be guarded
-by a mutex. Current implementation holds state **in memory** — persistence to
-PostgreSQL is a known limitation (see §7).
+by a mutex. Since W8 the state MUST also be persisted through an optional
+`StateStore` (`PGStateStore` over the `org_billing_state` table, idempotent
+`EnsureSchema` at startup, wired in `wireSupportServices` via `SetStateStore`):
+every mutation writes through (`persistState`), the in-memory map remains the
+read cache (warmed on start), and a cache miss falls back to the store.
+Memory-only mode is preserved when schema creation fails.
 
 3.3. `CreateSubscription(orgID, tier)` MUST resolve the tier→price mapping via
 `priceIDForTier` (Community is free with no price ID), require an existing
@@ -196,13 +200,17 @@ boot — billing failure must never take down RMM/A2A functionality.
 
 ### 7. Known Limitations (honest-state notes; not COMPLETE claims)
 
-7.1. **In-memory state** — `OrgBillingState` does not survive restarts; a
-restart orphans the org↔customer mapping until re-created. Persistence
-(PostgreSQL, likely under `internal/tenancy` schemas) is required before
-multi-replica deployment.
+7.1. **Persistence is best-effort.** W8 added `PGStateStore` persistence so
+`OrgBillingState` survives restarts, but the write-through (`persistState`)
+is fire-and-forget (failures are logged, not retried), and memory-only mode
+silently reverts if `EnsureSchema` fails — an ingest failure gives operators
+no hard signal. Multi-replica consistency (read-your-writes across instances)
+is not addressed.
 
-7.2. **Webhook ack-only** — no event-type dispatch; subscription state relies
-on the 15-minute poll rather than reacting to webhook events.
+7.2. **Webhook ack-only** — W8 did not add event-type dispatch: the handler
+still verifies the signature and acknowledges only; subscription state
+continues to rely on the 15-minute poll rather than reacting to
+`invoice.payment_failed` / `customer.subscription.deleted`.
 
 7.3. **No checkout flow** — subscriptions are created server-side by an
 admin; there is no Stripe Checkout/Payment Element integration for

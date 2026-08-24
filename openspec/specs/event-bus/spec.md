@@ -3,10 +3,13 @@
 > **Phase:** 1 (Core RMM) — server-side event backbone; subject taxonomy is
 > normatively documented in the `rmm-core` spec §5
 > **STATUS: PARTIAL** — the three components (`Client`, `HeartbeatHandler`,
-> `CheckDispatcher`) are implemented and wired in `cmd/server`, but the
-> heartbeat decode contract diverges from the Go endpoint agent's payload
-> (int64 Unix timestamp vs `time.Time`, see Known Limitations), and check
-> results are double-persisted by parallel subscribers.
+> `CheckDispatcher`) are implemented and wired in `cmd/server`. The heartbeat
+> decode contract and duplicate-result persistence gaps from the coverage
+> audit are fixed (W1, W2): `models.Heartbeat` now decodes tolerant
+> timestamps, and `CheckDispatcher` is the assignment publisher while
+> `internal/checks.ResultIngestor` is the sole result-persistence owner.
+> Remaining gaps are non-blocking (no JetStream replay semantics, unused
+> `assignSub` seam, untracked consumer-span errors — see Known Limitations).
 > **Source:** authored 2026-08-23 from code (audit docs/QA_REVIEW_OPENSPEC_COVERAGE.md §4)
 > **App Path:** `internal/events/` (nats.go, heartbeat.go, checkdispatcher.go),
 > wired by `cmd/server/main.go`, `cmd/server/server_init.go`,
@@ -32,10 +35,12 @@ The capability is three components in `internal/events/`:
    `oap.agents.*.heartbeat`, persists agent liveness, and emits
    `AgentOnline` / `AgentOffline` lifecycle events, including a background
    sweeper that flips stale agents offline.
-3. **`CheckDispatcher`** (`checkdispatcher.go`) — consumes
-   `oap.agents.*.results` under a queue group to persist check results and
-   drive alert evaluation, and publishes check assignments back to agents on
-   `oap.agents.{id}.checks`.
+3. **`CheckDispatcher`** (`checkdispatcher.go`) — publishes check assignments
+   back to agents on `oap.agents.{id}.checks`. It is assignment-publish-only:
+   result consumption (persist → threshold/flap evaluation → lifecycle
+   fan-out) is owned by `internal/checks.ResultIngestor`, so persistence has
+   exactly one owner (remediation W2). The `CheckStore`/`AlertSink` parameters
+   on its constructor are retained for API compatibility and ignored.
 
 Subject constants are centrally declared in `nats.go`; consumers elsewhere
 (`internal/checks`, `internal/alerts`, `internal/policy`, `internal/api`)
@@ -104,7 +109,7 @@ they MUST match the `oap.` taxonomy in the rmm-core spec §5:
 | Constant | Subject | Direction (server view) |
 |----------|---------|------------------------|
 | `SubjectHeartbeatPrefix` | `oap.agents.*.heartbeat` | subscribe (heartbeat handler) |
-| `SubjectCheckResultsPrefix` / alias `SubjectCheckResultPrefix` | `oap.agents.*.results` | subscribe (check dispatcher; also `internal/checks` ingest pipeline) |
+| `SubjectCheckResultsPrefix` / alias `SubjectCheckResultPrefix` | `oap.agents.*.results` | subscribe (`internal/checks` ingestor only — W2: the dispatcher no longer subscribes) |
 | `SubjectCheckAssignmentPrefix` | `oap.agents` | prefix for server→agent dispatch |
 | `SubjectAgentEvents` | `oap.events.agent` | publish (lifecycle fan-out) |
 | `SubjectAlertEvents` | `oap.events.alerts` | declared here; published by ingest pipeline and policy violations, subscribed by alert engine |
@@ -183,30 +188,25 @@ timeout_seconds, timestamp, org_id}` from a `models.CheckDefinition`
 (nil config → empty map) and is the preferred entry point for API handlers.
 A nil definition MUST be rejected.
 
-### 7. Check Result Consumption
+### 7. Check Result Consumption (ingestor-owned)
 
-7.1. `CheckDispatcher.Start` MUST join the results wildcard subject under the
-queue group `oap-check-evaluator` (`SubscribeQueue`) so multiple server
-replicas load-balance results; it MUST fail if the client connection is nil.
+7.1. Result consumption MUST have a single owner: `internal/checks.ResultIngestor`
+subscribes `oap.agents.*.results` under the queue group `oap-check-ingest`
+(`SubscribeQueue`) so replicas load-balance, parses each payload as
+`models.CheckResult`, persists it via `CheckStore.InsertCheckResult` (the
+plain-INSERT path), then runs threshold/flap evaluation, alerts, and lifecycle
+fan-out on `oap.events.*`. This is the only subscriber that persists results
+(remediation W2).
 
-7.2. `onResult` MUST derive the agent ID from the subject (same dotted-ID
-rule as heartbeats) and then MUST let a non-empty body `agent_id` override
-it. Payloads MUST be parsed as `models.CheckResult`; a zero timestamp
-defaults to `time.Now().UTC()`. Undecodable messages MUST be logged and
-dropped.
+7.2. `CheckDispatcher` MUST NOT subscribe to the results subject. The
+`CheckStore` and `AlertSink` parameters on `NewCheckDispatcher` are retained
+only for API compatibility and are ignored; the dispatcher's duties are
+publishing assignments (§6) and tolerating a nil client.
 
-7.3. The dispatcher MUST persist each result via
-`CheckStore.InsertCheckResult` under a fresh 5-second context; persist
-failures MUST be logged but MUST NOT prevent alert evaluation.
-
-7.4. When an `AlertSink` is wired the dispatcher MUST call
-`sink.Evaluate(ctx, result)`. When no sink is wired (the current production
-wiring passes nil), non-OK results (status other than `ok`/`OK`) MUST be
-logged at warn level so operators still see them.
-
-7.5. `Stop()` MUST unsubscribe both the result and (reserved) assignment
-subscriptions, close the stop channel, and wait on its WaitGroup; the
-dispatcher MUST tolerate nil store and nil sink without panicking.
+7.3. `CheckDispatcher.Start` MUST fail if the client connection is nil and
+otherwise log that it is assignment-publish-only. `Stop()` MUST unsubscribe
+the (reserved) assignment subscription when present, close the stop channel,
+and wait on its WaitGroup without panicking.
 
 ### 8. Wiring & Startup Order
 
@@ -214,7 +214,9 @@ dispatcher MUST tolerate nil store and nil sink without panicking.
 the shared NATS client and a pgx-backed agent store
 (`events.NewHeartbeatHandler(natsClient, agentStore, log)`,
 `events.NewCheckDispatcher(natsClient, agentStore, nil, log)` in
-`cmd/server/server_init.go`).
+`cmd/server/server_init.go`). The dispatcher's `agentStore`/`nil` arguments
+are inert compatibility parameters (W2); the result-persistence path is
+constructed and started separately as the ingestor (8.2).
 
 8.2. `Server.Start` (`cmd/server/server_start.go`) MUST start the heartbeat
 handler before the check dispatcher, then the result ingestor, alert engine,
@@ -225,27 +227,18 @@ agent traffic arrives.
 
 ## Known Limitations
 
-- **Heartbeat payload contract divergence.** The Go endpoint agent publishes
-  `pkg/agent.HeartbeatPayload` with `timestamp` as an int64 Unix-seconds
-  value, but the handler parses `models.Heartbeat` whose `Timestamp` is
-  `time.Time` (RFC3339). `json.Unmarshal` rejects the number, so heartbeats
-  from the Go agent binary log `heartbeat decode failed` and are never
-  persisted. The handler only works against producers that send RFC3339
-  strings.
-- **Duplicate check-result persistence.** `CheckDispatcher` (queue
-  `oap-check-evaluator`) and `internal/checks.ResultIngestor` (queue
-  `oap-check-ingest`) both subscribe the same `oap.agents.*.results`
-  wildcard in different queue groups, so every message is delivered to both
-  and both call `InsertCheckResult` (a plain INSERT with no upsert) — each
-  result lands in `check_results` twice.
-- **Queue-group naming inconsistency.** Three components consume the same
-  results subject under three differently named queue groups
-  (`oap-check-evaluator`, `oap-check-ingest`, policy engine's
-  `oap-policy-engine`); the dispatcher's group name suggests alert-evaluation
-  ownership that actually lives in the ingest pipeline's threshold evaluator.
-- **`CheckDispatcher` alert sink is unwired in production** — `server_init.go`
-  passes `nil`, so alert evaluation only happens in the ingest pipeline; the
-  dispatcher's `AlertSink` seam currently only logs non-OK results.
+- **Result persistence is exactly-once by construction but not idempotent.**
+  Since remediation W2 the `oap.agents.*.results` subject has a single
+  subscriber (`internal/checks.ResultIngestor`, queue `oap-check-ingest`);
+  `CheckDispatcher` no longer consumes it. `InsertCheckResult` is still a
+  plain INSERT (no upsert), so a redelivery or a future second subscriber
+  would duplicate rows — idempotency is not enforced at the store level.
+- **Ingestor vs policy-engine consumers differ.** The ingestor consumes the
+  raw `oap.agents.*.results` wildcard (queue `oap-check-ingest`), while the
+  policy engine subscribes the derived `oap.events.checks.result` subject
+  (queue `oap-policy-engine`) — the two are intentionally chained, not
+  competing consumers. No component uses the old `oap-check-evaluator` queue
+  group name.
 - **No per-message ack/backpressure semantics.** Consumption uses plain NATS
   core (no JetStream); messages lost while the server is down are not
   replayed.

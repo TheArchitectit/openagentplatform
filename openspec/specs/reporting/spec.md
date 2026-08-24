@@ -1,9 +1,9 @@
 # Reporting
 
 > **Phase:** 6 (Commercial Tiering)
-> **STATUS: PARTIAL**
+> **STATUS: COMPLETE** (`internal/reports/` is wired and functional since W4)
 > **Source:** authored 2026-08-23 from code (audit docs/QA_REVIEW_OPENSPEC_COVERAGE.md §4)
-> **App Path:** internal/reporting/, internal/reports/
+> **App Path:** internal/reporting/ (dead code), internal/reports/ (wired)
 
 ---
 
@@ -36,12 +36,16 @@ the delivery engine (`6a1074c`, Phase 6, 2026-06-17). It does not supersede
 `internal/reports/` at runtime — it is unreachable.
 
 **Which is used where:** `internal/reports/` is the only implementation with a
-runtime role: `internal/api/reports.go`, `internal/api/handler.go` (server
-fields `reportsStore`/`reportsScheduler`), and
-`internal/api/server_wiring.go` (`SetReportsStore`/`SetReportsScheduler`) all
-depend on it. `internal/reporting/` is used nowhere. However, **neither
-package is constructed by `cmd/server` today** — the setters are never called,
-so every report endpoint currently answers 503 (see Known Limitations).
+runtime role. Since remediation W4, `cmd/server` wires the whole stack
+(`wireReports` in `cmd/server/server_reports.go`): it constructs a pgx-backed
+`PGStore` and a `PGAggregator` (the `DataAggregator`), a `ReportEngine`, a
+`DefaultDeliverer` (SMTP + download secret + base URL from `REPORTS_*` env
+vars), and a `Scheduler`, then injects them via
+`SetReportsStore`/`SetReportsScheduler`/`SetReportsDeliverer`
+(`internal/api/server_wiring.go`). The `/api/v1/reports` endpoints therefore
+answer real data and schedules fire. Schema creation is idempotent but
+non-fatal — when it fails the endpoints fall back to 503. `internal/reporting/`
+remains used nowhere (dead code; see Known Limitations #1).
 
 ## User Story
 
@@ -105,8 +109,11 @@ and `duration_ms`.
 ### 3. Scheduling (`internal/reports/scheduler.go`)
 
 3.1. The `Scheduler` MUST run a tick loop every `TickInterval` (30 s) rather
-than depend on a third-party cron library; each tick reloads enabled schedules
-and triggers those whose `NextRunAt` is in the past.
+than depend on a third-party cron library; each tick queries due schedules
+**across all orgs** via `ListDueSchedules(now)` (enabled rows whose
+`NextRunAt` is in the past) and triggers them. (W4 corrected the pre-wiring
+tick, which called `ListSchedules(ctx, "")` — an org-less query that matched
+no rows.)
 
 3.2. Concurrent report executions MUST be limited to `MaxConcurrentReports`
 (5) via a semaphore, and each execution MUST run under a `ReportTimeout`
@@ -148,7 +155,12 @@ response status ≥ 400 MUST fail the delivery.
 via `PresignedURL`: `{BaseURL}/api/v1/reports/runs/{id}/download?token=…&exp=…`
 where the token is base64url of `reportID|expiry|mac` and `mac` is
 HMAC-SHA256 over `reportID|expiry` keyed with `DownloadSecret`
-(`hmacSum` in `helpers.go`).
+(`hmacSum` in `helpers.go`). Since W4 the corresponding
+`GET /api/v1/reports/runs/{id}/download` route exists
+(`internal/api/routes_routes.go`, `downloadReport`) and redeems tokens via
+`VerifyDownloadToken` (HMAC over org + report ID + expiry), using token auth
+rather than session auth so links open outside the app; W4 pinned it with
+`delivery_token_test.go`.
 
 ### 5. HTTP API (`internal/api/reports.go`, `internal/api/routes_routes.go`)
 
@@ -206,43 +218,31 @@ CSV export only.
 
 ## Known Limitations
 
-1. **The delivery engine is not wired into the server binary.** `cmd/server`
-   never calls `SetReportsStore`/`SetReportsScheduler`
-   (`internal/api/server_wiring.go:29,35`), and `reports.NewPGStore`,
-   `reports.NewReportEngine`, and `reports.NewScheduler` are constructed
-   nowhere outside the package itself. Per Requirement 5.2, every
-   `/api/v1/reports` endpoint therefore returns `503` in the shipped server.
-2. **No `DataAggregator` implementation exists.** The `ReportEngine` requires
-   one (Req 1.3); nothing in the repository implements the interface, so even
-   with wiring, report generation has no data source.
-3. **Dual-package duplication.** `internal/reports/` (Phase 6 commit
-   `6a1074c`, 2026-06-17) and `internal/reporting/` (commit `c142f2d`,
+1. **Dual-package duplication (still open).** `internal/reports/` (Phase 6
+   commit `6a1074c`, 2026-06-17) and `internal/reporting/` (commit `c142f2d`,
    2026-08-22) implement overlapping functionality with different models
    (org-scoped PG pipeline with 7 templates vs. tenant-scoped in-memory
-   service with 4 templates and placeholder data). `internal/reporting/` has
-   zero importers and is dead code; neither package cleanly supersedes the
-   other at runtime because `internal/reports/` owns the API surface while
-   `internal/reporting/` is unreachable. Consolidation is needed.
-4. **Scheduler tick would never fire.** `Scheduler.tick` calls
-   `store.ListSchedules(ctx, "")` with an empty org ID
-   (`internal/reports/scheduler.go:99`); the query filters
-   `WHERE org_id=''`, matching no rows, so no scheduled run can ever trigger.
-5. **Download route is unregistered.** `PresignedURL` builds links to
-   `/api/v1/reports/runs/{id}/download` (Req 4.4), but no such route exists
-   in `routes_routes.go` and there is no token-verification handler — presigned
-   links cannot be redeemed.
-6. **Cron subset only.** Only `@hourly`/`@daily`/`@weekly`/`@monthly` and
+   service with 4 templates and placeholder data). `internal/reports/` is the
+   wired delivery engine (W4); `internal/reporting/` still has zero importers
+   and is dead code. The two remain unconverged — consolidation is needed.
+2. **Cron subset only.** Only `@hourly`/`@daily`/`@weekly`/`@monthly` and
    `M H * * *` are supported; day-of-month/month/day-of-week fields are
    ignored. An invalid expression produces a nil `NextRunAt`, silently and
    permanently disabling the schedule.
-7. **No delivery hardening.** Webhook payloads are not signed (contrast with
+3. **No delivery hardening.** Webhook payloads are not signed (contrast with
    A2A push-notification HMAC signing) and failed deliveries are not retried
    — the run is simply marked `DeliveryFailed`.
-8. **PDF is declared but not implemented** in either package (both expose a
+4. **PDF is declared but not implemented** in either package (both expose a
    `pdf` format constant; only `internal/reporting/` implements any exporter,
    and that is CSV).
-9. **Test coverage is inverted:** `internal/reporting/` (the dead package)
-   has 19 test functions; `internal/reports/` (the live one) has no test
-   files at all.
-10. `internal/reporting/` is not concurrency-safe: `ReportService` mutates
-    plain maps without a mutex.
+5. **Test coverage is inverted (partially closed).** `internal/reporting/`
+   (the dead package) has 19 test functions; `internal/reports/` gained only
+   `delivery_token_test.go` (W4: sign/verify round-trip, wrong secret,
+   expired, tampered). The wire path itself — aggregator joins, engine
+   dispatch, scheduler, and API handlers — remains untested.
+6. **`internal/reporting/` is not concurrency-safe:** `ReportService` mutates
+   plain maps without a mutex.
+7. **W4 wiring is non-fatal on schema failure.** `wireReports` creates the
+   report tables idempotently and logs-and-continues on failure, so a broken
+   schema silently degrades every report endpoint to `503` with no startup
+   abort — operators get no hard signal during deployment.

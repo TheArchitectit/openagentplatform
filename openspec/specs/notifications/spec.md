@@ -1,9 +1,16 @@
 # Notifications
 
 > **Phase:** 1 (Core RMM — Sprint 1.2 Alerts, story 1.2.2 "Notification channels (email, Slack, webhook)")
-> **STATUS: PARTIAL**
+> **STATUS: COMPLETE**
 > **Source:** authored 2026-08-23 from code (audit docs/QA_REVIEW_OPENSPEC_COVERAGE.md §4)
 > **App Path:** internal/notify/
+>
+> The alert-engine/API notifier registry gap from the coverage audit was
+> resolved by remediation W3: `cmd/server` now constructs one shared registry
+> (`notify.InitDefaultRegistry()`), wires it into the alert engine via
+> `alerts.Config.NotifierRegistry`, and passes it to the API via
+> `SetNotifierRegistry` — so alert-triggered dispatch and `/test` both work
+> in the shipped binary.
 
 ---
 
@@ -245,17 +252,6 @@ for audit, and return 502 with the error when delivery fails.
 
 ## Known Limitations
 
-- **Alert-driven dispatch is not wired in production.**
-  `cmd/server/server_init.go` constructs the alert engine without a
-  `NotifierRegistry` (`alerts.Config.NotifierRegistry` unset), and
-  `apiServer.SetNotifierRegistry` is never called anywhere. Because
-  `dispatchNotifications` returns immediately when the registry is nil,
-  no alert-triggered notification is actually sent by the production
-  server despite the engine code and tests being complete. Channel CRUD
-  still works because the API falls back to `notify.InitDefaultRegistry()`
-  for config validation, but the `/test` endpoint returns 503
-  (`notifier_registry_not_configured`) because it requires the explicitly
-  wired registry.
 - `EmailNotifier` declares `Content-Transfer-Encoding: quoted-printable`
   in the MIME parts but writes the bodies unencoded, and uses a fixed
   boundary string (`oap-boundary`).

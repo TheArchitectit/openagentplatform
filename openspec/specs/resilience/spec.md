@@ -1,9 +1,15 @@
 # Resilience
 
 > **Phase:** 5 (Production Hardening — Sprint 5.3 "Resilience + Documentation")
-> **STATUS: PARTIAL**
+> **STATUS: COMPLETE** (breaker + single limiter wired since W8)
 > **Source:** authored 2026-08-23 from code (audit docs/QA_REVIEW_OPENSPEC_COVERAGE.md §4)
 > **App Path:** internal/resilience/
+>
+> Remediation W8 closed the two wiring gaps this spec flagged: the `"adapter"`
+> circuit breaker now actually executes (it guards adapter-service calls via
+> `Server.callAdapter`), and the double rate limiting was removed — the inner
+> per-Server limiter was deleted and the outer HTTP limiter alone owns the
+> lifecycle and the `/healthz`/`/readyz`/`/metrics` skip paths.
 
 ---
 
@@ -72,9 +78,10 @@ back to the IP when it returns an empty string. In the API router the
 limiter runs after `middleware.RealIP`, so the key reflects the
 forwarded client address.
 
-1.6. The middleware MUST be installed server-wide before authentication
-(it precedes the audit middleware in `api.Server.buildRouter`) so login
-and mutation endpoints are protected from brute force and exhaustion.
+1.6. The middleware MUST be installed server-wide before authentication at
+the outer `buildHTTPServer` layer (W8: it no longer participates in the API
+router's middleware chain) so login and mutation endpoints are protected from
+brute force and exhaustion.
 
 ### 2. Circuit Breaker
 
@@ -105,9 +112,13 @@ errors returned by the wrapped operation.
 
 2.4. The production server MUST construct a breaker named `"adapter"`
 (`MaxFailures: 5`, `OpenDuration: 30s`, `HalfOpenMax: 1`) in
-`wireSupportServices` (`cmd/server/server_init_a2a.go`) and retain it on
-the server struct as `adapterBreaker`, designated to protect calls to the
-Python adapter service.
+`newAdapterBreaker` (`cmd/server/server_init_a2a.go`) and wire it into the
+API server via `SetAdapterBreaker`, then guard every adapter-service round
+trip through `Server.callAdapter` (`internal/api/server_wiring.go`), which
+invokes `adapterBreaker.Execute` — covering `proxyAdapter`, `doAdapterRequest`,
+and the SSE stream, so the A2A RPC bridge path and the frontend-facing
+`/api/v1/a2a/*` proxy share the same open/closed state. This was the W8 fix;
+the breaker previously executed nowhere.
 
 ### 3. Graceful Shutdown
 
@@ -167,33 +178,26 @@ and `Body` for predicate inspection.
 
 ### 5. Middleware Integration
 
-5.1. The rate limiter MUST be applied at two layers in production:
-outermost around the combined API+A2A handler in `buildHTTPServer`
-(after the OpenTelemetry tracing wrapper, so throttled 429 responses
-still get a server span), and again inside `api.Server.buildRouter` on
-the API router itself.
+5.1. The rate limiter MUST be applied **once**, at the outermost layer around
+the combined API+A2A handler in `buildHTTPServer` (`cmd/server/server_init_a2a.go`,
+after the OpenTelemetry tracing wrapper so throttled 429 responses still get
+a server span). W8 removed the duplicate inner limiter that `api.Server`
+previously built in `buildRouter` — with identical 100/200 defaults both
+would consume a token per request and halve effective burst capacity. The
+outer limiter owns the lifecycle (`Stop` on graceful shutdown).
 
-5.2. Health-check endpoints MUST be exempt from rate limiting via
-`SkipPaths` on the outer limiter and via `middleware.Heartbeat("/healthz")`
-which answers `/healthz` ahead of the inner limiter in the API router.
+5.2. Health-check and scrape endpoints MUST be exempt from rate limiting via
+`SkipPaths: ["/healthz", "/readyz", "/metrics"]` on the outer limiter
+(`buildHTTPServer`), and `middleware.Heartbeat("/healthz")` answers
+`/healthz` ahead of the middleware stack in the API router.
 
 ## Known Limitations
 
-- **The circuit breaker is constructed but never applied.** The
-  `"adapter"` breaker is built in `wireSupportServices` and stored on the
-  server struct, yet no code path ever calls its `Execute` — adapter
-  traffic instead flows through `a2a/bridge.AdapterClient`, which ships
-  its own separate, independent breaker implementation
-  (`a2a/bridge/client_types.go`). The `resilience.CircuitBreaker` is
-  therefore dead code in production today (tests cover it; wiring does
-  not exist).
-- **Requests are rate-limited twice.** `api.Server` builds its own
-  limiter from `DefaultRateLimitConfig()` (no skip paths) and applies it
-  in `buildRouter`, while `buildHTTPServer` wraps the same router with a
-  second limiter from `wireSupportServices`. Both run at 100 req/s / 200
-  burst per IP, so each request consumes a token from each limiter;
-  `/readyz` and `/metrics` are skipped by the outer limiter but counted
-  by the inner one.
+- **Adapter calls break on the shared breaker only.** W8 wired
+  `resilience.CircuitBreaker` into the HTTP proxy path (`Server.callAdapter`),
+  but `a2a/bridge.AdapterClient` (the A2A RPC bridge) still ships its own
+  independent breaker (`a2a/bridge/client_types.go`); the two are not
+  coordinated, so the bridge path can keep calling while the proxy is open.
 - `GracefulShutdown.TrackInFlight` / `InFlightCount` are implemented and
   unit-tested but no middleware calls `TrackInFlight`, so the in-flight
   drain step always observes zero tracked requests (it relies entirely on

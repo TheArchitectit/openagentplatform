@@ -72,11 +72,13 @@ record has been altered after the fact.
 
 ### 2. Hash-Chained Recording
 
-2.1. `AuditService.Record` (`internal/audit/audit.go`) MUST fetch the hash of
-the most recently recorded event (`latestHash`: `SELECT hash FROM audit_events
-ORDER BY timestamp DESC, event_id DESC LIMIT 1`) and store it as the new
-event's `PrevHash`. The first event in an empty log MUST have an empty
-`PrevHash` (the genesis link).
+2.1. `AuditService.Record` (`internal/audit/audit.go`) MUST serialize chain
+extension with `writeMu` (W8): it locks before fetching the hash of the most
+recently recorded event (`latestHash`: `SELECT hash FROM audit_events ORDER BY
+timestamp DESC, event_id DESC LIMIT 1`), stores it as the new event's
+`PrevHash`, and inserts — making the `latestHash`→`INSERT` pair atomic per
+process and preventing sibling-orphan forks under concurrency. The first
+event in an empty log MUST have an empty `PrevHash` (the genesis link).
 
 2.2. `computeHash` (`internal/audit/audit_helpers.go`) MUST compute the event
 hash as hex-encoded SHA-256 over the fields `EventID`, `PrevHash`,
@@ -104,14 +106,18 @@ and compare it to the stored `Hash`, returning false on mismatch or nil
 input. The single-event read endpoint MUST expose this result.
 
 3.2. `GetEventChain(ctx, resourceID)` (`internal/audit/audit_query.go`) MUST
-return a `ChainVerification` for all events of one resource ordered oldest →
-newest (`ORDER BY timestamp ASC, event_id ASC`), with per-link `Valid` flags,
-a global `Intact` bool, `BrokenAt` (first invalid link's event ID), and
-`TotalChecked`.
+return a `ChainVerification` (`ResourceID`, `Links`, `Intact`, `BrokenAt`,
+`TotalChecked`, `GapCount`) for all events of one resource ordered oldest →
+newest (`ORDER BY timestamp ASC, event_id ASC`). Since W8 each link is
+verified **in isolation**: its stored `Hash` MUST recompute from its own
+contents; a failed recomputation sets `Valid=false`, `Intact=false`, and
+`BrokenAt` to the first failing link's event ID.
 
-3.3. Chain validation MUST expect each link's `PrevHash` to equal the
-preceding link's `Hash`, with the first link's `PrevHash` equal to the empty
-string.
+3.3. Because the write-side chain is global (every event links to the latest
+event of any resource), a per-resource view necessarily skips foreign links,
+so a `PrevHash` discontinuity within the subset is recorded as `GapCount`
+(informational metadata), not as a break — only a failed hash recomputation
+marks `Intact=false` (W8 fix for false positives).
 
 ### 4. Query API
 
@@ -134,13 +140,16 @@ absent (`pgx.ErrNoRows` mapping).
 
 5.1. Three routes MUST be mounted under the authenticated `/api/v1` group
 (`internal/api/routes_sub.go` `/audit` block, handlers in
-`internal/api/audit.go`):
+`internal/api/audit.go`). The whole block MUST apply
+`auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)` (W8; the audit log
+carries actor identities, IPs, and cross-org resource references), so reads
+are privileged rather than open to any org member:
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/api/v1/audit/events` | Filtered, paginated listing |
-| GET | `/api/v1/audit/events/{id}` | Single event + hash re-verification |
-| GET | `/api/v1/audit/chain/{resource_id}` | Per-resource chain verification |
+| Method | Path | Purpose | Roles |
+|--------|------|---------|-------|
+| GET | `/api/v1/audit/events` | Filtered, paginated listing | admin, technician |
+| GET | `/api/v1/audit/events/{id}` | Single event + hash re-verification | admin, technician |
+| GET | `/api/v1/audit/chain/{resource_id}` | Per-resource chain verification | admin, technician |
 
 5.2. `GET /audit/events` MUST accept query parameters `actor_id`, `action`,
 `resource_type`, `resource_id`, `since`, `until` (RFC3339), `limit`,
@@ -210,23 +219,21 @@ cadence (`tenancy.NewRetentionPurger`, `cmd/server/server_init.go`).
 
 ## Known Limitations
 
-- **Per-resource chain verification is defeated by the global chain.**
-  `Record` links each event to the *globally* latest event, but
-  `GetEventChain` validates only the subset of one resource. Any resource
-  whose events interleave with other resources (the normal case — the
-  middleware keys `ResourceID` by route pattern) reports `Intact: false` with
-  `BrokenAt` set on the first cross-resource gap. The endpoint is sound only
-  for resources that happened to record consecutive events.
-- **No concurrency control on chain extension.** `latestHash` → `INSERT` is
-  not transactional and holds no lock; concurrent `Record` calls can read the
-  same `PrevHash` and fork the chain.
+- **Per-resource verification is structural, not link-contiguous.** Because
+  the write-side chain is global, `GetEventChain` cannot reconstruct a
+  per-resource hash chain; W8 changed it to verify each link's stored hash in
+  isolation and report `PrevHash` discontinuities as `GapCount`. That catches
+  tampering with recorded content but **cannot detect an altered `PrevHash`**
+  or a missing/deleted event within the subset — the prior contiguous-chain
+  guarantee no longer applies.
 - **Partial hash coverage.** `IP`, `UserAgent`, `OrgID`, `SiteID` are not in
   the hash input, so those columns can be altered without detection.
 - **Retention vs. immutability.** The tenancy retention purger deletes audit
   rows; the chain is tamper-evident but not permanent.
-- **No role gate on read routes.** The `/audit` routes require only an
-  authenticated org session; no `RequireRole` is applied, so any org member
-  can read the audit trail.
+- **`writeMu` is per-process only.** Chain extension is serialized within one
+  server (W8), but two replicas sharing one database can still race and fork
+  the chain; there is no distributed lock or transactional `... ORDER BY` +
+  insert.
 - **No in-repo DDL.** No `CREATE TABLE audit_events` migration or seed file
   exists in this repository; the 15-column schema is implied by the SQL in
   `audit.go` and managed externally.

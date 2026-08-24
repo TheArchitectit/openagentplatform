@@ -1,9 +1,16 @@
 # Observability
 
 > **Phase:** 5 (Production Readiness)
-> **STATUS: PARTIAL**
+> **STATUS: COMPLETE** (telemetry, readiness, and metrics wiring closed by W8)
 > **Source:** authored 2026-08-23 from code (audit `docs/QA_REVIEW_OPENSPEC_COVERAGE.md` §4)
 > **App Path:** `internal/telemetry/`, `internal/monitoring/`
+>
+> Remediation W8 closed the three wiring gaps this spec flagged: DB tracing is
+> attached at pool creation via `db.WithTracing()` when OTEL export is
+> configured, `monitoring.HealthChecker` is wired into `/readyz` via
+> `SetHealthChecker`, and the metrics summary writers (`RecordCounterRollup`)
+> now have call sites in `metricsMiddleware` so `/api/v1/metrics/summary`
+> reports live counters.
 
 ---
 
@@ -111,13 +118,17 @@ status), and `SetSpanStatus`. All helpers MUST be nil-span safe.
 
 ### 5. PostgreSQL Tracing (otelpgx)
 
-5.1. `telemetry.TraceDBFromDSN(ctx, dsn)` (`internal/telemetry/db.go`) MUST
-set `cfg.ConnConfig.Tracer = otelpgx.NewTracer(otelpgx.WithIncludeQueryParameters())`
-**before** pool creation, then `Ping` and close the pool on ping failure.
+5.1. The otelpgx tracer MUST be attached to `cfg.ConnConfig.Tracer`
+(`otelpgx.NewTracer(otelpgx.WithIncludeQueryParameters())`) **before** pool
+creation. Production wiring (W8) does this in `cmd/server/main.go` via
+`db.WithTracing()` — an `Option` passed to `db.NewPool` — only when
+`OTEL_EXPORTER_OTLP_ENDPOINT` is set. `pgxpool.Config` is immutable
+post-creation, which is why attaching the tracer later can never work.
 
-5.2. `telemetry.TraceDB(pool)` MUST remain a documented deprecated no-op:
-`pgxpool.Config` is immutable post-creation, so tracer injection after the
-fact is impossible.
+5.2. `telemetry.TraceDBFromDSN` and `telemetry.TraceDB`
+(`internal/telemetry/db.go`) remain defined — `TraceDB` a documented
+deprecated no-op — but both have zero callers in production; the
+`db.WithTracing()` option path is the sole wiring mechanism.
 
 ### 6. Prometheus Registry and Instruments
 
@@ -247,20 +258,16 @@ diagnostics responses.
 
 ## Known Limitations
 
-- **`internal/monitoring` has no production consumers.** No file outside the
-  package imports it (verified by repo-wide grep). The live endpoints
-  (`/healthz`, `/readyz`, `/status`) are hand-written in
-  `internal/api/health.go`; `HealthChecker`, `AlertManager`, and `Scorecard`
-  are unit-tested but not wired to any route or engine. Alert state is
-  in-memory only and lost on restart.
-- **otelpgx is effectively unwired in the main binary.**
-  `cmd/server/server_init.go:108` calls the deprecated no-op
-  `telemetry.TraceDB(pool)`; nothing calls `TraceDBFromDSN` or sets
-  `ConnConfig.Tracer` itself, so database queries produce no spans.
-- **Metrics summary roll-ups are always empty.** `bumpCounter`/`setGauge`
-  (the only writers behind `SnapshotCounters`/`SnapshotGauges`) have zero
-  call sites, so `GET /api/v1/metrics/summary` returns only
-  `generated_at`/`uptime_seconds` with empty counter and gauge maps.
+- **`AlertManager` and `Scorecard` still have no production consumers.** W8
+  wired only `monitoring.HealthChecker` into `/readyz` (`SetHealthChecker` +
+  a `database` component check; unhealthy checks degrade readiness). The
+  in-memory `AlertManager` and compliance `Scorecard` remain unit-tested but
+  unwired, and alert state is in-memory only, lost on restart.
+- **Metrics summary roll-ups cover only request counters.** W8 gave the
+  summary writers a call site: `metricsMiddleware` feeds
+  `RecordCounterRollup("api_requests_total", 1)` on every request, so
+  `GET /api/v1/metrics/summary` now reports live request counts. Gauges and
+  other counters still have no writers.
 - **Service name is not a metric label.** `InitMeter` stores `serviceName`
   (and its comment claims a constant label), but no collector carries it.
 - `/metrics`, `/healthz`, `/readyz`, `/status`, `/version` are

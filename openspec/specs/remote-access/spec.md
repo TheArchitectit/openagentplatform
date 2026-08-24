@@ -1,9 +1,16 @@
 # Remote Access
 
 > **Phase:** 1 (Core RMM) — rmm-core §10.4/§10.5
-> **STATUS: PARTIAL**
+> **STATUS: COMPLETE** (end-to-end stack wired since W5)
 > **Source:** authored 2026-08-23 from code (audit docs/QA_REVIEW_OPENSPEC_COVERAGE.md §4)
 > **App Path:** `internal/remote/`, `internal/terminal/`, `internal/session/`
+>
+> The shell-wiring gap from the coverage audit was resolved by remediation W5:
+> `cmd/server` now wires the session manager, credential store, WebSocket
+> bridge, recording store, and live-recorder factory (`wireShell` in
+> `cmd/server/server_shell.go`); `CreateSession` publishes `shell.start` on
+> `oap.agents.<id>.shell.start` so the agent spawns the process; and the dial
+> host is resolved from agent inventory (hostname → PublicIP).
 
 ---
 
@@ -262,9 +269,10 @@ handler errors MUST be non-fatal to agent startup.
 
 9.2. `defaultCommandBuilder` MUST build `ssh -tt -o BatchMode=yes
 [user@host]` for `ssh` (default user `oap`) and a powershell stub for
-`winrm`; unknown protocols MUST error. The SSH host is currently a
-placeholder (the session ID), i.e. real dial-out to a target host is not
-yet implemented.
+`winrm`; unknown protocols MUST error. The SSH dial target MUST come from
+`StartRequest.Command` (W5: `wireShell` resolves it from agent inventory —
+hostname, falling back to `PublicIP`); when Command is empty the builder
+falls back to `localhost`, since the agent process runs on the target host.
 
 9.3. The agent MUST pump stdout/stderr line-by-line (64 KB scanner
 buffer, base64-encoded) to the stdout subject, forward stdin to the
@@ -275,32 +283,31 @@ Resize requests are currently logged only (no SIGWINCH path wired).
 
 ## Known Limitations
 
-1. **Server wiring not connected.** `SetRemoteHandler`, `SetRecordingStore`,
-   and `SetSessionRecorderFactory` are never called from `cmd/server/`,
-   so every `/api/v1/shell/*` route returns 503 (`remote_not_configured`)
-   in the shipped server. Routes and handlers exist and are tested in
-   isolation; the capability is code-present but not deployed-enabled.
-2. **No shell.start publisher.** The agent subscribes to
-   `oap.agents.<id>.shell.start`, but no server code ever publishes a
-   `StartRequest` — `CreateSession` deliberately skips NATS interaction,
-   so end-to-end agent process spawn is not connected.
-3. **Live recording not attached.** No production caller invokes
-   `RecordInput`/`RecordOutput`; the recorder factory field is dead.
-   Playback/export/store are complete, but nothing fills them during a
-   live session today.
-4. **Standalone packages.** `internal/terminal/` and `internal/session/`
-   have zero production importers (own tests only) — supporting
-   primitives awaiting integration.
-5. **No RemoteSession state machine.** The QA audit (Req 4) expects a
+1. **Standalone supporting packages.** `internal/terminal/` and
+   `internal/session/` still have zero production importers (own tests only)
+   after W5 — the live shell path uses `internal/remote/`'s own recorder and
+   the agent's `exec.Cmd` plumbing, so these primitives remain awaiting
+   integration.
+2. **No RemoteSession state machine.** The QA audit (Req 4) expects a
    7-state `RemoteSession` machine; only the 3-value `SessionStatus`
    exists here, and `StatusClosing` is never assigned. State-machine
    tracking belongs to rmm-core §4.4.
-6. **VNC/RDP not implemented** — SSH/WinRM/web-terminal only
-   (rmm-core §14.8). WinRM itself is a powershell stub; SSH dial-out
-   targets a placeholder host.
-7. **Credential store is in-memory**, lost on restart; hash-chain tamper
-   evidence is nominal only (see 5.4); `FlushInterval` time-based flush
-   unimplemented; subject builders do not escape dots in agent/session
-   IDs (validation is delegated upstream).
-8. **Audit trail is partial.** `recordAudit` logs via slog instead of the
+3. **VNC/RDP not implemented** — SSH/WinRM/web-terminal only
+   (rmm-core §14.8). WinRM remains a powershell stub; `defaultCommandBuilder`
+   never requests a TTY for it.
+4. **Credential store is in-memory**, lost on restart (only the optional
+   `SHELL_CREDENTIAL_KEY` AES-GCM encryption at rest is configured in
+   `wireShell`); hash-chain tamper evidence is nominal only (see 5.4);
+   `FlushInterval` time-based flush unimplemented; subject builders do not
+   escape dots in agent/session IDs (validation is delegated upstream).
+5. **Audit trail is partial.** `recordAudit` logs via slog instead of the
    audit service (not injected); only `shell.kill` emits an audit event.
+6. **Host resolution has no reachability check.** `wireShell` resolves the
+   dial target from inventory and publishes it in `StartRequest.Command`, but
+   neither the server nor the agent verifies the host is reachable before the
+   agent executes `ssh` — the agent falls back to localhost only when
+   `Command` is empty, not when it is unreachable.
+7. **Recording is best-effort no-idempotency.** When recording-store schema
+   creation fails, `SetRecordingStore`/`SetSessionRecorderFactory` are never
+   called and the recorder factory stays a no-op, so sessions run unrecorded
+   with no hard failure signal.
