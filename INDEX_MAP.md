@@ -178,6 +178,7 @@
 | **openspec/specs/a2a-relay** | Partial in-memory relay core plus explicitly planned WSS transport/security architecture | Before starting RELAY-00..06 |
 | **docs/plans/DEFERRED_WORK_HANDOFF.md** | Master dependency order, validation rules, and stop conditions for lower-capability agents | When handing off deferred work |
 | **docs/reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md** | Non-force publication runbook for the existing separate spec-review repository | When a remote URL is supplied |
+| **openspec/specs/managed-backup** | Managed Backup integration contract; canonical seam contracts (run states, 18 event names, integrity states, restore states); DRAFT greenfield | When designing/implementing backup integration |
 | **openspec/specs/billing-stripe** | Stripe billing spec — client/service/metering/API routes, PG-backed state cache, webhook limits | When touching internal/billing or /billing endpoints |
 | **openspec/specs/endpoint-agent** | Go endpoint daemon — registration, core NATS subjects, checks, scripts, compliance, patching, shell | When touching cmd/agent or pkg/agent |
 | **openspec/specs/multi-tenancy** | RLS schema/context, quotas, tier resolution, retention purger; remaining migration and schema limits | When touching tenancy or tiers |

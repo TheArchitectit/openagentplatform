@@ -1792,6 +1792,22 @@
 
 ---
 
+## openspec/specs/managed-backup/spec.md
+
+| Line | Header |
+|------|--------|
+| 1 | # Managed Backup |
+| 15 | ## Description |
+| 38 | ## User Story |
+| 49 | ## Canonical Cross-Service Contracts |
+| 157 | ## Requirements |
+| 445 | ## Open Architecture Decisions |
+| 468 | ## Verification |
+| 484 | ## Related Specifications |
+| 502 | ## Change Control |
+
+---
+
 ## openspec/specs/billing-stripe/spec.md
 
 | Line | Header |
