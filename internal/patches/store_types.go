@@ -4,7 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/openagentplatform/openagentplatform/pkg/models"
 )
 
@@ -40,15 +41,32 @@ type Store interface {
 	UpdatePatchJobTarget(ctx context.Context, t *models.PatchJobTarget) error
 
 	GetPatchStats(ctx context.Context, orgID string) (*models.PatchStats, error)
+
+	// Per-KB WinUpdate state (RMM-03). These methods are independent
+	// of patch jobs: they are fed by agent scan/install/reboot reports.
+	IngestKBScan(ctx context.Context, orgID, agentID, kb, severity string) (string, error)
+	IngestKBInstall(ctx context.Context, orgID, agentID, kb string, success, rebootRequired bool, errMsg string) (string, error)
+	IngestKBRebootDone(ctx context.Context, orgID, agentID string, kbs []string) error
+	TransitionKB(ctx context.Context, orgID, agentID, kb, event string) (string, error)
+	GetKBStatesByAgent(ctx context.Context, orgID, agentID string) ([]models.WinUpdateKBState, error)
+}
+
+// patchPoolConn is the minimal pgx surface used by pgPatchStore. It is
+// satisfied by *pgxpool.Pool in production and by pgxmock pools in tests.
+type patchPoolConn interface {
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	Begin(ctx context.Context) (pgx.Tx, error)
 }
 
 // pgPatchStore is the default PostgreSQL-backed implementation of Store.
 type pgPatchStore struct {
-	pool *pgxpool.Pool
+	pool patchPoolConn
 }
 
 // NewPGStore constructs a Store backed by a pgx connection pool.
-func NewPGStore(pool *pgxpool.Pool) Store {
+func NewPGStore(pool patchPoolConn) Store {
 	return &pgPatchStore{pool: pool}
 }
 

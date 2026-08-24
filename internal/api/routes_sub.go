@@ -216,6 +216,9 @@ func (s *Server) mountAPISubRoutes(r chi.Router) {
 	// endpoints.
 	r.Route("/patches", func(r chi.Router) {
 		r.Get("/", s.listPatches)
+		// Per-KB WinUpdate state (RMM-03). Read-only; available to any
+		// authenticated org member. No licensing gate, no role gate.
+		r.Get("/kb", s.handleGetKBBatch)
 		r.Get("/stats", s.getPatchStats)
 		r.Route("/catalog", func(r chi.Router) {
 			r.Get("/", s.listPatchCatalog)

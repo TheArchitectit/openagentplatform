@@ -90,7 +90,7 @@ F0. Baseline (v1.2.0) — established
 | 1 | RMM-00 — Operations foundation and decision register | F0 (established) |
 | 2 | RMM-01 — Offline-agent SLA alerting | RMM-00 + threshold/cooldown decision | **COMPLETE** (shipped `6ff3a17`) |
 | 3 | RMM-02 — Fleet alert-suppression maintenance windows | RMM-00 + window/precedence decisions | **COMPLETE** (verified in-tree, uncommitted) |
-| 4 | RMM-03 — Windows Update per-KB lifecycle | RMM-00 + state/identity decisions |
+| 4 | RMM-03 — Windows Update per-KB lifecycle | RMM-00 + state/identity decisions | **COMPLETE** (implemented and verified in-tree) |
 | 5 | RMM-04 — Reboot coordination | RMM-00 + approved reboot command contract |
 | 6 | RMM-05 — CVE-to-patch correlation | RMM-00 + source/provenance decisions |
 | 7 | RMM-06 — Scheduled automation decision gate | RMM-00 + approved scheduling grammar |
@@ -156,7 +156,7 @@ Silently skipping a transition is a protocol violation.
 | RMM-00 | `RMM-00_RMM_OPERATIONS_FOUNDATION.md` | Operations foundation and open-decision register | **COMPLETE** (verified 2026-08-24) |
 | RMM-01 | `RMM-01_OFFLINE_AGENT_SLA.md` | Offline-agent SLA alerting | **COMPLETE** (shipped commit `6ff3a17`) |
 | RMM-02 | `RMM-02_ALERT_MAINTENANCE_WINDOWS.md` | Fleet alert-suppression windows | **COMPLETE** (implemented and verified in-tree, uncommitted) |
-| RMM-03 | `RMM-03_WINUPDATE_STATE_MACHINE.md` | Windows Update per-KB lifecycle | PENDING |
+| RMM-03 | `RMM-03_WINUPDATE_STATE_MACHINE.md` | Windows Update per-KB lifecycle | **COMPLETE** (implemented and verified in-tree) |
 | RMM-04 | `RMM-04_REBOOT_COORDINATION.md` | Reboot coordination | PENDING |
 | RMM-05 | `RMM-05_CVE_CORRELATION.md` | CVE-to-patch correlation | PENDING |
 | RMM-06 | `RMM-06_SCHEDULED_AUTOMATION_DECISION.md` | Scheduled automation decision gate | PENDING (blocked: §10.2 grammar) |

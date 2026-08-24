@@ -136,9 +136,9 @@ func (a *eventStoreAdapter) GetAgent(ctx context.Context, _, id string) (*models
 	if a.pool == nil {
 		return nil, nil
 	}
-	const q = `SELECT id, COALESCE(status, 'offline') FROM agents WHERE id = $1 LIMIT 1`
+	const q = `SELECT id, COALESCE(org_id,''), COALESCE(status, 'offline') FROM agents WHERE id = $1 LIMIT 1`
 	ag := &models.Agent{}
-	err := a.pool.QueryRow(ctx, q, id).Scan(&ag.ID, &ag.Status)
+	err := a.pool.QueryRow(ctx, q, id).Scan(&ag.ID, &ag.OrgID, &ag.Status)
 	return ag, err
 }
 

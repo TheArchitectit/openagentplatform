@@ -47,12 +47,12 @@ type PatchInstallCommand struct {
 
 // PatchInstallResultEnvelope is the result of a patch install.
 type PatchInstallResultEnvelope struct {
-	RequestID string        `json:"request_id"`
-	AgentID   string        `json:"agent_id"`
-	Result    *InstallResult `json:"result"`
-	Error     string        `json:"error,omitempty"`
-	DurationMs int64        `json:"duration_ms"`
-	ReceivedAt time.Time    `json:"received_at"`
+	RequestID  string         `json:"request_id"`
+	AgentID    string         `json:"agent_id"`
+	Result     *InstallResult `json:"result"`
+	Error      string         `json:"error,omitempty"`
+	DurationMs int64          `json:"duration_ms"`
+	ReceivedAt time.Time      `json:"received_at"`
 }
 
 // PatchScanSubject returns the NATS subject the server uses to
@@ -77,6 +77,57 @@ func PatchInstallSubject(agentID string) string {
 // publishes install results on.
 func PatchInstallResultSubject(agentID string) string {
 	return fmt.Sprintf("oap.agents.%s.patch_install.results", agentID)
+}
+
+// Per-KB WinUpdate tracking subjects (RMM-03). These are NEW sibling
+// subjects under the existing oap.agents.<id>.* namespace; they do not
+// extend or replace the authoritative patch_scan / patch_install
+// subjects used for scan/install dispatch.
+
+// PatchKBScanSubject returns the subject the agent publishes per-KB
+// scan reports on.
+func PatchKBScanSubject(agentID string) string {
+	return fmt.Sprintf("oap.agents.%s.patch_kb.scan", agentID)
+}
+
+// PatchKBInstallSubject returns the subject the agent publishes per-KB
+// install results on.
+func PatchKBInstallSubject(agentID string) string {
+	return fmt.Sprintf("oap.agents.%s.patch_kb.install", agentID)
+}
+
+// PatchKBRebootDoneSubject returns the subject the agent reports reboot
+// completion on (transition reboot_required -> installed).
+func PatchKBRebootDoneSubject(agentID string) string {
+	return fmt.Sprintf("oap.agents.%s.patch_kb.reboot_done", agentID)
+}
+
+// PatchKBScanEnvelope is the per-KB scan report the agent publishes to
+// PatchKBScanSubject. It carries the per-patch metadata the agent
+// already computed during a scan so the server can upsert KB state.
+type PatchKBScanEnvelope struct {
+	AgentID    string      `json:"agent_id"`
+	Patches    []PatchInfo `json:"patches"`
+	ReceivedAt time.Time   `json:"received_at"`
+}
+
+// PatchKBInstallEnvelope is the per-KB install report the agent
+// publishes to PatchKBInstallSubject.
+type PatchKBInstallEnvelope struct {
+	AgentID    string         `json:"agent_id"`
+	Patch      *PatchInfo     `json:"patch"`
+	Result     *InstallResult `json:"result"`
+	Error      string         `json:"error,omitempty"`
+	DurationMs int64          `json:"duration_ms"`
+	ReceivedAt time.Time      `json:"received_at"`
+}
+
+// PatchKBRebootEnvelope is the reboot-completion report the agent
+// publishes to PatchKBRebootDoneSubject.
+type PatchKBRebootEnvelope struct {
+	AgentID    string    `json:"agent_id"`
+	KBs        []string  `json:"kbs"`
+	ReceivedAt time.Time `json:"received_at"`
 }
 
 // Handler is the agent-side dispatcher for patch scan and install
@@ -217,6 +268,20 @@ func (h *Handler) handleScan(parent context.Context, msg *nats.Msg) {
 	if err := h.nc.Publish(PatchScanResultSubject(h.agentID), payload); err != nil {
 		h.log.Warn("patch scan: publish result failed", "err", err)
 	}
+
+	// RMM-03: also publish the per-KB scan report on the sibling
+	// patch_kb.scan subject so the server can persist per-KB state.
+	// This does not change existing scan/install dispatch behavior.
+	kbEnv := PatchKBScanEnvelope{
+		AgentID:    h.agentID,
+		Patches:    patches,
+		ReceivedAt: time.Now(),
+	}
+	if kbPayload, jerr := json.Marshal(kbEnv); jerr == nil {
+		if perr := h.nc.Publish(PatchKBScanSubject(h.agentID), kbPayload); perr != nil {
+			h.log.Warn("patch kb scan: publish failed", "err", perr)
+		}
+	}
 }
 
 func (h *Handler) handleInstall(parent context.Context, msg *nats.Msg) {
@@ -280,4 +345,47 @@ func (h *Handler) handleInstall(parent context.Context, msg *nats.Msg) {
 	if perr := h.nc.Publish(PatchInstallResultSubject(h.agentID), payload); perr != nil {
 		h.log.Warn("patch install: publish result failed", "err", perr)
 	}
+
+	// RMM-03: also publish the per-KB install report on the sibling
+	// patch_kb.install subject so the server can persist per-KB state.
+	// This does not change existing scan/install dispatch behavior.
+	if cmd.Patch != nil {
+		kbEnv := PatchKBInstallEnvelope{
+			AgentID:    h.agentID,
+			Patch:      cmd.Patch,
+			Result:     result,
+			Error:      env.Error,
+			DurationMs: env.DurationMs,
+			ReceivedAt: time.Now(),
+		}
+		if kbPayload, merr := json.Marshal(kbEnv); merr == nil {
+			if perr := h.nc.Publish(PatchKBInstallSubject(h.agentID), kbPayload); perr != nil {
+				h.log.Warn("patch kb install: publish failed", "err", perr)
+			}
+		}
+	}
+}
+
+// ReportRebootDone publishes a PatchKBRebootEnvelope listing the KBs for
+// which the agent has completed a reboot. The server transitions each
+// listed KB from reboot_required to installed. The cmd/agent/main.go
+// startup call-site that wires this into the agent's reboot lifecycle is
+// deferred to RMM-04.
+func (h *Handler) ReportRebootDone(ctx context.Context, kbs []string) error {
+	if h.nc == nil {
+		return fmt.Errorf("patcher: no nats connection")
+	}
+	env := PatchKBRebootEnvelope{
+		AgentID:    h.agentID,
+		KBs:        kbs,
+		ReceivedAt: time.Now(),
+	}
+	payload, err := json.Marshal(env)
+	if err != nil {
+		return fmt.Errorf("patcher: marshal reboot envelope: %w", err)
+	}
+	if err := h.nc.Publish(PatchKBRebootDoneSubject(h.agentID), payload); err != nil {
+		return fmt.Errorf("patcher: publish reboot done: %w", err)
+	}
+	return nil
 }

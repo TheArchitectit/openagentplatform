@@ -90,6 +90,13 @@ func UserFromContext(ctx context.Context) (*SessionClaims, bool) {
 	return c, ok
 }
 
+// WithUser attaches session claims to a context. It is intended for tests
+// and other in-process callers that want to simulate an authenticated
+// request without going through the HTTP middleware.
+func WithUser(ctx context.Context, claims *SessionClaims) context.Context {
+	return context.WithValue(ctx, ctxUserKey, claims)
+}
+
 // RequireRole returns a middleware that allows the request only when the
 // authenticated user has one of the listed roles.
 func RequireRole(roles ...string) func(http.Handler) http.Handler {
@@ -98,17 +105,17 @@ func RequireRole(roles ...string) func(http.Handler) http.Handler {
 		allowed[r] = struct{}{}
 	}
 	return func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				user, ok := UserFromContext(r.Context())
-				if !ok || user == nil {
-					http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
-					return
-				}
-				if _, allow := allowed[user.Role]; !allow {
-					http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
-					return
-				}
-				next.ServeHTTP(w, r)
-			})
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			user, ok := UserFromContext(r.Context())
+			if !ok || user == nil {
+				http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+				return
+			}
+			if _, allow := allowed[user.Role]; !allow {
+				http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
 	}
 }

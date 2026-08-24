@@ -46,6 +46,23 @@ type PatchJob struct {
 	CompletedAt            *time.Time       `json:"completed_at,omitempty"`
 }
 
+// WinUpdateKBState records the per-KB lifecycle state of a single
+// Windows Update article on a single agent. The state field is driven
+// by the WinUpdate state machine in internal/patches/winupdate_states.go;
+// the store is the source of truth for persistence. This table is
+// independent of patch_job_targets because it is populated by agent
+// scan/install reports rather than by deployment jobs.
+type WinUpdateKBState struct {
+	ID        string    `json:"id"`
+	OrgID     string    `json:"org_id"`
+	AgentID   string    `json:"agent_id"`
+	KB        string    `json:"kb"`
+	State     string    `json:"state"`
+	Result    string    `json:"result,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 // PatchJobTarget represents a single endpoint targeted by a PatchJob.
 // Status is populated by the agent when the patch is dispatched.
 type PatchJobTarget struct {

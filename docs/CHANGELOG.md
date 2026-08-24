@@ -8,6 +8,50 @@ for the BSL-licensed releases.
 
 ---
 
+## [Unreleased] - 2026-08-24 -- RMM-03 WinUpdate per-KB Tracking & State Machine
+
+### Added
+
+- **WinUpdate per-KB tracking table** (`winupdate_kb_state`, migration
+  `0013_rmm03_winupdate_kb_state.py`): job-independent per-KB state with the
+  canonical 8-state vocabulary (`scanned`, `pending_approval`, `approved`,
+  `rejected`, `installing`, `installed`, `failed`, `reboot_required`), UNIQUE
+  on `(agent_id, kb)`, FK to organizations + agents, index on `(org_id, state)`.
+- **WinUpdate 8-state machine** (`internal/patches/winupdate_states.go`):
+  `WinUpdateValidTransitions` + `WinUpdateNextState`, reusing the
+  `ErrInvalidTransition` sentinel from `approval.go`.
+- **Per-KB ingest + query store methods** (`internal/patches/store_kb.go`):
+  `IngestKBScan` (idempotent, critical auto-approves), `IngestKBInstall`
+  (at-least-once tolerant), `IngestKBRebootDone`, `TransitionKB`,
+  `GetKBStatesByAgent` — all org-scoped.
+- **NATS consumer** (`internal/patches/kb_ingest.go`): subscribes to
+  `oap.agents.*.patch_kb.{scan,install,reboot_done}`, resolves agent→org via
+  the existing `GetAgent` lookup, and feeds the ingest methods.
+- **Agent-side sibling subjects** (`pkg/agent/patcher/handler.go`):
+  `PatchKBScanSubject` / `PatchKBInstallSubject` / `PatchKBRebootDoneSubject`
+  + `PatchKBScanEnvelope` / `PatchKBInstallEnvelope` / `PatchKBRebootEnvelope`
+  + `ReportRebootDone`. Existing scan/install handlers publish onto the new
+  siblings without changing their authoritative behavior.
+- **Read-only API endpoint** `GET /api/v1/patches/kb` (`handleGetKBBatch`):
+  org-scoped, no licensing gate, optional `agent_id` (cross-org → 404) and
+  `state` filters, capped at 200 rows.
+
+### Notes
+
+- `cmd/agent/main.go` reboot call-site deferred to RMM-04.
+- No `rmm.winupdate.*` subjects introduced (forbidden by spec).
+
+### Remediation (2026-08-24)
+
+- Fixed `GetKBStatesByAgent` to support org-wide listing when `agent_id` is
+  empty (previously errored 500 on unfiltered `GET /patches/kb`).
+- Fixed `IngestKBInstall` idempotency: identical redelivery to a terminal
+  state is a no-op; `scanned`/`pending_approval` rows walk approve → install.
+- Wired `KBConsumer` into `cmd/server/server_init.go` so the server subscribes
+  to `oap.agents.*.patch_kb.{scan,install,reboot_done}`.
+
+---
+
 ## [1.2.0] - 2026-08-23 -- Wiring Remediation & OpenSpec Reconciliation COMPLETE
 
 ### Summary

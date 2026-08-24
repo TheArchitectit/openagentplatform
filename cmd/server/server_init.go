@@ -95,12 +95,12 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 	alertStore := alerts.NewPGStore(pool)
 	silenceEval := alerts.NewSilenceEvaluator(alertStore, agentStore, natsClient, log)
 	alertEngine := alerts.New(alerts.Config{
-		Client:            natsClient,
-		Store:             alertStore,
-		Publisher:         natsClient,
-		Logger:            log,
-		NotifierRegistry:  notifierReg,
-		SilenceEvaluator:  silenceEval,
+		Client:           natsClient,
+		Store:            alertStore,
+		Publisher:        natsClient,
+		Logger:           log,
+		NotifierRegistry: notifierReg,
+		SilenceEvaluator: silenceEval,
 	})
 	apiServer.SetAlertStore(alertStore)
 	apiServer.SetAlertEngine(alertEngine)
@@ -146,6 +146,18 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		MaxConcurrency: 10,
 		Logger:         log,
 	}, patchDeployer, patchStore)
+
+	// --- WinUpdate per-KB ingest consumer (RMM-03) ----------------------
+	// Subscribes to the oap.agents.*.patch_kb.{scan,install,reboot_done}
+	// sibling subjects and feeds the per-KB store ingest methods. The
+	// consumer resolves agent_id -> org_id via the existing agent lookup
+	// used by heartbeat/check ingest, so rows are always org-scoped.
+	kbConsumer := patches.NewKBConsumer(natsClient.Conn(), patchStore, agentStore, log)
+	if _, err := kbConsumer.Subscribe(); err != nil {
+		log.Warn("winupdate kb consumer not started", "error", err)
+	} else {
+		log.Info("winupdate kb consumer started")
+	}
 
 	// --- Script library ---------------------------------------------------
 	scriptStore := api.NewPGScriptStore(pool)

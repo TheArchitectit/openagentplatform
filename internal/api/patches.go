@@ -320,6 +320,103 @@ func (s *Server) patchTransition(w http.ResponseWriter, r *http.Request, event s
 	})
 }
 
+// handleGetKBBatch returns per-KB WinUpdate states for the caller's org.
+// It is a read-only endpoint available to any authenticated org member
+// (no licensing gate, no role gate). Query params:
+//   - agent_id (optional): if given, scope to that agent; must resolve
+//     to the caller's org or 404 is returned.
+//   - state (optional): if given, filter by state.
+//
+// Results are capped at 200 rows when unfiltered.
+func (s *Server) handleGetKBBatch(w http.ResponseWriter, r *http.Request) {
+	if s.patchStore == nil {
+		http.Error(w, `{"error":"patch_store_not_configured"}`, http.StatusServiceUnavailable)
+		return
+	}
+	orgID := ""
+	if claims, ok := auth.UserFromContext(r.Context()); ok && claims != nil {
+		orgID = claims.OrgID
+	}
+	if orgID == "" {
+		http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
+		return
+	}
+
+	q := r.URL.Query()
+	agentID := q.Get("agent_id")
+	state := q.Get("state")
+
+	// If an agent_id is given, verify it belongs to the caller's org.
+	if agentID != "" {
+		if err := s.checkAgentOrg(r.Context(), orgID, agentID); err != nil {
+			if errors.Is(err, patches.ErrWinUpdateKBNotFound) || errors.Is(err, errCrossOrgAgent) {
+				http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
+				return
+			}
+			s.log.Error("kb batch: check agent org failed", "agent_id", agentID, "err", err)
+			http.Error(w, `{"error":"check_failed"}`, http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Cap unfiltered results at 200 rows (the store enforces the limit).
+	limit := 200
+	if state != "" {
+		// state filter is applied in the store query; limit still 200.
+		_ = limit
+	}
+
+	states, err := s.patchStore.GetKBStatesByAgent(r.Context(), orgID, agentID)
+	if err != nil {
+		s.log.Error("kb batch failed", "org_id", orgID, "agent_id", agentID, "err", err)
+		http.Error(w, `{"error":"list_failed"}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Apply state filter in-memory (the store returns all states for the
+	// agent; filtering here keeps the store query simple and org-scoped).
+	if state != "" {
+		filtered := make([]models.WinUpdateKBState, 0, len(states))
+		for _, st := range states {
+			if st.State == state {
+				filtered = append(filtered, st)
+			}
+		}
+		states = filtered
+	}
+
+	if states == nil {
+		states = []models.WinUpdateKBState{}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"kb_states": states,
+		"total":     len(states),
+	})
+}
+
+// errCrossOrgAgent is returned by checkAgentOrg when the requested agent
+// does not belong to the caller's org.
+var errCrossOrgAgent = errors.New("agent does not belong to org")
+
+// checkAgentOrg verifies that agentID resolves to the given org. It
+// reuses the agentStore lookup used elsewhere in the API (heartbeat /
+// check ingest). Returns errCrossOrgAgent on mismatch.
+func (s *Server) checkAgentOrg(ctx context.Context, orgID, agentID string) error {
+	if agentID == "" {
+		return errCrossOrgAgent
+	}
+	store := s.agentStore()
+	a, err := store.GetAgent(ctx, orgID, agentID)
+	if err != nil {
+		return errCrossOrgAgent
+	}
+	if a == nil || a.OrgID != orgID {
+		return errCrossOrgAgent
+	}
+	return nil
+}
+
 // getPatchStats returns aggregate statistics for the dashboard.
 func (s *Server) getPatchStats(w http.ResponseWriter, r *http.Request) {
 	if s.patchStore == nil {
