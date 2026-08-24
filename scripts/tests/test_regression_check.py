@@ -91,6 +91,24 @@ class TestClassifyFile(unittest.TestCase):
         self.assertIsNone(soft)
         self.assertIsNone(hard)
 
+    def test_skip_generated_protobuf_go(self):
+        """Generated protobuf Go files (.pb.go) are exempt from the size gate."""
+        soft, hard = rc._classify_file("a2a/spec/a2a.pb.go")
+        self.assertIsNone(soft)
+        self.assertIsNone(hard)
+
+    def test_skip_generated_grpc_go(self):
+        """Generated gRPC service stubs (_grpc.pb.go) are also exempt."""
+        soft, hard = rc._classify_file("a2a/spec/a2a_grpc.pb.go")
+        self.assertIsNone(soft)
+        self.assertIsNone(hard)
+
+    def test_handwritten_go_not_exempt(self):
+        """Hand-written Go files must still be size-gated (no broad .go exempt)."""
+        soft, hard = rc._classify_file("internal/api/routes.pb_handwritten.go")
+        self.assertEqual(soft, SOFT)
+        self.assertEqual(hard, HARD)
+
     def test_unrecognized_extension(self):
         """Non-ts/py/go files return None/None."""
         soft, hard = rc._classify_file("README.md")
