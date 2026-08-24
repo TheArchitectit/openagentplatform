@@ -1,6 +1,8 @@
 package models
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -63,6 +65,84 @@ type Heartbeat struct {
 	DiskPercent float64   `json:"disk_percent"`
 	UptimeSecs  uint64    `json:"uptime_secs"`
 	Version     string    `json:"version"`
+}
+
+// UnmarshalJSON decodes a Heartbeat, accepting Timestamp as either an int64
+// unix-seconds value (what pkg/agent publishes: time.Now().Unix()) or an
+// RFC3339 string. Without this, json.Unmarshal rejects the numeric form and
+// every agent heartbeat fails to decode server-side. Magnitude auto-detection
+// also accepts milli/micro/nanosecond integers so future agent versions don't
+// silently land in 1970.
+func (h *Heartbeat) UnmarshalJSON(data []byte) error {
+	// Shadow struct: same fields but Timestamp as RawMessage so time.Time's
+	// strict UnmarshalJSON never runs on a numeric value, plus no recursion
+	// into this method.
+	type shadow struct {
+		AgentID     string          `json:"agent_id"`
+		Timestamp   json.RawMessage `json:"timestamp"`
+		CPUPercent  float64         `json:"cpu_percent"`
+		MemPercent  float64         `json:"mem_percent"`
+		DiskPercent float64         `json:"disk_percent"`
+		UptimeSecs  uint64          `json:"uptime_secs"`
+		Version     string          `json:"version"`
+	}
+	var s shadow
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+
+	ts := time.Time{}
+	if len(s.Timestamp) > 0 && string(s.Timestamp) != "null" {
+		var n int64
+		if err := json.Unmarshal(s.Timestamp, &n); err == nil {
+			ts = unixSecondsToTime(n)
+		} else {
+			var str string
+			if err2 := json.Unmarshal(s.Timestamp, &str); err2 == nil {
+				if parsed, err3 := time.Parse(time.RFC3339, str); err3 == nil {
+					ts = parsed
+				}
+			}
+			// Neither number nor parseable string: keep zero time; the
+			// heartbeat handler already substitutes time.Now() for zero.
+		}
+	}
+
+	*h = Heartbeat{
+		AgentID:     s.AgentID,
+		Timestamp:   ts,
+		CPUPercent:  s.CPUPercent,
+		MemPercent:  s.MemPercent,
+		DiskPercent: s.DiskPercent,
+		UptimeSecs:  s.UptimeSecs,
+		Version:     s.Version,
+	}
+	return nil
+}
+
+// unixSecondsToTime interprets an integer timestamp by magnitude:
+// seconds (~1.7e9), milliseconds (~1.7e12), microseconds (~1.7e15), or
+// nanoseconds (~1.7e18). Values far from any plausible epoch resolve to
+// their literal second interpretation rather than erroring.
+func unixSecondsToTime(n int64) time.Time {
+	switch {
+	case n == 0:
+		return time.Time{}
+	case n > 1e17: // nanoseconds
+		return time.Unix(0, n)
+	case n > 1e14: // microseconds
+		return time.UnixMicro(n)
+	case n > 1e11: // milliseconds
+		return time.UnixMilli(n)
+	default: // seconds
+		return time.Unix(n, 0)
+	}
+}
+
+// String renders a Heartbeat compactly for logs.
+func (h Heartbeat) String() string {
+	return fmt.Sprintf("Heartbeat{agent=%s ts=%s cpu=%.1f mem=%.1f disk=%.1f v=%s}",
+		h.AgentID, h.Timestamp.Format(time.RFC3339), h.CPUPercent, h.MemPercent, h.DiskPercent, h.Version)
 }
 
 // CheckResult is the payload published by agents on oap.agents.<id>.results.
