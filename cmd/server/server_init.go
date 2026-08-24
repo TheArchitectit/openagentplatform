@@ -111,9 +111,7 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 	if err != nil {
 		log.Warn("tracing init failed, continuing without tracing", "error", err)
 	}
-	if tp != nil {
-		pool = telemetry.TraceDB(pool)
-	}
+	_ = tp // pool tracing is wired at creation in main.go via db.WithTracing
 
 	// --- Metrics ------------------------------------------------------
 	// Initialise the Prometheus exporter.  InitMeter returns a handler

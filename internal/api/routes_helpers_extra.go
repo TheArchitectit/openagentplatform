@@ -106,6 +106,9 @@ func metricsMiddleware(next http.Handler) http.Handler {
 		path := routeLabel(r)
 		status := strconv.Itoa(rec.status)
 		telemetry.RecordAPIRequest(r.Method, path, status)
+		// Feed the JSON-summary snapshot so /api/v1/metrics/summary shows
+		// live request roll-ups instead of an empty document.
+		telemetry.RecordCounterRollup("api_requests_total", 1)
 		telemetry.ObserveHTTPRequestDuration(r.Method, path, time.Since(start).Seconds())
 	})
 }

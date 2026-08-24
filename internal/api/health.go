@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/openagentplatform/openagentplatform/internal/monitoring"
 	"github.com/openagentplatform/openagentplatform/internal/telemetry"
 )
 
@@ -72,6 +73,19 @@ func (s *Server) handleReadyz(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		resp.Components["nats"] = "not_configured"
+	}
+
+	// Registered component checks (monitoring.HealthChecker). These cover
+	// dependencies beyond the built-in database/NATS probes; any check
+	// reporting unhealthy degrades readiness.
+	if s.healthChecker != nil {
+		report := s.healthChecker.Check(ctx)
+		for _, c := range report.Components {
+			resp.Components[c.Name] = string(c.Status)
+			if c.Status == monitoring.HealthUnhealthy {
+				allOK = false
+			}
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

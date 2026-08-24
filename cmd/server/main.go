@@ -29,8 +29,14 @@ func main() {
 	defer stop()
 
 	// --- Database ---------------------------------------------------------
+	// Tracing is wired at pool creation (otelpgx) when OTEL export is
+	// configured; the tracer cannot be attached to an existing pool.
+	poolOpts := []db.Option{}
+	if os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "" {
+		poolOpts = append(poolOpts, db.WithTracing())
+	}
 	poolCtx, poolCancel := context.WithTimeout(rootCtx, 10*time.Second)
-	pool, err := db.NewPool(poolCtx, cfg.PostgresDSN)
+	pool, err := db.NewPool(poolCtx, cfg.PostgresDSN, poolOpts...)
 	poolCancel()
 	if err != nil {
 		log.Error("db pool init failed", "err", err)

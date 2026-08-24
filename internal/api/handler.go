@@ -20,6 +20,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/billing"
 	"github.com/openagentplatform/openagentplatform/internal/config"
 	"github.com/openagentplatform/openagentplatform/internal/license"
+	"github.com/openagentplatform/openagentplatform/internal/monitoring"
 	"github.com/openagentplatform/openagentplatform/internal/notify"
 	"github.com/openagentplatform/openagentplatform/internal/patches"
 	"github.com/openagentplatform/openagentplatform/internal/policy"
@@ -114,8 +115,6 @@ type Server struct {
 	// /reports/runs/{id}/download endpoint. May be nil; download
 	// returns 503 when unset.
 	reportsDeliverer *reports.DefaultDeliverer
-	// rateLimiter enforces per-IP request rate limits. Always set.
-	rateLimiter *resilience.RateLimiter
 	// a2aClient is the HTTP client to the Python adapter service. When
 	// set, the /api/v1/a2a/* adapter proxy routes become available and
 	// delegate to the adapter service. May be nil; the proxy returns 503
@@ -127,6 +126,13 @@ type Server struct {
 	// tierResolver resolves the commercial tier for an org ID from the
 	// platform license file. When nil, all orgs default to Community.
 	tierResolver func(orgID string) license.Tier
+	// adapterBreaker trips open when the Python adapter service keeps
+	// failing, failing fast instead of queuing 10s-timeout upstream calls.
+	// May be nil; proxy calls then run unbroken.
+	adapterBreaker *resilience.CircuitBreaker
+	// healthChecker supplies extra component checks for /readyz beyond
+	// the built-in database and NATS probes. May be nil.
+	healthChecker *monitoring.HealthChecker
 }
 
 // Publisher is the subset of the events.Client interface used by API handlers.
@@ -140,7 +146,7 @@ type Publisher interface {
 // db, eventBus, and audit may be nil; when nil, endpoints that require them
 // return 503 Service Unavailable.
 func NewServer(cfg *config.Config, log *slog.Logger, db *pgxpool.Pool, eventBus Publisher, auditSvc *audit.AuditService) *Server {
-	s := &Server{cfg: cfg, log: log, db: db, eventBus: eventBus, audit: auditSvc, startedAt: time.Now(), rateLimiter: resilience.NewRateLimiter(resilience.DefaultRateLimitConfig())}
+	s := &Server{cfg: cfg, log: log, db: db, eventBus: eventBus, audit: auditSvc, startedAt: time.Now()}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -275,9 +281,11 @@ func (s *Server) buildRouter() chi.Router {
 	r.Use(middleware.Heartbeat("/healthz"))
 	// Cap request body size to bound memory use on mutating endpoints.
 	r.Use(bodyLimitMiddleware)
-	// Rate limiting applied server-wide before auth to protect login
-	// and mutation endpoints from brute force and resource exhaustion.
-	r.Use(s.rateLimiter.Middleware())
+	// Rate limiting is applied once, at the outer HTTP server layer
+	// (buildHTTPServer) which owns the limiter lifecycle (Stop on shutdown)
+	// and skip-paths for health/metrics. The inner per-Server limiter was
+	// removed: with identical 100/200 defaults both would fire and halve
+	// effective capacity for bursty clients.
 	// Metrics middleware records request count and latency for every
 	// request.  It is installed before audit so it sees the final status
 	// code and response size; the middleware itself skips /metrics to

@@ -18,6 +18,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/billing"
 	"github.com/openagentplatform/openagentplatform/internal/config"
 	"github.com/openagentplatform/openagentplatform/internal/events"
+	"github.com/openagentplatform/openagentplatform/internal/monitoring"
 	"github.com/openagentplatform/openagentplatform/internal/resilience"
 	secretsauth "github.com/openagentplatform/openagentplatform/secrets/auth"
 	"github.com/openagentplatform/openagentplatform/secrets/inject"
@@ -28,6 +29,23 @@ import (
 // the Python-adapter RPC bridge, and wires the adapter client + gateway into
 // the API server for the /api/v1/a2a/* adapter proxy. Extracted from
 // NewServer so that file stays under the file-size soft limit.
+// newAdapterBreaker builds the circuit breaker guarding calls to the
+// Python adapter service. It is shared by the A2A RPC bridge path and the
+// frontend-facing /api/v1/a2a/* proxy so both see the same open/closed
+// state.
+func newAdapterBreaker(log *slog.Logger) *resilience.CircuitBreaker {
+	cb := resilience.NewCircuitBreaker(resilience.BreakerConfig{
+		Name:         "adapter",
+		MaxFailures:  5,
+		OpenDuration: 30 * time.Second,
+		HalfOpenMax:  1,
+		Logger:       log,
+	})
+	log.Info("resilience: adapter circuit breaker enabled",
+		"max_failures", 5, "open_duration", "30s")
+	return cb
+}
+
 func buildA2AGateway(apiServer *api.Server, pool *pgxpool.Pool, natsClient *events.Client, log *slog.Logger) (*gateway.Gateway, *bridge.RPCBridge, *bridge.Bridge, error) {
 	// Build the A2A gateway components and the bridge that converts
 	// internal NATS events into A2A tasks. The bridge runs as an
@@ -70,6 +88,9 @@ func buildA2AGateway(apiServer *api.Server, pool *pgxpool.Pool, natsClient *even
 	// Expose the adapter client + gateway to the API server so the
 	// /api/v1/a2a/* adapter proxy can delegate to them.
 	apiServer.SetA2AAdapterBridge(adapterClient, a2aGw)
+	// The proxy's upstream calls run through the adapter circuit breaker;
+	// buildA2AGateway constructs it before wireSupportServices collects it.
+	apiServer.SetAdapterBreaker(newAdapterBreaker(log))
 
 	return a2aGw, rpcBridge, eventBridge, nil
 }
@@ -142,6 +163,24 @@ func wireSupportServices(apiServer *api.Server, pool *pgxpool.Pool, log *slog.Lo
 	// secrets HTTP endpoints can dispatch to it.
 	apiServer.SetSecretsResolver(secretResolver, registeredNames)
 
+	// Component health aggregation for /readyz: database reachability plus
+	// the Python adapter service (reported degraded, not unhealthy, when
+	// unconfigured so readiness does not depend on an optional service).
+	healthChecker := monitoring.NewHealthChecker()
+	if err := healthChecker.Register("database", monitoring.HealthCheckFunc(func(ctx context.Context) monitoring.ComponentHealth {
+		h := monitoring.ComponentHealth{Name: "database", Kind: "postgres", CheckedAt: time.Now(), Status: monitoring.HealthHealthy}
+		pingCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		defer cancel()
+		if err := pool.Ping(pingCtx); err != nil {
+			h.Status = monitoring.HealthUnhealthy
+			h.Message = err.Error()
+		}
+		return h
+	})); err != nil {
+		log.Warn("health check registration failed", "error", err)
+	}
+	apiServer.SetHealthChecker(healthChecker)
+
 	// Billing is optional: only wired when STRIPE_SECRET_KEY is set.
 	var (
 		stripeClient *billing.StripeClient
@@ -154,6 +193,15 @@ func wireSupportServices(apiServer *api.Server, pool *pgxpool.Pool, log *slog.Lo
 		stripeClient = sc
 		billingSvc = billing.NewBillingService(sc, log)
 		meteringSvc = billing.NewMeteringService(sc, log)
+		// Durable org-state persistence: mutations write through to
+		// Postgres and the cache is warmed at startup. Failure to wire it
+		// degrades to the previous memory-only mode.
+		stateStore := billing.NewPGStateStore(pool)
+		if err := stateStore.EnsureSchema(context.Background()); err != nil {
+			log.Warn("billing: org_billing_state schema not created; memory-only state", "error", err)
+		} else if err := billingSvc.SetStateStore(stateStore); err != nil {
+			log.Warn("billing: state store not wired; memory-only state", "error", err)
+		}
 		apiServer.SetBilling(stripeClient, billingSvc, meteringSvc)
 		log.Info("billing: Stripe billing + metering enabled")
 	}
@@ -169,16 +217,9 @@ func wireSupportServices(apiServer *api.Server, pool *pgxpool.Pool, log *slog.Lo
 	})
 	log.Info("resilience: rate limiter enabled", "rate", 100, "burst", 200)
 
-	// Circuit breaker for the Python adapter service.
-	adapterBreaker := resilience.NewCircuitBreaker(resilience.BreakerConfig{
-		Name:         "adapter",
-		MaxFailures:  5,
-		OpenDuration: 30 * time.Second,
-		HalfOpenMax:  1,
-		Logger:       log,
-	})
-	log.Info("resilience: adapter circuit breaker enabled",
-		"max_failures", 5, "open_duration", "30s")
+	// Circuit breaker for the Python adapter service (constructed in
+	// newAdapterBreaker and shared with the API proxy).
+	adapterBreaker := newAdapterBreaker(log)
 
 	// Graceful shutdown coordinator.
 	graceful := resilience.NewGracefulShutdown(resilience.ShutdownConfig{

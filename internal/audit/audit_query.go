@@ -98,14 +98,22 @@ func (s *AuditService) GetEvents(ctx context.Context, f EventFilter) ([]Event, i
 	return out, total, nil
 }
 
-// GetEventChain returns the hash chain for a given resource ID and verifies
-// each link. The chain is ordered from oldest to newest.
+// GetEventChain returns every audit event for a resource ID ordered oldest
+// to newest and verifies each link. The write-side chain is global (every
+// event links to the latest event of any resource), so a per-resource view
+// necessarily skips foreign links. Verification therefore checks each link
+// in isolation — its stored hash must recompute from its own contents
+// (VerifyHash semantics over the chain columns) — rather than demanding
+// contiguity of prev_hash within the subset. A prev_hash that does not
+// match this resource's previous link is recorded as GapCount, not as a
+// break; only failed hash recomputation marks Intact=false.
 func (s *AuditService) GetEventChain(ctx context.Context, resourceID string) (*ChainVerification, error) {
 	if s == nil || s.pool == nil {
 		return nil, fmt.Errorf("audit: service not initialised")
 	}
 	const q = `
-		SELECT event_id, prev_hash, hash, timestamp
+		SELECT event_id, prev_hash, hash, timestamp,
+		       actor_type, actor_id, action, resource_type, details, outcome
 		FROM audit_events
 		WHERE resource_id = $1
 		ORDER BY timestamp ASC, event_id ASC
@@ -117,15 +125,39 @@ func (s *AuditService) GetEventChain(ctx context.Context, resourceID string) (*C
 	defer rows.Close()
 
 	ver := &ChainVerification{ResourceID: resourceID, Links: []ChainLink{}, Intact: true}
-	var prev string
+	var (
+		prevResourceHash string
+		gaps             int
+	)
 	for rows.Next() {
-		var link ChainLink
-		if err := rows.Scan(&link.EventID, &link.PrevHash, &link.Hash, &link.Timestamp); err != nil {
+		var (
+			link    ChainLink
+			actorT  ActorType
+			actorID string
+			action  string
+			resType string
+			details []byte
+			outcome Outcome
+		)
+		if err := rows.Scan(&link.EventID, &link.PrevHash, &link.Hash, &link.Timestamp,
+			&actorT, &actorID, &action, &resType, &details, &outcome); err != nil {
 			return nil, fmt.Errorf("audit: scan chain link: %w", err)
 		}
-		// The first link should be the genesis (empty prev hash); subsequent
-		// links should reference the prior event's hash.
-		if link.PrevHash != prev {
+		// Recompute the event hash from its own canonical contents. This is
+		// the tamper check: a modified row cannot reproduce its stored hash.
+		ev := &Event{
+			EventID:      link.EventID,
+			PrevHash:     link.PrevHash,
+			Timestamp:    link.Timestamp,
+			ActorType:    actorT,
+			ActorID:      actorID,
+			Action:       action,
+			ResourceType: resType,
+			ResourceID:   resourceID,
+			Details:      detailsJSONForHash(details),
+			Outcome:      outcome,
+		}
+		if computeHash(ev) != link.Hash {
 			link.Valid = false
 			ver.Intact = false
 			if ver.BrokenAt == "" {
@@ -133,13 +165,19 @@ func (s *AuditService) GetEventChain(ctx context.Context, resourceID string) (*C
 			}
 		} else {
 			link.Valid = true
+			// Track subset contiguity purely as informational gap counting:
+			// foreign-resource events interleave between ours by design.
+			if prevResourceHash != "" && link.PrevHash != prevResourceHash {
+				gaps++
+			}
+			prevResourceHash = link.Hash
 		}
 		ver.Links = append(ver.Links, link)
-		prev = link.Hash
 		ver.TotalChecked++
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("audit: chain rows err: %w", err)
 	}
+	ver.GapCount = gaps
 	return ver, nil
 }

@@ -4,8 +4,10 @@ import (
 	"github.com/openagentplatform/openagentplatform/a2a/bridge"
 	"github.com/openagentplatform/openagentplatform/a2a/gateway"
 	"github.com/openagentplatform/openagentplatform/internal/billing"
+	"github.com/openagentplatform/openagentplatform/internal/monitoring"
 	"github.com/openagentplatform/openagentplatform/internal/patches"
 	"github.com/openagentplatform/openagentplatform/internal/reports"
+	"github.com/openagentplatform/openagentplatform/internal/resilience"
 	"github.com/openagentplatform/openagentplatform/secrets/resolver"
 )
 
@@ -60,6 +62,27 @@ func (s *Server) SetBilling(stripe *billing.StripeClient, billingSvc *billing.Bi
 func (s *Server) SetA2AAdapterBridge(client *bridge.AdapterClient, gw *gateway.Gateway) {
 	s.a2aClient = client
 	s.a2aGateway = gw
+}
+
+// SetAdapterBreaker wires the circuit breaker that guards calls to the
+// Python adapter service. May be nil; proxy calls then run unbroken.
+func (s *Server) SetAdapterBreaker(cb *resilience.CircuitBreaker) {
+	s.adapterBreaker = cb
+}
+
+// SetHealthChecker wires the aggregated component health checker consulted
+// by /readyz. May be nil; /readyz then runs only its built-in probes.
+func (s *Server) SetHealthChecker(hc *monitoring.HealthChecker) {
+	s.healthChecker = hc
+}
+
+// callAdapter runs fn (an adapter-service HTTP round trip) through the
+// circuit breaker when one is wired. A nil breaker runs fn directly.
+func (s *Server) callAdapter(fn func() error) error {
+	if s.adapterBreaker == nil {
+		return fn()
+	}
+	return s.adapterBreaker.Execute(fn)
 }
 
 // SetPatchStore wires the patch job persistence interface into the

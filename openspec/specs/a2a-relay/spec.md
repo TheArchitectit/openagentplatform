@@ -137,15 +137,19 @@ close logging MUST include the connection's total `BytesRelayed`.
   `RelayConfig.TLSConfig`, the package contains no listener, no TLS
   termination, and no byte forwarding — `RecordBytes` is bookkeeping
   that callers must drive. The config fields are currently unused.
-- **Not wired into any binary.** Nothing under `cmd/` constructs a
-  `RelayService`; there are no HTTP/gRPC routes for it.
+- **Parked: not wired into any binary (W8 decision).** Nothing under
+  `cmd/` constructs a `RelayService`. The package stays a library with
+  correct bookkeeping semantics; wiring it into a dedicated relay binary
+  requires the missing network transport (below) and an authentication
+  design, so it is deliberately left out of the main server process until
+  both exist.
 - **Doc-comment features unimplemented.** The package comment claims
   "Authentication on both legs (not open forwarder)" and "End-to-end
   encryption (relay cannot read secrets)"; neither exists in the code.
 - **`ConnectionStatusError` is dead code** — declared and tested as a
   constant but never assigned by any state transition.
-- **Idleness is approximated by connection age.** There is no
-  last-activity timestamp; `CleanupIdleConnections` compares
-  `EstablishedAt` against `IdleTimeout`, so a busy long-lived connection
-  is reaped the same as an idle one.
+- **Idleness is now tracked by last activity** (fixed in the W8 commit):
+  `RelayConnection.LastActivityAt` refreshes on every `RecordBytes` call
+  and `CleanupIdleConnections` reaps on inactivity, not establishment age.
+  A busy long-lived connection is no longer closed for being old.
 - **No persistence.** All connection and metric state is lost on restart.

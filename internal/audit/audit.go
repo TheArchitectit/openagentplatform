@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -112,18 +113,27 @@ type ChainLink struct {
 	Valid     bool      `json:"valid"`
 }
 
-// ChainVerification summarizes the integrity check of a chain.
+// ChainVerification summarizes the integrity check of a chain. Intact means
+// every link's stored hash recomputes from its own contents (no tampering).
+// GapCount counts prev_hash discontinuities within the per-resource subset —
+// expected, because the write-side chain is global and foreign-resource
+// events interleave; gaps are not integrity failures.
 type ChainVerification struct {
 	ResourceID   string      `json:"resource_id"`
 	Links        []ChainLink `json:"links"`
 	Intact       bool        `json:"intact"`
 	BrokenAt     string      `json:"broken_at,omitempty"`
 	TotalChecked int         `json:"total_checked"`
+	GapCount     int         `json:"gap_count"`
 }
 
 // AuditService records and queries audit events.
 type AuditService struct {
 	pool *pgxpool.Pool
+	// writeMu serialises chain extension: latestHash + INSERT must be
+	// atomic or two concurrent Records can fork the chain (both reading
+	// the same prev hash, each becoming the other's sibling orphan).
+	writeMu sync.Mutex
 }
 
 // New creates an AuditService backed by the given pgx pool.
@@ -132,11 +142,14 @@ func New(pool *pgxpool.Pool) *AuditService {
 }
 
 // Record persists an audit event, computing its hash chain link and returning
-// the fully populated Event.
+// the fully populated Event. Chain extension is serialised in-process so
+// concurrent Records cannot fork the hash chain.
 func (s *AuditService) Record(ctx context.Context, in EventInput) (*Event, error) {
 	if s == nil || s.pool == nil {
 		return nil, fmt.Errorf("audit: service not initialised")
 	}
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 	if in.ActorType == "" {
 		in.ActorType = ActorUnknown
 	}

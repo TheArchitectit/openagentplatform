@@ -79,8 +79,9 @@ type BillingService struct {
 	client *StripeClient
 	log    *slog.Logger
 
-	mu    sync.RWMutex
-	state map[string]*OrgBillingState // keyed by org ID
+	mu         sync.RWMutex
+	state      map[string]*OrgBillingState // keyed by org ID; cache over stateStore
+	stateStore StateStore                  // may be nil: memory-only mode
 }
 
 // NewBillingService wires a BillingService to a StripeClient.
@@ -114,6 +115,7 @@ func (s *BillingService) CreateCustomer(ctx context.Context, orgID, email, name 
 	s.mu.Lock()
 	s.state[orgID] = st
 	s.mu.Unlock()
+	s.persistState(st)
 	return st, nil
 }
 
@@ -146,6 +148,7 @@ func (s *BillingService) CreateSubscription(ctx context.Context, orgID string, t
 	s.mu.Lock()
 	s.state[orgID] = st
 	s.mu.Unlock()
+	s.persistState(st)
 	s.log.Info("billing subscription created",
 		"org_id", orgID,
 		"tier", limits.Tier,
@@ -180,6 +183,7 @@ func (s *BillingService) UpdateSubscription(ctx context.Context, orgID string, t
 	s.mu.Lock()
 	s.state[orgID] = st
 	s.mu.Unlock()
+	s.persistState(st)
 	return st, nil
 }
 
@@ -200,18 +204,30 @@ func (s *BillingService) CancelSubscription(ctx context.Context, orgID string) (
 	s.mu.Lock()
 	s.state[orgID] = st
 	s.mu.Unlock()
+	s.persistState(st)
 	return st, nil
 }
 
-// GetSubscription returns the cached state for the org.
+// GetSubscription returns the cached state for the org, falling back to
+// the durable store on a cache miss.
 func (s *BillingService) GetSubscription(ctx context.Context, orgID string) (*OrgBillingState, error) {
 	s.mu.RLock()
-	defer s.mu.RUnlock()
 	st, ok := s.state[orgID]
-	if !ok {
-		return nil, errors.New("organisation not found")
+	store := s.stateStore
+	s.mu.RUnlock()
+	if ok {
+		return st, nil
 	}
-	return st, nil
+	if store != nil {
+		fresh, err := store.GetState(ctx, orgID)
+		if err == nil {
+			s.mu.Lock()
+			s.state[orgID] = fresh
+			s.mu.Unlock()
+			return fresh, nil
+		}
+	}
+	return nil, errors.New("organisation not found")
 }
 
 // GetInvoices fetches the most recent Stripe invoices for the org's
@@ -247,6 +263,7 @@ func (s *BillingService) SyncSubscription(ctx context.Context, orgID string) err
 	s.mu.Lock()
 	s.state[orgID] = st
 	s.mu.Unlock()
+	s.persistState(st)
 	return nil
 }
 

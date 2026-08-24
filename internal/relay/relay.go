@@ -41,6 +41,10 @@ type RelayConnection struct {
 	TargetAgentID string `json:"target_agent_id"`
 	// EstablishedAt is when the connection was established.
 	EstablishedAt time.Time `json:"established_at"`
+	// LastActivityAt is the last time bytes flowed through this
+	// connection. Idle reaping uses this, not EstablishedAt: a long-lived
+	// but actively-relaying connection must not be closed for its age.
+	LastActivityAt time.Time `json:"last_activity_at"`
 	// BytesRelayed is the total bytes relayed.
 	BytesRelayed int64 `json:"bytes_relayed"`
 	// Status is the connection status.
@@ -119,13 +123,15 @@ func (s *RelayService) EstablishConnection(ctx context.Context, tenantID, source
 
 	// Create connection
 	connID := fmt.Sprintf("relay_%s_%s_%s_%d", tenantID, sourceAgentID, targetAgentID, time.Now().UnixNano())
+	now := time.Now().UTC()
 	conn := &RelayConnection{
-		ID:            connID,
-		TenantID:      tenantID,
-		SourceAgentID: sourceAgentID,
-		TargetAgentID: targetAgentID,
-		EstablishedAt: time.Now().UTC(),
-		Status:        ConnectionStatusActive,
+		ID:             connID,
+		TenantID:       tenantID,
+		SourceAgentID:  sourceAgentID,
+		TargetAgentID:  targetAgentID,
+		EstablishedAt:  now,
+		LastActivityAt: now,
+		Status:         ConnectionStatusActive,
 	}
 
 	s.mu.Lock()
@@ -218,6 +224,7 @@ func (s *RelayService) RecordBytes(ctx context.Context, connectionID string, byt
 	}
 
 	conn.BytesRelayed += bytes
+	conn.LastActivityAt = time.Now().UTC()
 
 	// Update metrics
 	if metrics, ok := s.metrics[conn.TenantID]; ok {
@@ -247,8 +254,14 @@ func (s *RelayService) CleanupIdleConnections(ctx context.Context) int {
 	closed := 0
 	for _, conn := range s.connections {
 		if conn.Status == ConnectionStatusActive {
-			// Check if connection has been idle
-			if time.Since(conn.EstablishedAt) > s.config.IdleTimeout {
+			// Idle means no bytes have flowed for the timeout window — not
+			// merely that the connection is old. Reaping by EstablishedAt
+			// age killed long-lived healthy relays.
+			last := conn.LastActivityAt
+			if last.IsZero() {
+				last = conn.EstablishedAt // legacy connections predating the field
+			}
+			if time.Since(last) > s.config.IdleTimeout {
 				conn.Status = ConnectionStatusClosed
 				if metrics, ok := s.metrics[conn.TenantID]; ok {
 					metrics.ConnectionCount--

@@ -34,7 +34,7 @@ func (s *Server) handleA2AListAdapters(w http.ResponseWriter, r *http.Request) {
 // (the frontend renders card.models).
 func (s *Server) handleA2AAdapterCard(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
-	cardBody, cardStatus, cardErr := doAdapterRequest(r.Context(), http.MethodGet, fmt.Sprintf("/api/v1/adapters/%s/card", url.PathEscape(name)), nil)
+	cardBody, cardStatus, cardErr := s.doAdapterRequest(r.Context(), http.MethodGet, fmt.Sprintf("/api/v1/adapters/%s/card", url.PathEscape(name)), nil)
 	if cardErr != nil {
 		writeJSONError(w, http.StatusBadGateway, "adapter service unavailable: "+cardErr.Error())
 		return
@@ -50,7 +50,7 @@ func (s *Server) handleA2AAdapterCard(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadGateway, "invalid card response: "+err.Error())
 		return
 	}
-	if modelsBody, modelsStatus, mErr := doAdapterRequest(r.Context(), http.MethodGet, fmt.Sprintf("/api/v1/adapters/%s/models", url.PathEscape(name)), nil); mErr == nil && modelsStatus == http.StatusOK {
+	if modelsBody, modelsStatus, mErr := s.doAdapterRequest(r.Context(), http.MethodGet, fmt.Sprintf("/api/v1/adapters/%s/models", url.PathEscape(name)), nil); mErr == nil && modelsStatus == http.StatusOK {
 		var modelsResp struct {
 			Models []map[string]any `json:"models"`
 		}
@@ -109,7 +109,7 @@ func (s *Server) handleA2ACostSummary(w http.ResponseWriter, r *http.Request) {
 	fwd.Set("from", strconv.FormatFloat(float64(from.UnixNano())/float64(time.Second), 'f', -1, 64))
 	fwd.Set("to", strconv.FormatFloat(float64(to.UnixNano())/float64(time.Second), 'f', -1, 64))
 
-	body, status, err := doAdapterRequest(r.Context(), http.MethodGet, "/api/v1/cost/usage?"+fwd.Encode(), nil)
+	body, status, err := s.doAdapterRequest(r.Context(), http.MethodGet, "/api/v1/cost/usage?"+fwd.Encode(), nil)
 	if err != nil {
 		writeJSONError(w, http.StatusBadGateway, "adapter service unavailable: "+err.Error())
 		return
@@ -190,7 +190,7 @@ func (s *Server) handleA2AInvoke(w http.ResponseWriter, r *http.Request) {
 		Metadata:    req.Metadata,
 	}
 	body, _ := json.Marshal(invokeReq)
-	respBody, status, err := doAdapterRequest(r.Context(), http.MethodPost, "/api/v1/adapters/invoke", body)
+	respBody, status, err := s.doAdapterRequest(r.Context(), http.MethodPost, "/api/v1/adapters/invoke", body)
 	if err != nil {
 		writeJSONError(w, http.StatusBadGateway, "adapter service unavailable: "+err.Error())
 		return

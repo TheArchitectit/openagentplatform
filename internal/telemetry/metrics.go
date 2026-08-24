@@ -417,6 +417,19 @@ func setGauge(name string, val float64) {
 	v.(*float64Atomic).Store(val)
 }
 
+// RecordCounterRollup adds delta to the named counter in the JSON-summary
+// snapshot. Call sites that already record into Prometheus (e.g.
+// metricsMiddleware) call this alongside so GET /api/v1/metrics/summary
+// reports live roll-ups instead of an empty document.
+func RecordCounterRollup(name string, delta int64) {
+	bumpCounter(name, delta)
+}
+
+// SetGaugeRollup sets the named gauge in the JSON-summary snapshot.
+func SetGaugeRollup(name string, val float64) {
+	setGauge(name, val)
+}
+
 // SnapshotCounters returns a copy of the current counter roll-ups keyed by
 // the registered metric name.  Returns nil if nothing has been recorded.
 func SnapshotCounters() map[string]int64 {

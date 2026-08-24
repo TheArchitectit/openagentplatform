@@ -36,7 +36,12 @@ func (s *Server) proxyAdapter(w http.ResponseWriter, r *http.Request, method, pa
 		req.Header.Set("Content-Type", ct)
 	}
 
-	resp, err := adapterHTTPClient.Do(req)
+	var resp *http.Response
+	err = s.callAdapter(func() error {
+		var derr error
+		resp, derr = adapterHTTPClient.Do(req)
+		return derr
+	})
 	if err != nil {
 		writeJSONError(w, http.StatusBadGateway, "adapter service unavailable: "+err.Error())
 		return
@@ -51,27 +56,38 @@ func (s *Server) proxyAdapter(w http.ResponseWriter, r *http.Request, method, pa
 	_, _ = io.Copy(w, resp.Body)
 }
 
-// doAdapterRequest performs an adapter-service call and returns the raw body,
-// status code, and transport error.
-func doAdapterRequest(ctx context.Context, method, path string, body []byte) ([]byte, int, error) {
-	var reader io.Reader
-	if body != nil {
-		reader = bytes.NewReader(body)
-	}
-	req, err := http.NewRequestWithContext(ctx, method, adapterBaseURL+path, reader)
+// doAdapterRequest performs an adapter-service call through the circuit
+// breaker and returns the raw body, status code, and transport error.
+func (s *Server) doAdapterRequest(ctx context.Context, method, path string, body []byte) ([]byte, int, error) {
+	var (
+		out    []byte
+		status int
+	)
+	err := s.callAdapter(func() error {
+		var reader io.Reader
+		if body != nil {
+			reader = bytes.NewReader(body)
+		}
+		req, rerr := http.NewRequestWithContext(ctx, method, adapterBaseURL+path, reader)
+		if rerr != nil {
+			return rerr
+		}
+		if body != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		resp, derr := adapterHTTPClient.Do(req)
+		if derr != nil {
+			return derr
+		}
+		defer resp.Body.Close()
+		out, _ = io.ReadAll(resp.Body)
+		status = resp.StatusCode
+		return nil
+	})
 	if err != nil {
 		return nil, 0, err
 	}
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	resp, err := adapterHTTPClient.Do(req)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer resp.Body.Close()
-	out, _ := io.ReadAll(resp.Body)
-	return out, resp.StatusCode, nil
+	return out, status, nil
 }
 
 // writeRESTJSON encodes v as JSON with the given status code.
@@ -109,7 +125,12 @@ func (s *Server) handleA2AStream(w http.ResponseWriter, r *http.Request) {
 	req2.Header.Set("Accept", "text/event-stream")
 
 	sseClient := &http.Client{Timeout: 0}
-	resp, err := sseClient.Do(req2)
+	var resp *http.Response
+	err = s.callAdapter(func() error {
+		var derr error
+		resp, derr = sseClient.Do(req2)
+		return derr
+	})
 	if err != nil {
 		writeJSONError(w, http.StatusBadGateway, "adapter service unavailable: "+err.Error())
 		return

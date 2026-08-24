@@ -137,6 +137,9 @@ func (s *Server) mountAPISubRoutes(r chi.Router) {
 	r.Get("/compliance/summary", s.complianceSummary)
 
 	r.Route("/audit", func(r chi.Router) {
+		// Audit reads are privileged: the log contains actor identities,
+		// IPs, and resource references across every org.
+		r.Use(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician))
 		r.Get("/events", s.listAuditEvents)
 		r.Route("/events/{id}", func(r chi.Router) {
 			r.Get("/", s.getAuditEvent)

@@ -61,6 +61,15 @@ func computeHash(ev *Event) string {
 
 // VerifyHash recomputes the hash for an event and compares it to the stored
 // value. Useful for clients that want to spot-check a single event.
+// detailsJSONForHash normalises raw stored details bytes to the canonical
+// form computeHash expects: the JSON null literal when empty.
+func detailsJSONForHash(details []byte) json.RawMessage {
+	if len(details) == 0 {
+		return json.RawMessage("null")
+	}
+	return json.RawMessage(details)
+}
+
 func VerifyHash(ev *Event) bool {
 	if ev == nil {
 		return false
