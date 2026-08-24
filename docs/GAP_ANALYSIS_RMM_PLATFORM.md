@@ -93,9 +93,9 @@ These **detect** posture (is AV installed? is firewall on?) and feed the policy/
 **Gaps:**
 
 - **G-RMM-001 (Med):** No scheduled-report / email-digest cadence endpoint (reports exist but unclear if they emit on schedule).
-- **G-RMM-002 (Low):** No maintenance-window / silence-window concept to suppress alerts during planned work.
+- **G-RMM-002 (Low):** No maintenance-window / silence-window concept to suppress alerts during planned work. — **CLOSED** (RMM-02, implemented and verified in-tree, uncommitted): org/client/site-scoped windows, IANA timezone recurring and overnight semantics, paid-tier gate, RBAC, audit, tenant isolation, fail-open delivery on store read errors, migration 0012.
 - **G-RMM-003 (Med):** No agent auto-update mechanism (agent version is reported; no channel for pushing agent binary updates).
-- **G-RMM-004 (Low):** No offline-agent SLA/alerting ("agent hasn't reported in 24h").
+- **G-RMM-004 (Low):** No offline-agent SLA/alerting ("agent hasn't reported in 24h"). — **CLOSED** (RMM-01, shipped commit `6ff3a17`).
 
 ### 2.2 Multitenancy / Billing / Licensing — ✅ COMPLETE
 

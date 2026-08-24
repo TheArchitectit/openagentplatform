@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 	"github.com/google/uuid"
 	"github.com/openagentplatform/openagentplatform/internal/notify"
 	"github.com/openagentplatform/openagentplatform/pkg/models"
+	"time"
 )
 
 func (e *AlertEngine) dispatchNotifications(ctx context.Context, alert *models.Alert) {
@@ -56,10 +56,10 @@ func (e *AlertEngine) dispatchNotifications(ctx context.Context, alert *models.A
 			Recipient: r.ChannelID,
 			Status:    status,
 			ErrorMsg:  errMsg,
-			CreatedAt: e.sm.now(),
+			CreatedAt: e.engineNow(),
 		}
 		if status == "sent" {
-			now := e.sm.now()
+			now := e.engineNow()
 			rec.SentAt = &now
 		}
 		if r.Err == nil {
@@ -119,9 +119,39 @@ func (e *AlertEngine) resolveChannels(ctx context.Context, alert *models.Alert, 
 		}
 	}
 
+	// Apply fleet-level alert-suppression windows (RMM-02). If any active
+	// window covers the alert's org/client/site scope, suppress the whole
+	// notification. This is independent of per-user quiet hours.
+	if e.suppressedByWindow(ctx, alert) {
+		e.log.Debug("notification suppressed by maintenance window",
+			"alert_id", alert.ID, "org_id", alert.OrgID)
+		return nil, nil
+	}
+
 	// Apply user preferences. Channels whose owner has suppressed the
 	// alert (quiet hours, severity, mute, channel toggle) are removed.
 	return e.applyPreferences(ctx, alert, channels), nil
+}
+
+// suppressedByWindow reports whether a fleet-level alert-suppression window
+// currently covers the alert's scope (org/site). It always returns false
+// when the store does not implement suppression windows, so the absence of
+// any window config is permissive (notify as normal). The alert carries org
+// and site; client scoping is resolved by the site match.
+func (e *AlertEngine) suppressedByWindow(ctx context.Context, alert *models.Alert) bool {
+	type suppressor interface {
+		ActiveAlertSuppressionWindows(ctx context.Context, orgID, clientID, siteID string, now time.Time) ([]models.AlertSuppressionWindow, error)
+	}
+	s, ok := e.store.(suppressor)
+	if !ok {
+		return false
+	}
+	windows, err := s.ActiveAlertSuppressionWindows(ctx, alert.OrgID, alert.ClientID, alert.SiteID, e.engineNow())
+	if err != nil {
+		e.log.Warn("suppression window query failed; delivering", "alert_id", alert.ID, "err", err)
+		return false
+	}
+	return len(windows) > 0
 }
 
 // applyPreferences filters channels by evaluating the owning user's
@@ -198,7 +228,7 @@ func (e *AlertEngine) listAlerts(ctx context.Context, f AlertFilter) ([]models.A
 func (e *AlertEngine) recordFlap(dedupKey string) {
 	e.flapMu.Lock()
 	defer e.flapMu.Unlock()
-	now := e.sm.now()
+	now := e.engineNow()
 	e.flapHistory[dedupKey] = append(e.flapHistory[dedupKey], now)
 }
 
@@ -207,7 +237,7 @@ func (e *AlertEngine) recordFlap(dedupKey string) {
 func (e *AlertEngine) isFlapping(dedupKey string) bool {
 	e.flapMu.Lock()
 	defer e.flapMu.Unlock()
-	now := e.sm.now()
+	now := e.engineNow()
 	cutoff := now.Add(-e.flapWindow)
 	events := e.flapHistory[dedupKey]
 

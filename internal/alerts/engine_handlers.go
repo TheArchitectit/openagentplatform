@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 	"github.com/google/uuid"
 	"github.com/openagentplatform/openagentplatform/pkg/models"
+	"time"
 )
 
 func (e *AlertEngine) handleCheckFailure(ctx context.Context, evt *AlertEvent) {
@@ -26,7 +26,7 @@ func (e *AlertEngine) handleCheckFailure(ctx context.Context, evt *AlertEvent) {
 		e.log.Warn("dedup lookup failed", "err", err)
 	}
 
-	now := e.sm.now()
+	now := e.engineNow()
 
 	if existing != nil {
 		// Escalate existing alert via check_failure event.
@@ -75,17 +75,27 @@ func (e *AlertEngine) handleCheckFailure(ctx context.Context, evt *AlertEvent) {
 		"site_id":        evt.SiteID,
 	}
 	alert := &models.Alert{
-		ID:          uuid.New().String(),
-		DedupKey:    dedupKey,
-		CheckID:     evt.CheckID,
-		AgentID:     evt.AgentID,
-		SiteID:      evt.SiteID,
-		Severity:    normalizeSeverity(evt.Severity),
-		State:       StatePending,
-		Message:     evt.Message,
-		Metadata:    meta,
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:        uuid.New().String(),
+		DedupKey:  dedupKey,
+		CheckID:   evt.CheckID,
+		AgentID:   evt.AgentID,
+		SiteID:    evt.SiteID,
+		ClientID:  evt.ClientID,
+		Severity:  normalizeSeverity(evt.Severity),
+		State:     StatePending,
+		Message:   evt.Message,
+		Metadata:  meta,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	// Resolve and stamp the owning alert rule so notifications can be
+	// dispatched to the rule's configured channels. Incoming check-failure
+	// events carry no rule id, so without this every new alert would hit
+	// the empty-rule-id guard in dispatchNotifications and never page.
+	if alert.AlertRuleID == "" {
+		if ruleID := e.resolveAlertRule(ctx, alert); ruleID != "" {
+			alert.AlertRuleID = ruleID
+		}
 	}
 	if err := e.store.InsertAlert(ctx, alert); err != nil {
 		e.log.Warn("insert alert failed", "err", err)
@@ -116,6 +126,48 @@ func (e *AlertEngine) handleCheckFailure(ctx context.Context, evt *AlertEvent) {
 	// state machine starts them in "pending"; users want to be paged
 	// as soon as a check is failing.
 	e.dispatchNotifications(ctx, alert)
+}
+
+// resolveAlertRule finds the alert rule that owns an incoming check-failure
+// event by matching the alert's check/agent/site against the rules. A rule
+// matches when each of its optional scope fields (CheckID, AgentID, SiteID)
+// is either empty or equal to the alert's. The first matching rule's ID is
+// returned; an empty string means no rule matched (notifications are then
+// skipped by dispatchNotifications). This is the seam that makes new-alert
+// notification dispatch reachable: the check-failure event carries no rule
+// id, so the engine must attribute the alert to a rule. When the alert has no
+// org scope (the event omits OrgID), rules are queried across all orgs.
+func (e *AlertEngine) resolveAlertRule(ctx context.Context, alert *models.Alert) string {
+	// Fail closed: an event with no org scope must not select a rule owned
+	// by another tenant. Returning "" here keeps the alert unattributed and
+	// skips notification dispatch, which is the safe default for an
+	// unscoped event.
+	if alert.OrgID == "" {
+		return ""
+	}
+	orgID := alert.OrgID
+	rules, err := e.store.GetAlertRules(ctx, orgID)
+	if err != nil {
+		e.log.Debug("resolve alert rule: list rules failed", "err", err)
+		return ""
+	}
+	for i := range rules {
+		r := rules[i]
+		if !r.Enabled {
+			continue
+		}
+		if r.CheckID != "" && r.CheckID != alert.CheckID {
+			continue
+		}
+		if r.AgentID != "" && r.AgentID != alert.AgentID {
+			continue
+		}
+		if r.SiteID != "" && r.SiteID != alert.SiteID {
+			continue
+		}
+		return r.ID
+	}
+	return ""
 }
 
 // handleCheckRecovery auto-resolves any active alert for the given
@@ -223,12 +275,12 @@ func (e *AlertEngine) escalateStalePending() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cutoff := e.sm.now().Add(-e.pendingEscalation)
+	cutoff := e.engineNow().Add(-e.pendingEscalation)
 	f := AlertFilter{
-		State:  StatePending,
-		From:   time.Time{}, // no lower bound
-		To:     cutoff,
-		Limit:  200,
+		State: StatePending,
+		From:  time.Time{}, // no lower bound
+		To:    cutoff,
+		Limit: 200,
 	}
 	// We want alerts where created_at <= cutoff. Use To as the upper bound.
 	f.To = cutoff

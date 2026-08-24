@@ -15,6 +15,12 @@ var ErrAlertNotFound = errors.New("alert not found")
 // ErrAlertRuleNotFound is returned when an alert rule id does not exist.
 var ErrAlertRuleNotFound = errors.New("alert rule not found")
 
+// ErrAlertSuppressionWindowNotFound is returned when a fleet-level
+// alert-suppression-window id does not exist. It is deliberately distinct
+// from ErrAlertRuleNotFound so callers can map it to a 404 without
+// conflating the two entities.
+var ErrAlertSuppressionWindowNotFound = errors.New("alert suppression window not found")
+
 // ErrChannelNotFound is returned when a notification channel id does
 // not exist.
 var ErrChannelNotFound = errors.New("notification channel not found")

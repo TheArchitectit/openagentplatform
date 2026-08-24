@@ -16,6 +16,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/billing"
 	"github.com/openagentplatform/openagentplatform/internal/config"
 	"github.com/openagentplatform/openagentplatform/internal/license"
+	"github.com/openagentplatform/openagentplatform/internal/licensing"
 	"github.com/openagentplatform/openagentplatform/internal/notify"
 	"github.com/openagentplatform/openagentplatform/internal/policy"
 	"github.com/openagentplatform/openagentplatform/internal/schema"
@@ -112,6 +113,13 @@ func (s *Server) SetAlertStore(store alerts.Store) {
 // Called from main after the engine is constructed. May be nil.
 func (s *Server) SetAlertEngine(engine *alerts.AlertEngine) {
 	s.alertEngine = engine
+}
+
+// SetGater wires the commercial-tier feature gater into the server.
+// Called from main after the license validator and loader are ready.
+// May be nil; tier-gated routes return 503 when unset.
+func (s *Server) SetGater(g *licensing.Gater) {
+	s.gater = g
 }
 
 // SetNotifierRegistry wires the notifier registry used to validate

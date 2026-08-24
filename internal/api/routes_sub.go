@@ -4,6 +4,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/openagentplatform/openagentplatform/internal/auth"
 	"github.com/openagentplatform/openagentplatform/internal/checklib"
+	"github.com/openagentplatform/openagentplatform/internal/licensing"
 )
 
 // mountAPISubRoutes registers the protected /api/v1 sub-routes (everything
@@ -65,6 +66,22 @@ func (s *Server) mountAPISubRoutes(r chi.Router) {
 			r.With(elevated).Put("/channels", s.putAlertRuleChannels)
 		})
 		r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)).Post("/", s.createAlertRule)
+	})
+
+	// Fleet-level alert-suppression windows (RMM-02). Distinct from
+	// per-user quiet hours and patch-deploy windows. The feature is
+	// commercial-tier gated (Fail-closed to Community per the licensing
+	// gater) and requires an elevated role for mutation.
+	r.Route("/alert-suppression-windows", func(r chi.Router) {
+		r.Use(s.licenseContextMiddleware)
+		r.Use(s.gater.RequireFeature(licensing.FeatureAlertSuppressionWindows))
+		r.Get("/", s.listSuppressionWindows)
+		elevated := auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)
+		r.With(elevated).Route("/{id}", func(r chi.Router) {
+			r.Put("/", s.updateSuppressionWindow)
+			r.Delete("/", s.deleteSuppressionWindow)
+		})
+		r.With(elevated).Post("/", s.createSuppressionWindow)
 	})
 
 	// User-level alert preferences (quiet hours, severity

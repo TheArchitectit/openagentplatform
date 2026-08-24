@@ -47,6 +47,9 @@ const (
 	FeatureSSO Feature = "sso"
 	// FeatureAuditExport enables audit log export.
 	FeatureAuditExport Feature = "audit_export"
+	// FeatureAlertSuppressionWindows enables fleet-level alert-suppression
+	// maintenance windows (RMM-02).
+	FeatureAlertSuppressionWindows Feature = "alert_suppression_windows"
 )
 
 // License represents a decoded license before signature verification.

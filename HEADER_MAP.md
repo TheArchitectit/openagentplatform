@@ -1787,7 +1787,7 @@
 | 134 | ## 3. "PLANNED" specs that are actually fully built |
 | 164 | ## 4. Features with NO spec at all |
 | 195 | ## 5. RMM parity gap vs Ninja RMM |
-| 239 | ## 6. Stale top-level metadata |
+| 243 | ## 6. Stale top-level metadata |
 | 259 | ## 7. Recommendations (ranked by severity) |
 
 ---

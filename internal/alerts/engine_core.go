@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
-	"sync"
-	"time"
 	"github.com/nats-io/nats.go"
 	"github.com/openagentplatform/openagentplatform/internal/events"
 	"github.com/openagentplatform/openagentplatform/internal/notify"
 	"github.com/openagentplatform/openagentplatform/pkg/models"
+	"log/slog"
+	"sync"
+	"time"
 )
 
 // Severity levels supported by the alert engine.
@@ -56,6 +56,12 @@ type Engine interface {
 	// ResolveChannelIDs looks up a set of channel records by their IDs.
 	// Used by the routing engine to materialize channel sets.
 	ResolveChannelIDs(ctx context.Context, ids []string) ([]notify.NotificationChannel, error)
+	// GetAlertRules returns all alert rules, optionally filtered by org_id.
+	// Used by the engine to resolve the rule that owns an incoming
+	// check-failure event when the event does not carry an explicit
+	// alert_rule_id, so notifications can be dispatched to the rule's
+	// configured channels.
+	GetAlertRules(ctx context.Context, orgID string) ([]models.AlertRule, error)
 	// GetUserPreferences is an optional preferences lookup. Returns
 	// ErrPreferencesNotFound if the user has no preferences row. The
 	// engine will skip preference evaluation when the store does not
@@ -65,6 +71,11 @@ type Engine interface {
 	// for routing fallback. Returns nil if the store does not implement
 	// this method.
 	GetDefaultChannelIDs(ctx context.Context, orgID string) ([]string, error)
+	// ActiveAlertSuppressionWindows returns enabled fleet-level
+	// alert-suppression windows covering the given org/client/site at now.
+	// Used by the notifier to suppress notifications during planned work.
+	// Returns nil if the store does not implement this method.
+	ActiveAlertSuppressionWindows(ctx context.Context, orgID, clientID, siteID string, now time.Time) ([]models.AlertSuppressionWindow, error)
 }
 
 // Publisher is the subset of the NATS client interface used by the engine.
@@ -80,19 +91,19 @@ type Subscriber interface {
 // AlertEngine subscribes to oap.events.alerts and drives the state machine
 // for every alert lifecycle event.
 type AlertEngine struct {
-	client        Subscriber
-	store         Engine
-	publisher     Publisher
-	sm            *StateMachine
-	log           *slog.Logger
-	notifierReg   *notify.NotifierRegistry
+	client      Subscriber
+	store       Engine
+	publisher   Publisher
+	sm          *StateMachine
+	log         *slog.Logger
+	notifierReg *notify.NotifierRegistry
 	// router evaluates routing rules to determine which channels
 	// receive a given alert. May be nil; when nil, the engine falls
 	// back to the rule's own notify_channels.
-	router        *Router
+	router *Router
 	// now is the clock source. Defaults to time.Now. Overridable for
 	// tests.
-	now           func() time.Time
+	now func() time.Time
 
 	sub                  *nats.Subscription
 	stopCh               chan struct{}
@@ -109,15 +120,15 @@ type AlertEngine struct {
 // Config configures the AlertEngine. All fields are optional except
 // Client and Store.
 type Config struct {
-	Client             Subscriber
-	Store              Engine
-	Publisher          Publisher
-	Logger             *slog.Logger
-	StateMachine       *StateMachine
-	PendingEscalation  time.Duration
-	FlapWindow         time.Duration
-	FlapThreshold      int
-	QueueGroup         string
+	Client            Subscriber
+	Store             Engine
+	Publisher         Publisher
+	Logger            *slog.Logger
+	StateMachine      *StateMachine
+	PendingEscalation time.Duration
+	FlapWindow        time.Duration
+	FlapThreshold     int
+	QueueGroup        string
 	// NotifierRegistry is used to look up the appropriate notifier for
 	// each channel type. If nil, notifications are not dispatched
 	// (alerts still transition normally).
@@ -156,19 +167,19 @@ func New(cfg Config) *AlertEngine {
 		cfg.Now = time.Now
 	}
 	return &AlertEngine{
-		client:      cfg.Client,
-		store:       cfg.Store,
-		publisher:   cfg.Publisher,
-		sm:          cfg.StateMachine,
-		log:         cfg.Logger,
-		notifierReg: cfg.NotifierRegistry,
-		router:      cfg.Router,
-		now:         cfg.Now,
-		stopCh:      make(chan struct{}),
-		flapHistory: make(map[string][]time.Time),
-		cfg:         cfg,
+		client:            cfg.Client,
+		store:             cfg.Store,
+		publisher:         cfg.Publisher,
+		sm:                cfg.StateMachine,
+		log:               cfg.Logger,
+		notifierReg:       cfg.NotifierRegistry,
+		router:            cfg.Router,
+		now:               cfg.Now,
+		stopCh:            make(chan struct{}),
+		flapHistory:       make(map[string][]time.Time),
+		cfg:               cfg,
 		pendingEscalation: cfg.PendingEscalation,
-		flapWindow:       cfg.FlapWindow,
+		flapWindow:        cfg.FlapWindow,
 		flapThreshold:     cfg.FlapThreshold,
 	}
 }
@@ -221,15 +232,18 @@ func (e *AlertEngine) Stop() {
 // check ingest pipeline. The engine reads these to create and escalate
 // alerts.
 type AlertEvent struct {
-	Type         string    `json:"type"` // "alert.fired" or "alert.resolved"
-	AgentID      string    `json:"agent_id"`
-	AgentHostname string   `json:"agent_hostname,omitempty"`
-	SiteID       string    `json:"site_id,omitempty"`
-	CheckID      string    `json:"check_id"`
-	Severity     string    `json:"severity"`
-	Status       string    `json:"status"`
-	Message      string    `json:"message"`
-	Timestamp    time.Time `json:"timestamp"`
+	Type          string `json:"type"` // "alert.fired" or "alert.resolved"
+	AgentID       string `json:"agent_id"`
+	AgentHostname string `json:"agent_hostname,omitempty"`
+	SiteID        string `json:"site_id,omitempty"`
+	// ClientID is the tenant-scoped client that owns the agent. Empty
+	// when the agent is not associated with a client.
+	ClientID  string    `json:"client_id,omitempty"`
+	CheckID   string    `json:"check_id"`
+	Severity  string    `json:"severity"`
+	Status    string    `json:"status"`
+	Message   string    `json:"message"`
+	Timestamp time.Time `json:"timestamp"`
 	// AlertType classifies the source of the event. "check_failure"
 	// is the default for check-based alerts; "policy_violation" is
 	// set by the PolicyEngine's ViolationManager and is treated

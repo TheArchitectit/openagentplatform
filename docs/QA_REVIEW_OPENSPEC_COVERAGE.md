@@ -229,10 +229,14 @@ From `docs/GAP_ANALYSIS_RMM_PLATFORM.md` (confirmed by keyword sweep, nothing in
 - **Active security** — posture collectors detect AV/firewall state, but no EDR/IDS/SIEM
   ingest, no threat-intel, no vulnerability-scan integration. ⚠️ partial.
 - **Power / UPS monitoring** — absent.
-- **Maintenance windows / silence windows** — absent (alerts have snooze but no
-  scheduled maintenance-window concept).
+- **Maintenance windows / silence windows** — implemented and verified in-tree,
+  uncommitted (RMM-02): org/client/site-scoped windows, IANA timezone recurring
+  and overnight semantics, paid-tier gate, RBAC, audit, tenant isolation, and
+  fail-open delivery on store read errors. Alerts have snooze *and* a scheduled
+  maintenance-window concept.
 - **Agent auto-update channel** — version reported but no push/update mechanism.
-- **Offline-agent SLA alerting** — no "agent silent >N hours" rule.
+- **Offline-agent SLA alerting** — implemented and shipped as commit `6ff3a17`
+  (RMM-01): "agent silent >N hours" rule is now present.
 
 ---
 

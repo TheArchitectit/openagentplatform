@@ -115,6 +115,11 @@ func (e *SilenceEvaluator) sweep(ctx context.Context) {
 	}
 	for i := range rules {
 		rule := rules[i]
+		if rule.OrgID == "" {
+			// Skip orphaned rules with no org scope — they cannot be
+			// attributed to a tenant for silent-agent evaluation.
+			continue
+		}
 		if !rule.Enabled || rule.OfflineSilenceSeconds == nil || *rule.OfflineSilenceSeconds <= 0 {
 			continue
 		}
@@ -142,16 +147,17 @@ func (e *SilenceEvaluator) evaluateRule(ctx context.Context, rule *models.AlertR
 		key := silenceDedupKey(rule.ID, a.ID)
 		_ = key // reserved: the engine performs dedup via handleCheckFailure
 		evt := AlertEvent{
-			Type:            "alert.fired",
-			AgentID:         a.ID,
-			AgentHostname:   a.Hostname,
-			SiteID:          a.SiteID,
-			CheckID:         "",
-			Severity:        rule.MinSeverity,
-			Status:          "firing",
-			Message:         fmt.Sprintf("agent %s silent for over %s", a.Hostname, thresholdDesc(*rule.OfflineSilenceSeconds)),
-			Timestamp:       e.now(),
-			AlertType:       "offline_sla",
+			Type:          "alert.fired",
+			AgentID:       a.ID,
+			AgentHostname: a.Hostname,
+			SiteID:        a.SiteID,
+			ClientID:      a.ClientID,
+			CheckID:       "",
+			Severity:      rule.MinSeverity,
+			Status:        "firing",
+			Message:       fmt.Sprintf("agent %s silent for over %s", a.Hostname, thresholdDesc(*rule.OfflineSilenceSeconds)),
+			Timestamp:     e.now(),
+			AlertType:     "offline_sla",
 		}
 		if err := e.publish(ctx, evt); err != nil {
 			e.log.Warn("silence evaluator: publish failed", "agent", a.ID, "err", err)

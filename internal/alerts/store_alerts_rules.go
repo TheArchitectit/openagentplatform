@@ -148,14 +148,14 @@ func (s *pgAlertStore) UpdateAlertRule(ctx context.Context, r *models.AlertRule)
 			enabled = $9,
 			offline_silence_seconds = $10,
 			updated_at = $11
-		WHERE id = $1
+		WHERE id = $1 AND org_id = $12
 	`
 	tag, err := s.pool.Exec(ctx, q,
 		r.ID, r.Name, r.Description,
 		r.CheckID, r.AgentID, r.SiteID,
 		r.MinSeverity, chans, r.Enabled,
 		silence,
-		r.UpdatedAt,
+		r.UpdatedAt, r.OrgID,
 	)
 	if err != nil {
 		return fmt.Errorf("alerts: update rule: %w", err)

@@ -28,12 +28,13 @@ func DefaultGateConfig(validator *Validator, loader *Loader) *GateConfig {
 		Validator: validator,
 		Loader:    loader,
 		RequiredFeatures: map[Feature]Tier{
-			FeatureMultiTenancy:         TierPro,
-			FeatureManagedRelay:         TierEnterprise,
-			FeatureEnterpriseReporting:  TierEnterprise,
-			FeatureBilling:              TierPro,
-			FeatureSSO:                  TierEnterprise,
-			FeatureAuditExport:          TierPro,
+			FeatureMultiTenancy:            TierPro,
+			FeatureManagedRelay:            TierEnterprise,
+			FeatureEnterpriseReporting:     TierEnterprise,
+			FeatureBilling:                 TierPro,
+			FeatureSSO:                     TierEnterprise,
+			FeatureAuditExport:             TierPro,
+			FeatureAlertSuppressionWindows: TierPro,
 		},
 	}
 }

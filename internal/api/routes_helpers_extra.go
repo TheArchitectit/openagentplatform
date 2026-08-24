@@ -10,6 +10,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/openagentplatform/openagentplatform/internal/audit"
 	"github.com/openagentplatform/openagentplatform/internal/auth"
+	"github.com/openagentplatform/openagentplatform/internal/license"
+	"github.com/openagentplatform/openagentplatform/internal/licensing"
 	"github.com/openagentplatform/openagentplatform/internal/telemetry"
 )
 
@@ -28,6 +30,77 @@ func clientIP(r *http.Request) string {
 		return strings.TrimSpace(h)
 	}
 	return r.RemoteAddr
+}
+
+// licenseContextMiddleware injects a *licensing.License into the request
+// context so the licensing.Gater's RequireFeature/RequireTier middleware can
+// evaluate entitlements. The license is derived from the server's tier
+// resolver (the same source the tenancy middleware uses for quota limits),
+// so tier-gated routes see the resolved commercial tier. It must run AFTER
+// orgContextMiddleware so the org ID is available.
+func (s *Server) licenseContextMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.gater == nil {
+			http.Error(w, `{"error":"feature_gating_not_configured"}`, http.StatusServiceUnavailable)
+			return
+		}
+		tier := license.TierCommunity
+		if s.tierResolver != nil {
+			if t := s.tierResolver(orgIDFromContext(r)); t != "" {
+				tier = t
+			}
+		}
+		lic := &licensing.License{
+			Entity:        "openagentplatform",
+			Tier:          mapLicenseTier(tier),
+			Features:      licensingFeaturesForTier(tier),
+			EndpointLimit: 0,
+			IssueDate:     time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			ExpiryDate:    time.Date(2099, 12, 31, 23, 59, 59, 0, time.UTC),
+		}
+		ctx := context.WithValue(r.Context(), licensing.LicenseContextKey, lic)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// mapLicenseTier maps the internal license.Tier vocabulary onto the
+// licensing package's tier vocabulary.
+func mapLicenseTier(t license.Tier) licensing.Tier {
+	switch t {
+	case license.TierProfessional:
+		return licensing.TierPro
+	case license.TierEnterprise:
+		return licensing.TierEnterprise
+	default:
+		return licensing.TierCommunity
+	}
+}
+
+// licensingFeaturesForTier returns the canonical feature set for a tier.
+// It mirrors tenancy.featureFlagsForTier: higher tiers gain additional
+// capabilities.
+func licensingFeaturesForTier(t license.Tier) []licensing.Feature {
+	switch t {
+	case license.TierProfessional:
+		return []licensing.Feature{
+			licensing.FeatureMultiTenancy,
+			licensing.FeatureBilling,
+			licensing.FeatureAuditExport,
+			licensing.FeatureAlertSuppressionWindows,
+		}
+	case license.TierEnterprise:
+		return []licensing.Feature{
+			licensing.FeatureMultiTenancy,
+			licensing.FeatureBilling,
+			licensing.FeatureAuditExport,
+			licensing.FeatureAlertSuppressionWindows,
+			licensing.FeatureManagedRelay,
+			licensing.FeatureEnterpriseReporting,
+			licensing.FeatureSSO,
+		}
+	default:
+		return []licensing.Feature{}
+	}
 }
 
 // orgContextMiddleware ensures every authenticated request carries an OrgID

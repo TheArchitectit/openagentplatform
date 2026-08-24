@@ -17,6 +17,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/billing"
 	"github.com/openagentplatform/openagentplatform/internal/config"
 	"github.com/openagentplatform/openagentplatform/internal/license"
+	"github.com/openagentplatform/openagentplatform/internal/licensing"
 	"github.com/openagentplatform/openagentplatform/internal/monitoring"
 	"github.com/openagentplatform/openagentplatform/internal/notify"
 	"github.com/openagentplatform/openagentplatform/internal/patches"
@@ -97,6 +98,9 @@ type Server struct {
 	// MeteringService tracks per-org usage and reports to Stripe meters.
 	// May be nil; usage endpoints return 503 when unset.
 	MeteringService *billing.MeteringService
+	// gater enforces commercial-tier feature gating on routes. May be
+	// nil; when nil, tier-gated routes are unavailable (503).
+	gater *licensing.Gater
 	// StripeClient wraps the Stripe SDK for direct API calls (e.g.
 	// webhook signature verification). May be nil; webhook endpoint
 	// returns 503 when unset.

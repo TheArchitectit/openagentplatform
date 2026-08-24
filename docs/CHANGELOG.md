@@ -70,9 +70,10 @@ or package-version changes are included.
 
 ### Next
 
-OpenSpec P3 RMM parity gaps remain open: maintenance windows, offline-agent SLA
-alerting, agent auto-update channel, WinUpdate/AutomatedTask automation, and
-cloud/hypervisor monitoring. See `docs/GAP_ANALYSIS_RMM_PLATFORM.md`.
+OpenSpec P3 RMM parity gaps remain open: agent auto-update channel,
+WinUpdate/AutomatedTask automation, and cloud/hypervisor monitoring. (Maintenance
+windows and offline-agent SLA alerting are now implemented and verified in-tree,
+uncommitted.) See `docs/GAP_ANALYSIS_RMM_PLATFORM.md`.
 
 ---
 

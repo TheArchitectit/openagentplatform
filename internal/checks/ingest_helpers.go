@@ -41,12 +41,15 @@ type CheckResultPayload struct {
 // oap.events.alerts. The WebSocket hub forwards these to dashboards so
 // operators see fire/clear events in real time.
 type AlertPayload struct {
-	Type      string    `json:"type"` // "alert.fired" or "alert.resolved"
-	AgentID   string    `json:"agent_id"`
-	CheckID   string    `json:"check_id"`
-	Severity  string    `json:"severity"`
-	Status    string    `json:"status"`
-	Message   string    `json:"message"`
+	Type     string `json:"type"` // "alert.fired" or "alert.resolved"
+	AgentID  string `json:"agent_id"`
+	CheckID  string `json:"check_id"`
+	Severity string `json:"severity"`
+	Status   string `json:"status"`
+	Message  string `json:"message"`
+	// ClientID is the tenant-scoped client that owns the agent. Empty when
+	// the agent is not associated with a client.
+	ClientID  string    `json:"client_id,omitempty"`
 	Timestamp time.Time `json:"timestamp"`
 }
 
@@ -64,6 +67,9 @@ type rawResult struct {
 	DurationMs int64          `json:"duration_ms,omitempty"`
 	Timestamp  time.Time      `json:"timestamp"`
 	Metadata   map[string]any `json:"metadata,omitempty"`
+	// ClientID is the tenant-scoped client that owns the agent. Optional;
+	// the engine copies it onto the alert for client-scoped suppression.
+	ClientID string `json:"client_id,omitempty"`
 }
 
 // evaluate runs the threshold evaluator and returns the decision plus
@@ -125,6 +131,7 @@ func (r *ResultIngestor) evaluate(ctx context.Context, raw rawResult, model *mod
 		Severity:  eval.Severity,
 		Status:    "firing",
 		Message:   buildAlertMessage(raw, eval),
+		ClientID:  raw.ClientID,
 		Timestamp: raw.Timestamp,
 	}
 	return eval, payload

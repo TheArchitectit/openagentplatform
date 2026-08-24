@@ -95,7 +95,8 @@ func (s *pgAlertStore) ListAlerts(ctx context.Context, f AlertFilter) ([]models.
 	args = append(args, f.Limit, f.Offset)
 	q := fmt.Sprintf(`
 		SELECT id, COALESCE(dedup_key,''), check_id, COALESCE(agent_id,''),
-		       COALESCE(site_id,''), COALESCE(org_id,''), COALESCE(alert_rule_id,''),
+		       COALESCE(site_id,''), COALESCE(org_id,''), COALESCE(client_id,''),
+		       COALESCE(alert_rule_id,''),
 		       COALESCE(severity,''), COALESCE(state,'pending'),
 		       COALESCE(message,''), metadata,
 		       COALESCE(acknowledged_by,''), snoozed_until,
@@ -118,7 +119,7 @@ func (s *pgAlertStore) ListAlerts(ctx context.Context, f AlertFilter) ([]models.
 		var meta []byte
 		if err := rows.Scan(
 			&a.ID, &a.DedupKey, &a.CheckID, &a.AgentID,
-			&a.SiteID, &a.OrgID, &a.AlertRuleID,
+			&a.SiteID, &a.OrgID, &a.ClientID, &a.AlertRuleID,
 			&a.Severity, &a.State,
 			&a.Message, &meta,
 			&a.AcknowledgedBy, &a.SnoozedUntil,

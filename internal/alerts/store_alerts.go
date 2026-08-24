@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	pgconn "github.com/jackc/pgx/v5/pgconn"
 	"github.com/openagentplatform/openagentplatform/internal/notify"
 	"github.com/openagentplatform/openagentplatform/pkg/models"
 	"time"
@@ -41,6 +41,14 @@ type Store interface {
 	CreateAlertRule(ctx context.Context, r *models.AlertRule) error
 	UpdateAlertRule(ctx context.Context, r *models.AlertRule) error
 	DeleteAlertRule(ctx context.Context, orgID, id string) error
+
+	// Fleet-level alert-suppression windows (RMM-02). Distinct from patch
+	// windows and per-user quiet hours.
+	CreateAlertSuppressionWindow(ctx context.Context, w *models.AlertSuppressionWindow) error
+	GetAlertSuppressionWindows(ctx context.Context, orgID string) ([]models.AlertSuppressionWindow, error)
+	UpdateAlertSuppressionWindow(ctx context.Context, w *models.AlertSuppressionWindow) error
+	DeleteAlertSuppressionWindow(ctx context.Context, orgID, id string) error
+	ActiveAlertSuppressionWindows(ctx context.Context, orgID, clientID, siteID string, now time.Time) ([]models.AlertSuppressionWindow, error)
 
 	InsertStateTransition(ctx context.Context, t *models.AlertStateMachine) error
 	GetStateHistory(ctx context.Context, alertID string) ([]models.AlertStateMachine, error)
@@ -81,13 +89,22 @@ type Store interface {
 	SetDefaultChannels(ctx context.Context, orgID string, channelIDs []string) error
 }
 
+// poolConn is the minimal pgx surface used by pgAlertStore. It is satisfied
+// by *pgxpool.Pool in production and by pgxmock pools in tests.
+type poolConn interface {
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	Begin(ctx context.Context) (pgx.Tx, error)
+}
+
 // pgAlertStore is the default PostgreSQL-backed implementation of Store.
 type pgAlertStore struct {
-	pool *pgxpool.Pool
+	pool poolConn
 }
 
 // NewPGStore constructs a Store backed by a pgx connection pool.
-func NewPGStore(pool *pgxpool.Pool) Store {
+func NewPGStore(pool poolConn) Store {
 	return &pgAlertStore{pool: pool}
 }
 
@@ -106,19 +123,19 @@ func (s *pgAlertStore) InsertAlert(ctx context.Context, a *models.Alert) error {
 	}
 	const q = `
 		INSERT INTO alerts (
-			id, dedup_key, check_id, agent_id, site_id, org_id, alert_rule_id,
+			id, dedup_key, check_id, agent_id, site_id, org_id, client_id, alert_rule_id,
 			severity, state, message, metadata,
 			acknowledged_by, snoozed_until,
 			created_at, updated_at, resolved_at, closed_at
 		) VALUES (
-			$1,$2,$3,$4,$5,$6,$7,
-			$8,$9,$10,$11,
-			$12,$13,
-			$14,$15,$16,$17
+			$1,$2,$3,$4,$5,$6,$7,$8,
+			$9,$10,$11,$12,
+			$13,$14,
+			$15,$16,$17,$18
 		)
 	`
 	_, err = s.pool.Exec(ctx, q,
-		a.ID, a.DedupKey, a.CheckID, a.AgentID, a.SiteID, a.OrgID, a.AlertRuleID,
+		a.ID, a.DedupKey, a.CheckID, a.AgentID, a.SiteID, a.OrgID, nullIfEmpty(a.ClientID), a.AlertRuleID,
 		a.Severity, a.State, a.Message, meta,
 		a.AcknowledgedBy, a.SnoozedUntil,
 		a.CreatedAt, a.UpdatedAt, a.ResolvedAt, a.ClosedAt,
@@ -145,7 +162,7 @@ func (s *pgAlertStore) GetAlert(ctx context.Context, orgID, id string) (*models.
 	}
 	q := `
 		SELECT id, COALESCE(dedup_key,''), check_id, COALESCE(agent_id,''),
-		       COALESCE(site_id,''), COALESCE(org_id,''), COALESCE(alert_rule_id,''),
+		       COALESCE(site_id,''), COALESCE(org_id,''), COALESCE(client_id,''), COALESCE(alert_rule_id,''),
 		       COALESCE(severity,''), COALESCE(state,'pending'),
 		       COALESCE(message,''), metadata,
 		       COALESCE(acknowledged_by,''), snoozed_until,
@@ -158,7 +175,7 @@ func (s *pgAlertStore) GetAlert(ctx context.Context, orgID, id string) (*models.
 	var meta []byte
 	err := s.pool.QueryRow(ctx, q, args...).Scan(
 		&a.ID, &a.DedupKey, &a.CheckID, &a.AgentID,
-		&a.SiteID, &a.OrgID, &a.AlertRuleID,
+		&a.SiteID, &a.OrgID, &a.ClientID, &a.AlertRuleID,
 		&a.Severity, &a.State,
 		&a.Message, &meta,
 		&a.AcknowledgedBy, &a.SnoozedUntil,
@@ -185,7 +202,7 @@ func (s *pgAlertStore) GetAlertByDedupKey(ctx context.Context, dedupKey string) 
 	}
 	const q = `
 		SELECT id, COALESCE(dedup_key,''), check_id, COALESCE(agent_id,''),
-		       COALESCE(site_id,''), COALESCE(org_id,''), COALESCE(alert_rule_id,''),
+		       COALESCE(site_id,''), COALESCE(org_id,''), COALESCE(client_id,''), COALESCE(alert_rule_id,''),
 		       COALESCE(severity,''), COALESCE(state,'pending'),
 		       COALESCE(message,''), metadata,
 		       COALESCE(acknowledged_by,''), snoozed_until,
@@ -200,7 +217,7 @@ func (s *pgAlertStore) GetAlertByDedupKey(ctx context.Context, dedupKey string) 
 	var meta []byte
 	err := s.pool.QueryRow(ctx, q, dedupKey).Scan(
 		&a.ID, &a.DedupKey, &a.CheckID, &a.AgentID,
-		&a.SiteID, &a.OrgID, &a.AlertRuleID,
+		&a.SiteID, &a.OrgID, &a.ClientID, &a.AlertRuleID,
 		&a.Severity, &a.State,
 		&a.Message, &meta,
 		&a.AcknowledgedBy, &a.SnoozedUntil,
