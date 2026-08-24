@@ -29,18 +29,24 @@ type Alert struct {
 // how they are routed. Rules can scope alerts to specific checks, agents,
 // sites, and severity thresholds.
 type AlertRule struct {
-	ID             string    `json:"id"`
-	OrgID          string    `json:"org_id"`
-	Name           string    `json:"name"`
-	Description    string    `json:"description"`
-	CheckID        string    `json:"check_id,omitempty"`
-	AgentID        string    `json:"agent_id,omitempty"`
-	SiteID         string    `json:"site_id,omitempty"`
-	MinSeverity    string    `json:"min_severity"` // info, warning, critical, emergency
-	NotifyChannels []string  `json:"notify_channels,omitempty"`
-	Enabled        bool      `json:"enabled"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID                   string    `json:"id"`
+	OrgID                string    `json:"org_id"`
+	Name                 string    `json:"name"`
+	Description          string    `json:"description"`
+	CheckID              string    `json:"check_id,omitempty"`
+	AgentID              string    `json:"agent_id,omitempty"`
+	SiteID               string    `json:"site_id,omitempty"`
+	MinSeverity          string    `json:"min_severity"` // info, warning, critical, emergency
+	NotifyChannels       []string  `json:"notify_channels,omitempty"`
+	Enabled              bool      `json:"enabled"`
+	// OfflineSilenceSeconds, when set, is an additive SLA condition: the rule
+	// fires when an agent has been silent (last_seen older than) this many
+	// seconds. It is evaluated against the agent's stored last_seen, not the
+	// 120s liveness threshold. Nil means the condition is absent and the rule
+	// behaves exactly as before.
+	OfflineSilenceSeconds *int      `json:"offline_silence_seconds,omitempty"`
+	CreatedAt             time.Time `json:"created_at"`
+	UpdatedAt             time.Time `json:"updated_at"`
 }
 
 // AlertStateMachine records a single state transition in an alert's

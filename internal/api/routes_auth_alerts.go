@@ -194,6 +194,10 @@ func (s *Server) createAlertRule(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"invalid_body"}`, http.StatusBadRequest)
 		return
 	}
+	if err := validateAlertRule(&rule); err != nil {
+		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+		return
+	}
 	if rule.ID == "" {
 		rule.ID = uuidNew()
 	}
@@ -222,6 +226,10 @@ func (s *Server) updateAlertRule(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"invalid_body"}`, http.StatusBadRequest)
 		return
 	}
+	if err := validateAlertRule(&rule); err != nil {
+		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+		return
+	}
 	rule.ID = id
 	rule.UpdatedAt = time.Now().UTC()
 	if err := s.alertStore.UpdateAlertRule(r.Context(), &rule); err != nil {
@@ -236,6 +244,26 @@ func (s *Server) updateAlertRule(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(rule)
+}
+
+// maxOfflineSilenceSeconds bounds the offline-sla silence window to 30 days.
+const maxOfflineSilenceSeconds = 30 * 24 * 60 * 60
+
+// validateAlertRule applies input bounds to the rule. The offline-silence
+// condition, when present, must be positive and at most 30 days — an absent
+// or zero value means the rule has no silence condition (backward compatible).
+func validateAlertRule(rule *models.AlertRule) error {
+	if rule.OfflineSilenceSeconds == nil {
+		return nil
+	}
+	v := *rule.OfflineSilenceSeconds
+	if v <= 0 {
+		return errors.New("offline_silence_seconds must be positive")
+	}
+	if v > maxOfflineSilenceSeconds {
+		return errors.New("offline_silence_seconds exceeds maximum (30 days)")
+	}
+	return nil
 }
 
 // deleteAlertRule deletes an alert rule by id.

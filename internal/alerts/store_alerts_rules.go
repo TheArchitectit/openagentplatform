@@ -26,6 +26,7 @@ func (s *pgAlertStore) GetAlertRules(ctx context.Context, orgID string) ([]model
 			SELECT id, COALESCE(org_id,''), COALESCE(name,''), COALESCE(description,''),
 			       COALESCE(check_id,''), COALESCE(agent_id,''), COALESCE(site_id,''),
 			       COALESCE(min_severity,'warning'), notify_channels, COALESCE(enabled,false),
+			       offline_silence_seconds,
 			       created_at, updated_at
 			FROM alert_rules
 			WHERE org_id = $1
@@ -37,6 +38,7 @@ func (s *pgAlertStore) GetAlertRules(ctx context.Context, orgID string) ([]model
 			SELECT id, COALESCE(org_id,''), COALESCE(name,''), COALESCE(description,''),
 			       COALESCE(check_id,''), COALESCE(agent_id,''), COALESCE(site_id,''),
 			       COALESCE(min_severity,'warning'), notify_channels, COALESCE(enabled,false),
+			       offline_silence_seconds,
 			       created_at, updated_at
 			FROM alert_rules
 			ORDER BY created_at DESC
@@ -51,16 +53,21 @@ func (s *pgAlertStore) GetAlertRules(ctx context.Context, orgID string) ([]model
 	for rows.Next() {
 		var r models.AlertRule
 		var chans []byte
+		var silence int
 		if err := rows.Scan(
 			&r.ID, &r.OrgID, &r.Name, &r.Description,
 			&r.CheckID, &r.AgentID, &r.SiteID,
 			&r.MinSeverity, &chans, &r.Enabled,
+			&silence,
 			&r.CreatedAt, &r.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("alerts: scan rule: %w", err)
 		}
 		if len(chans) > 0 {
 			_ = json.Unmarshal(chans, &r.NotifyChannels)
+		}
+		if silence > 0 {
+			r.OfflineSilenceSeconds = &silence
 		}
 		out = append(out, r)
 	}
@@ -80,23 +87,30 @@ func (s *pgAlertStore) CreateAlertRule(ctx context.Context, r *models.AlertRule)
 	if err != nil {
 		return fmt.Errorf("alerts: marshal channels: %w", err)
 	}
+	var silence any
+	if r.OfflineSilenceSeconds != nil {
+		silence = *r.OfflineSilenceSeconds
+	}
 	const q = `
 		INSERT INTO alert_rules (
 			id, org_id, name, description,
 			check_id, agent_id, site_id,
 			min_severity, notify_channels, enabled,
+			offline_silence_seconds,
 			created_at, updated_at
 		) VALUES (
 			$1,$2,$3,$4,
 			$5,$6,$7,
 			$8,$9,$10,
-			$11,$12
+			$11,
+			$12,$13
 		)
 	`
 	_, err = s.pool.Exec(ctx, q,
 		r.ID, r.OrgID, r.Name, r.Description,
 		r.CheckID, r.AgentID, r.SiteID,
 		r.MinSeverity, chans, r.Enabled,
+		silence,
 		r.CreatedAt, r.UpdatedAt,
 	)
 	if err != nil {
@@ -118,6 +132,10 @@ func (s *pgAlertStore) UpdateAlertRule(ctx context.Context, r *models.AlertRule)
 	if err != nil {
 		return fmt.Errorf("alerts: marshal channels: %w", err)
 	}
+	var silence any
+	if r.OfflineSilenceSeconds != nil {
+		silence = *r.OfflineSilenceSeconds
+	}
 	const q = `
 		UPDATE alert_rules SET
 			name = $2,
@@ -128,13 +146,15 @@ func (s *pgAlertStore) UpdateAlertRule(ctx context.Context, r *models.AlertRule)
 			min_severity = $7,
 			notify_channels = $8,
 			enabled = $9,
-			updated_at = $10
+			offline_silence_seconds = $10,
+			updated_at = $11
 		WHERE id = $1
 	`
 	tag, err := s.pool.Exec(ctx, q,
 		r.ID, r.Name, r.Description,
 		r.CheckID, r.AgentID, r.SiteID,
 		r.MinSeverity, chans, r.Enabled,
+		silence,
 		r.UpdatedAt,
 	)
 	if err != nil {

@@ -103,6 +103,7 @@ type AlertEngine struct {
 	escalationTickerDone chan struct{}
 	flapMu               sync.Mutex
 	flapHistory          map[string][]time.Time
+	cfg                  Config
 }
 
 // Config configures the AlertEngine. All fields are optional except
@@ -125,6 +126,11 @@ type Config struct {
 	// the final channel set. The router's output overrides the rule's
 	// own notify_channels. If nil, rule-level channels are used.
 	Router *Router
+	// SilenceEvaluator, when set, is started/stopped alongside the engine
+	// and periodically fires offline-sla alerts for rules carrying the
+	// offline_silence_seconds condition. If nil, offline-sla evaluation is
+	// disabled.
+	SilenceEvaluator *SilenceEvaluator
 	// Now overrides the clock source. Defaults to time.Now.
 	Now func() time.Time
 }
@@ -160,6 +166,7 @@ func New(cfg Config) *AlertEngine {
 		now:         cfg.Now,
 		stopCh:      make(chan struct{}),
 		flapHistory: make(map[string][]time.Time),
+		cfg:         cfg,
 		pendingEscalation: cfg.PendingEscalation,
 		flapWindow:       cfg.FlapWindow,
 		flapThreshold:     cfg.FlapThreshold,
@@ -185,15 +192,23 @@ func (e *AlertEngine) Start(ctx context.Context) error {
 	// Start the escalation ticker.
 	e.escalationTickerDone = make(chan struct{})
 	go e.runEscalationLoop()
+
+	if e.cfg.SilenceEvaluator != nil {
+		e.cfg.SilenceEvaluator.Start(ctx)
+	}
 	return nil
 }
 
-// Stop unsubscribes and stops the escalation ticker.
+// Stop unsubscribes, stops the escalation ticker, and stops the silence
+// evaluator if one was configured.
 func (e *AlertEngine) Stop() {
 	if e.sub != nil {
 		if err := e.sub.Unsubscribe(); err != nil {
 			e.log.Warn("alert engine unsubscribe failed", "err", err)
 		}
+	}
+	if cfg := e.cfg.SilenceEvaluator; cfg != nil {
+		cfg.Stop()
 	}
 	close(e.stopCh)
 	if e.escalationTickerDone != nil {

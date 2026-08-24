@@ -93,12 +93,14 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 
 	// --- Alert engine -----------------------------------------------------
 	alertStore := alerts.NewPGStore(pool)
+	silenceEval := alerts.NewSilenceEvaluator(alertStore, agentStore, natsClient, log)
 	alertEngine := alerts.New(alerts.Config{
-		Client:           natsClient,
-		Store:            alertStore,
-		Publisher:        natsClient,
-		Logger:           log,
-		NotifierRegistry: notifierReg,
+		Client:            natsClient,
+		Store:             alertStore,
+		Publisher:         natsClient,
+		Logger:            log,
+		NotifierRegistry:  notifierReg,
+		SilenceEvaluator:  silenceEval,
 	})
 	apiServer.SetAlertStore(alertStore)
 	apiServer.SetAlertEngine(alertEngine)

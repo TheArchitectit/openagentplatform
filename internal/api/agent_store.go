@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -184,6 +185,59 @@ func (p *pgAgentStore) ListAgents(ctx context.Context, f AgentListFilter) ([]mod
 		return nil, 0, fmt.Errorf("agent_store: rows err: %w", err)
 	}
 	return out, total, nil
+}
+
+// ListSilentAgents returns agents whose last_seen is older than staleBefore.
+// It is the explicit query seam used by the alerts SilenceEvaluator to find
+// agents that have been silent past an RMM-01 offline-sla rule's threshold.
+// An empty orgID scopes across all orgs; an empty statusFilter ignores status.
+func (p *pgAgentStore) ListSilentAgents(ctx context.Context, orgID, statusFilter string, staleBefore time.Time) ([]models.Agent, error) {
+	if p.pool == nil {
+		return nil, errors.New("agent_store: nil pool")
+	}
+	args := []any{staleBefore}
+	where := []string{"last_seen < $1"}
+	add := func(clause string, val any) {
+		args = append(args, val)
+		where = append(where, fmt.Sprintf(clause, len(args)))
+	}
+	if orgID != "" {
+		add("org_id = $%d", orgID)
+	}
+	if statusFilter != "" {
+		add("status = $%d", statusFilter)
+	}
+	whereSQL := "WHERE " + joinAnd(where)
+	q := `
+		SELECT id, site_id, COALESCE(org_id,''), hostname, COALESCE(os,''), COALESCE(arch,''),
+		       COALESCE(platform,''), COALESCE(cpu_count,0), COALESCE(total_memory_mb,0),
+		       COALESCE(total_disk_gb,0), COALESCE(agent_version,''), COALESCE(status,'offline'),
+		       COALESCE(last_seen, 'epoch'::timestamptz), tags, created_at, updated_at
+		FROM agents
+		` + whereSQL + `
+		ORDER BY last_seen ASC
+	`
+	rows, err := p.pool.Query(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("agent_store: list silent agents: %w", err)
+	}
+	defer rows.Close()
+	out := make([]models.Agent, 0, 16)
+	for rows.Next() {
+		var a models.Agent
+		if err := rows.Scan(
+			&a.ID, &a.SiteID, &a.OrgID, &a.Hostname, &a.OperatingSystem, &a.Arch, &a.Platform,
+			&a.CPUCount, &a.TotalMemoryMB, &a.TotalDiskGB, &a.AgentVersion, &a.Status,
+			&a.LastSeen, &a.Tags, &a.CreatedAt, &a.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("agent_store: scan silent agent: %w", err)
+		}
+		out = append(out, a)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("agent_store: rows err: %w", err)
+	}
+	return out, nil
 }
 
 // ListCheckResultsByAgent returns the most recent N check results for an

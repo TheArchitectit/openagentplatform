@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -137,6 +140,54 @@ func (a *eventStoreAdapter) GetAgent(ctx context.Context, _, id string) (*models
 	ag := &models.Agent{}
 	err := a.pool.QueryRow(ctx, q, id).Scan(&ag.ID, &ag.Status)
 	return ag, err
+}
+
+func (a *eventStoreAdapter) ListSilentAgents(ctx context.Context, orgID, statusFilter string, staleBefore time.Time) ([]models.Agent, error) {
+	if a.pool == nil {
+		return nil, nil
+	}
+	args := []any{staleBefore}
+	where := []string{"last_seen < $1"}
+	add := func(clause string, val any) {
+		args = append(args, val)
+		where = append(where, fmt.Sprintf(clause, len(args)))
+	}
+	if orgID != "" {
+		add("org_id = $%d", orgID)
+	}
+	if statusFilter != "" {
+		add("status = $%d", statusFilter)
+	}
+	q := `
+		SELECT id, site_id, COALESCE(org_id,''), hostname, COALESCE(os,''), COALESCE(arch,''),
+		       COALESCE(platform,''), COALESCE(cpu_count,0), COALESCE(total_memory_mb,0),
+		       COALESCE(total_disk_gb,0), COALESCE(agent_version,''), COALESCE(status,'offline'),
+		       COALESCE(last_seen, 'epoch'::timestamptz), tags, created_at, updated_at
+		FROM agents
+		WHERE ` + strings.Join(where, " AND ") + `
+		ORDER BY last_seen ASC
+	`
+	rows, err := a.pool.Query(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("agent_store: list silent agents: %w", err)
+	}
+	defer rows.Close()
+	out := make([]models.Agent, 0, 16)
+	for rows.Next() {
+		var ag models.Agent
+		if err := rows.Scan(
+			&ag.ID, &ag.SiteID, &ag.OrgID, &ag.Hostname, &ag.OperatingSystem, &ag.Arch, &ag.Platform,
+			&ag.CPUCount, &ag.TotalMemoryMB, &ag.TotalDiskGB, &ag.AgentVersion, &ag.Status,
+			&ag.LastSeen, &ag.Tags, &ag.CreatedAt, &ag.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("agent_store: scan silent agent: %w", err)
+		}
+		out = append(out, ag)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("agent_store: rows err: %w", err)
+	}
+	return out, nil
 }
 
 func (a *eventStoreAdapter) MarkStaleAgentsOffline(ctx context.Context, threshold any) ([]string, error) {

@@ -7,7 +7,7 @@ condition that reuses the existing alert engine and the 120s binary-offline
 flip. Build-ready.
 **Priority:** P1 (Blocking)
 **Estimated Effort:** 4-6 hours
-**Status:** PENDING
+**Status:** COMPLETE — implemented 2026-08-24; model + migration + store + evaluator + API validation + tests all green
 **Dependencies:** RMM-00 (spec + open decisions)
 
 ---
@@ -137,9 +137,27 @@ git status   # confirm clean
 - `cmd/server/server_adapters.go` (`MarkStaleAgentsOffline`)
 - `pkg/models/models_alerts.go`, `internal/alerts/`
 
+## Completion Record (2026-08-24)
+
+Decision (per spec §5.3): **periodic stale-agent evaluator with an explicit
+agent-query seam** — chosen over event-conversion because it can query
+`last_seen` at evaluation time and recover cleanly when an agent reports back.
+
+Implemented:
+- `pkg/models/models_alerts.go`: `AlertRule.OfflineSilenceSeconds *int` (nil = no condition, fully backward compatible).
+- `py/alembic/versions/0011_rmm01_offline_silence_rule.py`: additive `offline_silence_seconds INT NULL` on `alert_rules`.
+- `internal/alerts/store_alerts_rules.go`: column persisted/read in Get/Create/Update (zero value not persisted).
+- `internal/alerts/silence_evaluator.go` (new): `SilenceEvaluator` — 10-min ticker, queries enabled rules with the condition, fires `alert.fired` on `oap.events.alerts` (`AlertType: "offline_sla"`), honors rule AgentID/SiteID scope. Deduplication is delegated to the existing engine via `handleCheckFailure`.
+- `internal/alerts/engine_core.go`: `SilenceEvaluator` wired into `Config`; started/stopped with the engine.
+- `internal/api/agent_store.go` + `cmd/server/server_adapters.go`: `ListSilentAgents` query seam (agents with `last_seen < staleBefore`, optional org/status filter) on both the api store and the events adapter.
+- `internal/api/routes_auth_alerts.go`: `validateAlertRule` bounds `OfflineSilenceSeconds` (positive, ≤ 30 days) on create/update.
+- `internal/alerts/silence_evaluator_test.go` (new): fires-when-silent, quiet-when-recent, skips-no-condition, disabled-no-fire.
+
+Verification: `go build ./...`, `go vet`, `go test ./internal/alerts/... ./pkg/models/... ./internal/api/... ./cmd/server/...` all green. 120s liveness threshold (`heartbeat.go`/`subjects.go`) untouched.
+
 ---
 
 **Created:** 2026-08-24
 **Authored by:** TheArchitectit
 **Last Updated:** 2026-08-24
-**Version:** 1.0
+**Version:** 1.0 → 1.1 (marked COMPLETE)
