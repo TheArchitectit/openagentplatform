@@ -201,9 +201,8 @@
 | Keyword | Document | Location |
 |---------|----------|----------|
 | changelog | [CHANGELOG.md](CHANGELOG.md) | docs/ |
-| v2.6.0 | [README.md](README.md) | / (current version) |
-| v1.10.0 | [RELEASE_v1.10.0.md](RELEASE_v1.10.0.md) | docs/ |
-| v1.9.x | [RELEASE_v1.9.0.md](RELEASE_v1.9.0.md) - [RELEASE_v1.9.6.md](RELEASE_v1.9.6.md) | docs/ |
+| v1.2.0 | [RELEASE_NOTES_v1.2.0.md](../RELEASE_NOTES_v1.2.0.md) | / (current version) |
+| v1.1.0 | [RELEASE_NOTES_v1.1.0.md](../RELEASE_NOTES_v1.1.0.md) | / |
 
 ---
 
@@ -226,6 +225,6 @@
 
 ---
 
-**Last Updated:** 2026-05-09
+**Last Updated:** 2026-08-23
 **Document Owner:** Documentation Team
 **Token Savings:** 60-80% vs full document reads

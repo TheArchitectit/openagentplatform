@@ -452,19 +452,51 @@
 
 ---
 
-## CHANGELOG.md
+## CHANGELOG.md (root)
 
 | Line | Header |
 |------|--------|
 | 1 | # Changelog |
-| 8 | ## [Unreleased] |
-| 12 | ## [1.5.0] - 2026-01-18 |
-| 27 | ## [1.4.0] - 2026-01-16 |
-| 41 | ## [1.3.0] - 2026-01-16 |
-| 54 | ## [1.1.0] - 2026-01-15 |
-| 61 | ## [1.0.0] - 2026-01-14 |
-| 64 | ## Version Management |
-| 76 | ## Links |
+| 9 | ## [1.2.0] - 2026-08-23 |
+| 11 | ### Release: Wiring Remediation & OpenSpec Reconciliation |
+| 63 | ## [Unreleased] |
+| 975 | ## Version Management |
+| 997 | ## Links |
+
+---
+
+## docs/CHANGELOG.md
+
+| Line | Header |
+|------|--------|
+| 1 | # Changelog |
+| 11 | ## [1.2.0] - 2026-08-23 -- Wiring Remediation & OpenSpec Reconciliation COMPLETE |
+| 13 | ### Summary |
+| 22 | ### Wiring Remediation (W1–W8) ✓ |
+| 42 | ### OpenSpec Reconciliation (audit P0–P2) ✓ |
+| 52 | ### W8 Detail Highlights |
+| 63 | ### Commits |
+| 71 | ### Next |
+| 79 | ## [1.1.0] - 2026-08-22 -- Phase 6: Commercial Tiering COMPLETE |
+| 136 | ## [1.0.0] - 2026-08-22 -- Phase 5: Production Hardening COMPLETE |
+
+---
+
+## RELEASE_NOTES_v1.2.0.md (root)
+
+| Line | Header |
+|------|--------|
+| 1 | # Release v1.2.0 — Wiring Remediation & OpenSpec Reconciliation |
+| 7 | ## Overview |
+| 24 | ## Highlights |
+| 45 | ## Key Changes |
+| 47 | ### OpenSpec Reconciliation (Spec Audit) |
+| 66 | ### Wiring Remediation W1–W8 |
+| 81 | ### W8 Correctness Fixes (detail) |
+| 100 | ## Test & Validation |
+| 111 | ## Upgrade Notes |
+| 121 | ## Known Limitations / Not In This Release |
+| 133 | ## Previous Release |
 
 ---
 
@@ -1623,7 +1655,7 @@
 
 **Authored by:** TheArchitectit
 **Document Owner:** Project Maintainers
-**Last Updated:** 2026-05-12
+**Last Updated:** 2026-08-23
 **Status:** Complete - all documents and headers accurately mapped
 
 ---
@@ -1633,10 +1665,10 @@
 | Line | Header |
 |------|--------|
 | 1 | # Project Status — OpenAgentPlatform |
-| 15 | ## What This Is |
-| 31 | ## Phase Status |
-| 45 | ## Known Issues / Outstanding Work |
-| 59 | ## Verification Gates |
+| 14 | ## What This Is |
+| 32 | ## Phase Status |
+| 52 | ## Known Issues / Outstanding Work |
+| 67 | ## Verification Gates |
 
 ---
 
@@ -1645,8 +1677,8 @@
 | Line | Header |
 |------|--------|
 | 1 | # OpenAgentPlatform — Project Plan |
-| 17 | ## Mission |
-| 21 | ## Architecture (5 deployable units) |
+| 16 | ## Mission |
+| 22 | ## Architecture (5 deployable units) |
 | 35 | ## Roadmap Summary |
 | 47 | ## What's Next |
 

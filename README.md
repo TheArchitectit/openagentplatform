@@ -182,6 +182,7 @@ python3 scripts/regression_check.py --all --no-audit  # skip audit table
 - [Security](docs/SECURITY.md) -- auth, RBAC, secrets, audit
 - [Commercial](docs/COMMERCIAL.md) -- licensing tiers, billing, SSO
 - [Changelog](docs/CHANGELOG.md) -- sprint-by-sprint history
+- [Release Notes](RELEASE_NOTES_v1.2.0.md) -- v1.2.0 wiring remediation & OpenSpec reconciliation
 - [Contributing](docs/CONTRIBUTING.md) -- PR process and coding standards
 
 ## Community
@@ -198,7 +199,7 @@ See [docs/COMMERCIAL.md](docs/COMMERCIAL.md) for tier details.
 
 ---
 
-**Status:** All sprints 0.1 -- 6.0 complete | **Version:** v1.1.0 | **Last updated:** 2026-01-15
+**Status:** All sprints 0.1 -- 6.0 complete + v1.2.0 remediation | **Version:** v1.2.0 | **Last updated:** 2026-08-23
 
 ## ☕ Support
 

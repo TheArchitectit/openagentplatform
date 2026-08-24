@@ -1,7 +1,7 @@
 # OpenAgentPlatform — Project Plan
 
-**Version:** v1.1.0 (Commercial)
-**Status:** Phases 0–6 delivered
+**Version:** v1.2.0 (Commercial)
+**Status:** Phases 0–6 delivered + v1.2.0 wiring remediation
 **Canonical roadmap:** [docs/plans/MASTER_IMPLEMENTATION_PLAN.md](docs/plans/MASTER_IMPLEMENTATION_PLAN.md)
 **A2A detail:** [docs/plans/A2A_PLAN.md](docs/plans/A2A_PLAN.md)
 
@@ -38,7 +38,7 @@ Full sprint breakdown: MASTER_IMPLEMENTATION_PLAN.md §6 (7 phases, 46 weeks).
 
 - **Phase 0 — Foundation** (4w): scaffold, DB schema, NATS mTLS, OIDC auth, agent MVP ✅
 - **Phase 1 — Core RMM** (10w): checks, alerts, policies, patches, scripts, remote access ✅
-- **Phase 2 — A2A + Agents** (6w): gateway, framework adapters, process pool, event bridge ⚠️ complete with known issue (dashboard contract divergence, see STATUS.md)
+- **Phase 2 — A2A + Agents** (6w): gateway, framework adapters, process pool, event bridge ✅ (adapter proxy contract aligned in v1.2.0, W7)
 - **Phase 3 — Secret Management** (4w): Vault/Infisical backends, reference resolver, rotation ✅
 - **Phase 4 — Frontend** (6w): dashboards, real-time updates, terminal ✅
 - **Phase 5 — Production Readiness** (8w): observability, security hardening, CI/CD, docs ✅
@@ -46,14 +46,13 @@ Full sprint breakdown: MASTER_IMPLEMENTATION_PLAN.md §6 (7 phases, 46 weeks).
 
 ## What's Next
 
-Candidate work items, in rough priority order:
+Completed in v1.2.0 (2026-08-23): the A2A dashboard contract divergence (W7) and
+the OpenSpec reconciliation (audit P0–P2) are done. Remaining candidate work items,
+in rough priority order:
 
-1. **Fix the A2A dashboard contract divergence** (P2 remediation from
-   QA_REVIEW_PHASE2_v2.md) — reconcile gateway routes, Python adapter paths, and
-   frontend calls; must pass the `deploy.sh` + `regression_check.py` gate.
-2. **Reconcile OpenSpec tree with reality** (P0–P2 findings in
-   docs/QA_REVIEW_OPENSPEC_COVERAGE.md) — rmm-core rewrite, path drift, PLANNED→COMPLETE
-   flips, missing capability specs.
-3. **Close RMM parity gaps** where scope is decided (see docs/GAP_ANALYSIS_RMM_PLATFORM.md):
+1. **Close RMM parity gaps** where scope is decided (see docs/GAP_ANALYSIS_RMM_PLATFORM.md):
    maintenance windows, offline-agent SLA alerting, agent auto-update channel,
    WinUpdate/AutomatedTask automation.
+2. **Ship the Managed A2A relay transport** — RelayService is parked as a library;
+   add the network-transport + auth design (see openspec/specs/a2a-relay,
+   internal/relay).

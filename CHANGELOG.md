@@ -6,6 +6,60 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.0] - 2026-08-23
+
+### Release: Wiring Remediation & OpenSpec Reconciliation
+
+**Type:** Correctness + documentation release (no breaking changes)
+
+#### Added
+
+- **OpenSpec capability specs (audit P2)** — authored 13 missing capability specs
+  (`a2a-relay`, `adapter-service`, `audit-log`, `check-library`, `data-model`,
+  `event-bus`, `multi-tenancy`, `notifications`, `observability`,
+  `platform-foundation`, `remote-access`, `reporting`, `resilience`) plus
+  `billing-stripe`; each records honest "Known Limitations".
+- **Billing persistence** — `OrgBillingState` persisted via a new `PGStateStore`
+  (`org_billing_state` table) so subscription state survives restarts.
+
+#### Fixed
+
+- **W1 Heartbeat decode** — tolerant `UnmarshalJSON` accepts both `int64` seconds
+  and RFC3339, so agent heartbeats persist again.
+- **W2 Duplicate check results** — single persistence owner instead of two
+  competing consumers double-inserting every result.
+- **W3 Notification dispatch** — notifier registry wired into the alert engine and
+  API; real alerts now send and `/test` no longer 503s.
+- **W4 Reporting** — reports store + scheduler wired; all `/reports` endpoints
+  live.
+- **W5 Remote shell** — remote handlers, recording store, and session publisher
+  wired; `/shell/*` routes live end-to-end.
+- **W6 Tenancy** — RLS migrations rewritten against live tables and wired at
+  startup; tenant context parameterized; tier resolution + quota middleware wired.
+- **W7 Adapter proxy** — proxy aligned to versioned `/api/v1/adapters/*` paths;
+  cost windows use epoch floats; all seven adapters register at startup.
+- **W8 Correctness items** — adapter circuit breaker executed; double rate limit
+  removed; observability wiring and live metrics summary; audit chain-verify
+  semantics + role gate; billing persistence; relay idle-reap by last activity.
+
+#### Changed
+
+- **OpenSpec truth-layer rewrite (audit P0)** — `STATUS.md`, `PROJECT_PLAN.md`, and
+  `openspec/specs/rmm-core/spec.md` rewritten to describe the Go implementation.
+- **OpenSpec drift/status fixes (audit P1)** — spec path drift and stale banners
+  fixed; 6 `PLANNED`-but-built specs flipped to `COMPLETE`.
+- **Stripe client** — duplicate Stripe client merged into `client.go`.
+- **Navigation maps** — `INDEX_MAP.md`, `HEADER_MAP.md` (+ docs/ variants) updated.
+
+#### Documentation
+
+- Added `RELEASE_NOTES_v1.2.0.md`.
+- `docs/CHANGELOG.md` — added this release, removed conflicting guardrail-template
+  release-history references.
+- `README.md`, `STATUS.md`, `PROJECT_PLAN.md` — bumped current version/status.
+
+---
+
 ## [Unreleased]
 
 ---

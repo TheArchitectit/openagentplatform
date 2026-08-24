@@ -12,6 +12,9 @@
 | quick-setup | QUICK_SETUP.md | ./ | **5-minute setup guide** ⭐ |
 | prompting | PROMPTING_GUIDE.md | ./ | **Master prompting techniques** ⭐ |
 | toc | TOC.md | ./ | Complete template contents and file listing |
+| release-notes-1.2.0 | RELEASE_NOTES_v1.2.0.md | ./ | v1.2.0 wiring remediation & OpenSpec reconciliation |
+| release-notes-1.1.0 | RELEASE_NOTES_v1.1.0.md | ./ | v1.1.0 file-size compliance release notes |
+| changelog | CHANGELOG.md | ./ | Project changelog (root); docs/CHANGELOG.md for sprint history |
 | safety | AGENT_GUARDRAILS.md | docs/ | Mandatory safety protocols |
 | test-prod | TEST_PRODUCTION_SEPARATION.md | docs/standards/ | Test/production isolation (MANDATORY) |
 | execution | AGENT_EXECUTION.md | docs/workflows/ | Standard execution protocol |
@@ -163,6 +166,8 @@
 | **SPRINT_WIRING_REMEDIATION_PLAN.md** | W1–W8 ordered fixes for built-but-unwired subsystems (heartbeat, dup results, 503 stacks, RLS, proxy) | When fixing wiring/integration bugs |
 | **STATUS.md (root)** | OAP phase status 0–6, known issues, gates | When checking project state |
 | **PROJECT_PLAN.md (root)** | OAP plan summary; canonical roadmap = docs/plans/MASTER_IMPLEMENTATION_PLAN.md | When planning work |
+| **RELEASE_NOTES_v1.2.0.md (root)** | v1.2.0 wiring remediation (W1–W8) + OpenSpec reconciliation release notes | When tracking releases |
+| **CHANGELOG.md (root)** | Project changelog; docs/CHANGELOG.md holds the sprint-by-sprint (phase) history | When tracking release history |
 | **openspec/specs/rmm-core** | RMM core spec (rewritten 2026-08-23 to Go reality; §14 = planned gaps) | When implementing RMM features |
 | **openspec/specs/billing-stripe** | Stripe billing spec — client/service/metering/API routes, PG-backed state cache, webhook limits | When touching internal/billing or /billing endpoints |
 | **openspec/specs/endpoint-agent** | Go endpoint daemon — registration, core NATS subjects, checks, scripts, compliance, patching, shell | When touching cmd/agent or pkg/agent |
@@ -477,7 +482,7 @@ agent-guardrails-template/
 
 **Authored by:** TheArchitectit
 **Document Owner:** Project Maintainers
-**Last Updated:** 2026-05-12
+**Last Updated:** 2026-08-23
 **Document Count:** 103 (excluding INDEX files)
 **Line Count:** ~280
 

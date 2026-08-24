@@ -329,21 +329,25 @@
 
 | Section | Line | Offset |
 |---------|------|--------|
-| Sprint 1.5: Scripts, Remote Shell, Monaco | 12 | 0 |
-| Sprint 1.4: Patches | 35 | 23 |
-| Sprint 1.3: Policies & Compliance | 58 | 46 |
-| Sprint 1.2: Alerts | 80 | 68 |
-| Sprint 1.1: Checks | 103 | 91 |
-| Sprint 0.2: Agent & Foundation | 122 | 110 |
-| Sprint 0.1: Foundation | 146 | 134 |
-| Sprint 2.1: A2A Gateway | 163 | 151 |
-| Sprint 2.2: Framework Adapters | 177 | 165 |
-| Sprint 2.3: Bridge & End-to-End | 193 | 181 |
-| Phase 3: Secrets & Security | 207 | 195 |
-| Phase 4: Settings & UI Polish | 224 | 212 |
-| Phase 5: Observability | 239 | 227 |
-| Ozore AI Integration | 256 | 244 |
-| Live Dashboard & Mission Control | 269 | 257 |
+| v1.2.0: Wiring Remediation & OpenSpec Reconciliation | 11 | 0 |
+| v1.1.0: Phase 6 — Commercial Tiering COMPLETE | 79 | 68 |
+| v1.0.0: Phase 5 — Production Hardening COMPLETE | 136 | 125 |
+| Sprint 1.5: Scripts, Remote Shell, Monaco | 219 | 208 |
+| Sprint 1.4: Patches | 253 | 242 |
+| Sprint 1.3: Policies & Compliance | 277 | 266 |
+| Sprint 1.2: Alerts | 299 | 288 |
+| Sprint 1.1: Checks | 320 | 309 |
+| Sprint 0.2: Agent & Foundation | 342 | 331 |
+| Sprint 0.1: Foundation | 364 | 353 |
+| Sprint 2.1: A2A Gateway | 388 | 377 |
+| Sprint 2.2: Framework Adapters | 404 | 393 |
+| Sprint 2.3: Bridge & End-to-End | 425 | 414 |
+| Phase 3: Secrets & Security | 447 | 436 |
+| Phase 4: Settings & UI Polish | 469 | 458 |
+| Phase 5: Observability | 487 | 476 |
+| Ozore AI Integration | 505 | 494 |
+| Live Dashboard & Mission Control | 520 | 509 |
+| Release notes | 536 | 525 |
 
 ---
 
@@ -448,6 +452,6 @@ read docs/ethical/ETHICAL_ENGAGEMENT.md --offset 84 --limit 20
 
 ---
 
-**Last Updated:** 2026-05-09
+**Last Updated:** 2026-08-23
 **Document Owner:** Documentation Team
 **Token Savings:** 60-80% vs full document reads

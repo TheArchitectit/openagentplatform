@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-08-23
 **Branch:** main
-**Current Version:** v1.1.0
+**Current Version:** v1.2.0
 **Roadmap:** [docs/plans/MASTER_IMPLEMENTATION_PLAN.md](docs/plans/MASTER_IMPLEMENTATION_PLAN.md)
 **Changelog:** [CHANGELOG.md](CHANGELOG.md)
 
@@ -51,11 +51,16 @@ See `CHANGELOG.md` for release notes.
 
 ## Known Issues / Outstanding Work
 
+**Resolved in v1.2.0 (2026-08-23):** the W1–W8 built-but-unwired subsystems
+(heartbeat persistence, duplicate check results, notification/shell/reports 503s,
+RLS execution, adapter proxy contract) and the A2A dashboard contract divergence
+are now wired and reconciled. See [RELEASE_NOTES_v1.2.0.md](RELEASE_NOTES_v1.2.0.md)
+and [docs/SPRINT_WIRING_REMEDIATION_PLAN.md](docs/SPRINT_WIRING_REMEDIATION_PLAN.md).
+
 | Item | Severity | Tracking |
 |------|----------|----------|
-| Built-but-unwired subsystems: heartbeats never persist (decode contract broken), check results double-inserted, notifications/shell/reports handlers return 503, RLS never executed, adapter proxy path mismatch | **Critical** | docs/SPRINT_WIRING_REMEDIATION_PLAN.md (W1–W8) |
-| A2A dashboard broken end-to-end — proxy exists but upstream paths/formats mismatch Python; registry empty at runtime | High | SPRINT_WIRING_REMEDIATION_PLAN W7; openspec/specs/adapter-service |
-| OpenSpec tree reconciled 2026-08-23 (P0–P2 done); P3 RMM parity gaps remain: WinUpdate/AutomatedTask automation, maintenance windows, agent auto-update, offline-agent SLA alerting, cloud/hypervisor monitoring | Medium | docs/QA_REVIEW_OPENSPEC_COVERAGE.md; GAP_ANALYSIS_RMM_PLATFORM.md |
+| OpenSpec P3 RMM parity gaps remain open: WinUpdate/AutomatedTask automation, maintenance windows, agent auto-update channel, offline-agent SLA alerting, cloud/hypervisor monitoring | Medium | docs/QA_REVIEW_OPENSPEC_COVERAGE.md; GAP_ANALYSIS_RMM_PLATFORM.md |
+| Managed A2A relay transport not shipped — RelayService parked as a library pending network-transport + auth design | Low | openspec/specs/a2a-relay; internal/relay |
 
 ---
 

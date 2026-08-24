@@ -8,6 +8,74 @@ for the BSL-licensed releases.
 
 ---
 
+## [1.2.0] - 2026-08-23 -- Wiring Remediation & OpenSpec Reconciliation COMPLETE
+
+### Summary
+
+v1.2.0 closes the two systemic gaps left by Phase 6: (1) subsystems that shipped
+with unit tests but were never wired into `cmd/server` (silently 503'ing or writing
+wrong data), and (2) an OpenSpec tree that had drifted from the Go implementation.
+All W1–W8 wiring items from `docs/SPRINT_WIRING_REMEDIATION_PLAN.md` are complete,
+and the OpenSpec audit is reconciled through P2. No breaking changes, API changes,
+or package-version changes are included.
+
+### Wiring Remediation (W1–W8) ✓
+
+- **W1 Heartbeat persistence** — tolerant `UnmarshalJSON` on `models.Heartbeat`
+  accepts both `int64` seconds and RFC3339 (`ae11d37`); agent heartbeats persist.
+- **W2 Single check-result owner** — dispatcher is evaluation-only; the ingestor is
+  the sole persister, eliminating duplicate inserts (`d97532c`).
+- **W3 Notifier registry** — constructed and injected into alerts + API; alert
+  notifications dispatch and `/test` no longer 503s (`4d90fad`).
+- **W4 Reporting** — store + scheduler wired into `wireSupportServices`, due-schedule
+  iteration fixed; all `/reports` endpoints live (`61b29e8`).
+- **W5 Remote shell** — remote handlers, recording store, and session publisher
+  wired end-to-end; `/shell/*` routes live (`4da9d9e`).
+- **W6 Tenancy** — RLS migration set rewritten against live tables + wired at startup
+  behind a flag; tenant context parameterized; tier resolution and quota middleware
+  wired (`3ad3f4f`).
+- **W7 Adapter proxy** — proxy aligned to `/api/v1/adapters/*`; cost windows use
+  epoch floats; all seven adapter modules register at assembly (`b5963b7`).
+- **W8 Correctness** — resilience, telemetry, audit, billing, relay fixes (see
+  `RELEASE_NOTES_v1.2.0.md` for detail) (`d619f08`).
+
+### OpenSpec Reconciliation (audit P0–P2) ✓
+
+- **P0** truth-layer rewrite: `STATUS.md`, `PROJECT_PLAN.md`, `rmm-core` spec
+  rewritten to Go reality (`b74b4da`).
+- **P1** fixed spec path drift + stale source banners; flipped 6 `PLANNED`-but-built
+  specs to `COMPLETE` (`c0474f7`, `6c35656`).
+- **P2** authored 13 missing capability specs + `billing-stripe`; merged duplicate
+  Stripe client into `client.go` (`66921fa`, `be16965`, `b79f6c9`).
+- Navigation maps (`INDEX_MAP.md`, `HEADER_MAP.md` + docs/ variants) updated.
+
+### W8 Detail Highlights
+
+- **Resilience**: adapter circuit breaker now executes; double rate limiting removed.
+- **Telemetry**: no-op `TraceDB` replaced with `db.WithTracing()`; `HealthChecker`
+  wired into `/readyz`; metrics summary reports live counts.
+- **Audit**: chain-verify semantics fixed; `RequireRole(Admin, Technician)` gate on
+  `/audit` reads; chain extension serialized.
+- **Billing**: `OrgBillingState` persisted via `PGStateStore`.
+- **Relay**: idle-reap keys off `LastActivityAt`; service parked as library pending
+  transport + auth design.
+
+### Commits
+
+- `ae11d37` W1 heartbeat decode · `d97532c` W2 dup results · `4d90fad` W3 notifier ·
+  `61b29e8` W4 reports · `4da9d9e` W5 shell · `3ad3f4f` W6 tenancy ·
+  `b5963b7` W7 adapter proxy · `d619f08` W8 small items
+- `b74b4da` P0 truth-layer rewrite · `c0474f7`/`6c35656` P1 drift/status ·
+  `66921fa`/`be16965`/`b79f6c9` P2 specs
+
+### Next
+
+OpenSpec P3 RMM parity gaps remain open: maintenance windows, offline-agent SLA
+alerting, agent auto-update channel, WinUpdate/AutomatedTask automation, and
+cloud/hypervisor monitoring. See `docs/GAP_ANALYSIS_RMM_PLATFORM.md`.
+
+---
+
 ## [1.1.0] - 2026-08-22 -- Phase 6: Commercial Tiering COMPLETE
 
 ### Summary
@@ -469,12 +537,12 @@ Phase 6 (Commercial Tiering) begins with:
 
 For detailed release notes, see:
 
-- [RELEASE_v1.10.0.md](RELEASE_v1.10.0.md)
-- [RELEASE_v2.9.0.md](RELEASE_v2.9.0.md)
-- [RELEASE_v1.9.0.md](RELEASE_v1.9.0.md) through [RELEASE_v1.9.6.md](RELEASE_v1.9.6.md)
+- [RELEASE_NOTES_v1.2.0.md](../RELEASE_NOTES_v1.2.0.md) -- v1.2.0 wiring remediation
+- [RELEASE_NOTES_v1.1.0.md](../RELEASE_NOTES_v1.1.0.md) -- v1.1.0 file-size compliance
 
 ## Related documents
 
-- [ROADMAP_AND_SPRINTS.md](ROADMAP_AND_SPRINTS.md) -- planned sprints
+- [MASTER_IMPLEMENTATION_PLAN.md](plans/MASTER_IMPLEMENTATION_PLAN.md) -- canonical roadmap
 - [ARCHITECTURE.md](ARCHITECTURE.md) -- system design
 - [SETUP.md](SETUP.md) -- local setup
+- [QA_REVIEW_OPENSPEC_COVERAGE.md](QA_REVIEW_OPENSPEC_COVERAGE.md) -- OpenSpec audit
