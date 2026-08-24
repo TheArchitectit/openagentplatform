@@ -18,6 +18,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/checks"
 	"github.com/openagentplatform/openagentplatform/internal/config"
 	"github.com/openagentplatform/openagentplatform/internal/events"
+	"github.com/openagentplatform/openagentplatform/internal/notify"
 	"github.com/openagentplatform/openagentplatform/internal/patches"
 	"github.com/openagentplatform/openagentplatform/internal/policy"
 	"github.com/openagentplatform/openagentplatform/internal/resilience"
@@ -134,13 +135,21 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		Logger:    log,
 	})
 
+	// --- Notifications ----------------------------------------------------
+	// Registry of channel notifiers (email, slack, webhook). Shared by the
+	// alert engine (real alert dispatch) and the API server (channel
+	// validation + /test). Without it dispatchNotifications is a no-op.
+	notifierReg := notify.InitDefaultRegistry()
+	apiServer.SetNotifierRegistry(notifierReg)
+
 	// --- Alert engine -----------------------------------------------------
 	alertStore := alerts.NewPGStore(pool)
 	alertEngine := alerts.New(alerts.Config{
-		Client:    natsClient,
-		Store:     alertStore,
-		Publisher: natsClient,
-		Logger:    log,
+		Client:           natsClient,
+		Store:            alertStore,
+		Publisher:        natsClient,
+		Logger:           log,
+		NotifierRegistry: notifierReg,
 	})
 	apiServer.SetAlertStore(alertStore)
 	apiServer.SetAlertEngine(alertEngine)
