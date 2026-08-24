@@ -20,18 +20,17 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-import uuid
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator
+from typing import Any
 
 from oap.adapters.errors import AdapterError, FrameworkNotFoundError
-from oap.adapters.pool import PoolConfig, ProcessPool, ProcessState
+from oap.adapters.pool import PoolConfig, ProcessPool
 from oap.adapters.types import (
     AgentCard,
     HealthStatus,
     InvokeRequest,
     InvokeResponse,
-    Part,
     StreamEvent,
 )
 from oap.adapters.wrapper import ADAPTER_REGISTRY, AgentWrapper
@@ -333,7 +332,7 @@ class OrchestrationService:
                 self._pool.invoke(adapter_name, request),
                 timeout=request.timeout_seconds,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # Attempt to cancel on timeout, then release.
             try:
                 await self._pool.cancel(request.task_id)
@@ -356,7 +355,7 @@ class OrchestrationService:
             async with asyncio.timeout(request.timeout_seconds):
                 async for event in self._pool.stream(adapter_name, request):
                     yield event
-        except (asyncio.TimeoutError, TimeoutError):
+        except TimeoutError:
             try:
                 await self._pool.cancel(request.task_id)
             except Exception:

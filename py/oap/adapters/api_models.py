@@ -12,8 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
-from oap.adapters.types import AgentCard, HealthStatus, InvokeResponse, Part, StreamEvent
-
+from oap.adapters.types import AgentCard, HealthStatus, Part
 
 # ---------------------------------------------------------------------------
 # Request models
@@ -127,7 +126,7 @@ class ModelEntry(BaseModel):
     model_config = {"populate_by_name": True}
 
     @model_validator(mode="after")
-    def _alias_cost_fields(self) -> "ModelEntry":
+    def _alias_cost_fields(self) -> ModelEntry:
         # Expose cost_per_1k aliases for the frontend without breaking the
         # backend's input_per_1k usage.
         self.input_cost_per_1k = self.input_per_1k

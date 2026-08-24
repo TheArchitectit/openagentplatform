@@ -5,11 +5,12 @@ Revises: 0009_indexes_and_views
 Create Date: 2026-06-17 00:00:10
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 
+from alembic import op
 
 revision: str = "0010_add_description_to_checks"
 down_revision: str | None = "0009_indexes_and_views"

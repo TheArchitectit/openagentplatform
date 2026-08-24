@@ -31,7 +31,6 @@ from oap.adapters.types import (
 )
 from oap.adapters.wrapper import ADAPTER_REGISTRY, AgentWrapper
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

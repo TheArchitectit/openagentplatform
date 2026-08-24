@@ -11,11 +11,17 @@ API key is read from OZORE_API_KEY env var (never hardcoded).
 from __future__ import annotations
 
 import asyncio
+import builtins
 import os
 import time
-from typing import AsyncIterator, Optional
+from collections.abc import AsyncIterator
 
-from oap.adapters.errors import AdapterError, FrameworkNotFoundError, InvocationError, TimeoutError
+from oap.adapters.errors import (
+    AdapterError,
+    FrameworkNotFoundError,
+    InvocationError,
+    TimeoutError,  # noqa: A004
+)
 from oap.adapters.types import (
     AgentCard,
     AgentSkill,
@@ -39,15 +45,17 @@ class OzoreAdapter(AgentWrapper):
 
     HEALTHY_COST_MODELS: list[str] = [OZORE_MODEL]
 
-    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None, base_url: Optional[str] = None):
+    def __init__(
+        self, api_key: str | None = None, model: str | None = None, base_url: str | None = None
+    ):
         self._api_key = api_key or OZORE_API_KEY
         self._model = model or OZORE_MODEL
         self._base_url = base_url or OZORE_BASE_URL
         self._client = None
         self._active_tasks: dict[str, asyncio.Task] = {}
-        self._started_at: Optional[float] = None
+        self._started_at: float | None = None
         self._healthy = True
-        self._last_error: Optional[str] = None
+        self._last_error: str | None = None
 
     # ------------------------------------------------------------------
     # Lazy import
@@ -56,6 +64,7 @@ class OzoreAdapter(AgentWrapper):
     def _get_openai():
         try:
             from openai import AsyncOpenAI  # type: ignore[import-untyped]
+
             return AsyncOpenAI
         except ImportError:
             raise FrameworkNotFoundError(
@@ -117,7 +126,7 @@ class OzoreAdapter(AgentWrapper):
         self._last_error = None
 
     async def stop(self) -> None:
-        for task_id, task in list(self._active_tasks.items()):
+        for task_id, task in list(self._active_tasks.items()):  # noqa: B007
             task.cancel()
         self._active_tasks.clear()
         if self._client is not None:
@@ -146,9 +155,9 @@ class OzoreAdapter(AgentWrapper):
                 ),
                 timeout=timeout,
             )
-        except asyncio.TimeoutError:
+        except builtins.TimeoutError:
             self._last_error = f"invoke timed out after {timeout}s"
-            raise TimeoutError(self._last_error)
+            raise TimeoutError(self._last_error)  # noqa: B904
         except Exception as exc:
             self._last_error = str(exc)
             self._healthy = False
@@ -203,8 +212,10 @@ class OzoreAdapter(AgentWrapper):
                 ),
                 timeout=timeout if timeout > 0 else None,
             )
-        except asyncio.TimeoutError:
-            yield StreamEvent(task_id=req.task_id, event_type="error", error_message="stream timed out")
+        except builtins.TimeoutError:
+            yield StreamEvent(
+                task_id=req.task_id, event_type="error", error_message="stream timed out"
+            )
             return
         except Exception as exc:
             yield StreamEvent(task_id=req.task_id, event_type="error", error_message=str(exc))

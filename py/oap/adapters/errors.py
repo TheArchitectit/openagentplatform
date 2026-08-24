@@ -28,7 +28,7 @@ class InvocationError(AdapterError):
     """
 
 
-class TimeoutError(AdapterError):
+class TimeoutError(AdapterError):  # noqa: A001
     """Raised when an invocation exceeds its allotted timeout.
 
     Distinct from the built-in `TimeoutError` to avoid ambiguity in

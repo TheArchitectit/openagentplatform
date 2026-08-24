@@ -11,10 +11,10 @@ from __future__ import annotations
 import asyncio
 import enum
 import json
-import os
 import struct
 import time
 import uuid
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -67,7 +67,7 @@ class PoolConfig:
 # ---------------------------------------------------------------------------
 
 
-class ProcessState(str, enum.Enum):
+class ProcessState(str, enum.Enum):  # noqa: UP042
     """Lifecycle states for a pooled subprocess."""
 
     STARTING = "starting"
@@ -164,9 +164,7 @@ class ProcessPool:
             for _ in range(self._config.warm_adapter_count):
                 await self._spawn(adapter_name)
 
-        self._health_task = asyncio.create_task(
-            self._health_check_loop(), name="oap-pool-health"
-        )
+        self._health_task = asyncio.create_task(self._health_check_loop(), name="oap-pool-health")
 
     async def stop(self) -> None:
         """Drain all processes and cancel background tasks."""
@@ -222,9 +220,7 @@ class ProcessPool:
             pooled.last_used = time.monotonic()
             pooled.active_tasks.clear()
 
-    async def invoke(
-        self, adapter_name: str, request: InvokeRequest
-    ) -> InvokeResponse:
+    async def invoke(self, adapter_name: str, request: InvokeRequest) -> InvokeResponse:
         """Send an INVOKE command to a pooled subprocess and await the
         response.
         """
@@ -324,8 +320,7 @@ class ProcessPool:
             stale = [
                 p
                 for p in self._processes.values()
-                if p.state == ProcessState.IDLE
-                and (now - p.last_used) > self._config.idle_timeout
+                if p.state == ProcessState.IDLE and (now - p.last_used) > self._config.idle_timeout
             ]
             for pooled in stale:
                 await self._terminate(pooled)
@@ -340,7 +335,7 @@ class ProcessPool:
             pass
         try:
             await asyncio.wait_for(pooled.process.wait(), timeout=5.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pooled.process.kill()
             await pooled.process.wait()
 
@@ -371,7 +366,7 @@ class ProcessPool:
                             dead.append(pooled)
                         else:
                             pooled.health_ok = frame.get("healthy", False)
-                    except (asyncio.TimeoutError, BrokenPipeError, ConnectionResetError, OSError):
+                    except (TimeoutError, BrokenPipeError, ConnectionResetError, OSError):
                         dead.append(pooled)
 
                 for pooled in dead:
@@ -386,9 +381,7 @@ class ProcessPool:
 
     # -- Streaming support (skeleton) ---------------------------------------
 
-    async def stream(
-        self, adapter_name: str, request: InvokeRequest
-    ) -> AsyncIterator[StreamEvent]:  # type: ignore[name-defined]
+    async def stream(self, adapter_name: str, request: InvokeRequest) -> AsyncIterator[StreamEvent]:
         """Send STREAM_START and yield events from the subprocess.
 
         Yields:

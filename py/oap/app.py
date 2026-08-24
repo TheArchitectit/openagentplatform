@@ -8,16 +8,12 @@ discovery, invocation, streaming, cancellation, and cost management.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-from oap.adapters.api import router as adapters_router
-from oap.adapters.cost import CostManager
-from oap.adapters.orchestrator import AdapterInfo, OrchestrationService
-from oap.adapters.types import HealthStatus
 
 # -- Adapter module imports -------------------------------------------------
 # The orchestrator registers whatever classes have fired @register_adapter at
@@ -27,13 +23,16 @@ from oap.adapters.types import HealthStatus
 # (langgraph, crewai, ...) are imported lazily inside each wrapper's start()
 # so importing is safe without those packages installed.
 from oap.adapters.anthropic_adapter import AnthropicAdapter  # noqa: F401
+from oap.adapters.api import router as adapters_router
 from oap.adapters.autogen_adapter import AutoGenAdapter  # noqa: F401
+from oap.adapters.cost import CostManager
 from oap.adapters.crewai_adapter import CrewAIAdapter  # noqa: F401
 from oap.adapters.langgraph_adapter import LangGraphAdapter  # noqa: F401
 from oap.adapters.openai_adapter import OpenAIAgentsAdapter  # noqa: F401
+from oap.adapters.orchestrator import AdapterInfo, OrchestrationService
 from oap.adapters.ozore_adapter import OzoreAdapter  # noqa: F401
 from oap.adapters.semantic_kernel_adapter import SemanticKernelAdapter  # noqa: F401
-
+from oap.adapters.types import HealthStatus
 
 # ---------------------------------------------------------------------------
 # Application factory
@@ -103,9 +102,7 @@ def create_app() -> FastAPI:
                 "max_processes": pool.config.max_processes,
                 "warm_adapter_count": pool.config.warm_adapter_count,
             },
-            "adapters": [
-                {"name": a.name, "healthy": a.healthy} for a in adapters
-            ],
+            "adapters": [{"name": a.name, "healthy": a.healthy} for a in adapters],
         }
 
     return app

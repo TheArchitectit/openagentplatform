@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from oap.adapters.errors import FrameworkNotFoundError
 from oap.adapters.types import (
@@ -74,7 +75,8 @@ class AutoGenAdapter(AgentWrapper):
     def agent_card(self) -> AgentCard:
         return AgentCard(
             name="AutoGen",
-            description="Conversational multi-agent framework with code generation and RAG support.",
+            description="Conversational multi-agent framework with code generation "
+            "and RAG support.",
             version="1.0.0",
             url="oap://adapter/autogen",
             provider_name="OAP",
@@ -169,9 +171,7 @@ class AutoGenAdapter(AgentWrapper):
             loop = asyncio.get_event_loop()
 
             def _chat() -> Any:
-                return user_proxy.initiate_chat(
-                    assistant, message=message, max_turns=2
-                )
+                return user_proxy.initiate_chat(assistant, message=message, max_turns=2)
 
             chat_result = await loop.run_in_executor(None, _chat)
             response_text = self._last_assistant_text(chat_result)

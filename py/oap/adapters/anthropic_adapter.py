@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from oap.adapters.errors import FrameworkNotFoundError
 from oap.adapters.types import (
@@ -72,7 +73,8 @@ class AnthropicAdapter(AgentWrapper):
     def agent_card(self) -> AgentCard:
         return AgentCard(
             name="Claude",
-            description="Anthropic Claude models with tool use, vision, and long-context reasoning.",
+            description="Anthropic Claude models with tool use, vision, and long-"
+            "context reasoning.",
             version="1.0.0",
             url="oap://adapter/anthropic",
             provider_name="OAP",
@@ -115,6 +117,7 @@ class AnthropicAdapter(AgentWrapper):
 
     def _get_client(self) -> Any:
         from anthropic import Anthropic
+
         return Anthropic(api_key=self._api_key or "REPLACE_ME")
 
     def _build_messages(self, parts: list[Part]) -> list[dict]:
@@ -124,10 +127,12 @@ class AnthropicAdapter(AgentWrapper):
             if p.type == "text" and p.text:
                 content.append({"type": "text", "text": p.text})
             elif p.type == "file" and p.file_url:
-                content.append({
-                    "type": "image",
-                    "source": {"type": "url", "url": p.file_url},
-                })
+                content.append(
+                    {
+                        "type": "image",
+                        "source": {"type": "url", "url": p.file_url},
+                    }
+                )
         if not content:
             content = [{"type": "text", "text": "Hello."}]
         return [{"role": "user", "content": content}]
@@ -160,9 +165,7 @@ class AnthropicAdapter(AgentWrapper):
                 kwargs["tools"] = self._tools
 
             loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(
-                None, lambda: client.messages.create(**kwargs)
-            )
+            response = await loop.run_in_executor(None, lambda: client.messages.create(**kwargs))
 
             text_parts: list[str] = []
             for block in getattr(response, "content", []):

@@ -8,16 +8,20 @@ tracking with threshold-based alerts, and usage reporting.
 
 from __future__ import annotations
 
-import enum
 import time
 import uuid
 from typing import Any
 
-from pydantic import BaseModel, Field
-
+from oap.adapters.cost_models import (
+    DEFAULT_COST_MODELS,
+    AlertSeverity,
+    BudgetAlert,
+    BudgetLimit,
+    CostModel,
+    UsageReport,
+)
 from oap.adapters.types import CostRecord
 
-from oap.adapters.cost_models import CostModel, AlertSeverity, BudgetAlert, BudgetLimit, UsageReport, DEFAULT_COST_MODELS
 
 class BudgetTracker:
     """Tracks cumulative spend per organisation and fires threshold alerts.
@@ -79,7 +83,7 @@ class BudgetTracker:
         fired = self._fired.setdefault(org_id, set())
         new_alerts: list[BudgetAlert] = []
 
-        for threshold in _THRESHOLDS:
+        for threshold in _THRESHOLDS:  # noqa: F821
             if pct >= threshold and threshold not in fired:
                 fired.add(threshold)
                 severity = (

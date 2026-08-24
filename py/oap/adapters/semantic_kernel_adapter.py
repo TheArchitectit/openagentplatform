@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from oap.adapters.errors import FrameworkNotFoundError
 from oap.adapters.types import (
@@ -119,6 +120,7 @@ class SemanticKernelAdapter(AgentWrapper):
         kernel = Kernel()
         if self._endpoint and "azure" in self._endpoint.lower():
             from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
+
             kernel.add_service(
                 AzureChatCompletion(
                     deployment_name=self._model,

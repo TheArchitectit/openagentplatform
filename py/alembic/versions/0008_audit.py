@@ -5,12 +5,13 @@ Revises: 0007_scripts
 Create Date: 2026-06-16 00:00:07
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
+from alembic import op
 
 revision: str = "0008_audit"
 down_revision: str | None = "0007_scripts"
@@ -23,8 +24,18 @@ def upgrade() -> None:
     op.create_table(
         "audit_events",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
-        sa.Column("org_id", UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True),
-        sa.Column("actor_id", UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
+        sa.Column(
+            "org_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("organizations.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column(
+            "actor_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
         sa.Column("actor_type", sa.String(20), nullable=False, server_default="user"),
         sa.Column("action", sa.String(100), nullable=False),
         sa.Column("resource_type", sa.String(100), nullable=True, server_default=""),
@@ -34,8 +45,12 @@ def upgrade() -> None:
         sa.Column("metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
         sa.Column("prev_hash", sa.String(64), nullable=True),
         sa.Column("hash", sa.String(64), nullable=False),
-        sa.Column("occurred_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "occurred_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.CheckConstraint(
             "actor_type IN ('user', 'agent', 'service', 'system', 'api_key')",
             name="ck_audit_events_actor_type",
@@ -43,7 +58,9 @@ def upgrade() -> None:
     )
 
     # Indexes for common query patterns
-    op.create_index("ix_audit_events_org_occurred", "audit_events", ["org_id", sa.text("occurred_at DESC")])
+    op.create_index(
+        "ix_audit_events_org_occurred", "audit_events", ["org_id", sa.text("occurred_at DESC")]
+    )
     op.create_index("ix_audit_events_actor", "audit_events", ["actor_id"])
     op.create_index("ix_audit_events_action", "audit_events", ["action"])
     op.create_index("ix_audit_events_resource", "audit_events", ["resource_type", "resource_id"])

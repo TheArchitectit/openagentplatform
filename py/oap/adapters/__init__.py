@@ -10,7 +10,7 @@ from oap.adapters.errors import (
     AdapterError,
     FrameworkNotFoundError,
     InvocationError,
-    TimeoutError,
+    TimeoutError,  # noqa: A004
 )
 from oap.adapters.types import (
     AgentCard,

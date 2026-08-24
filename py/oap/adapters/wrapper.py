@@ -10,7 +10,7 @@ interacts with adapters exclusively through the `AgentWrapper` interface.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 from oap.adapters.types import (
     AgentCard,

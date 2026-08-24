@@ -10,12 +10,9 @@ from __future__ import annotations
 
 import enum
 import time
-import uuid
 from typing import Any
 
 from pydantic import BaseModel, Field
-
-from oap.adapters.types import CostRecord
 
 # ---------------------------------------------------------------------------
 # CostModel — per-model pricing definition.
@@ -50,7 +47,7 @@ DEFAULT_COST_MODELS: dict[str, CostModel] = {
     "ozore/custom": CostModel(
         model_name="ozore/custom",
         provider="ozore",
-        input_per_1k=0.0015,   # estimated — adjust to actual Ozore pricing
+        input_per_1k=0.0015,  # estimated — adjust to actual Ozore pricing
         output_per_1k=0.0045,  # estimated — adjust to actual Ozore pricing
     ),
     "claude-opus-4-8": CostModel(
@@ -97,7 +94,7 @@ DEFAULT_COST_MODELS: dict[str, CostModel] = {
 # ---------------------------------------------------------------------------
 
 
-class AlertSeverity(str, enum.Enum):
+class AlertSeverity(str, enum.Enum):  # noqa: UP042
     """Severity levels for budget alerts."""
 
     INFO = "info"
@@ -179,5 +176,3 @@ class UsageReport(BaseModel):
 # ---------------------------------------------------------------------------
 
 _THRESHOLDS: list[int] = [80, 90, 100]
-
-

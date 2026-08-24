@@ -15,7 +15,6 @@ import asyncio
 import json
 import struct
 import sys
-import time
 from typing import Any
 
 from oap.adapters.wrapper import ADAPTER_REGISTRY, AgentWrapper
@@ -57,7 +56,7 @@ async def _cmd_invoke(adapter: AgentWrapper, msg: dict[str, Any]) -> None:
     """Handle an INVOKE command."""
     from oap.adapters.types import InvokeRequest, InvokeResponse
 
-    task_id = msg.get("task_id", "")
+    task_id = msg.get("task_id", "")  # noqa: F841
     request_json = msg.get("request_json", {})
     request = InvokeRequest(**request_json)
     response: InvokeResponse = await adapter.invoke(request)
@@ -66,7 +65,7 @@ async def _cmd_invoke(adapter: AgentWrapper, msg: dict[str, Any]) -> None:
 
 async def _cmd_cancel(adapter: AgentWrapper, msg: dict[str, Any]) -> None:
     """Handle a CANCEL command."""
-    task_id = msg.get("task_id", "")
+    task_id = msg.get("task_id", "")  # noqa: F841
     cancelled = await adapter.cancel(task_id)
     await _write_frame({"cancelled": cancelled})
 
@@ -79,9 +78,9 @@ async def _cmd_health(adapter: AgentWrapper, _msg: dict[str, Any]) -> None:
 
 async def _cmd_stream_start(adapter: AgentWrapper, msg: dict[str, Any]) -> None:
     """Handle a STREAM_START command — yields each event as a frame."""
-    from oap.adapters.types import InvokeRequest, StreamEvent
+    from oap.adapters.types import InvokeRequest
 
-    task_id = msg.get("task_id", "")
+    task_id = msg.get("task_id", "")  # noqa: F841
     request_json = msg.get("request_json", {})
     request = InvokeRequest(**request_json)
     async for event in adapter.stream(request):

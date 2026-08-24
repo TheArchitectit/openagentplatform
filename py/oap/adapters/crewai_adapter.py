@@ -11,9 +11,10 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
-from oap.adapters.errors import FrameworkNotFoundError, InvocationError
+from oap.adapters.errors import FrameworkNotFoundError
 from oap.adapters.types import (
     AgentCard,
     AgentSkill,
@@ -80,7 +81,8 @@ class CrewAIAdapter(AgentWrapper):
     def agent_card(self) -> AgentCard:
         return AgentCard(
             name="CrewAI",
-            description="Multi-agent role-based collaboration with delegation and hierarchical processes.",
+            description="Multi-agent role-based collaboration with delegation and "
+            "hierarchical processes.",
             version="1.0.0",
             url="oap://adapter/crewai",
             provider_name="OAP",
@@ -139,7 +141,7 @@ class CrewAIAdapter(AgentWrapper):
 
     def _register_task(self, task_id: str) -> str:
         internal_id = str(uuid.uuid4())
-        with _sync_lock(self) as self_lock:
+        with _sync_lock(self) as self_lock:  # noqa: F841
             self._active_tasks[task_id] = {"internal_id": internal_id, "cancelled": False}
         return internal_id
 
@@ -195,9 +197,7 @@ class CrewAIAdapter(AgentWrapper):
                 # Emit nothing synchronously; we aggregate below.
                 pass
 
-            result = await loop.run_in_executor(
-                None, lambda: crew.kickoff()
-            )
+            result = await loop.run_in_executor(None, lambda: crew.kickoff())
             output_text = str(getattr(result, "raw", result))
 
             # Yield the full result as a single delta for simplicity.
@@ -250,5 +250,6 @@ def _sync_lock(adapter: Any) -> Any:
     """Internal helper — returns a plain threading.Lock for sync dict ops."""
     if not hasattr(adapter, "_thread_lock"):
         import threading
+
         adapter._thread_lock = threading.Lock()
     return adapter._thread_lock

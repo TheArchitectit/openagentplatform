@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from oap.adapters.errors import FrameworkNotFoundError
 from oap.adapters.types import (
@@ -115,6 +116,7 @@ class OpenAIAgentsAdapter(AgentWrapper):
         call if the openai-agents package is not available."""
         try:
             from agents import Agent
+
             return Agent(
                 name="oap-openai-agent",
                 instructions=self._instructions,
@@ -161,13 +163,12 @@ class OpenAIAgentsAdapter(AgentWrapper):
             if agent is not None:
                 try:
                     from agents import Runner
+
                     result = await loop.run_in_executor(
                         None,
                         lambda: Runner.run_sync(agent, user_input),
                     )
-                    output_text = str(
-                        getattr(result, "final_output", None) or result
-                    )
+                    output_text = str(getattr(result, "final_output", None) or result)
                     tokens = len(output_text.split())
                 except Exception:
                     output_text, tokens = self._direct_chat(user_input)
@@ -210,6 +211,7 @@ class OpenAIAgentsAdapter(AgentWrapper):
             if agent is not None:
                 try:
                     from openai import OpenAI
+
                     client = OpenAI(api_key=self._api_key or "REPLACE_ME")
 
                     def _stream() -> tuple[str, int]:
