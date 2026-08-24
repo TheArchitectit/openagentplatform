@@ -10,6 +10,9 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/telemetry"
 )
 
+// Start launches the HTTP server and all background event handlers in
+// goroutines. It returns once they are all started; call Shutdown to
+// stop them gracefully.
 func (s *Server) Start(ctx context.Context) error {
 	// Start event subscriptions after the HTTP server has had a chance to
 	// bind so /api/v1/agents/register accepts first contact from agents
