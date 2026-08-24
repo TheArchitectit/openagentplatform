@@ -1696,41 +1696,43 @@
 
 | Line | Header |
 |------|--------|
-| 1 | # Stripe Billing (COMPLETE, Phase 6) |
-| 19 | ## Description |
-| 37 | ## User Story |
-| 45 | ### 1. Configuration and Secrets |
-| 60 | ### 2. StripeClient (client.go) |
-| 79 | ### 3. BillingService (billing.go) |
-| 100 | ### 4. MeteringService (metering.go) |
-| 112 | ### 5. HTTP API (internal/api/billing.go) |
-| 133 | ### 6. Server Wiring |
-| 140 | ### 7. Known Limitations (honest-state notes) |
+| 1 | # Stripe Billing |
+| 17 | ## Description |
+| 38 | ## User Story |
+| 48 | ## Requirements |
+| 50 | ### 1. Configuration and Secrets |
+| 75 | ### 2. StripeClient (client.go) |
+| 102 | ### 3. BillingService (billing.go) |
+| 140 | ### 4. MeteringService (metering.go) |
+| 157 | ### 5. HTTP API (internal/api/billing.go) |
+| 192 | ### 6. Server Wiring (cmd/server/server_init_a2a.go) |
+| 201 | ### 7. Known Limitations (honest-state notes; not COMPLETE claims) |
 
 ---
 
 ## openspec/specs/ — P2 capability specs (authored 2026-08-23)
 
-All follow the same structure: header block (Phase/STATUS/Source/App Path) →
-Description → User Story → Requirements (numbered N.M) → Known Limitations.
-Line counts: a2a-relay 151, adapter-service 312, audit-log 235, check-library 205,
-data-model 313, event-bus 256, multi-tenancy 239, notifications 271, observability
-272, platform-foundation 209, remote-access 306, reporting 248, resilience 209.
+Capability specs use a header block (Phase/STATUS/App Path), Description, User Story,
+numbered Requirements, and Known Limitations where applicable. Updated line counts:
+audit-log 242, billing-stripe 223, endpoint-agent 411, event-bus 249,
+multi-tenancy 276, notifications 267, observability 279, remote-access 313,
+reporting 248, resilience 213.
 
-| Spec | STATUS | Key finding |
-|------|--------|-------------|
-| multi-tenancy | PARTIAL | RLS + quota middleware authored but never wired; tier resolution stubbed to Community; purger queries nonexistent `alert_preferences` table |
-| observability | PARTIAL | monitoring pkg has zero importers; otelpgx no-op in server; metrics summary always empty |
-| reporting | PARTIAL | live pipeline unwired (all /reports endpoints 503); internal/reporting is unreachable dead code with inverted test coverage |
-| notifications | PARTIAL | notifier registry never wired → zero alert notifications sent in production |
-| resilience | PARTIAL | adapter circuit breaker constructed but never executed; requests rate-limited twice |
-| audit-log | COMPLETE | hash chain sound per-event but per-resource verify reports false breaks (global chain vs subset); no role gate on reads |
-| event-bus | PARTIAL | heartbeat decode broken (int64 vs time.Time) → agent heartbeats never persisted; check results inserted twice by two queue groups |
-| a2a-relay | PARTIAL | accounting core only — no listener/TLS/forwarding; not wired |
+| Spec | STATUS | Current fidelity note |
+|------|--------|-----------------------|
+| endpoint-agent | COMPLETE | core NATS per-agent subjects; config-backed identity; checks/scripts/compliance/patch/shell behavior grounded in `cmd/agent` and `pkg/agent` |
+| multi-tenancy | PARTIAL | RLS context, quota middleware, and tier mapping are wired; migration guard, schema coverage, and purger limits remain |
+| observability | PARTIAL | PGX tracing, health checker, and metrics summary call sites are wired; monitoring alert/scorecard persistence remains dormant |
+| reporting | PARTIAL | PostgreSQL reports pipeline and routes are wired; duplicate in-memory package and scheduler/delivery constraints remain |
+| notifications | PARTIAL | notifier registry is wired into alert dispatch; configuration persistence and channel-management limits remain |
+| resilience | PARTIAL | adapter breaker and single rate-limit path are wired; limiter/breaker state remains process-local |
+| audit-log | COMPLETE | `GapCount` reports filtered-chain discontinuities; retention anchors, concurrent extension, hash coverage, and synchronous policy remain concerns |
+| event-bus | PARTIAL | core NATS with eight-subject taxonomy; tolerant heartbeat decode and single check-result persistence owner are fixed; no replay/ack durability |
+| a2a-relay | PARTIAL | accounting core only — no listener/TLS/forwarding; deliberately remains a library |
 | check-library | PARTIAL | 5 of 9 checker types cataloged; no override validation |
-| remote-access | PARTIAL | shell handlers never wired → all /shell routes 503; no shell.start publisher; recordings never attached live |
+| remote-access | PARTIAL | HTTP/WS/NATS/agent shell path and recording hooks are wired; transport and durable storage limitations remain |
 | data-model | PARTIAL | no checked-in DDL; Agent struct/column drift (`total_ram`); RLS targets wrong table names |
-| adapter-service | PARTIAL | Go proxy paths disagree with Python routes (6/7 will 404); adapter registry empty at runtime (no imports fire @register_adapter) |
+| adapter-service | PARTIAL | Go/Python proxy routes are aligned; auth, deployment startup, in-memory cost state, fixed origins, and live E2E proof remain |
 | platform-foundation | COMPLETE | env-only config, fixed pool sizing, embedded OpenAPI; no migration tool despite roadmap claim |
 
 ---

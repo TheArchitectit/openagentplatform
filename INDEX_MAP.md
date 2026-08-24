@@ -164,17 +164,18 @@
 | **STATUS.md (root)** | OAP phase status 0–6, known issues, gates | When checking project state |
 | **PROJECT_PLAN.md (root)** | OAP plan summary; canonical roadmap = docs/plans/MASTER_IMPLEMENTATION_PLAN.md | When planning work |
 | **openspec/specs/rmm-core** | RMM core spec (rewritten 2026-08-23 to Go reality; §14 = planned gaps) | When implementing RMM features |
-| **openspec/specs/billing-stripe** | Stripe billing spec — client/service/metering/API routes, env vars, known limits | When touching internal/billing or /billing endpoints |
-| **openspec/specs/multi-tenancy** | RLS schema, quotas, retention purger; PARTIAL (RLS/quota unwired, tier stub) | When touching tenancy or tiers |
-| **openspec/specs/observability** | OTel tracing + Prometheus + health probes; PARTIAL (monitoring pkg unwired, otelpgx no-op) | When touching telemetry/monitoring/metrics |
-| **openspec/specs/reporting** | reports (wired PG pipeline) vs reporting (dead in-memory pkg); endpoints 503 until wired | When touching reporting/reports |
-| **openspec/specs/notifications** | email/Slack/webhook channels, SSRF guard; PARTIAL (alert dispatch registry unwired) | When touching notify/alert channels |
-| **openspec/specs/resilience** | rate limiter, breaker, graceful shutdown, retry; PARTIAL (adapter breaker dead code, double rate-limit) | When touching resilience/rate limits |
-| **openspec/specs/audit-log** | hash-chained audit events + chain verify + read API | When touching audit |
-| **openspec/specs/event-bus** | NATS client, heartbeat handler, check dispatcher; PARTIAL (heartbeat decode broken, dup result insert) | When touching internal/events subjects |
+| **openspec/specs/billing-stripe** | Stripe billing spec — client/service/metering/API routes, PG-backed state cache, webhook limits | When touching internal/billing or /billing endpoints |
+| **openspec/specs/endpoint-agent** | Go endpoint daemon — registration, core NATS subjects, checks, scripts, compliance, patching, shell | When touching cmd/agent or pkg/agent |
+| **openspec/specs/multi-tenancy** | RLS schema/context, quotas, tier resolution, retention purger; remaining migration and schema limits | When touching tenancy or tiers |
+| **openspec/specs/observability** | OTel tracing + PGX, Prometheus, wired health probes; dormant monitoring persistence limits | When touching telemetry/monitoring/metrics |
+| **openspec/specs/reporting** | wired PG reports pipeline plus separate in-memory reporting package; scheduler/delivery limits | When touching reporting/reports |
+| **openspec/specs/notifications** | wired email/Slack/webhook alert channels, retry and SSRF guard; persistence limits | When touching notify/alert channels |
+| **openspec/specs/resilience** | rate limiter, wired adapter breaker, graceful shutdown, retry; in-memory/distributed limits | When touching resilience/rate limits |
+| **openspec/specs/audit-log** | hash-chained audit events, GapCount verification, read API; retention/concurrency/hash limits | When touching audit |
+| **openspec/specs/event-bus** | core NATS client, tracing, eight-subject taxonomy, heartbeat/check ingest with single persistence owner | When touching internal/events subjects |
 | **openspec/specs/a2a-relay** | managed relay accounting core; PARTIAL (no transport, unwired) | When touching internal/relay |
 | **openspec/specs/check-library** | 5 built-in check templates + seeding; PARTIAL (5 of 9 types) | When touching checklib/check catalog |
-| **openspec/specs/remote-access** | shell over NATS, WS bridge, recordings; PARTIAL (handlers unwired → 503) | When touching remote/terminal/session/shell |
+| **openspec/specs/remote-access** | wired shell over NATS, WS bridge, agent handler, recordings; transport/storage limits | When touching remote/terminal/session/shell |
 | **openspec/specs/data-model** | all 22 pkg/models structs ↔ tables; PARTIAL (DDL drift, RLS mismatch documented) | When touching models/schema |
 | **openspec/specs/adapter-service** | py/oap FastAPI unit: routes, settings, cost; PARTIAL (proxy path mismatch, empty registry) | When touching py/oap or a2a proxy |
 | **SECRETS_MANAGEMENT.md** | GitHub Secrets setup and rotation | When handling credentials |
