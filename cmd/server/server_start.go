@@ -52,6 +52,13 @@ func (s *Server) Start(ctx context.Context) error {
 
 	go s.patchScheduler.Run(hbCtx)
 
+	// Start the report scheduler (30s tick for due schedules).
+	if s.reportScheduler != nil {
+		if err := s.reportScheduler.Start(hbCtx); err != nil {
+			s.log.Warn("report scheduler start failed", "err", err)
+		}
+	}
+
 	// Start the billing sync loop and the metering flush loop, sharing hbCtx
 	// so they are cancelled on shutdown. The metering queue is flushed one
 	// final time in Shutdown() before the process exits.
@@ -138,6 +145,15 @@ func (s *Server) Shutdown(ctx context.Context) error {
 		s.patchScheduler.Close()
 		return nil
 	}))
+
+	// Report scheduler: cancel the tick loop; in-flight runs finish or
+	// hit their per-run timeout.
+	if s.reportScheduler != nil {
+		reportSched := s.reportScheduler
+		s.graceful.Register("report-scheduler", resilience.CloserFunc(func(ctx context.Context) error {
+			return reportSched.Stop(ctx)
+		}))
+	}
 
 	// Flush any queued metering usage to Stripe so it isn't lost on shutdown.
 	// Use a bounded context independent of the request/shutdown ctx so the

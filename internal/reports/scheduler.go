@@ -96,22 +96,13 @@ func (s *Scheduler) runLoop(ctx context.Context) {
 
 // tick checks all enabled schedules and triggers any that are due.
 func (s *Scheduler) tick(ctx context.Context) {
-	schedules, err := s.store.ListSchedules(ctx, "")
+	now := time.Now().UTC()
+	schedules, err := s.store.ListDueSchedules(ctx, now)
 	if err != nil {
 		s.log.Warn("scheduler tick: list failed", "err", err)
 		return
 	}
-	now := time.Now().UTC()
 	for _, sched := range schedules {
-		if !sched.Enabled {
-			continue
-		}
-		if sched.NextRunAt == nil {
-			continue
-		}
-		if !sched.NextRunAt.Before(now) {
-			continue
-		}
 		params := map[string]string{}
 		if len(sched.Params) > 0 {
 			_ = json.Unmarshal(sched.Params, &params)

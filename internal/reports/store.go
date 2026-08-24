@@ -83,6 +83,9 @@ type Store interface {
 	CreateSchedule(ctx context.Context, s *ReportSchedule) error
 	GetSchedule(ctx context.Context, orgID, id string) (*ReportSchedule, error)
 	ListSchedules(ctx context.Context, orgID string) ([]*ReportSchedule, error)
+	// ListDueSchedules returns enabled schedules whose NextRunAt is in
+	// the past, across all orgs. Used by the Scheduler tick.
+	ListDueSchedules(ctx context.Context, now time.Time) ([]*ReportSchedule, error)
 	UpdateSchedule(ctx context.Context, orgID, id string, s *ReportSchedule) error
 	DeleteSchedule(ctx context.Context, orgID, id string) error
 }
@@ -326,6 +329,30 @@ func (s *PGStore) ListSchedules(ctx context.Context, orgID string) ([]*ReportSch
 			return nil, err
 		}
 		out = append(out, s)
+	}
+	return out, rows.Err()
+}
+
+// ListDueSchedules returns enabled schedules across all orgs whose
+// next_run_at is before the given time.
+func (s *PGStore) ListDueSchedules(ctx context.Context, now time.Time) ([]*ReportSchedule, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT id, org_id, template_id, cron_expr, format, params, delivery_method,
+			delivery_target, enabled, last_run_at, next_run_at, created_at, updated_at
+		 FROM report_schedules
+		 WHERE enabled = TRUE AND next_run_at IS NOT NULL AND next_run_at < $1
+		 ORDER BY next_run_at ASC`, now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*ReportSchedule
+	for rows.Next() {
+		sched, err := scanSchedule(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, sched)
 	}
 	return out, rows.Err()
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/notify"
 	"github.com/openagentplatform/openagentplatform/internal/patches"
 	"github.com/openagentplatform/openagentplatform/internal/policy"
+	"github.com/openagentplatform/openagentplatform/internal/reports"
 	"github.com/openagentplatform/openagentplatform/internal/resilience"
 	"github.com/openagentplatform/openagentplatform/internal/telemetry"
 	"github.com/openagentplatform/openagentplatform/internal/tenancy"
@@ -47,6 +48,9 @@ type Server struct {
 	alertEngine    *alerts.AlertEngine
 	policyEngine   *policy.PolicyEngine
 	patchScheduler *patches.PatchScheduler
+	// reportScheduler runs scheduled report generation on a 30s tick.
+	// nil when the report schema could not be created (logged, non-fatal).
+	reportScheduler *reports.Scheduler
 	eventBridge    *bridge.Bridge
 	rpcBridge      *bridge.RPCBridge
 	// grpcServer serves the A2A gRPC transport on cfg.GRPCPort. nil when
@@ -200,6 +204,12 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 	scriptStore := api.NewPGScriptStore(pool)
 	apiServer.SetScriptStore(scriptStore)
 
+	// --- Enterprise reporting ---------------------------------------------
+	// Store + engine + scheduler. The schema is created idempotently at
+	// startup; if the database is unreachable or the DDL fails we log and
+	// continue so /reports endpoints return 503 rather than crashing.
+	reportScheduler := wireReports(apiServer, pool, log)
+
 	// --- A2A gateway + RPC bridge ----------------------------------------
 	a2aGw, rpcBridge, eventBridge, err := buildA2AGateway(apiServer, pool, natsClient, log)
 	if err != nil {
@@ -253,6 +263,7 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		alertEngine:       alertEngine,
 		policyEngine:      policyEngine,
 		patchScheduler:    patchScheduler,
+		reportScheduler:   reportScheduler,
 		eventBridge:       eventBridge,
 		rpcBridge:         rpcBridge,
 		secretsSweeper:    svc.secretsSweeper,

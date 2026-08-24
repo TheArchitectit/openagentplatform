@@ -117,6 +117,9 @@ func (s *Server) registerRoutes(r chi.Router) {
 				r.Get("/runs", s.listReportRuns)
 				r.Route("/runs/{id}", func(r chi.Router) {
 					r.Get("/", s.getReportRun)
+					// Presigned download: token auth, not session auth
+					// (links are opened outside the app).
+					r.Get("/download", s.downloadReport)
 				})
 				r.Group(func(r chi.Router) {
 					r.Use(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician))

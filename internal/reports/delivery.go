@@ -5,10 +5,14 @@ package reports
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/smtp"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -141,20 +145,50 @@ func (d *DefaultDeliverer) sendWebhook(ctx context.Context, r *Report, target st
 }
 
 // PresignedURL returns a time-limited download URL for the report.
-// The token is an HMAC-SHA256 of the report ID and expiry.
+// The token is an HMAC-SHA256 of the org ID, report ID, and expiry, so
+// a link is bound to one org's run and cannot be tampered with.
 func (d *DefaultDeliverer) PresignedURL(r *Report, ttl time.Duration) string {
 	if d.BaseURL == "" {
 		return ""
 	}
 	expiry := time.Now().Add(ttl).Unix()
-	token := signToken(d.DownloadSecret, r.ID, expiry)
+	token := SignDownloadToken(d.DownloadSecret, r.OrgID, r.ID, expiry)
 	return fmt.Sprintf("%s/api/v1/reports/runs/%s/download?token=%s&exp=%d",
 		d.BaseURL, r.ID, token, expiry)
 }
 
-// signToken produces a base64url-encoded token containing the
-// report ID, expiry, and an HMAC tag for verification.
-func signToken(secret []byte, reportID string, expiry int64) string {
-	mac := hmacSum(secret, fmt.Sprintf("%s|%d", reportID, expiry))
-	return base64URLEncode(fmt.Sprintf("%s|%d|%s", reportID, expiry, mac))
+// SignDownloadToken produces a base64url-encoded token containing the
+// org ID, report ID, expiry, and an HMAC tag for verification.
+func SignDownloadToken(secret []byte, orgID, reportID string, expiry int64) string {
+	payload := orgID + "|" + reportID + "|" + strconv.FormatInt(expiry, 10)
+	mac := hmacSum(secret, payload)
+	return base64URLEncode(payload + "|" + mac)
+}
+
+// VerifyDownloadToken validates a signed download token produced by
+// SignDownloadToken. Returns the org and report IDs encoded in the
+// token; an error when the token is malformed, the signature does not
+// match, or the expiry has passed.
+func VerifyDownloadToken(secret []byte, token string) (orgID, reportID string, err error) {
+	raw, decodeErr := base64.RawURLEncoding.DecodeString(token)
+	if decodeErr != nil {
+		return "", "", fmt.Errorf("malformed token")
+	}
+	parts := strings.Split(string(raw), "|")
+	if len(parts) != 4 {
+		return "", "", fmt.Errorf("malformed token")
+	}
+	orgID, reportID = parts[0], parts[1]
+	expiry, parseErr := strconv.ParseInt(parts[2], 10, 64)
+	if parseErr != nil {
+		return "", "", fmt.Errorf("malformed token expiry")
+	}
+	want := hmacSum(secret, orgID+"|"+reportID+"|"+parts[2])
+	if !hmac.Equal([]byte(want), []byte(parts[3])) {
+		return "", "", fmt.Errorf("invalid token signature")
+	}
+	if time.Now().Unix() > expiry {
+		return "", "", fmt.Errorf("token expired")
+	}
+	return orgID, reportID, nil
 }

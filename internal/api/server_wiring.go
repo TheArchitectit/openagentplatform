@@ -36,6 +36,12 @@ func (s *Server) SetReportsScheduler(sched *reports.Scheduler) {
 	s.reportsScheduler = sched
 }
 
+// SetReportsDeliverer wires the report Deliverer into the API server.
+// The download endpoint uses it to verify presigned download tokens.
+func (s *Server) SetReportsDeliverer(d *reports.DefaultDeliverer) {
+	s.reportsDeliverer = d
+}
+
 // SetBilling wires the Stripe-backed billing and metering services into the
 // API server. Any of the three may be nil (billing is optional); the billing
 // and usage endpoints return 503 when their service is unset. When a

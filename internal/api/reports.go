@@ -246,3 +246,39 @@ func (s *Server) deleteReportSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// downloadReport handles GET /api/v1/reports/runs/{id}/download.
+// Authentication is via the presigned token (token query param), NOT the
+// session — the URL is meant to be opened outside the app (email links,
+// browser downloads). The token is HMAC-signed over org ID + report ID +
+// expiry and verified against REPORTS_DOWNLOAD_SECRET; the URL path id
+// must match the signed report ID.
+func (s *Server) downloadReport(w http.ResponseWriter, r *http.Request) {
+	d := s.reportsDeliverer
+	store := s.reportStore()
+	if d == nil || store == nil {
+		http.Error(w, `{"error":"reports unavailable"}`, http.StatusServiceUnavailable)
+		return
+	}
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		http.Error(w, `{"error":"missing token"}`, http.StatusBadRequest)
+		return
+	}
+	tokenOrg, tokenReportID, err := reports.VerifyDownloadToken(d.DownloadSecret, token)
+	if err != nil {
+		http.Error(w, `{"error":"invalid or expired token"}`, http.StatusUnauthorized)
+		return
+	}
+	if tokenReportID != chi.URLParam(r, "id") {
+		http.Error(w, `{"error":"invalid or expired token"}`, http.StatusUnauthorized)
+		return
+	}
+
+	run, err := store.GetRun(r.Context(), tokenOrg, tokenReportID)
+	if err != nil {
+		http.Error(w, `{"error":"not found"}`, http.StatusNotFound)
+		return
+	}
+	writeJSON(w, http.StatusOK, run)
+}

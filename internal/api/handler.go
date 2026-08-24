@@ -110,6 +110,10 @@ type Server struct {
 	// reportsScheduler triggers scheduled report runs. May be nil;
 	// report generation/scheduling endpoints return 503 when unset.
 	reportsScheduler *reports.Scheduler
+	// reportsDeliverer verifies presigned download tokens for the
+	// /reports/runs/{id}/download endpoint. May be nil; download
+	// returns 503 when unset.
+	reportsDeliverer *reports.DefaultDeliverer
 	// rateLimiter enforces per-IP request rate limits. Always set.
 	rateLimiter *resilience.RateLimiter
 	// a2aClient is the HTTP client to the Python adapter service. When
