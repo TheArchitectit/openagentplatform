@@ -31,6 +31,11 @@ type RemoteHandler struct {
 	// NATSConn is the connection used to subscribe to per-session
 	// stdout subjects. May be nil in dev/test mode.
 	NATSConn NATSConn
+	// RecorderFactory produces a live session recorder for a session.
+	// May be nil (recording disabled). Called by the bridge when a
+	// WebSocket attaches to a session; recording then captures all I/O
+	// until the bridge shuts down.
+	RecorderFactory func(sessionID string) (*remote.SessionRecorder, bool)
 }
 
 // NATSConn is the subset of *nats.Conn used by the shell bridge.

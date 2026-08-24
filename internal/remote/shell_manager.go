@@ -15,11 +15,21 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
+// HostResolver returns the dial target (hostname or IP) for an agent.
+// Wired from cmd/server against the agent inventory so the start
+// request carries a real SSH host rather than the session-ID
+// placeholder the agent's default command builder previously received.
+type HostResolver func(agentID string) string
+
 type ShellManager struct {
 	cfg    ShellManagerConfig
 	nc     *nats.Conn
 	log    *slog.Logger
 	onStop ShutdownFn
+	// resolveHost returns the SSH dial target for an agent. May be nil;
+	// the start payload then carries an empty host and the agent falls
+	// back to its local convention.
+	resolveHost HostResolver
 
 	mu       sync.RWMutex
 	sessions map[string]*ShellSession
@@ -80,6 +90,9 @@ type NATSPublisher interface {
 // in that case CreateSession still works but Start() must be skipped
 // (callers using nil should not call Run).
 func NewShellManager(cfg ShellManagerConfig, natsConn NATSPublisher, log *slog.Logger) *ShellManager {
+	if log == nil {
+		log = slog.Default()
+	}
 	if cfg.MaxSessionsPerUser <= 0 {
 		cfg.MaxSessionsPerUser = DefaultMaxSessionsPerUser
 	}
@@ -113,9 +126,14 @@ func NewShellManager(cfg ShellManagerConfig, natsConn NATSPublisher, log *slog.L
 // tear down the user's WebSocket.
 func (m *ShellManager) SetShutdownHook(fn ShutdownFn) { m.onStop = fn }
 
+// SetHostResolver wires the agent-to-host lookup used when building
+// start requests.
+func (m *ShellManager) SetHostResolver(r HostResolver) { m.resolveHost = r }
+
 // CreateSession records a new shell session, enforces limits, and
-// returns it. It does not subscribe to NATS subjects; the WebSocket
-// bridge does that.
+// returns it. It publishes the StartRequest to the agent so the agent
+// spawns its side of the session; without this publish the browser's
+// WebSocket connects but no process ever runs.
 func (m *ShellManager) CreateSession(agentID, userID string, proto Protocol, size TerminalSize) (*ShellSession, error) {
 	if agentID == "" {
 		return nil, errors.New("remote: agent_id required")
@@ -165,6 +183,31 @@ func (m *ShellManager) CreateSession(agentID, userID string, proto Protocol, siz
 	m.rateMu.Lock()
 	m.rlState[id] = newRateBucket(m.cfg.InputRatePerSec)
 	m.rateMu.Unlock()
+
+	// Tell the agent to spawn the remote process. Best-effort: if NATS
+	// is down the session is still created; the WS bridge will surface
+	// the lack of output and the idle reaper will collect it.
+	if m.nc != nil {
+		start := shellStartRequest{
+			SessionID: s.ID,
+			UserID:    userID,
+			Protocol:  string(proto),
+			Cols:      size.Cols,
+			Rows:      size.Rows,
+		}
+		if m.resolveHost != nil {
+			if host := m.resolveHost(agentID); host != "" {
+				// The agent-side StartRequest carries the dial target in
+				// Username@host via Command; send "user@host" when a
+				// credential username is resolvable, else just the host.
+				start.Command = host
+			}
+		}
+		payload, _ := json.Marshal(start)
+		if err := m.nc.Publish(shellStartSubject(agentID), payload); err != nil {
+			m.log.Warn("shell: publish start failed", "session_id", id, "err", err)
+		}
+	}
 
 	m.log.Info("shell session created",
 		"session_id", id,
@@ -388,6 +431,28 @@ var (
 	ErrSessionNotFound  = errors.New("remote: session not found")
 	ErrSessionForbidden = errors.New("remote: session belongs to another user")
 )
+
+// shellStartSubject mirrors pkg/agent/shell.StartRequestSubject. The
+// agent package cannot be imported here (it would drag the agent-side
+// exec code into the server binary), so the subject shape is pinned by
+// a test in this package instead.
+func shellStartSubject(agentID string) string {
+	return "oap.agents." + agentID + ".shell.start"
+}
+
+// shellStartRequest mirrors the JSON shape of
+// pkg/agent/shell.StartRequest (session_id, user_id, protocol, cols,
+// rows, optional username/command).
+type shellStartRequest struct {
+	SessionID string `json:"session_id"`
+	UserID    string `json:"user_id"`
+	Protocol  string `json:"protocol"`
+	Cols      int    `json:"cols"`
+	Rows      int    `json:"rows"`
+	// Command carries the resolved SSH dial target (hostname or IP)
+	// from agent inventory; empty lets the agent use its local default.
+	Command string `json:"command,omitempty"`
+}
 
 // --- Subject builders -------------------------------------------------
 

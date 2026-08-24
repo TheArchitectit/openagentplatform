@@ -19,6 +19,7 @@ type shellBridge struct {
 	conn      *websocket.Conn
 	wsOut     chan wsOutMsg
 	natsSub   NATSSub
+	recorder  *remote.SessionRecorder
 	closeOnce sync.Once
 	closed    chan struct{}
 }
@@ -52,6 +53,11 @@ func (b *shellBridge) run() {
 			if err := decodeNATSMsg(m, &p); err != nil {
 				return
 			}
+			if b.recorder != nil {
+				if raw, decErr := base64.StdEncoding.DecodeString(p.Data); decErr == nil {
+					b.recorder.RecordOutput(raw)
+				}
+			}
 			select {
 			case b.wsOut <- wsOutMsg{Type: "stdout", Data: p.Data}:
 			default:
@@ -62,6 +68,23 @@ func (b *shellBridge) run() {
 			b.handler.Logger.Warn("shell: subscribe stdout failed", "err", err)
 		} else {
 			b.natsSub = sub
+		}
+	}
+
+	// Attach the live recorder when a factory is wired. Recording is
+	// best-effort: failure to attach logs but does not block the session.
+	if b.handler.RecorderFactory != nil {
+		if rec, ok := b.handler.RecorderFactory(b.session.ID); ok && rec != nil {
+			b.recorder = rec
+			defer func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				if err := b.recorder.Close(ctx, time.Now().UTC()); err != nil {
+					b.handler.Logger.Warn("shell: recorder close failed", "session_id", b.session.ID, "err", err)
+				}
+			}()
+		} else {
+			b.handler.Logger.Warn("shell: recorder attach failed, session not recorded", "session_id", b.session.ID)
 		}
 	}
 
@@ -110,10 +133,16 @@ func (b *shellBridge) readLoop() {
 			if err != nil {
 				continue
 			}
+			if b.recorder != nil {
+				b.recorder.RecordInput(data)
+			}
 			if b.handler.Manager != nil {
 				_, _ = b.handler.Manager.PublishStdin(context.Background(), b.session.ID, data)
 			}
 		case "resize":
+			if b.recorder != nil {
+				b.recorder.RecordResize(msg.Cols, msg.Rows)
+			}
 			if b.handler.Manager != nil {
 				_ = b.handler.Manager.PublishResize(context.Background(), b.session.ID, msg.Cols, msg.Rows)
 			}

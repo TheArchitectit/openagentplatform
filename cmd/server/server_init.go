@@ -210,6 +210,10 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 	// continue so /reports endpoints return 503 rather than crashing.
 	reportScheduler := wireReports(apiServer, pool, log)
 
+	// --- Remote shell ------------------------------------------------------
+	// Session manager + WS handler + credential store + recording store.
+	wireShell(apiServer, pool, natsClient.Conn(), log)
+
 	// --- A2A gateway + RPC bridge ----------------------------------------
 	a2aGw, rpcBridge, eventBridge, err := buildA2AGateway(apiServer, pool, natsClient, log)
 	if err != nil {

@@ -160,9 +160,10 @@ func CloseSubject(agentID, sessionID string) string {
 }
 
 // defaultCommandBuilder returns the exec.Cmd for a given protocol.
-// SSH is invoked as `ssh -tt -o BatchMode=yes user@host`; the host
-// is the agent_id by convention. WinRM uses pywinrm or similar;
-// here we fall back to a documented stub.
+// SSH is invoked as `ssh -tt -o BatchMode=yes user@host`; the dial
+// target comes from req.Command (the server resolves it from agent
+// inventory). When Command is empty we fall back to localhost — the
+// agent runs on the target host, so a local shell is the sane default.
 func defaultCommandBuilder(req StartRequest) (*exec.Cmd, error) {
 	switch req.Protocol {
 	case ProtocolSSH:
@@ -170,10 +171,13 @@ func defaultCommandBuilder(req StartRequest) (*exec.Cmd, error) {
 		if user == "" {
 			user = "oap"
 		}
-		host := req.SessionID // session id is used as a placeholder
+		host := req.Command
+		if host == "" {
+			host = "localhost"
+		}
 		args := []string{"-tt", "-o", "BatchMode=yes"}
 		if req.Cols > 0 && req.Rows > 0 {
-			args = append(args, "-o", fmt.Sprintf("RequestTTY=yes"))
+			args = append(args, "-o", "RequestTTY=yes")
 		}
 		args = append(args, user+"@"+host)
 		return exec.Command("ssh", args...), nil
