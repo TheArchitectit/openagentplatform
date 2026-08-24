@@ -160,6 +160,7 @@
 | **LOGGING_INTEGRATION.md** | Webhook/file/queue integration hooks | When adding external logging |
 | **API_SPECIFICATIONS.md** | OpenAPI vs OpenSpec guidance | When documenting APIs |
 | **QA_REVIEW_OPENSPEC_COVERAGE.md** | 2026-08-23 audit: 21 specs vs code — stale/PLANNED-but-built/missing verdicts | When touching openspec/ or platform docs |
+| **SPRINT_WIRING_REMEDIATION_PLAN.md** | W1–W8 ordered fixes for built-but-unwired subsystems (heartbeat, dup results, 503 stacks, RLS, proxy) | When fixing wiring/integration bugs |
 | **STATUS.md (root)** | OAP phase status 0–6, known issues, gates | When checking project state |
 | **PROJECT_PLAN.md (root)** | OAP plan summary; canonical roadmap = docs/plans/MASTER_IMPLEMENTATION_PLAN.md | When planning work |
 | **openspec/specs/rmm-core** | RMM core spec (rewritten 2026-08-23 to Go reality; §14 = planned gaps) | When implementing RMM features |

@@ -1732,3 +1732,15 @@ data-model 313, event-bus 256, multi-tenancy 239, notifications 271, observabili
 | data-model | PARTIAL | no checked-in DDL; Agent struct/column drift (`total_ram`); RLS targets wrong table names |
 | adapter-service | PARTIAL | Go proxy paths disagree with Python routes (6/7 will 404); adapter registry empty at runtime (no imports fire @register_adapter) |
 | platform-foundation | COMPLETE | env-only config, fixed pool sizing, embedded OpenAPI; no migration tool despite roadmap claim |
+
+---
+
+## docs/SPRINT_WIRING_REMEDIATION_PLAN.md
+
+| Line | Header |
+|------|--------|
+| 1 | # Wiring Remediation Plan — Built-but-Not-Connected Subsystems |
+| 13 | ## The Pattern |
+| 19 | ## Fix Order (W1 heartbeat … W8 small items) |
+| 96 | ## Gate (deploy.sh + regression_check.py, FAIL-* first) |
+| 104 | ## Status Tracker |

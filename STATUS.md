@@ -53,9 +53,9 @@ See `CHANGELOG.md` for release notes.
 
 | Item | Severity | Tracking |
 |------|----------|----------|
-| A2A dashboard routes 404 — 3-way contract divergence (Go gateway vs `py/oap/adapters` vs React `useA2A.ts`) | High | QA_REVIEW_PHASE2_v2.md; remediation pending |
-| OpenSpec tree stale vs code — specs authored against a Django blueprint; path drift, wrong statuses | High | docs/QA_REVIEW_OPENSPEC_COVERAGE.md (2026-08-23) |
-| RMM parity gaps vs Ninja RMM: WinUpdate/AutomatedTask automation, maintenance windows, agent auto-update, offline-agent SLA alerting, cloud/hypervisor monitoring | Medium | docs/GAP_ANALYSIS_RMM_PLATFORM.md |
+| Built-but-unwired subsystems: heartbeats never persist (decode contract broken), check results double-inserted, notifications/shell/reports handlers return 503, RLS never executed, adapter proxy path mismatch | **Critical** | docs/SPRINT_WIRING_REMEDIATION_PLAN.md (W1–W8) |
+| A2A dashboard broken end-to-end — proxy exists but upstream paths/formats mismatch Python; registry empty at runtime | High | SPRINT_WIRING_REMEDIATION_PLAN W7; openspec/specs/adapter-service |
+| OpenSpec tree reconciled 2026-08-23 (P0–P2 done); P3 RMM parity gaps remain: WinUpdate/AutomatedTask automation, maintenance windows, agent auto-update, offline-agent SLA alerting, cloud/hypervisor monitoring | Medium | docs/QA_REVIEW_OPENSPEC_COVERAGE.md; GAP_ANALYSIS_RMM_PLATFORM.md |
 
 ---
 
