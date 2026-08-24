@@ -1,7 +1,7 @@
 # Deferred Work Handoff — Master
 
-**Version:** 1.1.0
-**Status:** SEAM_VERIFIED — baseline pinned, dependency order fixed, vocabulary final
+**Version:** 1.2.0
+**Status:** SEAM_VERIFIED — baseline pinned, dependency order fixed, vocabulary final; RMM-00 COMPLETE
 **Date:** 2026-08-24
 **Baseline:** v1.2.0 (`git rev-parse --short HEAD` = `4194dac`)
 **Role:** Master / coordinator for deferred work left out of v1.2.0. This is the
@@ -151,29 +151,29 @@ Silently skipping a transition is a protocol violation.
 
 ### 5.1 RMM-00..08
 
-| ID | Document | Focus |
-|----|----------|-------|
-| RMM-00 | `RMM-00_RMM_OPERATIONS_FOUNDATION.md` | Operations foundation and open-decision register |
-| RMM-01 | `RMM-01_OFFLINE_AGENT_SLA.md` | Offline-agent SLA alerting |
-| RMM-02 | `RMM-02_ALERT_MAINTENANCE_WINDOWS.md` | Fleet alert-suppression windows |
-| RMM-03 | `RMM-03_WINUPDATE_STATE_MACHINE.md` | Windows Update per-KB lifecycle |
-| RMM-04 | `RMM-04_REBOOT_COORDINATION.md` | Reboot coordination |
-| RMM-05 | `RMM-05_CVE_CORRELATION.md` | CVE-to-patch correlation |
-| RMM-06 | `RMM-06_SCHEDULED_AUTOMATION_DECISION.md` | Scheduled automation decision gate |
-| RMM-07 | `RMM-07_AGENT_SELF_UPDATE_DECISION.md` | Agent self-update decision gate |
-| RMM-08 | `RMM-08_VNC_RDP_DECISION.md` | VNC/RDP decision gate |
+| ID | Document | Focus | Status |
+|----|----------|-------|--------|
+| RMM-00 | `RMM-00_RMM_OPERATIONS_FOUNDATION.md` | Operations foundation and open-decision register | **COMPLETE** (verified 2026-08-24) |
+| RMM-01 | `RMM-01_OFFLINE_AGENT_SLA.md` | Offline-agent SLA alerting | PENDING |
+| RMM-02 | `RMM-02_ALERT_MAINTENANCE_WINDOWS.md` | Fleet alert-suppression windows | PENDING |
+| RMM-03 | `RMM-03_WINUPDATE_STATE_MACHINE.md` | Windows Update per-KB lifecycle | PENDING |
+| RMM-04 | `RMM-04_REBOOT_COORDINATION.md` | Reboot coordination | PENDING |
+| RMM-05 | `RMM-05_CVE_CORRELATION.md` | CVE-to-patch correlation | PENDING |
+| RMM-06 | `RMM-06_SCHEDULED_AUTOMATION_DECISION.md` | Scheduled automation decision gate | PENDING (blocked: §10.2 grammar) |
+| RMM-07 | `RMM-07_AGENT_SELF_UPDATE_DECISION.md` | Agent self-update decision gate | PENDING (blocked: §10.5 trust) |
+| RMM-08 | `RMM-08_VNC_RDP_DECISION.md` | VNC/RDP decision gate | PENDING (blocked: §10.8 data plane) |
 
 ### 5.2 RELAY-00..06
 
-| ID | Document | Focus |
-|----|----------|-------|
-| RELAY-00 | `RELAY-00_ARCHITECTURE_SECURITY.md` | Architecture/security outcomes and blockers |
-| RELAY-01 | `RELAY-01_BINARY_CONFIG_DEPLOYMENT.md` | Fail-closed WSS binary/config/deployment foundation |
-| RELAY-02 | `RELAY-02_ISSUED_IDENTITY_ENTITLEMENT.md` | Identity/credential/entitlement decision gate |
-| RELAY-03 | `RELAY-03_WSS_MATCHING_FORWARDING.md` | Rendezvous decisions + contingent forwarding |
-| RELAY-04 | `RELAY-04_METERING_OBSERVABILITY.md` | Secure operator metering/observability contract |
-| RELAY-05 | `RELAY-05_DISCOVERY.md` | Discovery federation decision gate |
-| RELAY-06 | `RELAY-06_E2E_PRIVATE_LOAD.md` | Gated E2E/private/load acceptance |
+| ID | Document | Focus | Status |
+|----|----------|-------|--------|
+| RELAY-00 | `RELAY-00_ARCHITECTURE_SECURITY.md` | Architecture/security outcomes and blockers | PENDING |
+| RELAY-01 | `RELAY-01_BINARY_CONFIG_DEPLOYMENT.md` | Fail-closed WSS binary/config/deployment foundation | PENDING |
+| RELAY-02 | `RELAY-02_ISSUED_IDENTITY_ENTITLEMENT.md` | Identity/credential/entitlement decision gate | PENDING (blocked: I.3) |
+| RELAY-03 | `RELAY-03_WSS_MATCHING_FORWARDING.md` | Rendezvous decisions + contingent forwarding | PENDING (blocked: D.2) |
+| RELAY-04 | `RELAY-04_METERING_OBSERVABILITY.md` | Secure operator metering/observability contract | PENDING |
+| RELAY-05 | `RELAY-05_DISCOVERY.md` | Discovery federation decision gate | PENDING (blocked: D.2) |
+| RELAY-06 | `RELAY-06_E2E_PRIVATE_LOAD.md` | Gated E2E/private/load acceptance | PENDING (blocked: I.3/D.2/E.4) |
 
 ### 5.3 Operational Deferred Item — Spec-Review Bundle Publication
 
