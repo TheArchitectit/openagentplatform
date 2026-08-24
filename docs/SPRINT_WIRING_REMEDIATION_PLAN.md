@@ -129,7 +129,7 @@ integration tests named in each section. One item per commit.
 
 | Item | Status | Commit |
 |------|--------|--------|
-| W1 heartbeat decode | pending | — |
+| W1 heartbeat decode | done | ae11d37 |
 | W2 dup results | pending | — |
 | W3 notifier registry | pending | — |
 | W4 reports wiring | pending | — |
