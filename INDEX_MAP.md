@@ -5,6 +5,31 @@
 
 ---
 
+## Current Focus — What To Do Next
+
+These specs and sprints are authored and ready; nothing else in the repo is the
+active work. Start here, in order, and stop at any gate that is blocked.
+
+1. **Read the entry point:** `docs/plans/DEFERRED_WORK_HANDOFF.md` — master
+   dependency order, status vocabulary, and the stop/get-out-of-jail rules.
+2. **Pick a track and start at its foundation:**
+   - RMM: begin with **RMM-00** (`docs/sprints/RMM-00_RMM_OPERATIONS_FOUNDATION.md`),
+     then RMM-01..05, then the decision-gated RMM-06..08. The RMM contract is
+     `openspec/specs/rmm-operations/spec.md` (its §10 holds the eight open
+     decisions that block real build work).
+   - RELAY: begin with **RELAY-00** (`docs/sprints/RELAY-00_ARCHITECTURE_SECURITY.md`),
+     then RELAY-01..06.
+3. **Respect the gates.** RELAY mechanisms **I.3 (identity), D.2 (discovery),
+   and E.4 (E2E encryption) are UNAPPROVED/BLOCKED.** RELAY-02..06 MUST stop at
+   their decision gates; approved *outcomes* are not authorization to invent the
+   implementation contract.
+4. **Background item, not started:** the spec-review repository publication is
+   `BLOCKED_DECISION` — it stays local and unpushed until you supply a remote URL.
+
+Do not reopen v1.2.0 (`4194dac`) shipped work. See `STATUS.md` for project state.
+
+---
+
 ## Quick Lookup Table
 
 | Keyword | Document | Path | Purpose |
@@ -41,11 +66,11 @@
 | regression-examples | regression-prevention/ | examples/regression-prevention/ | Practical regression prevention examples |
 | sprint | SPRINT_TEMPLATE.md | docs/sprints/ | Sprint task template |
 | sprint-guide | SPRINT_GUIDE.md | docs/sprints/ | How to write sprints |
-| deferred-work-handoff | DEFERRED_WORK_HANDOFF.md | docs/plans/ | Ordered entry point for deferred RMM, relay, and review-repository work |
-| rmm-operations | spec.md | openspec/specs/rmm-operations/ | Planned contract for eight deferred RMM operations |
-| rmm-sprints | RMM-00..08 | docs/sprints/ | Dependency-ordered RMM implementation and decision sprints |
-| relay-sprints | RELAY-00..06 | docs/sprints/ | Dependency-ordered managed relay architecture and delivery sprints |
-| spec-review-publication | SPEC_REVIEW_BUNDLE_HANDOFF.md | docs/reviews/ | Safe publication runbook for the separate review repository |
+| deferred-work-handoff | DEFERRED_WORK_HANDOFF.md | docs/plans/ | **START HERE** — master entry point for deferred RMM, relay, and review-repository work |
+| rmm-operations | spec.md | openspec/specs/rmm-operations/ | RMM contract for eight deferred operations; §10 holds the eight open decisions |
+| rmm-sprints | RMM-00..08 | docs/sprints/ | RMM entry point is RMM-00 (foundation), then RMM-01..05, then decision-gated RMM-06..08 |
+| relay-sprints | RELAY-00..06 | docs/sprints/ | RELAY entry point is RELAY-00 (architecture/security), then RELAY-01..06; I.3/D.2/E.4 are BLOCKED |
+| spec-review-publication | SPEC_REVIEW_BUNDLE_HANDOFF.md | docs/reviews/ | Publication runbook for the separate review repository — BLOCKED_DECISION until a remote URL is supplied |
 | validation | SPRINT_TEMPLATE.md | docs/sprints/ | Completion gate & validation loop |
 | completion | SPRINT_TEMPLATE.md | docs/sprints/ | Pre-completion checklist |
 | context | PROJECT_CONTEXT_TEMPLATE.md | docs/standards/ | Project Bible - stack constraints, style guide |
@@ -122,9 +147,9 @@
 | known-bugs | failure-registry.jsonl | .guardrails/ | Active/resolved/deprecated bug history |
 | four-laws | four-laws.md | skills/shared-prompts/ | Canonical Four Laws of Agent Safety |
 | halt-conditions | halt-conditions.md | skills/shared-prompts/ | When to stop and ask for help |
-| sprint-001 | SPRINT_001_MCP_GAP_IMPLEMENTATION.md | docs/sprints/ | Sprint: MCP Gap Implementation |
-| sprint-002 | SPRINT_002_WEB_UI_IMPLEMENTATION.md | docs/sprints/ | Sprint: Web UI Implementation |
-| sprint-003 | SPRINT_003_DOCUMENTATION_PARITY.md | docs/sprints/ | Sprint: Documentation Parity (this sprint) |
+| sprint-001 | SPRINT_001_MCP_GAP_IMPLEMENTATION.md | docs/sprints/ | Historical: MCP Gap Implementation (superseded) |
+| sprint-002 | SPRINT_002_WEB_UI_IMPLEMENTATION.md | docs/sprints/ | Historical: Web UI Implementation (superseded) |
+| sprint-003 | SPRINT_003_DOCUMENTATION_PARITY.md | docs/sprints/ | Historical: Documentation Parity (superseded) |
 | rules-from-md | RULES_FROM_MD.md | docs/ | Extracting prevention rules from markdown |
 | rules-index | RULES_INDEX_MAP.md | docs/ | Master index of all prevention rules |
 | mcp-tools | MCP_TOOLS_REFERENCE.md | docs/ | MCP validation tools documentation |
@@ -175,7 +200,7 @@
 | **CHANGELOG.md (root)** | Project changelog; docs/CHANGELOG.md holds the sprint-by-sprint (phase) history | When tracking release history |
 | **openspec/specs/rmm-core** | RMM core spec (rewritten 2026-08-23 to Go reality; §14 links the deferred contract) | When implementing RMM features |
 | **openspec/specs/rmm-operations** | Planned contract for eight deferred RMM operations; decisions and sprint ordering are explicit | Before starting RMM-00..08 |
-| **openspec/specs/a2a-relay** | Partial in-memory relay core plus explicitly planned WSS transport/security architecture | Before starting RELAY-00..06 |
+| **openspec/specs/a2a-relay** | partial in-memory accounting core (per-tenant limits, byte metering, idle reaping); WSS transport/security architecture planned and approval-gated — no transport wired | Before starting RELAY-00..06 |
 | **docs/plans/DEFERRED_WORK_HANDOFF.md** | Master dependency order, validation rules, and stop conditions for lower-capability agents | When handing off deferred work |
 | **docs/reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md** | Non-force publication runbook for the existing separate spec-review repository | When a remote URL is supplied |
 | **openspec/specs/managed-backup** | Managed Backup integration contract; canonical seam contracts (run states, 18 event names, integrity states, restore states); DRAFT greenfield | When designing/implementing backup integration |
@@ -188,7 +213,7 @@
 | **openspec/specs/resilience** | rate limiter, wired adapter breaker, graceful shutdown, retry; in-memory/distributed limits | When touching resilience/rate limits |
 | **openspec/specs/audit-log** | hash-chained audit events, GapCount verification, read API; retention/concurrency/hash limits | When touching audit |
 | **openspec/specs/event-bus** | core NATS client, tracing, eight-subject taxonomy, heartbeat/check ingest with single persistence owner | When touching internal/events subjects |
-| **openspec/specs/a2a-relay** | managed relay accounting core; PARTIAL (no transport, unwired) | When touching internal/relay |
+| **openspec/specs/a2a-relay** | partial in-memory accounting core (per-tenant limits, byte metering, idle reaping); WSS transport/security architecture planned and approval-gated — no transport wired | When touching internal/relay |
 | **openspec/specs/check-library** | 5 built-in check templates + seeding; PARTIAL (5 of 9 types) | When touching checklib/check catalog |
 | **openspec/specs/remote-access** | wired shell over NATS, WS bridge, agent handler, recordings; transport/storage limits | When touching remote/terminal/session/shell |
 | **openspec/specs/data-model** | all 22 pkg/models structs ↔ tables; PARTIAL (DDL drift, RLS mismatch documented) | When touching models/schema |
@@ -344,79 +369,34 @@
 ## Directory Structure
 
 ```
-agent-guardrails-template/
+openagentplatform/
 ├── INDEX_MAP.md              ← YOU ARE HERE
-├── TOC.md                   ← Complete file listing and contents
 ├── HEADER_MAP.md             # Section-level lookup
-├── CLAUDE.md                 # Claude Code CLI config
-├── .claudeignore             # Token-saving ignores
+├── TOC.md                    # Complete template contents and file listing
+├── CLAUDE.md                 # Project guidelines (stack, workflow, token rules)
+├── STATUS.md                 # Phase 0–6 status, known issues, gates
+├── PROJECT_PLAN.md           # Roadmap summary; detailed plan in docs/plans/
 ├── CHANGELOG.md              # Release notes archive
+├── QUICK_SETUP.md, RELEASE_NOTES_v*.md, docs/plans/
 ├── docs/
 │   ├── AGENT_GUARDRAILS.md   # Core safety (MANDATORY)
-│   ├── HOW_TO_APPLY.md       # How to apply to repos
-│   ├── AGENTS_AND_SKILLS_SETUP.md         # Setup guide for Claude Code/OpenCode
-│   ├── CLCODE_INTEGRATION.md              # Claude Code integration
-│   ├── OPCODE_INTEGRATION.md              # OpenCode integration
-│   ├── workflows/
-│   │   ├── INDEX.md
-│   │   ├── AGENT_EXECUTION.md       # Execution protocol
-│   │   ├── AGENT_ESCALATION.md      # Audit & escalation
-│   │   ├── TESTING_VALIDATION.md
-│   │   ├── COMMIT_WORKFLOW.md
-│   │   ├── DOCUMENTATION_UPDATES.md
-│   │   ├── GIT_PUSH_PROCEDURES.md
-│   │   ├── MCP_CHECKPOINTING.md
-│   │   ├── BRANCH_STRATEGY.md
-│   │   ├── CODE_REVIEW.md
-│   │   ├── AGENT_REVIEW_PROTOCOL.md       # Post-work agent review
-│   │   └── ROLLBACK_PROCEDURES.md
-│   ├── standards/
-│   │   ├── INDEX.md
-│   │   ├── TEST_PRODUCTION_SEPARATION.md  # Test/production isolation (MANDATORY)
-│   │   ├── PROJECT_CONTEXT_TEMPLATE.md    # Project Bible template
-│   │   ├── ADVERSARIAL_TESTING.md         # Breaker agent, fuzz testing
-│   │   ├── DEPENDENCY_GOVERNANCE.md       # Package allow-list
-│   │   ├── INFRASTRUCTURE_STANDARDS.md    # IaC, Terraform, drift
-│   │   ├── OPERATIONAL_PATTERNS.md        # Health checks, circuit breakers
-│   │   ├── MODULAR_DOCUMENTATION.md
-│   │   ├── LOGGING_PATTERNS.md
-│   │   ├── LOGGING_INTEGRATION.md
-│   │   └── API_SPECIFICATIONS.md
+│   ├── HOW_TO_APPLY.md       # How to apply guardrails to a repo
+│   ├── plans/
+│   │   └── DEFERRED_WORK_HANDOFF.md  ← active work entry point
+│   ├── reviews/
+│   │   └── SPEC_REVIEW_BUNDLE_HANDOFF.md  (BLOCKED_DECISION publication runbook)
 │   ├── sprints/
-│       ├── INDEX.md
-│       ├── SPRINT_TEMPLATE.md
-│       ├── SPRINT_GUIDE.md
-│       └── archive/
-│   ├── game-design/
-│   │   └── 2026_GAME_DESIGN.md      # Game design guardrails, XR comfort
-│   ├── ui-ux/
-│   │   └── 2026_UI_UX_STANDARD.md   # UI/UX components, design tokens
-│   ├── accessibility/
-│   │   └── ACCESSIBILITY_GUIDE.md   # WCAG 3.0+ compliance
-│   ├── spatial/
-│   │   └── SPATIAL_COMPUTING_UI.md  # XR/VR/AR patterns
-│   └── ethical/
-│       └── ETHICAL_ENGAGEMENT.md    # Dark pattern prevention
-├── examples/               ← Multi-language implementation examples
-│   ├── go/
-│   ├── java/
-│   ├── python/
-│   ├── ruby/
-│   ├── regression-prevention/  # Bug tracking examples
-│   ├── rust/
-│   └── typescript/
-├── scripts/                ← Setup and utility scripts
-│   └── setup_agents.py     # CLI tool to generate agent configs
-├── .github/
-│   ├── SECRETS_MANAGEMENT.md
-│   ├── PULL_REQUEST_TEMPLATE.md
-│   ├── workflows/
-│   │   ├── secret-validation.yml
-│   │   ├── documentation-check.yml
-│   │   └── guardrails-lint.yml
-│   └── ISSUE_TEMPLATE/
-│       └── bug_report.md
-└── README.md
+│   │   ├── INDEX.md, SPRINT_TEMPLATE.md, SPRINT_GUIDE.md
+│   │   ├── RMM-00_RMM_OPERATIONS_FOUNDATION.md .. RMM-08_VNC_RDP_DECISION.md
+│   │   ├── RELAY-00_ARCHITECTURE_SECURITY.md .. RELAY-06_E2E_PRIVATE_LOAD.md
+│   │   └── archive/
+│   ├── workflows/  standards/  game-design/  ui-ux/  accessibility/
+│   ├── spatial/  ethical/
+│   └── CHANGELOG.md          # Sprint-by-sprint phase history
+├── openspec/specs/           # Contract specs (a2a-relay, rmm-core, rmm-operations, ...)
+├── examples/  scripts/  .github/  README.md
+├── cmd/  internal/  pkg/  py/  web/  a2a/   ← runtime source
+└── mcp-server/
 ```
 
 ---
@@ -459,6 +439,12 @@ agent-guardrails-template/
 | Prevention rules index | RULES_INDEX_MAP.md |
 | MCP tools reference | MCP_TOOLS_REFERENCE.md |
 | Pattern authoring | RULE_PATTERNS_GUIDE.md |
+| Active work entry point | docs/plans/DEFERRED_WORK_HANDOFF.md |
+| RMM operations contract | openspec/specs/rmm-operations/spec.md |
+| A2A relay contract | openspec/specs/a2a-relay/spec.md |
+| RMM sprint set (RMM-00..08) | docs/sprints/RMM-00..08 |
+| Relay sprint set (RELAY-00..06) | docs/sprints/RELAY-00..06 |
+| Spec-review publication runbook | docs/reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md |
 | Game design guardrails | 2026_GAME_DESIGN.md |
 | 3D game development guardrails | 3D_GAME_DEVELOPMENT.md |
 | 3D math reference | 3D_MATHEMATICAL_FOUNDATIONS.md |
