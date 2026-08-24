@@ -18,8 +18,11 @@ shipped all of its features in v1.1.0, but two systemic problems remained:
    features that were already built, stale paths, and 13 capabilities with no spec at
    all. v1.2.0 reconciles the tree and adds the missing capability specs.
 
-This release is **documentation- and correctness-focused**: it does not change the
-public API surface, licensing tiers, or package versions.
+This release combines the post-v1.1.1 platform delivery with a correctness and
+contract-fidelity pass. It expands A2A, secrets, remote operations, monitoring,
+and release automation; then wires previously disconnected subsystems and aligns
+the OpenSpec tree with the shipped implementation. The web package and API version
+surfaces advance to `1.2.0`; licensing tiers remain unchanged.
 
 ## Highlights
 
@@ -43,6 +46,22 @@ public API surface, licensing tiers, or package versions.
   `COMPLETE`; 13 missing capability specs authored.
 
 ## Key Changes
+
+### Platform Delivery Since v1.1.1
+
+- **A2A expansion:** gRPC gateway binding, event-to-task bridge, agent pool fixes,
+  human approval workflows, adapter conformance coverage, and authenticated OAuth
+  flows were delivered and tested.
+- **Secrets lifecycle:** database-backed secret storage, injection planning,
+  rotation lifecycle management, safety policy checks, and OAuth/DPoP support were
+  added with focused tests.
+- **Operations and web:** monitoring APIs, dashboard WebSocket management, remote
+  shell recording, and terminal output preservation landed across the Go API and
+  React client.
+- **Quality and delivery:** DevGate blocking checks, CI/CD hardening, dependency and
+  security scanning, release automation, regression tests, and cohesive source-file
+  splits strengthen the release gate. Generated protobuf outputs are narrowly
+  excluded from handwritten source-size enforcement.
 
 ### OpenSpec Reconciliation (Spec Audit)
 
@@ -105,8 +124,12 @@ Full detail in `docs/SPRINT_WIRING_REMEDIATION_PLAN.md`.
   for each item in the remediation plan.
 - W7 added mock-upstream tests pinning the corrected adapter-proxy contract and
   verified all 7 adapters register at runtime.
-- Existing 29-file-size regression checks remain green; no source file exceeds the
-  500-line limit.
+- The release gate enforces the 500-line hard limit and applies the 300-line soft
+  limit as a hard requirement to files changed since v1.1.1. Generated protobuf
+  outputs use a narrow, tested exclusion from handwritten source-size checks.
+- Validation covers the Go build/vet/test suite, A2A and secrets packages, Python
+  Ruff and pytest, React tests/build/lint, regression checks, secret scanning, and
+  container image builds.
 
 ## Upgrade Notes
 
@@ -132,8 +155,7 @@ Full detail in `docs/SPRINT_WIRING_REMEDIATION_PLAN.md`.
 
 ## Previous Release
 
-**v1.1.0 (Phase 6 — Commercial Tiering COMPLETE)** — BSL 1.1 licensing and Ed25519
-validation, feature-gated tiers, PostgreSQL RLS multi-tenancy, Stripe billing and
-usage metering, enterprise reporting, and the managed A2A relay. See
-[RELEASE_NOTES_v1.1.0.md](RELEASE_NOTES_v1.1.0.md) and the v1.1.0 section of
-[docs/CHANGELOG.md](docs/CHANGELOG.md).
+**v1.1.1** — infrastructure patch release that enabled host networking for Docker
+builds and advanced the web build image to Node.js 22. See the
+[v1.1.1 GitHub release](https://github.com/TheArchitectit/openagentplatform/releases/tag/v1.1.1).
+The preceding feature release was [v1.1.0](RELEASE_NOTES_v1.1.0.md).
