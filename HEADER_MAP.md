@@ -1688,23 +1688,91 @@
 
 | Line | Header |
 |------|--------|
-| 1 | # RMM Core (PARTIAL — rewritten 2026-08-23) |
+| 1 | # RMM Core |
 | 20 | ## Description |
-| 38 | ## Requirements |
-| 40 | ### 1. Dual-Transport Architecture |
-| 65 | ### 2. Data Models |
-| 88 | ### 3. Enums and Status Fields |
-| 96 | ### 4. State Machines (2 implemented, 4 not) |
-| 130 | ### 5. NATS Subject Taxonomy (oap.*) |
-| 152 | ### 6. Checks |
-| 168 | ### 7. Alerts |
-| 183 | ### 8. Policies |
-| 197 | ### 9. Patches |
-| 212 | ### 10. Scripts and Remote Access |
-| 232 | ### 11. Engines and Service Boundaries |
-| 248 | ### 12. Background Processing (Go schedulers, no Celery) |
-| 259 | ### 13. Agent Liveness |
-| 269 | ### 14. Planned Extensions (not implemented) |
+| 49 | ## Requirements |
+| 51 | ### 1. Dual-Transport Architecture |
+| 77 | ### 2. Data Models |
+| 101 | ### 3. Enums and Status Fields |
+| 114 | ### 4. State Machines |
+| 139 | ### 5. NATS Subject Taxonomy |
+| 164 | ### 6. Checks |
+| 183 | ### 7. Alerts |
+| 201 | ### 8. Policies |
+| 221 | ### 9. Patches |
+| 240 | ### 10. Scripts and Remote Access |
+| 258 | ### 11. Engines and Service Boundaries |
+| 273 | ### 12. Background Processing |
+| 285 | ### 13. Agent Liveness |
+| 299 | ### 14. Planned Extensions (not implemented — do not claim) |
+
+---
+
+## openspec/specs/rmm-operations/spec.md
+
+| Line | Header |
+|------|--------|
+| 1 | # RMM Operations |
+| 21 | ## Description |
+| 63 | ### 1. Scope, Readiness, and Ordering |
+| 79 | ### 2. Windows Update per-KB State — IN (RMM-03) |
+| 104 | ### 3. Scheduled Automation — DEFERRED (RMM-06) |
+| 117 | ### 4. Maintenance Windows — IN (RMM-02) |
+| 139 | ### 5. Offline-Agent SLA Alerting — IN (RMM-01) |
+| 162 | ### 6. Reboot Coordination — IN (RMM-04) |
+| 177 | ### 7. CVE-to-Patch Correlation — IN (RMM-05) |
+| 192 | ### 8. Agent Self-Update — DEFERRED (RMM-07) |
+| 203 | ### 9. VNC/RDP Remote Protocols — DEFERRED (RMM-08) |
+| 214 | ### 10. Open Decisions (never invent) |
+
+---
+
+## openspec/specs/a2a-relay/spec.md
+
+| Line | Header |
+|------|--------|
+| 1 | # A2A Relay |
+| 40 | ## Requirements |
+| 42 | ### 1. Service Model and Configuration |
+| 56 | ### 2. Connection Lifecycle |
+| 79 | ### 3. Per-Tenant Isolation and Limits |
+| 96 | ### 4. Usage Metering |
+| 112 | ### 5. Idle Connection Reaping |
+| 126 | ### 6. Observability |
+| 132 | ### 7. Planned Architecture & Security Decisions |
+| 143 | #### 7.1 Rendezvous & Transport (WSS) |
+| 166 | #### 7.2 Issued Identity & Entitlement |
+| 180 | #### 7.3 Discovery Federation |
+| 189 | #### 7.4 E2E / Private / Load Acceptance |
+| 207 | ## Known Limitations |
+
+---
+
+## docs/plans/DEFERRED_WORK_HANDOFF.md
+
+| Line | Header |
+|------|--------|
+| 1 | # Deferred Work Handoff — Master |
+| 68 | ## 3. Dependency Ordering |
+| 199 | ## 6. Lower-Capability-Agent Checklist |
+| 223 | ## 7. Exact Validation Rules |
+| 246 | ## 8. Exact Stop Rules |
+| 286 | ## 10. Joint Closeout |
+
+---
+
+## docs/reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md
+
+| Line | Header |
+|------|--------|
+| 1 | # Spec Review Bundle Handoff — Publication Runbook |
+| 38 | ## 2. The Existing Repository |
+| 81 | ## 4. Require the User-Supplied Remote URL |
+| 99 | ## 5. Inspect the Destination |
+| 148 | ## 8. Assess Divergence / Unrelated History |
+| 174 | ## 9. Secret Scan |
+| 193 | ## 10. Push main (Non-Force) |
+| 212 | ## 11. Verify the Published Remote |
 
 ---
 

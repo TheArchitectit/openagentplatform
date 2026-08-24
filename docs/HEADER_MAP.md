@@ -436,6 +436,41 @@
 
 ---
 
+## DEFERRED WORK HANDOFF
+
+### DEFERRED_WORK_HANDOFF.md (docs/plans/DEFERRED_WORK_HANDOFF.md)
+
+| Section | Line | Offset |
+|---------|------|--------|
+| Purpose and Inventory | 21 | 13 |
+| Dependency Ordering | 68 | 60 |
+| Lower-Capability-Agent Checklist | 199 | 191 |
+| Exact Validation Rules | 223 | 215 |
+| Exact Stop Rules | 246 | 238 |
+| Joint Closeout | 286 | 278 |
+
+### SPEC_REVIEW_BUNDLE_HANDOFF.md (docs/reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md)
+
+| Section | Line | Offset |
+|---------|------|--------|
+| Purpose and Role | 14 | 6 |
+| Existing Repository | 38 | 30 |
+| Require User-Supplied Remote URL | 81 | 73 |
+| Inspect Destination | 99 | 91 |
+| Assess Divergence | 148 | 140 |
+| Secret Scan | 174 | 166 |
+| Push Main (Non-Force) | 193 | 185 |
+| Verify Published Remote | 212 | 204 |
+
+### RMM and RELAY sprint sets (docs/sprints/)
+
+| Set | Entry point | Purpose |
+|-----|-------------|---------|
+| RMM-00..08 | RMM-00_RMM_OPERATIONS_FOUNDATION.md | Deferred RMM implementation and decision gates |
+| RELAY-00..06 | RELAY-00_ARCHITECTURE_SECURITY.md | Managed relay architecture through acceptance |
+
+---
+
 ## QUICK OFFSET USAGE
 
 ```bash

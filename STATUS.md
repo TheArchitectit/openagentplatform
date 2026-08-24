@@ -59,8 +59,9 @@ and [docs/SPRINT_WIRING_REMEDIATION_PLAN.md](docs/SPRINT_WIRING_REMEDIATION_PLAN
 
 | Item | Severity | Tracking |
 |------|----------|----------|
-| OpenSpec P3 RMM parity gaps remain open: WinUpdate/AutomatedTask automation, maintenance windows, agent auto-update channel, offline-agent SLA alerting, cloud/hypervisor monitoring | Medium | docs/QA_REVIEW_OPENSPEC_COVERAGE.md; GAP_ANALYSIS_RMM_PLATFORM.md |
-| Managed A2A relay transport not shipped — RelayService parked as a library pending network-transport + auth design | Low | openspec/specs/a2a-relay; internal/relay |
+| OpenSpec P3 RMM parity gaps remain open; eight deferred operations now have a planned contract and ordered RMM-00..08 handoff sprints. This documentation does not mark them shipped. | Medium | openspec/specs/rmm-operations/spec.md; docs/plans/DEFERRED_WORK_HANDOFF.md |
+| Managed A2A relay transport not shipped — RelayService remains an in-memory library; the planned WSS/security work is ordered as RELAY-00..06. | Low | openspec/specs/a2a-relay/spec.md; docs/plans/DEFERRED_WORK_HANDOFF.md |
+| Separate spec-review repository publication is blocked until the user supplies an authorized remote URL. | Low | docs/reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md |
 
 ---
 

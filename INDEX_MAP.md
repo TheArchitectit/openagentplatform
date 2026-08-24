@@ -41,6 +41,11 @@
 | regression-examples | regression-prevention/ | examples/regression-prevention/ | Practical regression prevention examples |
 | sprint | SPRINT_TEMPLATE.md | docs/sprints/ | Sprint task template |
 | sprint-guide | SPRINT_GUIDE.md | docs/sprints/ | How to write sprints |
+| deferred-work-handoff | DEFERRED_WORK_HANDOFF.md | docs/plans/ | Ordered entry point for deferred RMM, relay, and review-repository work |
+| rmm-operations | spec.md | openspec/specs/rmm-operations/ | Planned contract for eight deferred RMM operations |
+| rmm-sprints | RMM-00..08 | docs/sprints/ | Dependency-ordered RMM implementation and decision sprints |
+| relay-sprints | RELAY-00..06 | docs/sprints/ | Dependency-ordered managed relay architecture and delivery sprints |
+| spec-review-publication | SPEC_REVIEW_BUNDLE_HANDOFF.md | docs/reviews/ | Safe publication runbook for the separate review repository |
 | validation | SPRINT_TEMPLATE.md | docs/sprints/ | Completion gate & validation loop |
 | completion | SPRINT_TEMPLATE.md | docs/sprints/ | Pre-completion checklist |
 | context | PROJECT_CONTEXT_TEMPLATE.md | docs/standards/ | Project Bible - stack constraints, style guide |
@@ -168,7 +173,11 @@
 | **PROJECT_PLAN.md (root)** | OAP plan summary; canonical roadmap = docs/plans/MASTER_IMPLEMENTATION_PLAN.md | When planning work |
 | **RELEASE_NOTES_v1.2.0.md (root)** | v1.2.0 wiring remediation (W1–W8) + OpenSpec reconciliation release notes | When tracking releases |
 | **CHANGELOG.md (root)** | Project changelog; docs/CHANGELOG.md holds the sprint-by-sprint (phase) history | When tracking release history |
-| **openspec/specs/rmm-core** | RMM core spec (rewritten 2026-08-23 to Go reality; §14 = planned gaps) | When implementing RMM features |
+| **openspec/specs/rmm-core** | RMM core spec (rewritten 2026-08-23 to Go reality; §14 links the deferred contract) | When implementing RMM features |
+| **openspec/specs/rmm-operations** | Planned contract for eight deferred RMM operations; decisions and sprint ordering are explicit | Before starting RMM-00..08 |
+| **openspec/specs/a2a-relay** | Partial in-memory relay core plus explicitly planned WSS transport/security architecture | Before starting RELAY-00..06 |
+| **docs/plans/DEFERRED_WORK_HANDOFF.md** | Master dependency order, validation rules, and stop conditions for lower-capability agents | When handing off deferred work |
+| **docs/reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md** | Non-force publication runbook for the existing separate spec-review repository | When a remote URL is supplied |
 | **openspec/specs/billing-stripe** | Stripe billing spec — client/service/metering/API routes, PG-backed state cache, webhook limits | When touching internal/billing or /billing endpoints |
 | **openspec/specs/endpoint-agent** | Go endpoint daemon — registration, core NATS subjects, checks, scripts, compliance, patching, shell | When touching cmd/agent or pkg/agent |
 | **openspec/specs/multi-tenancy** | RLS schema/context, quotas, tier resolution, retention purger; remaining migration and schema limits | When touching tenancy or tiers |
@@ -480,36 +489,9 @@ agent-guardrails-template/
 
 ---
 
-**Authored by:** TheArchitectit
-**Document Owner:** Project Maintainers
-**Last Updated:** 2026-08-23
-**Document Count:** 103 (excluding INDEX files)
-**Line Count:** ~280
-
----
-
 ## Canonical Sources
 
-To avoid duplication, always reference these canonical sources:
-
-| Content | Canonical Location | Reference In |
-|---------|-------------------|--------------|
-| Four Laws | skills/shared-prompts/four-laws.md | docs/AGENT_GUARDRAILS.md |
-| Halt Conditions | skills/shared-prompts/halt-conditions.md | Workflows, integration docs |
-
----
-
-## Oversized Documents
-
-The following files exceed the 500-line limit and should be split per MODULAR_DOCUMENTATION.md:
-
-| File | Lines | Action Needed |
-|------|-------|---------------|
-| docs/plans/MCP_SERVER_PLAN.md | 2093 | Split into multiple files |
-| docs/sprints/SPRINT_002_WEB_UI_IMPLEMENTATION.md | 768 | Split or archive |
-| docs/sprints/SPRINT_003_DOCUMENTATION_PARITY.md | 754 | Split or archive after completion |
-| HEADER_MAP.md | 822 | Navigation file - exempt |
-| docs/standards/OPERATIONAL_PATTERNS.md | 667 | Split |
-| docs/workflows/AGENT_REVIEW_PROTOCOL.md | 638 | Split |
-| docs/security/SECURITY_AUDIT_CONFIG.md | 597 | Split |
-| README.md | 565 | Landing page - exempt |
+| Content | Canonical Location |
+|---------|-------------------|
+| Four Laws | skills/shared-prompts/four-laws.md |
+| Halt Conditions | skills/shared-prompts/halt-conditions.md |

@@ -103,6 +103,10 @@
 |---------|----------|----------|
 | sprint template | [SPRINT_TEMPLATE.md](sprints/SPRINT_TEMPLATE.md) | docs/sprints/ |
 | sprint guide | [SPRINT_GUIDE.md](sprints/SPRINT_GUIDE.md) | docs/sprints/ |
+| deferred work master | [DEFERRED_WORK_HANDOFF.md](plans/DEFERRED_WORK_HANDOFF.md) | docs/plans/ |
+| RMM operations sprints | [RMM-00_RMM_OPERATIONS_FOUNDATION.md](sprints/RMM-00_RMM_OPERATIONS_FOUNDATION.md) through RMM-08 | docs/sprints/ |
+| managed relay sprints | [RELAY-00_ARCHITECTURE_SECURITY.md](sprints/RELAY-00_ARCHITECTURE_SECURITY.md) through RELAY-06 | docs/sprints/ |
+| review repository publication | [SPEC_REVIEW_BUNDLE_HANDOFF.md](reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md) | docs/reviews/ |
 | sprint examples | [SPRINT_001_MCP_GAP_IMPLEMENTATION.md](sprints/SPRINT_001_MCP_GAP_IMPLEMENTATION.md) | docs/sprints/ |
 
 ---

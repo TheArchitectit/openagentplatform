@@ -50,9 +50,14 @@ Completed in v1.2.0 (2026-08-23): the A2A dashboard contract divergence (W7) and
 the OpenSpec reconciliation (audit P0–P2) are done. Remaining candidate work items,
 in rough priority order:
 
-1. **Close RMM parity gaps** where scope is decided (see docs/GAP_ANALYSIS_RMM_PLATFORM.md):
-   maintenance windows, offline-agent SLA alerting, agent auto-update channel,
-   WinUpdate/AutomatedTask automation.
-2. **Ship the Managed A2A relay transport** — RelayService is parked as a library;
-   add the network-transport + auth design (see openspec/specs/a2a-relay,
-   internal/relay).
+1. **Close the eight deferred RMM operations** using the planned contract in
+   `openspec/specs/rmm-operations/spec.md` and the ordered RMM-00..08 sprint set.
+   Decision-gated work must stop rather than inventing unresolved mechanisms.
+2. **Ship the Managed A2A relay transport** using RELAY-00..06. `RelayService`
+   remains an in-memory library today; the WSS transport/security contract is
+   planned, not shipped (`openspec/specs/a2a-relay/spec.md`).
+
+Execution order, validation rules, and lower-capability-agent stop conditions are
+canonical in `docs/plans/DEFERRED_WORK_HANDOFF.md`. The separate spec-review
+repository publication runbook is `docs/reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md`;
+publication remains blocked until the user supplies an authorized remote URL.
