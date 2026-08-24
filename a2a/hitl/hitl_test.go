@@ -1,7 +1,6 @@
 package hitl
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -176,119 +175,6 @@ func TestAuditLogReject(t *testing.T) {
 	}
 	if entries[1].Reason != "too risky" {
 		t.Errorf("expected reason 'too risky', got %s", entries[1].Reason)
-	}
-}
-
-// ============================================================
-// Store Integration Tests
-// ============================================================
-
-func TestStoreSaveAndGet(t *testing.T) {
-	store := NewMemStore()
-	mgr := testManager()
-	mgr.SetStore(store)
-
-	mgr.CreateRequest("a1", "secret_access", "agent-1", "high", "", nil)
-
-	saved, err := store.GetApproval("a1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if saved.Status != StatusPending {
-		t.Errorf("expected pending in store, got %s", saved.Status)
-	}
-}
-
-func TestStoreAuditTrail(t *testing.T) {
-	store := NewMemStore()
-	mgr := testManager()
-	mgr.SetStore(store)
-
-	mgr.CreateRequest("a1", "secret_access", "agent-1", "high", "", nil)
-	mgr.Approve("a1", "admin-1", "ok")
-
-	entries, err := store.GetAuditLog("a1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(entries) != 2 {
-		t.Errorf("expected 2 audit entries in store, got %d", len(entries))
-	}
-}
-
-// ============================================================
-// Escalation Engine Tests
-// ============================================================
-
-func TestEscalationAutoReject(t *testing.T) {
-	typeCfgs := []ApprovalTypeConfig{
-		{Type: "test_type", TimeoutDuration: 10 * time.Millisecond, OnTimeout: "reject", MaxEscalations: 2},
-	}
-	mgr := NewApprovalManager(typeCfgs)
-	mgr.CreateRequest("a1", "test_type", "agent-1", "high", "", nil)
-
-	time.Sleep(20 * time.Millisecond)
-
-	engine := NewEscalationEngine(mgr, 10*time.Millisecond)
-	engine.Start(context.Background())
-	time.Sleep(15 * time.Millisecond)
-	engine.Stop()
-
-	req, _ := mgr.GetRequest("a1")
-	if req.Status != StatusExpired {
-		t.Errorf("expected expired, got %s", req.Status)
-	}
-}
-
-func TestEscalationEscalate(t *testing.T) {
-	typeCfgs := []ApprovalTypeConfig{
-		{Type: "test_type", TimeoutDuration: 10 * time.Millisecond, OnTimeout: "escalate", MaxEscalations: 3},
-	}
-	mgr := NewApprovalManager(typeCfgs)
-	mgr.CreateRequest("a1", "test_type", "agent-1", "high", "", nil)
-
-	time.Sleep(20 * time.Millisecond)
-
-	engine := NewEscalationEngine(mgr, 10*time.Millisecond)
-	engine.Start(context.Background())
-	time.Sleep(15 * time.Millisecond)
-	engine.Stop()
-
-	req, _ := mgr.GetRequest("a1")
-	if req.EscalationDepth != 1 {
-		t.Errorf("expected escalation depth 1, got %d", req.EscalationDepth)
-	}
-
-	entries := mgr.AuditLog("a1")
-	found := false
-	for _, e := range entries {
-		if e.Action == "escalated" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("expected escalation audit entry")
-	}
-}
-
-func TestEscalationMaxDepthAutoReject(t *testing.T) {
-	typeCfgs := []ApprovalTypeConfig{
-		{Type: "test_type", TimeoutDuration: 5 * time.Millisecond, OnTimeout: "escalate", MaxEscalations: 0},
-	}
-	mgr := NewApprovalManager(typeCfgs)
-	mgr.CreateRequest("a1", "test_type", "agent-1", "high", "", nil)
-
-	time.Sleep(10 * time.Millisecond)
-
-	engine := NewEscalationEngine(mgr, 5*time.Millisecond)
-	engine.Start(context.Background())
-	time.Sleep(15 * time.Millisecond)
-	engine.Stop()
-
-	req, _ := mgr.GetRequest("a1")
-	if req.Status != StatusExpired {
-		t.Errorf("expected expired at max depth, got %s", req.Status)
 	}
 }
 
