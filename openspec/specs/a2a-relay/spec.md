@@ -129,66 +129,78 @@ least one connection was closed.
 connection ID, tenant ID, and (for establish) source/target agent IDs;
 close logging MUST include the connection's total `BytesRelayed`.
 
-### 7. Planned Transport & Security Decisions (PLANNED — NOT IMPLEMENTED)
+### 7. Planned Architecture & Security Decisions (PLANNED — NOT IMPLEMENTED)
 
-> This section records the **approved direction** for turning the accounting
-> core into a network-facing managed relay. Every requirement here is marked
+> This section records the **approved architecture/security direction** for
+> turning the accounting core into a managed relay. Every requirement here is
 > `[PLANNED]` and is **not implemented**. Requirements 1–6 above remain the
-> only implemented contract, so STATUS stays PARTIAL until this section's
-> transport work ships. Nothing here authorizes a claim of implementation.
-> Sub-sections are tracked as sprint plan RELAY-00..RELAY-06 (`docs/sprints/`).
+> only implemented contract, so STATUS stays PARTIAL until the approved work
+> ships. Anything **not listed here is UNAPPROVED** and MUST be treated as
+> BLOCKED, never implemented. Tracked by sprint plan RELAY-00..RELAY-06
+> (`docs/sprints/`); every sprint passes through an architecture/security
+> decision gate before proceeding.
 
-#### 7.1 Transport
+#### 7.1 Rendezvous & Transport (WSS)
 
-T.1. `[PLANNED]` A dedicated relay binary `cmd/relay` MUST construct
-`NewRelayService` from a `RelayConfig` populated by flags/environment:
-`ListenAddr`, `TLSConfig` (cert/key file paths), `MaxConnections`, and
-`IdleTimeout`. The core is NOT wired into the existing `cmd/server`
-process (kept separate per the W8 wiring decision).
+R.1. `[PLANNED]` The relay MUST use **WebSocket Secure (WSS)** as its
+rendezvous transport: agents connect to the relay over WSS and the relay
+**matches** legs, rather than acting as a raw TCP forwarder. A plain TCP
+listener that relays bytes directly between sockets is UNAPPROVED and MUST
+remain unimplemented.
 
-T.2. `[PLANNED]` `internal/relay` MUST add a listener accept loop that
-binds `ListenAddr` and terminates TLS using `RelayConfig.TLSConfig`
-(`tls.NewListener`). A nil `TLSConfig` MUST fail configuration validation
-for the managed offering rather than serving plaintext.
+R.2. `[PLANNED]` A dedicated binary `cmd/relay` MUST exist, configured by
+flags/environment (WSS listen address, trust config for the issued-identity
+registry, per-tenant limits, idle timeout). It MUST NOT be wired into
+`cmd/server` (W8 decision).
 
-T.3. `[PLANNED]` Each accepted connection MUST be registered by the
-existing `EstablishConnection` path so per-tenant `MaxConnections`
-enforcement (3.2) applies at the network edge. Deriving the tenant/source/
-target identifiers from the wire is part of the security design (S.2);
-until then, a single-tenant development wiring supplies them from
-configuration and multi-tenant leg attribution is a blocker.
+R.3. `[PLANNED]` The WSS listener MUST terminate TLS and validate a presented
+agent identity against the issued-identity registry (§7.2) before admitting a
+rendezvous. Admission SHALL reuse `EstablishConnection` so per-tenant limits
+(3.2) and validation (3.3) apply at the edge.
 
-T.4. `[PLANNED]` Each established connection MUST run a pairing of
-forwarding goroutines that copy bytes in both directions between the two
-legs, calling `RecordBytes` on every write so metering (4.x) and idle
-reaping (5.x) — driven by `LastActivityAt` — continue to work unchanged.
-Forwarding pairs MUST stop on EOF, read/write error, or context
-cancellation, and MUST enforce `IdleTimeout`-derived deadlines.
+R.4. `[PLANNED]` Two admitted legs are matched by the relay only after the
+entitlement check passes for the target (I.1); matched legs then exchange
+frames through the relay. `RecordBytes` (4.x) and `LastActivityAt` idle reaping
+(5.x) MUST run on real frames.
 
-T.5. `[PLANNED]` The relay binary MUST add a shutdown method that closes
-the listener, drains forwarding goroutines, and closes every active
-connection through `CloseConnection` before exiting on SIGINT/SIGTERM.
+#### 7.2 Issued Identity & Entitlement
 
-#### 7.2 Security
+I.1. `[PLANNED]` An **issued-identity registry**: every agent connecting
+through the relay MUST present an identity ISSUED by the platform, and the
+relay MUST check **entitlement** (authorization to relay to a given
+target/tenant) before matching. This is the "not an open forwarder" property.
 
-S.1. `[PLANNED]` Per-leg peer authentication so the relay is **not an open
-forwarder** (the package comment's "Authentication on both legs"). The
-specific mechanism (mTLS vs. token vs. another scheme) is **not decided
-here** and MUST be the subject of a dedicated authentication design before
-implementation; until then this remains a documented limitation, not a
-feature.
+I.2. `[PLANNED]` Unknown identities and denied entitlements MUST be rejected at
+admission and never registered, mirroring the empty-id rejection (3.3).
 
-S.2. `[PLANNED]` End-to-end encryption between the two communicating
-agents so the relay cannot read secrets in flight (the package comment's
-"End-to-end encryption (relay cannot read secrets)"). The specific
-mechanism (session keys, frame pass-through, ratchet) is **not decided
-here** and MUST resolve in a dedicated design; it is a blocker, not
-something implemented by the transport sprints.
+I.3. `[BLOCKED]` The cryptographic mechanism by which an identity is presented
+and verified (mTLS vs. token vs. another scheme) is UNAPPROVED and MUST be the
+subject of a dedicated authentication design before implementation.
 
-S.3. `[PLANNED]` All security properties that the operator actually
-ships today build on the existing per-tenant accounting core (3.x):
-tenant data isolation, connection-limit isolation, and bias-free
-list/filter semantics. These are not conditional on S.1/S.2.
+#### 7.3 Discovery Federation
+
+D.1. `[PLANNED]` The relay MUST expose capability/agent discovery and MUST
+federate discovery records across relays so agents in different tenants or
+networks can resolve each other.
+
+D.2. `[BLOCKED]` The discovery wire protocol and federation semantics are
+UNAPPROVED pending a dedicated design; do not invent them.
+
+#### 7.4 E2E / Private / Load Acceptance
+
+E.1. `[PLANNED]` An **E2E acceptance stage** proving a full relayed session
+across the approved stack (WSS + identity/entitlement + matching + metering).
+
+E.2. `[PLANNED]` A **private relay mode**: a restricted deployment in which the
+relay is not a general open forwarder — only issued, entitled clients are
+admitted.
+
+E.3. `[PLANNED]` A **load stage** validating per-tenant limits and metering
+under concurrency.
+
+E.4. `[BLOCKED]` End-to-end ENCRYPTION so the relay cannot read payload secrets
+(the package comment's claim) — the mechanism is UNAPPROVED and MUST resolve in
+a dedicated design; the load/E2E stage gates on it rather than implementing it.
 
 ---
 
