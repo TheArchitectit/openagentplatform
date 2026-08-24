@@ -1,222 +1,244 @@
-# Spec Review Bundle Handoff — Separate Spec-Review Repository
+# Spec Review Bundle Handoff — Publication Runbook
 
-**Version:** 1.1.0
-**Status:** SEAM_VERIFIED
+**Version:** 2.0.0
+**Status:** BLOCKED_DECISION — awaiting user-supplied `REMOTE_URL`
 **Date:** 2026-08-24
 **Baseline:** v1.2.0 (`4194dac`)
-**Role:** Publication runbook for the dedicated **separate spec-review repository**
-to which the deferred spec bundle (RMM-00..08, RELAY-00..06) is published for
-review. Companion to the
-[master deferred-work handoff](../plans/DEFERRED_WORK_HANDOFF.md).
+**Role:** Operational runbook for publishing the **existing** spec-review repository
+to a user-designated remote. Companion to the
+[master deferred-work handoff](../plans/DEFERRED_WORK_HANDOFF.md), which lists this
+as deferred `BLOCKED_DECISION`.
 
 ---
 
-## 1. Purpose
+## 1. Purpose and Role
 
-The deferred spec work is reviewed in a **separate spec-review repository** — a
-distinct git repository, with its own directory and history, that is **not** the
-openagentplatform worktree and **never** shares a remote or push path with
-`git@github.com:TheArchitectit/openagentplatform.git`. This document is the
-**publication runbook**: the exact, ordered procedure for publishing the reviewed
-spec bundle into that separate repository as a clean five-commit snapshot, and the
-rules that keep publication from ever touching the live OAP repository.
+The reviewed spec bundle already exists in a **standalone repository**. This runbook
+publishes that repository as-is to a user-supplied remote. It does **not** create,
+rehearse, re-publish, or rewrite any repository or history.
 
-- **Output of this runbook:** the separate spec-review repository holding the
-  published five-commit bundle, ready for audit.
-- **Out of scope:** authoring the contracts themselves (done by the sibling handoff
-  agents) and code changes to `main` (done only after joint closeout F9).
+Operator role: run the steps in order, verify each precondition, and stop on the
+first failure. The **goal is an eventual, normal (non-force) push** of the existing
+`main` to the designated remote.
+
+### Relevant files (the bundle being published)
+
+- `OVERVIEW.md` — bundle overview and the three findings that matter most.
+- `openagentplatform/specs/` — 35 OAP capability specs (ChatGPT rewrite of the
+  live `openspec/specs/`).
+- `openagentplatform/proposed-additions/managed-backup/` — OAP integration contract
+  for the backup product (batch 1).
+- `managed-backup/specs/` — 29 greenfield backup-product specs (batch 2).
+- Per-folder `RECOMMENDATIONS.md` files alongside most specs.
+
+65 distinct spec documents total across 132 tracked files.
 
 ---
 
-## 2. The Separate Spec-Review Repository
-
-The spec-review repository is a **separate repository**, not a mirror of the OAP
-worktree and not a branch of the OAP repo. It is created and tracked on its own:
+## 2. The Existing Repository (what you are publishing)
 
 | Property | Value |
 |----------|-------|
-| Kind | separate, dedicated git repository (own `.git`, own history) |
-| Directory | distinct from the openagentplatform worktree |
-| Commit count | exactly **5** (`git rev-list --count HEAD`) |
-| Working tree | clean (`git status --porcelain` empty) |
-| First commit | v1.2.0 baseline snapshot (`4194dac` tree) |
-| Following commits | the reviewed handoff/contract commits that form the bundle |
-| Relation to OAP remote | none — never shares `origin` with the OAP repo |
+| Path | `/mnt/data/git/spec-review-2026-08-24` |
+| Kind | standalone git repo, own `.git` |
+| Branch | `main` |
+| Working tree | clean |
+| Remote | none (no `origin` yet) |
+| Commit count | 5 |
 
-The five-commit shape is the **snapshot contract** for publication: the bundle is
-accepted only as exactly five commits on a clean tree. Any other count means the
-published bundle has drifted and the runbook stops (master stop rule S2).
+Existing five commits (in history order). **Do not amend, rewrite, rebase, or
+re-author these commits or their historical authors:**
 
-### 2.1 Re-Publish, Not Mutate
-
-If a published bundle is ever out of shape, **re-publish** the separate repository
-from the baseline (recreate it fresh). Never `reset`, `push -f`, `rebase`, or
-`commit --amend` inside the separate review repository. The published snapshot is
-immutable once accepted; a fresh publication is cheap and preserves the contract.
-
----
-
-## 3. Audit Role
-
-A single **audit role** owns review and publication acceptance in the separate
-spec-review repository. Only the audit role may accept a published bundle or move an
-item to `APPROVED` / `COMPLETE`. Authors and lower-capability agents may stage
-handoffs (`OPEN` / `IN_REVIEW`) but never accept.
-
-| Responsibility | Held by |
-|----------------|---------|
-| Author handoff documents (RMM-00..08, RELAY-00..06) | Author agents |
-| Stage into the bundle (`OPEN` / `IN_REVIEW`) | Author / lower-capability agents |
-| Verify against the baseline before acceptance | Audit role |
-| Accept published bundle; `SEAM_VERIFIED` / `APPROVED` / `COMPLETE` | Audit role only |
-| Authorize joint closeout (F9) | Audit role (+ master) |
-| Escalate on any stop rule | Audit role |
-
-The audit role:
-
-1. Reads each published contract against the v1.2.0 baseline, not against author
-   prose.
-2. Re-runs every validation rule in the master handoff (section 7) on the bundle.
-3. Files one finding per violated rule, citing the exact `file:line` that
-   contradicts the baseline (the "seam claim").
-4. Never edits author documents — it returns them with findings for re-publication.
-5. Never publishes to, pushes to, or reads from the live OAP repository.
+| SHA (short) | Subject |
+|-------------|---------|
+| `ec30bb4` | Spec review bundle: 65 ChatGPT-generated specs (OAP + Managed Backup) with per-folder RECOMMENDATIONS.md + OVERVIEW.md |
+| `28df1a3` | docs(backup): freeze cross-service seam contracts |
+| `2f87655` | docs(review): correct OAP rewrite fidelity findings |
+| `ddf1c9d` | docs(backup): clarify canonical event catalog |
+| `d84375c` | docs(review): correct seam attribution across backup pack |
 
 ---
 
-## 4. Seam-Contract Truth
+## 3. Verify the Repository Facts
 
-### 4.1 Definition
-
-A **seam** is a stable boundary where two components, two handoff stages, or a
-component and the release baseline connect (for example, a function signature, an
-NATS subject, an HTTP route contract, or an openspec interface). The **seam
-contract** is the authoritative, baseline-cited description of that boundary.
-
-**Seam-contract truth** is the rule that a deferred-work claim is true if and only
-if it matches the seam contract **as it exists in the v1.2.0 baseline** — not as
-described in prose, memory, or an author's interpretation. The emitter of truth is
-the baseline itself (`file:line`).
-
-### 4.2 How It Is Applied
-
-- Every contract in the published bundle names the exact seam it touches and cites
-  it as `<path>:<line>` in the `4194dac` tree.
-- The audit role verifies the cited seam exists in the baseline and that the
-  claim's behavior matches it exactly.
-- A claim that disagrees with the cited seam is false by definition (stop rule S4).
-  It is never "close enough."
-- The seam contract may change only through an explicit, separately reviewed
-  contract change — never silently via a publication.
-
----
-
-## 5. Safe Placeholder-Remote Publication Procedure
-
-Publication targets the **separate** spec-review repository, which has its own
-`origin`. To ensure no accidental transmission to the live OAP upstream, the
-separate repository is first prepared against a **placeholder origin** for a safe
-dry-run, then published locally:
-
-**Step 1 — Create the separate repository with a placeholder origin (safe rehearsal):**
+Confirm the preconditions before proceeding. If any check fails, stop and report;
+do not continue.
 
 ```bash
-REVIEW_DIR="$SPEC_REVIEW_DIR"                 # a SEPARATE directory, NOT the OAP tree
-CONTROL_BARE="$REVIEW_CONTROL_BARE"           # loopback / local bare path only
+cd /mnt/data/git/spec-review-2026-08-24
 
-git init "$REVIEW_DIR" && cd "$REVIEW_DIR"
-git remote add origin "$CONTROL_BARE"         # placeholder / local, never the OAP remote
-git config receive.denyCurrentBranch ignore   # keep any rehearsal push local & inert
+git rev-list --count HEAD        # expect: 5
+git log --oneline                # expect: exactly the five commits in section 2
+git branch                       # expect: * main
+git status --porcelain           # expect: empty (clean tree)
+git remote -v                    # expect: no remotes listed
 ```
 
-**Step 2 — Rehearse the five-commit bundle** locally (branch, commits, clean tree)
-against the placeholder origin. Any push here is inert by construction.
+Only when all match, continue.
 
-**Step 3 — Verify the placeholder is correct before any real publication:**
+---
+
+## 4. Require the User-Supplied Remote URL
+
+This runbook has **no remote of its own**. You need the destination URL from the
+user before any network step. Do not guess or invent one.
+
+1. Request `<REMOTE_URL>` from the user.
+2. If none is supplied, **stop here** — the handoff remains
+   `BLOCKED_DECISION` (see the master handoff).
+3. Confirm the URL is a git remote endpoint you are authorized to push to.
+
+You are provided a URL by the user in the form:
+
+```
+<REMOTE_URL>
+```
+
+---
+
+## 5. Inspect the Destination
+
+Before wiring or pushing, inspect the destination the user named:
+
+- Fetch its metadata (for a GitHub-style remote, view the repository page / API).
+- Confirm it is empty or that the intent to publish youra existing `main` there is
+  correct (`git push` to a non-empty destination with unrelated history will be
+  **rejected** by git — that is expected and safe).
+- Confirm you are authorized to push (credentials / SSH access present).
+
+Record your assessment; if the destination is unexpected or you cannot confirm
+authorization, stop before touching git config or network.
+
+---
+
+## 6. Add the Remote
+
+Wire the user-supplied remote as `origin`:
 
 ```bash
-git remote -v        # prints the placeholder/local path, never git@github.com:...
-git config --get remote.origin.url            # placeholder only
-git rev-list --count HEAD                     # must be 5
-git status --porcelain                        # must be empty
+cd /mnt/data/git/spec-review-2026-08-24
+git remote add origin <REMOTE_URL>
 ```
 
-**Step 4 — Publish the accepted bundle** as the separate repository's five-commit
-snapshot. Because review lives entirely in the separate repository, no OAP remote is
-ever touched; the placeholder guarantees even a scripting mistake cannot reach the
-live upstream.
+Verify:
+
+```bash
+git remote -v
+```
+
+`origin` must now point exactly at the user-supplied `<REMOTE_URL>`.
+
+---
+
+## 7. Fetch the Remote
+
+Fetch the destination into the local repo so you can assess divergence before
+pushing:
+
+```bash
+git fetch origin
+```
+
+Note: `git fetch` does not touch `main` (use `git fetch origin`, do not merge/pull).
+If the fetch fails (e.g., destination empty or unreachable), stop and report before
+pushing.
+
+---
+
+## 8. Assess Divergence / Unrelated History — HALT if Unsafe
+
+After the fetch, check whether the destination already has history:
+
+```bash
+git rev-list --count origin/main 2>/dev/null || echo "no origin/main (empty destination)"
+git merge-base HEAD origin/main 2>/dev/null || echo "no common ancestor (unrelated history)"
+```
+
+Assess:
+
+- **Empty destination (no `origin/main`):** safe to proceed with a normal push of
+  `main`.
+- **Destination history is an ancestor of local `main` (fast-forwardable):** safe.
+- **Destination and local share history but local is behind / diverged:** halt and
+  report — do not force-push; determine the correct action with the user.
+- **Destination and local have no common ancestor (unrelated histories):** a plain
+  `git push` will be **rejected by git**; that is the safe outcome. **HALT** and
+  report rather than `--force` or rewriting history to force it.
+
+The rule: never do anything that would overwrite or rewrite remote or local history
+to force a push. If git's normal refusal is the result, that is the desired safe
+state.
+
+---
+
+## 9. Secret Scan
+
+Before publishing, run a secret scan or a targeted equivalent over the repository
+content:
+
+```bash
+cd /mnt/data/git/spec-review-2026-08-24
+# use the repo's configured scanner, or a targeted equivalent, e.g.:
+#   gitleaks detect          (or)
+#   trufflehog git file://.  (or)
+# project-specific secret-gate script
+```
+
+If the scan finds hard-coded credentials, tokens, or keys, **halt**, do not push,
+and report — secrets must be removed by the user before publication. Do not "fix" by
+rewriting history; surface it and stop.
+
+---
+
+## 10. Push main (Non-Force)
+
+Publish the existing `main` to the remote, tracking it:
+
+```bash
+cd /mnt/data/git/spec-review-2026-08-24
+git push -u origin main
+```
 
 Constraints:
 
-- The placeholder origin must never be GitHub or any externally routable endpoint.
-- No credential, no `git@github.com:` string, and no SSH alias for the OAP remote
-  may exist anywhere in the separate repository's `config`, `remotes/`, or hooks.
-- If an OAP remote endpoint is ever detected, the placeholder contract is broken
-  (stop rule S3) and publication halts.
+- **Non-force only.** No `--force`, no `--force-with-lease`.
+- Push only the existing `main`; do not push other refs or tags unless the user
+  asks.
+- If git refuses the push (remote has diverged/unrelated history), that is the
+  expected safe outcome — **halt and report** (see section 8). Do not over-ride it.
 
 ---
 
-## 6. No Push / Amend Rules
+## 11. Verify the Published Remote
 
-These are absolute prohibitions for **everyone** operating the runbook and the
-separate repository:
+Confirm the publication landed (same SHA, correct URL):
 
-1. **No push to the live OAP repository**
-   (`git@github.com:TheArchitectit/openagentplatform.git`) — ever.
-2. **No push is required to deliver.** Delivery is by publication of the local
-   five-commit snapshot into the separate repository; transmission to OAP is out of
-   scope for review.
-3. **No `git push --force`, no `git reset --hard`, no `git rebase`, no
-   `git commit --amend`** — in the separate repository or against the OAP history.
-   The five-commit snapshot is immutable once published.
-4. **No fetch from the live OAP remote.** The baseline is the only source of truth
-   and arrives via the snapshot, not a live fetch.
-5. **No uncommitted drift.** The separate repository's tree stays clean; every
-   published document is part of the five-commit bundle.
+```bash
+cd /mnt/data/git/spec-review-2026-08-24
+git fetch origin
+git rev-parse HEAD            # local main SHA
+git rev-parse origin/main     # remote main SHA (must match HEAD)
+git remote -v                 # origin must equal <REMOTE_URL>
+```
 
-If any of the above is attempted or observed, stop immediately, log the stop rule
-(S3 for remote/push; S1/S2 for tree/commit drift), and hand the report to the audit
-role. Do not rewrite history to make it look un-done.
+Report to the user:
+
+- Local `main` SHA.
+- `origin/main` SHA (must be identical — non-force push of an accepted fast-forward
+  or empty destination).
+- The `origin` URL, as confirmed.
 
 ---
 
-## 7. Entrance Criteria (before a bundle is published)
+## 12. Notes
 
-A deferred item may be published into the separate spec-review repository when all
-are true:
-
-1. Its handoff document exists under `docs/reviews/deferred/` and carries a legal
-   status from the master vocabulary (master handoff section 4).
-2. It names the exact seam contract, cited as `<path>:<line>` in `4194dac`.
-3. It is under 500 lines and its relative links resolve.
-4. It touches no forbidden file (maps / status / project plan / openspec specs).
-5. The separate repository holds exactly five commits on a clean tree.
+- No repository is created or re-published by this runbook; it operates on the
+  existing `/mnt/data/git/spec-review-2026-08-24` repo.
+- Historical commits and their authors are never amended or rewritten.
+- Until the user supplies `<REMOTE_URL>`, this handoff stands at
+  `BLOCKED_DECISION` in the master deferred-work tracker.
 
 ---
 
-## 8. Exit (Return to Master)
-
-When the audit role accepts the published bundle, it files results to the master
-(`OPEN -> SEAM_VERIFIED -> APPROVED -> COMPLETE` as applicable). The master
-aggregates results and, at joint closeout (F9), reconciles the anticipated document
-table and authorizes any separate map/status/spec refresh. Until closeout, the
-separate spec-review repository holds the authoritative review state.
-
----
-
-## 9. Summary of Hard Rules
-
-| # | Rule | Applies to |
-|---|------|-----------|
-| R1 | Separate repo; exactly 5 commits; clean tree | Everyone |
-| R2 | Placeholder origin only; no OAP remote URL | Everyone |
-| R3 | No push, no force, no reset --hard, no rebase, no amend | Everyone |
-| R4 | Immutable published snapshot; re-publish, never mutate | Everyone |
-| R5 | Truth = v1.2.0 seam contract at cited file:line | Everyone |
-| R6 | `APPROVED`/`COMPLETE` and bundle acceptance only by audit role | Audit role |
-| R7 | Stop on any S1..S8 rule; report, don't fix-forward | Everyone |
-
----
-
-**End of review publication runbook.** Master procedure:
+**End of runbook.** Master tracker:
 [../plans/DEFERRED_WORK_HANDOFF.md](../plans/DEFERRED_WORK_HANDOFF.md).

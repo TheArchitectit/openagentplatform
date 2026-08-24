@@ -1,16 +1,16 @@
-# Deferred Work Handoff — Master (Review-Repository Documentation)
+# Deferred Work Handoff — Master
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 **Status:** SEAM_VERIFIED — baseline pinned, dependency order fixed, vocabulary final
-**Date:** 2026-08-23
+**Date:** 2026-08-24
 **Baseline:** v1.2.0 (`git rev-parse --short HEAD` = `4194dac`)
-**Role:** Master / coordinator for the spec-review publication of deferred RMM and
-RELAY work. This is the single authoritative entry point for reviewers and
-lower-capability agents working against the separate spec-review repository.
+**Role:** Master / coordinator for deferred work left out of v1.2.0. This is the
+single authoritative entry point for the deferred RMM and RELAY work and the
+deferred spec-review publication handoff.
 **Related (operational):**
 - [SPEC_REVIEW_BUNDLE_HANDOFF.md](../reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md) — the
-  companion review handoff (repo layout, audit role, seam-contract truth,
-  placeholder remote, no push/amend rules).
+  spec-review publication runbook (deferred `BLOCKED_DECISION` until a remote URL
+  is supplied).
 - [SPRINT_WIRING_REMEDIATION_PLAN.md](../SPRINT_WIRING_REMEDIATION_PLAN.md) — W1-W8
   wiring remediation, the prior completed wave this document builds upon.
 - [GAP_ANALYSIS_RMM_PLATFORM.md](../GAP_ANALYSIS_RMM_PLATFORM.md) — RMM parity gaps
@@ -21,8 +21,7 @@ lower-capability agents working against the separate spec-review repository.
 ## 1. Purpose and Inventory
 
 v1.2.0 completed the W1-W8 wiring remediation and the OpenSpec P0-P2 audit pass.
-Two categories of work remain and are intentionally **deferred** rather than
-folded into v1.2.0:
+Two categories of deferred work remain, tracked here:
 
 1. **RMM parity gaps** — Windows patch automation, maintenance windows,
    agent auto-update, offline-SLA alerting, scheduled report digests, and the
@@ -31,11 +30,13 @@ folded into v1.2.0:
    binary wiring decision; idle-reap is only partially refined; tenant isolation,
    observability, and Python-contract reconciliation remain open.
 
-These deferred items are published to a dedicated **separate spec-review repository**
-(per the publication runbook) where each item is authored as a spec/contract
-document, reviewed against the **v1.2.0 baseline**, and returned as a verified seam
-contract. No deferred item changes production code until it is SEAM_VERIFIED and
-APPROVED in that repository.
+In addition there is one **operational deferred item**:
+
+3. **Spec-review bundle publication** — publishing the existing standalone
+   spec-review repository to a user-designated remote. Deferred as `BLOCKED_DECISION`
+   until the user supplies a remote URL (section 5.3, runbook reference above).
+
+No deferred item changes production code on `main` until it is resolved.
 
 ---
 
@@ -52,40 +53,34 @@ later uncommitted changes.
 | Baseline commit | `4194dac` (`docs(release): complete v1.2.0 change coverage`) |
 | Source of truth for statuses | `docs/SPRINT_WIRING_REMEDIATION_PLAN.md`, openspec `rmm-core` |
 | Prior wave | W1-W8 all wired and pushed on `main` (2026-08-23) |
-| Seam anchor | The five-commit review repo snapshot (see section 6) |
 
 ### 2.2 What Is NOT Deferred
 
-Items already shipped in v1.2.0 are **out of scope** for this handoff and must not
-be re-opened:
+Items already shipped in v1.2.0 are **out of scope** and must not be re-opened:
 
 - Heartbeat persistence (W1), single check-result owner (W2).
 - Notifier registry wiring (W3), reporting store/scheduler (W4), remote shell (W5).
 - Tenancy wiring (W6), A2A adapter proxy contract (W7), W8 correctness items.
 - OpenSpec P0-P2 audit completion (all committed on `main`).
 
-See [SPEC_REVIEW_BUNDLE_HANDOFF.md](../reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md) for
-the exact five-commit baseline snapshot that encodes this boundary.
-
 ---
 
 ## 3. Dependency Ordering
 
-Work orders strictly. An item may not start until every upstream dependency is
-`SEAM_VERIFIED`. Two parallel tracks (RMM, RELAY) share the same foundation.
+Work orders strictly. An item may not leave the queue until its order position is
+reached. Two parallel tracks (RMM, RELAY) share the same foundation.
 
 ```
-F0. Baseline & Seam Wire Contract (done in v1.2.0 / pinned in review repo)
-      │
-      ├──► RMM TRACK          RELAY TRACK ◄──┤
-      │       RMM-00          RELAY-00        │
-      │       RMM-01          RELAY-01        │
-      │       RMM-02          RELAY-02        │
-      │       RMM-03          RELAY-03        │
-      │       RMM-04          RELAY-04        │
-      │       RMM-05          RELAY-05        │
-      │       ...             RELAY-06        │
-      └──────────────► F9. Joint closeout ◄───┘
+F0. Baseline (v1.2.0) — established
+      ├──► RMM TRACK          RELAY TRACK
+      │     RMM-00            RELAY-00
+      │     RMM-01            RELAY-01
+      │     RMM-02            RELAY-02
+      │     RMM-03            RELAY-03
+      │     RMM-04            RELAY-04
+      │     RMM-05            RELAY-05
+      │     ...               RELAY-06
+      └────────────► F9. Joint closeout ◄───┘
 ```
 
 ### 3.1 RMM Track Order
@@ -116,47 +111,48 @@ F0. Baseline & Seam Wire Contract (done in v1.2.0 / pinned in review repo)
 ### 3.3 Cross-Track Rule
 
 RMM and RELAY are independent after F0 and may run concurrently. A shared
-dependency (e.g., a data-model change touching `pkg/models`) must be raised to the
-master as its own seam contract **before** either track proceeds with it. Do not
-let two tracks edit the same seam silently.
+dependency (e.g., a data-model change touching `pkg/models`) must be raised here as
+its own deferred item **before** either track proceeds with it. Do not let two
+tracks edit the same seam silently.
+
+### 3.4 Operational Item Ordering
+
+The spec-review bundle publication (section 5.3) is independent of the RMM/RELAY
+tracks and may proceed as soon as the user supplies a remote URL.
 
 ---
 
 ## 4. Status Vocabulary
 
-Every deferred item and its handoff document carries exactly one status. Do not
-invent new statuses. Transitions are strictly forward.
+Every deferred item carries exactly one status. Do not invent new statuses. Some
+transitions are strictly forward; others depend on external input.
 
 | Status | Meaning | Exit condition |
 |--------|---------|----------------|
-| `OPEN` | Not started; tracked, no doc authored yet | Doc created and published to the separate review repo |
-| `IN_REVIEW` | Handoff doc authored; awaiting review | Reviewer (audit role) starts |
-| `SEAM_VERIFIED` | Seam contract validated against v1.2.0 baseline | All seam checks pass (see section 7) |
-| `APPROVED` | Review passed; contract accepted | Closeout in master |
+| `OPEN` | Not started; tracked, no doc authored yet | Doc created |
+| `IN_REVIEW` | Handoff doc authored; not yet validated | Validation run and passed |
+| `SEAM_VERIFIED` | Contract validated against v1.2.0 baseline | All validation checks pass (section 7) |
+| `APPROVED` | Work authorized | Closeout in master |
 | `COMPLETE` | Authorized work implemented and closed | Closeout with evidence |
-| `BLOCKED` | A dependency or seam check failed | Stop; do not proceed (see section 8) |
-| `REJECTED` | Handoff doc fails review | Returned to author with reasons |
+| `BLOCKED` | A dependency or validation check failed | Stop; resolve dependency |
+| `BLOCKED_DECISION` | External input required (e.g., a URL, a decision) | External input supplied |
+| `REJECTED` | Work fails review | Returned to author with reasons |
 
 **Severity (unchanged from repo convention):** `P0` critical, `P1` high,
 `P2` medium, `P3` low, `P4` polish. **Effort (unchanged):** `S` 1-3 days,
 `M` ~1 week, `L` 2+ weeks.
 
-Statuses appear in each anticipated RMM/RELAY document's header block and are
-aggregated in the separate spec-review repository state. Silently skipping a transition is a
-protocol violation.
+Silently skipping a transition is a protocol violation.
 
 ---
 
 ## 5. Anticipated Handoff Documents
 
-The RMM-00..08 and RELAY-00..06 documents are authored by the sibling handoff
-agents and land in the separate spec-review repository under
-`docs/reviews/deferred/`. They are **anticipated here** (master is written ahead of
-their landing); each must carry a
-header status per section 4, `RMM-00` / `RELAY-00` being the track baseline that
-anchors all others.
-
 ### 5.1 RMM-00..08
+
+The RMM-00..08 documents are authored by the sibling handoff agents. They are
+**anticipated here** (master is written ahead of their landing); each carries a
+status per section 4, with `RMM-00` anchoring the track.
 
 | ID | Anticipated document | Focus |
 |----|----------------------|-------|
@@ -182,37 +178,45 @@ anchors all others.
 | RELAY-05 | `RELAY-05_python_parity.md` | Go-lib vs Python contract reconciliation |
 | RELAY-06 | `RELAY-06_closeout.md` | Relay seam-contract verification & closeout |
 
-These two sections are **planning references only**. Where the authored document
-differs from this anticipation, the authored document is authoritative; this master
-is updated at joint closeout (F9), not piecemeal.
+Where an authored document differs from this anticipation, the authored document is
+authoritative; this master is updated at joint closeout (F9), not piecemeal.
+
+### 5.3 Operational Deferred Item — Spec-Review Bundle Publication
+
+Status: **BLOCKED_DECISION** (awaiting user-supplied `<REMOTE_URL>`).
+
+The existing standalone spec-review repo
+(`/mnt/data/git/spec-review-2026-08-24`, five commits, `main`, no remote) is to be
+published to a user-designated remote. This item is deferred and held in
+`BLOCKED_DECISION` until the remote URL is supplied; it is not an RMM/RELAY work
+item. Runbook: [SPEC_REVIEW_BUNDLE_HANDOFF.md](../reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md).
+
+Exit to `IN_REVIEW`: user supplies `<REMOTE_URL>` → the runbook proceeds. No
+changes to the deferred-work plan are implied by its progress.
 
 ---
 
 ## 6. Lower-Capability-Agent Checklist
 
-A lower-capability agent (one that cannot complete a full review) uses this
-checklist to hand work off safely without corrupting the review repo or the
-baseline. Run in order; **stop at the first failure** (section 8).
+A lower-capability agent (one that cannot complete a full deferred work item) uses
+this checklist to hand work off safely. Run in order; **stop at the first failure**
+(section 8).
 
-1. **Confirm location.** Verify you are working against the separate spec-review
-   repository (five-commit snapshot, placeholder origin per the publication
-   runbook). If you are in the OAP repo or its real `origin`, stop immediately
-   and do nothing.
-2. **Never touch the baseline.** Do not modify any committed spec, the seam wire
-   contract, or `E000`-style baseline markers.
+1. **Confirm scope.** Confirm the item you are touching is a tracked deferred item
+   and you have the correct repository context.
+2. **Never change the baseline.** Do not modify v1.2.0 (`4194dac`) content or the
+   W1-W8 delivered code.
 3. **One concern per handoff.** Write one handoff note per deferred item; do not
    bundle unrelated RMM and RELAY items.
-4. **Record status.** Add only the next valid status from section 4 for your item.
-5. **Cite the seam.** Every handoff must name the exact seam contract it touches
-   (file:line in the baseline, or the contract ID). Never hand off "general"
-   work.
-6. **Keep it small.** Handoff notes stay under the navigation-map refresh scope;
-   do not rewrite maps, status, project plan, or specs (section 9).
+4. **Record status.** Add only the next legal status from section 4 for your item.
+5. **Cite the contract.** Every handoff names the exact contract it touches
+   (`file:line` in the baseline). Never hand off "general" work.
+6. **Keep it small.** Do not rewrite maps, status, project plan, or openspec specs
+   (section 9).
 7. **Leave the tree clean.** Stage nothing you cannot explain; never leave a dirty
-   worktree, never exceed five commits in the review repo.
-8. **Ask for a human-seat reviewer.** A lower-capability agent never marks
-   `APPROVED` or `COMPLETE`; those transitions require the audit role (see the
-   review handoff).
+   working tree.
+8. **Ask for a qualified reviewer.** A lower-capability agent never marks
+   `APPROVED` or `COMPLETE`.
 
 ---
 
@@ -221,64 +225,53 @@ baseline. Run in order; **stop at the first failure** (section 8).
 Validation is deterministic. An item is `SEAM_VERIFIED` if and only if **all** of
 the following pass:
 
-1. **Tree clean.** `git status --porcelain` in the review repo returns empty.
-2. **Commit count pinned.** `git rev-list --count HEAD` in the review repo equals
-   exactly `5`. If the count is not 5, stop (section 8).
-3. **No remote contact.** `git remote -v` shows the placeholder remote only. `git
-   push` and `git fetch` to the placeholder must be inert/denied. No real-`origin`
-   URL anywhere in the review repo's `config` or `remotes`.
-4. **Link integrity.** Every relative link in newly added docs resolves to an
-   existing file. Broken links fail the review.
-5. **Length gate.** Every authored document is under 500 lines (`wc -l`).
-6. **Baseline match.** The seam contract cited exists at the v1.2.0 baseline
-   (`4194dac`) and is unchanged by the handoff.
-7. **Status legal.** The item's status is a legal, forward transition from its
-   prior status per section 4.
-8. **Vocabulary / scope.** No map, status, project-plan, or openspec file was
-   edited (whitelist enforced in section 9).
+1. **Tree clean.** `git status --porcelain` in the working tree returns empty.
+2. **Baseline intact.** No change to v1.2.0 baseline content is introduced by the
+   handoff.
+3. **Link integrity.** Every relative link in newly added docs resolves to an
+   existing file.
+4. **Length gate.** Every authored document is under 500 lines (`wc -l`).
+5. **Contract match.** The cited contract exists at the v1.2.0 baseline and is
+   unchanged by the handoff.
+6. **Status legal.** The item's status is a legal, forward transition from its prior
+   status per section 4.
+7. **Scope.** No map, status, project-plan, or openspec file was edited (whitelist
+   in section 9).
 
-To validate locally from this worktree (non-destructive, read-only):
-
-```bash
-git status --porcelain                     # must be empty
-git rev-list --count HEAD                  # must be 5
-git remote -v                              # placeholder only
-wc -l docs/reviews/deferred/*.md           # each < 500
-```
+For the operational spec-review item, additionally validate the facts in the runbook
+section 3 (five commits, `main`, clean tree, no remote) before any push.
 
 ---
 
 ## 8. Exact Stop Rules
 
 A recognized stop condition halts work immediately. When stopped, do not push, do
-not amend, do not "fix forward" silently. Report the stop to the master/audit role
-and leave the review repo untouched.
+not amend, do not "fix forward" silently. Report the stop and leave the tree
+untouched.
 
-1. **Dirty tree** in the review repo -> stop.
-2. **Commit count != 5** in the review repo -> stop; the snapshot is no longer the
-   agreed baseline.
-3. **Real-`origin` URL present** or any sign of an intended push/amend -> stop; the
-   placeholder-remote contract is broken.
-4. **Seam mismatch**: the item's claim about a seam disagrees with the v1.2.0
-   baseline at that file:line -> stop; the contract is not true.
+1. **Dirty tree** -> stop.
+2. **Baseline changed** by the handoff -> stop; revert that change.
+3. **Forbidden-file edit** (map / status / project plan / spec) -> stop; roll back
+   that edit before anything else.
+4. **Contract mismatch**: the item's claim about a contract disagrees with the
+   v1.2.0 baseline at that `file:line` -> stop; the contract is not true.
 5. **Broken link or doc over 500 lines** -> stop; fix only the identified doc, then
    resume.
-6. **Forbidden-file edit** (map / status / project plan / spec) -> stop; roll back
-   that edit before anything else.
-7. **Illegal status jump** (e.g., `OPEN -> APPROVED`, or lower-capability agent
-   marking `COMPLETE`) -> stop; escalate to the audit role.
+6. **Illegal status jump** (e.g., `OPEN -> APPROVED`, or a lower-capability agent
+   marking `COMPLETE`) -> stop; escalate.
+7. **Missing external input** (e.g., a deferred item in `BLOCKED_DECISION` without
+   its required input) -> stop; do not guess the input.
 8. **Ambiguity**: cannot prove a fact against the baseline -> stop and ask, rather
    than guess.
 
-Stopping is correct behavior, not failure. Every stop is logged with the rule id
-(S1..S8) in the separate spec-review repository state.
+For the operational runbook, the dedicated halt conditions in the runbook (diverged
+or unrelated history; secret scan findings) also apply.
 
 ---
 
 ## 9. Out of Scope for This Handoff (Do Not Edit)
 
-Per the approved scope, the following are **not** touched by deferred-work handoffs
-or this master:
+The following are **not** touched by deferred-work handoffs or this master:
 
 - Navigation maps (`docs/INDEX_MAP.md`, `docs/HEADER_MAP.md`, `TOC.md`).
 - `STATUS.md`, `PROJECT_PLAN.md`, and repo status/state files.
@@ -286,20 +279,20 @@ or this master:
 - Production source under `cmd/`, `internal/`, `pkg/`, `py/`, `a2a/`, `web/`.
 
 Map/status/spec refresh is a separate, post-review activity driven from joint
-closeout (F9), not from individual deferred-item handoffs.
+closeout (F9).
 
 ---
 
 ## 10. Joint Closeout (F9)
 
-When both tracks reach `RELAY-06 COMPLETE` and `RMM-08 COMPLETE`, the master runs
-joint closeout: aggregate every `SEAM_VERIFIED`/`APPROVED`/`COMPLETE` handoff,
-re-run the section 7 validations once more over the whole bundle, reconcile the
-anticipated document table (section 5) against what actually landed, and only then
-authorize map/status/spec refresh as a separate follow-up. Nothing is released to
-`main` until this closeout passes.
+When both tracks reach `RELAY-06 COMPLETE` and `RMM-08 COMPLETE`, and the
+spec-review publication item has resolved, the master runs joint closeout: aggregate
+every resolved handoff, re-run the section 7 validations over the whole set, and
+reconcile the anticipated document tables (sections 5.1/5.2) against what actually
+landed. Only then authorize map/status/spec refresh as a separate follow-up.
+Nothing is released to `main` until this closeout passes.
 
 ---
 
-**End of master handoff.** Companion procedure: see
+**End of master handoff.** Operational runbook:
 [SPEC_REVIEW_BUNDLE_HANDOFF.md](../reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md).
