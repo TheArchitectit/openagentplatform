@@ -1,7 +1,7 @@
 # RMM-09 — Secure Tunnel Fabric (WireGuard mesh + SSH-on-top)
 
 **Sprint Date:** 2026-08-24
-**Status:** DESIGN — awaiting build approval
+**Status:** COMPLETE — build steps 1–5 committed and verified
 **Merges:** RMM-07 (agent self-update), RMM-08 (VNC/RDP remote desktop) onto one data-plane fabric
 **Dependencies:** RMM-00..05 (complete); control-plane NATS mTLS; existing RBAC (`internal/auth`)
 
@@ -115,12 +115,12 @@
 
 ## 7. Build Sequence
 
-1. **Schema + store + subjects** (0015 migration, `internal/mesh/store.go`, `subjects.go`).
-2. **KeyManager + Admission** (server-side, RBAC hook) + API endpoints + tests.
-3. **Agent WireGuard bring-up** (`pkg/agent/mesh/wireguard.go`, `config.go`, `cmd/agent` wiring) + tests.
-4. **Agent SSH server** (`ssh.go`) + tests (cert accept/reject).
-5. **Self-update** (`updater.go` + `internal/mesh/updates.go` + API) + negative signature tests.
-6. **VNC/RDP + file transfer** documented as tunnel-enabled (operator `-L` exposes ports; SCP over SSH). No new transport code beyond the mesh.
+1. ~~**Schema + store + subjects**~~ (0015 migration, `internal/mesh/store.go`, `subjects.go`). ✅ `4da5631`
+2. ~~**KeyManager + Admission**~~ (server-side, RBAC hook) + API endpoints + tests. ✅ `d4ef45f`
+3. ~~**Agent WireGuard bring-up**~~ (`pkg/agent/mesh/wireguard.go`, `config.go`, `cmd/agent` wiring) + tests. ✅ `d834ce8`
+4. ~~**Agent SSH server**~~ (`ssh.go`) + tests (cert accept/reject). ✅ `f044ec1`
+5. ~~**Self-update**~~ (`updater.go` + `internal/mesh/updates.go` + API) + negative signature tests. ✅ `9363887`
+6. **VNC/RDP + file transfer** documented as tunnel-enabled (operator `-L` exposes ports; SCP over SSH). No new transport code beyond the mesh. ✅ Design-only; no transport code needed.
 
 ---
 
@@ -134,4 +134,4 @@
 
 **Created:** 2026-08-24
 **Authored by:** TheArchitectit
-**Version:** 1.0
+**Version:** 1.1 — build complete (all 5 steps + design-only step 6)
