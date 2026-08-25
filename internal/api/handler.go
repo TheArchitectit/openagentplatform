@@ -18,6 +18,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/config"
 	"github.com/openagentplatform/openagentplatform/internal/license"
 	"github.com/openagentplatform/openagentplatform/internal/licensing"
+	"github.com/openagentplatform/openagentplatform/internal/mesh"
 	"github.com/openagentplatform/openagentplatform/internal/monitoring"
 	"github.com/openagentplatform/openagentplatform/internal/notify"
 	"github.com/openagentplatform/openagentplatform/internal/patches"
@@ -137,6 +138,17 @@ type Server struct {
 	// healthChecker supplies extra component checks for /readyz beyond
 	// the built-in database and NATS probes. May be nil.
 	healthChecker *monitoring.HealthChecker
+	// meshAdmission mints operator tunnel sessions (WireGuard + SSH).
+	// May be nil; mesh endpoints return 503 when unset.
+	meshAdmission MeshAdmission
+}
+
+// MeshAdmission is the interface the mesh API handlers use to open, close,
+// and list tunnel sessions. Implemented by *mesh.Admission; stubbed in tests.
+type MeshAdmission interface {
+	RequestSession(ctx context.Context, orgID, operatorID, agentID, purpose string) (*mesh.SessionGrant, error)
+	CloseSession(ctx context.Context, orgID, sessionID string) error
+	ListSessions(ctx context.Context, orgID, operatorID string) ([]*mesh.MeshSession, error)
 }
 
 // Publisher is the subset of the events.Client interface used by API handlers.

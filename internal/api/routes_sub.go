@@ -258,6 +258,16 @@ func (s *Server) mountAPISubRoutes(r chi.Router) {
 		r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)).Post("/scan", s.triggerScanAgent)
 	})
 
+	// Mesh tunnel fabric (RMM-09). Operator tunnel session admission.
+	// Org-scoping is enforced inside the handlers from the authenticated
+	// session; the mesh endpoints return 503 when meshAdmission is unset.
+	r.Route("/mesh", func(r chi.Router) {
+		elevated := auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician, auth.RoleOperator)
+		r.With(elevated).Post("/session", s.handleMeshSessionCreate)
+		r.With(elevated).Get("/session", s.handleMeshSessionList)
+		r.With(elevated).Post("/session/{id}/close", s.handleMeshSessionClose)
+	})
+
 	// Remote shell: list/get/kill shell sessions and
 	// manage stored credentials. The WebSocket bridge is
 	// mounted in the public group below because it does
