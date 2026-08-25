@@ -219,6 +219,11 @@ func (s *Server) mountAPISubRoutes(r chi.Router) {
 		// Per-KB WinUpdate state (RMM-03). Read-only; available to any
 		// authenticated org member. No licensing gate, no role gate.
 		r.Get("/kb", s.handleGetKBBatch)
+		// Reboot coordination (RMM-04). Enqueues a staggered reboot
+		// directive for the listed agents. Elevated role required.
+		// Mounted before the /{id} group so chi matches the static
+		// path before the wildcard.
+		r.With(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician)).Post("/reboot", s.handleScheduleReboot)
 		r.Get("/stats", s.getPatchStats)
 		r.Route("/catalog", func(r chi.Router) {
 			r.Get("/", s.listPatchCatalog)

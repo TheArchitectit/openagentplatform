@@ -395,6 +395,90 @@ func (s *Server) handleGetKBBatch(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleScheduleReboot accepts a list of agent_ids and enqueues a
+// reboot directive for each. It uses the PatchDeployer's
+// CoordinateReboots method to stagger the reboots. Admin or Technician
+// role required (enforced by the route middleware).
+//
+// Every requested agent is verified to belong to the caller's org before
+// a reboot directive is published, so a caller cannot reboot endpoints in
+// another tenant.
+func (s *Server) handleScheduleReboot(w http.ResponseWriter, r *http.Request) {
+	if s.patchStore == nil {
+		http.Error(w, `{"error":"patch_store_not_configured"}`, http.StatusServiceUnavailable)
+		return
+	}
+	if s.patchDeployer == nil {
+		http.Error(w, `{"error":"patch_deployer_not_configured"}`, http.StatusServiceUnavailable)
+		return
+	}
+	claims, ok := auth.UserFromContext(r.Context())
+	if !ok || claims == nil || claims.OrgID == "" {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+	var req struct {
+		AgentIDs []string `json:"agent_ids"`
+		JobID    string   `json:"job_id,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid_json"}`, http.StatusBadRequest)
+		return
+	}
+	if len(req.AgentIDs) == 0 {
+		http.Error(w, `{"error":"agent_ids_required"}`, http.StatusBadRequest)
+		return
+	}
+	// Deduplicate.
+	seen := make(map[string]struct{}, len(req.AgentIDs))
+	deduped := make([]string, 0, len(req.AgentIDs))
+	for _, id := range req.AgentIDs {
+		if id == "" {
+			continue
+		}
+		if _, dup := seen[id]; dup {
+			continue
+		}
+		seen[id] = struct{}{}
+		deduped = append(deduped, id)
+	}
+	if len(deduped) == 0 {
+		http.Error(w, `{"error":"agent_ids_required"}`, http.StatusBadRequest)
+		return
+	}
+	// Org-scope every target: an agent outside the caller's org is a 404
+	// so the endpoint cannot be used to probe or reboot other tenants.
+	for _, aid := range deduped {
+		if err := s.checkAgentOrg(r.Context(), claims.OrgID, aid); err != nil {
+			http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
+			return
+		}
+	}
+
+	// Build reboot requests and delegate to the deployer.
+	reboots := make([]patches.RebootRequest, 0, len(deduped))
+	for _, aid := range deduped {
+		reboots = append(reboots, patches.RebootRequest{
+			AgentID: aid,
+			JobID:   req.JobID,
+		})
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Minute)
+	defer cancel()
+	results := s.patchDeployer.CoordinateReboots(ctx, reboots)
+
+	s.recordPatchAudit(r, "patch.reboot", req.JobID, map[string]any{
+		"agent_count": len(reboots),
+		"job_id":      req.JobID,
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"results": results,
+		"total":   len(results),
+	})
+}
+
 // errCrossOrgAgent is returned by checkAgentOrg when the requested agent
 // does not belong to the caller's org.
 var errCrossOrgAgent = errors.New("agent does not belong to org")

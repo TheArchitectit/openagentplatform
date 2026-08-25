@@ -8,6 +8,44 @@ for the BSL-licensed releases.
 
 ---
 
+## [Unreleased] - 2026-08-24 -- RMM-04 Reboot Coordination
+
+### Added
+
+- **Server→agent reboot command** (`oap.agents.<id>.reboot`): `RebootCommand`
+  payload with `request_id`, `job_id`, `reason`, `kbs`, and `timeout_sec`.
+  Agent responds with `RebootResultEnvelope` on `oap.agents.<id>.reboot.results`.
+  On success with named KBs, the agent also publishes `ReportRebootDone` on the
+  RMM-03 `patch_kb.reboot_done` sibling to transition per-KB state.
+- **Agent-side reboot handler** (`pkg/agent/patcher/handler.go`): `Rebooter`
+  interface + `noopRebooter` default (safe for dev/test), `RunRebootHandler`,
+  `handleReboot` — validates payload, invokes rebooter, publishes result, and
+  reports KB completion.
+- **CoordinateReboots now publishes directives** (`deployer_strategies.go`):
+  after the pre-reboot health check, a `RebootCommand` is published to the
+  agent's reboot subject. Previously `CoordinateReboots` was dead code — it
+  ran health checks and stagger but never sent the actual reboot.
+- **Reboot coordination API endpoint** `POST /api/v1/patches/reboot`
+  (`handleScheduleReboot`): accepts `agent_ids` + optional `job_id`, verifies
+  each agent belongs to the caller's org (cross-org → 404), delegates to
+  `CoordinateReboots` for staggered execution. Admin/Technician role required.
+- **`PatchDeployer` wired into API server** (`server_wiring.go`):
+  `SetPatchDeployer` setter + wired in `server_init.go`.
+- **Agent reboot subscription** wired in `cmd/agent/main.go` beside existing
+  patch scan/install handlers.
+
+### Decisions
+
+- **Ownership model:** Server-coordinated push chosen (not agent-owned self-reboot).
+  The server decides when, the agent executes and reports back.
+
+### Notes
+
+- No migration in this sprint (no schema changes).
+- No `rmm.winupdate.*` subjects introduced (forbidden by spec).
+
+---
+
 ## [Unreleased] - 2026-08-24 -- RMM-03 WinUpdate per-KB Tracking & State Machine
 
 ### Added

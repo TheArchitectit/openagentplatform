@@ -2,12 +2,15 @@ package patches
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sort"
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/openagentplatform/openagentplatform/pkg/agent/patcher"
 	"github.com/openagentplatform/openagentplatform/pkg/models"
 )
 
@@ -386,6 +389,25 @@ func (d *PatchDeployer) CoordinateReboots(ctx context.Context, reboots []RebootR
 			d.log.Warn("reboot: pre-check failed",
 				"agent_id", r.AgentID, "err", err)
 			continue
+		}
+		// Publish the reboot directive to the agent.
+		if d.nc != nil {
+			rebootPayload, _ := json.Marshal(patcher.RebootCommand{
+				RequestID: uuid.NewString(),
+				JobID:     r.JobID,
+				Reason:    "patch deployment",
+				KBs:       nil, // KBs are tracked at the per-KB level
+			})
+			if err := d.nc.Publish(patcher.RebootSubject(r.AgentID), rebootPayload); err != nil {
+				d.log.Warn("reboot: publish directive failed",
+					"agent_id", r.AgentID, "err", err)
+				tr.Status = TargetStatusFailed
+				tr.Error = fmt.Sprintf("reboot publish failed: %v", err)
+				tr.Duration = time.Since(start)
+				results = append(results, tr)
+				continue
+			}
+			d.log.Info("reboot: directive published", "agent_id", r.AgentID)
 		}
 		// Stagger.
 		select {

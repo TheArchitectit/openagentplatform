@@ -130,6 +130,63 @@ type PatchKBRebootEnvelope struct {
 	ReceivedAt time.Time `json:"received_at"`
 }
 
+// RebootCommand is the payload the server sends to the agent on
+// oap.agents.<agentID>.reboot. The agent validates the payload and
+// performs an OS reboot. The server-coordinated push model is used:
+// the server decides when to reboot, the agent executes.
+type RebootCommand struct {
+	RequestID  string   `json:"request_id"`
+	JobID      string   `json:"job_id,omitempty"`
+	Reason     string   `json:"reason,omitempty"`
+	KBs        []string `json:"kbs,omitempty"`
+	TimeoutSec int      `json:"timeout_sec,omitempty"`
+}
+
+// RebootResultEnvelope is the payload the agent publishes back to the
+// server after processing a reboot command. The agent also calls
+// ReportRebootDone on the patch_kb.reboot_done sibling to transition
+// per-KB state.
+type RebootResultEnvelope struct {
+	RequestID  string    `json:"request_id"`
+	AgentID    string    `json:"agent_id"`
+	Accepted   bool      `json:"accepted"`
+	Error      string    `json:"error,omitempty"`
+	ReceivedAt time.Time `json:"received_at"`
+}
+
+// RebootSubject returns the NATS subject the server uses to request a
+// reboot from this agent.
+func RebootSubject(agentID string) string {
+	return fmt.Sprintf("oap.agents.%s.reboot", agentID)
+}
+
+// RebootResultSubject returns the NATS subject the agent publishes
+// reboot results on.
+func RebootResultSubject(agentID string) string {
+	return fmt.Sprintf("oap.agents.%s.reboot.results", agentID)
+}
+
+// Rebooter is the interface for executing an OS reboot. Production
+// implementations should drain work and then call the OS reboot
+// syscall. The default implementation logs and does nothing (safe for
+// dev/test).
+type Rebooter interface {
+	Reboot(ctx context.Context) error
+}
+
+// noopRebooter logs the reboot request and does nothing. It is the
+// default Rebooter used by NewHandler so the agent is safe to run in
+// dev/test environments without an actual OS reboot.
+type noopRebooter struct {
+	log *slog.Logger
+}
+
+// Reboot implements Rebooter by logging the request and returning nil.
+func (n *noopRebooter) Reboot(ctx context.Context) error {
+	n.log.Info("reboot requested (noop)")
+	return nil
+}
+
 // Handler is the agent-side dispatcher for patch scan and install
 // commands. It owns the scanner + installer and the NATS
 // subscriptions for both subjects.
@@ -137,6 +194,7 @@ type Handler struct {
 	agentID   string
 	scanner   PatchScanner
 	installer PatchInstaller
+	rebooter  Rebooter
 	nc        *nats.Conn
 	log       *slog.Logger
 
@@ -155,6 +213,7 @@ func NewHandler(agentID string, nc *nats.Conn, log *slog.Logger) *Handler {
 		agentID:   agentID,
 		scanner:   NewAutoScanner(),
 		installer: NewAutoInstaller(nil),
+		rebooter:  &noopRebooter{log: log},
 		nc:        nc,
 		log:       log,
 	}
@@ -174,6 +233,14 @@ func (h *Handler) SetInstaller(i PatchInstaller) {
 		return
 	}
 	h.installer = i
+}
+
+// SetRebooter overrides the default no-op rebooter.
+func (h *Handler) SetRebooter(r Rebooter) {
+	if r == nil {
+		return
+	}
+	h.rebooter = r
 }
 
 // Close marks the handler closed. The subscriptions themselves are
@@ -212,6 +279,91 @@ func (h *Handler) RunInstallHandler(ctx context.Context) (*nats.Subscription, er
 	}
 	h.log.Info("patch install handler subscribed", "subject", subject)
 	return sub, nil
+}
+
+// RunRebootHandler subscribes to the per-agent reboot subject and
+// dispatches each message to the rebooter (RMM-04). The subscription is
+// owned by the caller; call .Unsubscribe() to tear it down.
+func (h *Handler) RunRebootHandler(ctx context.Context) (*nats.Subscription, error) {
+	subject := RebootSubject(h.agentID)
+	sub, err := h.nc.Subscribe(subject, func(msg *nats.Msg) {
+		h.handleReboot(ctx, msg)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("reboot subscribe %s: %w", subject, err)
+	}
+	h.log.Info("reboot handler subscribed", "subject", subject)
+	return sub, nil
+}
+
+// handleReboot processes a server-issued RebootCommand. It validates the
+// payload, invokes the configured Rebooter, publishes a
+// RebootResultEnvelope on the reboot.results subject, and (on success,
+// when KBs are named) reports reboot completion on the
+// patch_kb.reboot_done sibling so per-KB state transitions from
+// reboot_required to installed.
+func (h *Handler) handleReboot(parent context.Context, msg *nats.Msg) {
+	h.mu.Lock()
+	if h.closed {
+		h.mu.Unlock()
+		return
+	}
+	h.mu.Unlock()
+
+	var cmd RebootCommand
+	if err := json.Unmarshal(msg.Data, &cmd); err != nil {
+		h.log.Warn("reboot: bad payload", "err", err)
+		return
+	}
+	// request_id is required: it correlates the result envelope with the
+	// server-side reboot coordination record.
+	if cmd.RequestID == "" {
+		h.log.Warn("reboot: missing request_id")
+		return
+	}
+
+	timeout := 5 * time.Minute
+	if cmd.TimeoutSec > 0 {
+		timeout = time.Duration(cmd.TimeoutSec) * time.Second
+	}
+	ctx, cancel := context.WithTimeout(parent, timeout)
+	defer cancel()
+
+	h.log.Info("reboot: starting",
+		"request_id", cmd.RequestID,
+		"job_id", cmd.JobID,
+		"reason", cmd.Reason)
+
+	env := RebootResultEnvelope{
+		RequestID:  cmd.RequestID,
+		AgentID:    h.agentID,
+		Accepted:   true,
+		ReceivedAt: time.Now(),
+	}
+	if err := h.rebooter.Reboot(ctx); err != nil {
+		env.Accepted = false
+		env.Error = err.Error()
+		h.log.Warn("reboot: rebooter failed",
+			"request_id", cmd.RequestID, "err", err)
+	}
+
+	payload, jerr := json.Marshal(env)
+	if jerr != nil {
+		h.log.Warn("reboot: marshal result failed", "err", jerr)
+		return
+	}
+	if perr := h.nc.Publish(RebootResultSubject(h.agentID), payload); perr != nil {
+		h.log.Warn("reboot: publish result failed", "err", perr)
+	}
+
+	// On a successful reboot, report the named KBs as rebooted so the
+	// server transitions them reboot_required -> installed (RMM-03).
+	if env.Accepted && len(cmd.KBs) > 0 {
+		if rerr := h.ReportRebootDone(ctx, cmd.KBs); rerr != nil {
+			h.log.Warn("reboot: report reboot done failed",
+				"request_id", cmd.RequestID, "err", rerr)
+		}
+	}
 }
 
 func (h *Handler) handleScan(parent context.Context, msg *nats.Msg) {

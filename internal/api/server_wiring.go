@@ -92,6 +92,13 @@ func (s *Server) SetPatchStore(store patches.Store) {
 	s.patchStore = store
 }
 
+// SetPatchDeployer wires the patch deployer into the server. Called
+// from main after the deployer is constructed. May be nil; the reboot
+// coordination endpoint returns 503 when unset.
+func (s *Server) SetPatchDeployer(d *patches.PatchDeployer) {
+	s.patchDeployer = d
+}
+
 // SetPatchScanner wires the patch scan dispatcher into the server.
 // Called from main after the dispatcher is constructed. May be nil;
 // catalog endpoints return 503 when unset.

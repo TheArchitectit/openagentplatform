@@ -60,6 +60,10 @@ type Server struct {
 	policyEngine *policy.PolicyEngine
 	// patchStore is the patch job persistence interface. May be nil.
 	patchStore patches.Store
+	// patchDeployer orchestrates patch delivery and reboot
+	// coordination. May be nil; the reboot endpoint returns 503 when
+	// unset.
+	patchDeployer *patches.PatchDeployer
 	// patchScanner is the patch scan dispatcher that aggregates
 	// per-agent scan results into a platform-wide catalog. May be
 	// nil; catalog endpoints return 503 when unset.

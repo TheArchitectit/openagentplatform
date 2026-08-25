@@ -8,7 +8,7 @@ server→agent `oap.agents.<id>.reboot` command with an agent-side handler.
 Build-ready (one ownership decision pending).
 **Priority:** P1 (Blocking)
 **Estimated Effort:** 6-9 hours
-**Status:** PENDING
+**Status:** COMPLETE
 **Dependencies:** RMM-03 (per-KB state drives which targets need reboot)
 
 ---
@@ -120,6 +120,23 @@ git status   # confirm clean
 | 3 | Agent refuses malformed payloads | agent handler test | No reboot on bad input |
 | 4 | Stagger honored | coordinator test | Reboots spaced by RebootStagger |
 | 5 | Ownership decision recorded | sprint notes | One model chosen and implemented, not both |
+
+## Completion Record
+
+- **Ownership decision:** Server-coordinated push (user decision, 2026-08-24). The server publishes `oap.agents.<id>.reboot` with a `RebootCommand`; the agent executes and reports back. Agent-owned self-reboot was NOT implemented.
+- **Acceptance criteria verification:**
+  1. ✅ `CoordinateReboots` now publishes `RebootCommand` on `oap.agents.<id>.reboot` after pre-check (deployer_strategies.go:393-411)
+  2. ✅ `RebootSubject` constructs `oap.agents.<id>.reboot` correctly (handler.go:159)
+  3. ✅ Agent handler validates `RequestID` required, rejects bad JSON (handler.go:313-323)
+  4. ✅ Stagger via `RebootStagger` (default 30s) is honored in `CoordinateReboots` loop
+  5. ✅ Server-coordinated push model chosen and implemented; agent-owned NOT implemented
+- **New files:**
+  - `pkg/agent/patcher/handler_reboot_test.go` — 7 tests
+  - `internal/patches/deployer_strategies_reboot_test.go` — 5 tests
+  - `internal/api/reboot_test.go` — 5 tests
+- **Modified files:** handler.go, deployer_strategies.go, cmd/agent/main.go, patches.go, routes_sub.go, server_wiring.go, server_init.go
+- **No migration** (no schema changes in this sprint)
+- **No `rmm.winupdate.*` subjects** (forbidden by spec)
 
 ## Reference
 

@@ -163,6 +163,16 @@ func main() {
 		_ = patchInstallSub.Unsubscribe()
 	}()
 
+	// Subscribe to reboot commands from the server (RMM-04).
+	patchRebootSub, err := patchHandler.RunRebootHandler(ctx)
+	if err != nil {
+		log.Error("patch reboot handler failed", "err", err)
+		os.Exit(1)
+	}
+	defer func() {
+		_ = patchRebootSub.Unsubscribe()
+	}()
+
 	// Register the remote shell handler. Errors here are non-fatal
 	// because the rest of the agent can still run heartbeats and
 	// checks without remote-shell support.
@@ -197,6 +207,7 @@ func main() {
 		"compliance_subject", collectors.ComplianceRequestSubject(cfg.AgentID),
 		"patch_scan_subject", patcher.PatchScanSubject(cfg.AgentID),
 		"patch_install_subject", patcher.PatchInstallSubject(cfg.AgentID),
+		"patch_reboot_subject", patcher.RebootSubject(cfg.AgentID),
 		"shell_start_subject", shell.StartRequestSubject(cfg.AgentID),
 		"heartbeat_subject", agent.HeartbeatSubject(cfg.AgentID),
 	)

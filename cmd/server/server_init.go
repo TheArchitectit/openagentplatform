@@ -142,6 +142,8 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		Logger: log,
 	}, natsClient.Conn())
 
+	apiServer.SetPatchDeployer(patchDeployer)
+
 	patchScheduler := patches.NewPatchScheduler(patches.PatchSchedulerConfig{
 		MaxConcurrency: 10,
 		Logger:         log,
