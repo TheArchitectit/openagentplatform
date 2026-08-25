@@ -7,7 +7,7 @@ protocols. Highest-risk decision gate — the data plane has no existing code to
 anchor to; nothing is invented prematurely.
 **Priority:** P2 (Normal)
 **Estimated Effort:** 8-12 hours (design) + contingent build
-**Status:** PENDING
+**Status:** DECISION RECORDED — WireGuard mesh data plane (merged with RMM-07 into tunnel fabric)
 **Dependencies:** RMM-00 (spec records this as DEFERRED / open decision 10.8)
 
 ---
@@ -114,6 +114,34 @@ git status
 | 3 | (If approved) binary integrity preserved | round-trip test | No corruption through the tunnel |
 | 4 | (If approved) SSH/WinRM text bridge untouched | git diff shell path | Existing bridge byte-identical |
 | 5 | (If approved) recording semantics defined | recorder test | Binary replay matches input |
+
+## Decision Record (2026-08-24)
+
+**Architecture:** WireGuard mesh (Tailscale-like). Agents form an encrypted
+peer-to-peer WireGuard mesh. The server is coordination/control plane only —
+it manages identities, ACLs, and key distribution. VNC/RDP streams flow
+directly between operator and agent through the WireGuard tunnel, not through
+NATS or a server-side proxy.
+
+**VNC/RDP specifics:**
+- Operator connects to agent's VNC/RDP port through the WireGuard tunnel.
+- The server's role is limited to: key distribution, ACL evaluation, and
+  session admission (reuse `internal/remote/` session auth).
+- No server-side binary proxy or chunking — the tunnel is a raw encrypted
+  pipe between operator and agent.
+- Recording semantics: agent-side capture of VNC/RDP sessions (if enabled),
+  stored as binary files, separate from the existing text-oriented asciinema
+  recorder.
+
+**Merged with:** RMM-07 (Agent Self-Update). Both share the same WireGuard
+mesh data plane. The existing NATS mTLS control plane remains untouched.
+The existing SSH/WinRM text bridge is NOT modified.
+
+**Rationale:** A single encrypted tunnel fabric serves every binary/large-data
+need without building per-feature transports. WireGuard provides
+kernel-level encryption, low latency, and is production-proven at scale
+(Tailscale, Netmaker, Kilo). The coordination server never sees data plane
+traffic — consistent with zero-trust architecture.
 
 ## Reference
 

@@ -7,7 +7,7 @@ via security review; execution is contingent on approval. Decision-gated — NOT
 a build ticket.
 **Priority:** P1 (Blocking) — safety-sensitive
 **Estimated Effort:** 4-8 hours (security decision) + contingent build
-**Status:** PENDING
+**Status:** DECISION RECORDED — WireGuard mesh + code signing (merged with RMM-08 into tunnel fabric)
 **Dependencies:** RMM-00 (spec records this as DEFERRED / open decision 10.5); a
 security review
 
@@ -110,6 +110,29 @@ git status
 | 2 | No update mechanism built before approval | git diff on build dirs | No code changes if decision pending |
 | 3 | (If approved) bad signature refused | negative test | Tampered binary never applied |
 | 4 | (If approved) rollout is operator-gated | rollout test | No silent auto-update |
+
+## Decision Record (2026-08-24)
+
+**Architecture:** WireGuard mesh (Tailscale-like). Agents form an encrypted
+peer-to-peer WireGuard mesh. The server is coordination/control plane only —
+it manages identities, ACLs, and key distribution but never sees the data
+plane traffic. All binary data (VNC, RDP, file transfer, agent updates)
+flows through the mesh.
+
+**Self-update specifics:**
+- Agent updates are delivered through the WireGuard tunnel (not a NATS push).
+- Ed25519 code signing is still required — the agent verifies the binary
+  signature before applying, regardless of transport.
+- Rollout is operator-gated (server-side version pinning + staged rollout).
+- No silent auto-update.
+
+**Merged with:** RMM-08 (VNC/RDP). Both share the same WireGuard mesh
+data plane; this is no longer two separate transports but one fabric.
+
+**Rationale:** A single encrypted tunnel fabric serves every binary/large-data
+need (VNC, RDP, updates, file transfer) without building per-feature
+transports. The existing NATS mTLS control plane (heartbeats, checks, patches,
+KB state) remains untouched.
 
 ## Reference
 
