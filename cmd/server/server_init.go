@@ -15,6 +15,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/checks"
 	"github.com/openagentplatform/openagentplatform/internal/config"
 	"github.com/openagentplatform/openagentplatform/internal/events"
+	"github.com/openagentplatform/openagentplatform/internal/mesh"
 	"github.com/openagentplatform/openagentplatform/internal/notify"
 	"github.com/openagentplatform/openagentplatform/internal/patches"
 	"github.com/openagentplatform/openagentplatform/internal/policy"
@@ -143,6 +144,24 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 	}, natsClient.Conn())
 
 	apiServer.SetPatchDeployer(patchDeployer)
+
+	// --- Mesh tunnel fabric + agent self-update (RMM-09) -----------------
+	// The admission controller mints operator tunnel sessions (WireGuard
+	// config + SSH cert). The release store persists Ed25519-signed agent
+	// binary attestations. Both are org-scoped; the API returns 503 when
+	// either is unset, so a failure to build them degrades mesh endpoints
+	// rather than the whole server.
+	if km, kErr := mesh.NewKeyManager(log); kErr != nil {
+		log.Warn("mesh key manager not initialised; mesh endpoints disabled", "error", kErr)
+	} else {
+		meshStore := mesh.NewStore(pool)
+		if adm, aErr := mesh.NewAdmission(km, meshStore, log); aErr != nil {
+			log.Warn("mesh admission not initialised; mesh endpoints disabled", "error", aErr)
+		} else {
+			apiServer.SetMeshAdmission(adm)
+			apiServer.SetMeshReleaseStore(meshStore)
+		}
+	}
 
 	patchScheduler := patches.NewPatchScheduler(patches.PatchSchedulerConfig{
 		MaxConcurrency: 10,

@@ -105,3 +105,17 @@ func (s *Server) SetPatchDeployer(d *patches.PatchDeployer) {
 func (s *Server) SetPatchScanner(d *patches.PatchScanDispatcher) {
 	s.patchScanner = d
 }
+
+// SetMeshAdmission wires the mesh tunnel session admission controller into
+// the server. Called from main after the controller is constructed. May be
+// nil; mesh endpoints return 503 when unset.
+func (s *Server) SetMeshAdmission(a MeshAdmission) {
+	s.meshAdmission = a
+}
+
+// SetMeshReleaseStore wires the mesh agent-release persistence interface into
+// the server. Called from main after the store is constructed. May be nil;
+// release endpoints return 503 when unset.
+func (s *Server) SetMeshReleaseStore(store MeshReleaseStore) {
+	s.meshReleaseStore = store
+}

@@ -141,6 +141,17 @@ type Server struct {
 	// meshAdmission mints operator tunnel sessions (WireGuard + SSH).
 	// May be nil; mesh endpoints return 503 when unset.
 	meshAdmission MeshAdmission
+	// meshReleaseStore persists Ed25519-signed agent release records for
+	// self-update. May be nil; release endpoints return 503 when unset.
+	meshReleaseStore MeshReleaseStore
+}
+
+// MeshReleaseStore is the persistence contract used by the mesh release API.
+// Implemented by *mesh.Store (via pgxStore); stubbed in tests.
+type MeshReleaseStore interface {
+	InsertAgentRelease(ctx context.Context, orgID, version, platform, sha256, signature string, pinned bool) (*mesh.AgentRelease, error)
+	ListAgentReleases(ctx context.Context, orgID string, onlyPinned bool) ([]*mesh.AgentRelease, error)
+	PinAgentRelease(ctx context.Context, orgID, version string, pinned bool) error
 }
 
 // MeshAdmission is the interface the mesh API handlers use to open, close,

@@ -268,6 +268,17 @@ func (s *Server) mountAPISubRoutes(r chi.Router) {
 		r.With(elevated).Post("/session/{id}/close", s.handleMeshSessionClose)
 	})
 
+	// Mesh agent self-update releases (RMM-09). Ed25519-signed agent
+	// binaries are recorded here as attestation records; the agent verifies
+	// the signature at apply time. Org-scoped; returns 503 when
+	// meshReleaseStore is unset.
+	r.Route("/agents/{id}/releases", func(r chi.Router) {
+		r.Use(auth.RequireRole(auth.RoleAdmin, auth.RoleTechnician, auth.RoleOperator))
+		r.Post("/", s.handleMeshReleaseCreate)
+		r.Get("/", s.handleMeshReleaseList)
+		r.With(auth.RequireRole(auth.RoleAdmin)).Post("/{version}/pin", s.handleMeshReleasePin)
+	})
+
 	// Remote shell: list/get/kill shell sessions and
 	// manage stored credentials. The WebSocket bridge is
 	// mounted in the public group below because it does

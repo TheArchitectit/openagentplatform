@@ -22,3 +22,17 @@ func MeshConfigSubject(agentID string) string {
 func MeshConfigResultSubject(agentID string) string {
 	return fmt.Sprintf("oap.agents.%s.mesh.config.result", agentID)
 }
+
+// UpdateSubject is the subject the control plane publishes a pinned-release
+// notice to. The agent subscribes and, if the version is newer, verifies the
+// Ed25519 signature before applying. The agent NEVER fetches over the public
+// net — it only acts on control-plane-pushed notices (which ride NATS mTLS).
+func UpdateSubject(agentID string) string {
+	return fmt.Sprintf("oap.agents.%s.mesh.update", agentID)
+}
+
+// UpdateStatusSubject is the subject the agent publishes self-update status on
+// (e.g. "staged", "refused", "applied").
+func UpdateStatusSubject(agentID string) string {
+	return fmt.Sprintf("oap.agents.%s.mesh.update.status", agentID)
+}
