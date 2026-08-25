@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"sigs.k8s.io/yaml"
@@ -23,7 +24,7 @@ type Config struct {
 	NATSCert   string `json:"nats_cert"   yaml:"nats_cert"`
 	NATSKey    string `json:"nats_key"    yaml:"nats_key"`
 
-	APIURL  string `json:"api_url"  yaml:"api_url"`
+	APIURL   string `json:"api_url"  yaml:"api_url"`
 	APIInsec bool   `json:"api_insecure" yaml:"api_insecure"`
 
 	ConfigPath string `json:"config_path" yaml:"-"`
@@ -33,6 +34,13 @@ type Config struct {
 	HeartbeatIntervalSec int `json:"heartbeat_interval_sec" yaml:"heartbeat_interval_sec"`
 
 	ScriptTimeoutSec int `json:"script_timeout_sec" yaml:"script_timeout_sec"`
+
+	// Mesh (RMM-09 tunnel fabric) bring-up. When MeshEnabled is true the
+	// agent subscribes to its mesh.config subject and brings up the
+	// WireGuard data-plane interface on the server-provided config.
+	MeshEnabled    bool   `json:"mesh_enabled"    yaml:"mesh_enabled"`
+	MeshListenPort int    `json:"mesh_listen_port" yaml:"mesh_listen_port"`
+	MeshCACert     string `json:"mesh_ca_cert"    yaml:"mesh_ca_cert"`
 }
 
 // DefaultConfigPath returns the OS-appropriate config file path.
@@ -72,6 +80,7 @@ func LoadConfig(path string) (*Config, error) {
 		LogLevel:             "info",
 		HeartbeatIntervalSec: 60,
 		ScriptTimeoutSec:     300,
+		MeshListenPort:       51820,
 		ConfigPath:           path,
 	}
 
@@ -125,6 +134,17 @@ func applyEnv(c *Config) {
 	if v := os.Getenv("LOG_LEVEL"); v != "" {
 		c.LogLevel = v
 	}
+	if v := os.Getenv("AGENT_MESH_ENABLED"); v != "" {
+		c.MeshEnabled = v == "1" || v == "true" || v == "yes"
+	}
+	if v := os.Getenv("AGENT_MESH_LISTEN_PORT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.MeshListenPort = n
+		}
+	}
+	if v := os.Getenv("AGENT_MESH_CA_CERT"); v != "" {
+		c.MeshCACert = v
+	}
 }
 
 func (c *Config) validate() error {
@@ -143,6 +163,9 @@ func (c *Config) validate() error {
 	}
 	if c.ScriptTimeoutSec <= 0 {
 		c.ScriptTimeoutSec = 300
+	}
+	if c.MeshEnabled && (c.MeshListenPort < 1 || c.MeshListenPort > 65535) {
+		return fmt.Errorf("invalid mesh_listen_port %d", c.MeshListenPort)
 	}
 	return nil
 }

@@ -23,16 +23,17 @@ import (
 	"github.com/openagentplatform/openagentplatform/pkg/agent"
 	"github.com/openagentplatform/openagentplatform/pkg/agent/checkers"
 	"github.com/openagentplatform/openagentplatform/pkg/agent/executor"
+	"github.com/openagentplatform/openagentplatform/pkg/agent/mesh"
 	"github.com/openagentplatform/openagentplatform/pkg/agent/patcher"
 	"github.com/openagentplatform/openagentplatform/pkg/agent/shell"
 	"github.com/openagentplatform/openagentplatform/pkg/logger"
 )
 
 var (
-	configPath    string
-	doRegister    bool
-	showVer       bool
-	listCheckers  bool
+	configPath   string
+	doRegister   bool
+	showVer      bool
+	listCheckers bool
 )
 
 func main() {
@@ -172,6 +173,26 @@ func main() {
 	defer func() {
 		_ = patchRebootSub.Unsubscribe()
 	}()
+
+	// RMM-09: when mesh is enabled, bring up the WireGuard data-plane
+	// interface from the config the server publishes on the mesh.config
+	// subject. The driver defaults to wireguard-go behind the `mesh` build
+	// tag (a no-op logger otherwise), so the agent keeps running control
+	// plane workloads even on hosts without a TUN device.
+	if cfg.MeshEnabled {
+		meshHandler := mesh.NewHandler(cfg.AgentID, natsClient.Conn(), nil, log)
+		meshSub, err := meshHandler.Run(ctx)
+		if err != nil {
+			log.Error("mesh handler failed", "err", err)
+			os.Exit(1)
+		}
+		defer func() {
+			meshHandler.Close()
+			_ = meshSub.Unsubscribe()
+		}()
+	} else {
+		log.Info("mesh data plane disabled (mesh_enabled=false)")
+	}
 
 	// Register the remote shell handler. Errors here are non-fatal
 	// because the rest of the agent can still run heartbeats and
