@@ -24,6 +24,7 @@ type Handler struct {
 	nc      *nats.Conn
 	driver  WireGuardDriver
 	log     *slog.Logger
+	ssh     *SSHServer
 
 	mu     sync.Mutex
 	closed bool
@@ -62,13 +63,26 @@ func (h *Handler) Close() {
 	h.mu.Lock()
 	already := h.closed
 	h.closed = true
+	sshSrv := h.ssh
 	h.mu.Unlock()
 	if already {
 		return
 	}
+	if sshSrv != nil {
+		sshSrv.Close()
+	}
 	if err := h.driver.Close(); err != nil {
 		h.log.Warn("mesh: driver close failed", "err", err)
 	}
+}
+
+// MeshIP returns the agent's mesh tunnel address from the underlying driver,
+// or "" if the mesh is not up. The SSH server binds to this address.
+func (h *Handler) MeshIP() string {
+	if ip := h.driver.MeshIP(); ip != "" {
+		return ip
+	}
+	return ""
 }
 
 // Run subscribes to the agent's mesh.config subject and dispatches each
@@ -129,6 +143,43 @@ func (h *Handler) handle(parent context.Context, msg *nats.Msg) {
 		return
 	}
 	h.publishResult(ctx, cfg.OrgID, true, cfg.AgentID, nil)
+
+	// After the interface is up, start the SSH server on the tunnel IP if a
+	// CA cert is configured. The server accepts only CA-signed user certs
+	// scoped to this agent (port-forward only). Failure to start is logged
+	// but does not tear down the mesh — the interface itself stays up.
+	if cfg.CACert != "" {
+		go h.startSSHServer(ctx, cfg)
+	}
+}
+
+// startSSHServer brings up the mesh SSH server bound to the tunnel IP. It is
+// invoked after a successful driver.Apply so the mesh IP is guaranteed
+// available. Runs in its own goroutine; terminates on context cancel.
+func (h *Handler) startSSHServer(parent context.Context, cfg *MeshConfig) {
+	ctx, cancel := context.WithCancel(parent)
+	defer cancel()
+
+	meshIP := h.driver.MeshIP()
+	if meshIP == "" {
+		h.log.Warn("mesh: ssh server skipped — no mesh IP from driver")
+		return
+	}
+	srv, err := NewSSHServer(cfg.AgentID, meshIP, cfg.CACert, h.log)
+	if err != nil {
+		h.log.Warn("mesh: ssh server init failed", "err", err)
+		return
+	}
+	if cfg.SSHPort > 0 {
+		srv.SetPort(cfg.SSHPort)
+	}
+	h.mu.Lock()
+	h.ssh = srv
+	h.mu.Unlock()
+
+	if err := srv.ListenAndServe(ctx); err != nil {
+		h.log.Warn("mesh: ssh server exited", "err", err)
+	}
 }
 
 // publishResult sends a MeshConfigResult envelope on the result subject.

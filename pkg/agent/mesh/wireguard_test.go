@@ -23,6 +23,7 @@ func (f *fakeDriver) Apply(_ context.Context, cfg *MeshConfig) error {
 }
 func (f *fakeDriver) Close() error { f.closed++; return nil }
 func (f *fakeDriver) Name() string { return "fake" }
+func (f *fakeDriver) MeshIP() string { return "" }
 
 func TestNewHandlerDefaultDriver(t *testing.T) {
 	h := NewHandler("agent-1", nil, nil, nil)

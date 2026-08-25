@@ -32,6 +32,9 @@ func (d *noopDriver) Close() error { return nil }
 // Name returns "noop".
 func (d *noopDriver) Name() string { return "noop" }
 
+// MeshIP returns "" — the noop driver has no interface.
+func (d *noopDriver) MeshIP() string { return "" }
+
 // defaultDriver returns the build's default WireGuardDriver.
 func defaultDriver(log *slog.Logger) WireGuardDriver {
 	if log == nil {

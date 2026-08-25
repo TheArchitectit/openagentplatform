@@ -58,6 +58,13 @@ type MeshConfig struct {
 	PeerAllowedIPs []string `json:"peer_allowed_ips,omitempty"`
 	// PersistentKeepalive seconds; 0 disables the keepalive.
 	PersistentKeepalive int `json:"persistent_keepalive,omitempty"`
+
+	// CACert is the PEM-encoded SSH CA public key. When present, the agent
+	// starts an SSH server on the mesh tunnel IP that accepts only certs
+	// signed by this CA.
+	CACert string `json:"ca_cert,omitempty"`
+	// SSHPort overrides the default SSH listen port (22) inside the mesh.
+	SSHPort int `json:"ssh_port,omitempty"`
 }
 
 // MeshConfigResult is the acknowledgement / bring-up status the agent
@@ -215,4 +222,6 @@ type WireGuardDriver interface {
 	Close() error
 	// Name identifies the driver implementation for status reporting.
 	Name() string
+	// MeshIP returns the agent's mesh tunnel address, or "" if not up.
+	MeshIP() string
 }
