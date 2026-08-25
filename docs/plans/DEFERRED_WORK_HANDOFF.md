@@ -94,8 +94,8 @@ F0. Baseline (v1.2.0) — established
 | 5 | RMM-04 — Reboot coordination | RMM-00 + approved reboot command contract | **COMPLETE** (implemented and verified in-tree) |
 | 6 | RMM-05 — CVE-to-patch correlation | RMM-00 + source/provenance decisions | **COMPLETE** (NVD source approved, implemented and verified in-tree) |
 | 7 | RMM-06 — Scheduled automation decision gate | RMM-00 + approved scheduling grammar | DEFERRED (scheduling grammar deferred; focus on tunnel fabric first) |
-| 8 | RMM-07 — Agent self-update decision gate | RMM-00 + trust/rollout/transport decisions | DECISION RECORDED (WireGuard mesh + Ed25519 signing; merged with RMM-08) |
-| 9 | RMM-08 — VNC/RDP decision gate | RMM-00 + binary transport/consent/security decisions | DECISION RECORDED (WireGuard mesh data plane; merged with RMM-07) |
+| 8 | RMM-07 — Agent self-update decision gate | RMM-00 + trust/rollout/transport decisions | **COMPLETE** (merged into RMM-09, shipped `5ea6076`) |
+| 9 | RMM-08 — VNC/RDP decision gate | RMM-00 + binary transport/consent/security decisions | **COMPLETE** (merged into RMM-09, shipped `5ea6076`) |
 
 ### 3.2 RELAY Track Order
 
@@ -160,8 +160,8 @@ Silently skipping a transition is a protocol violation.
 | RMM-04 | `RMM-04_REBOOT_COORDINATION.md` | Reboot coordination | **COMPLETE** (implemented and verified in-tree) |
 | RMM-05 | `RMM-05_CVE_CORRELATION.md` | CVE-to-patch correlation | **COMPLETE** (NVD source approved, implemented and verified in-tree) |
 | RMM-06 | `RMM-06_SCHEDULED_AUTOMATION_DECISION.md` | Scheduled automation decision gate | DEFERRED (grammar decision postponed) |
-| RMM-07 | `RMM-07_AGENT_SELF_UPDATE_DECISION.md` | Agent self-update decision gate | DECISION RECORDED (WireGuard mesh + Ed25519; merged w/ RMM-08) |
-| RMM-08 | `RMM-08_VNC_RDP_DECISION.md` | VNC/RDP decision gate | DECISION RECORDED (WireGuard mesh data plane; merged w/ RMM-07) |
+| RMM-07 | `RMM-07_AGENT_SELF_UPDATE_DECISION.md` | Agent self-update decision gate | **COMPLETE** (merged into RMM-09, shipped `5ea6076`) |
+| RMM-08 | `RMM-08_VNC_RDP_DECISION.md` | VNC/RDP decision gate | **COMPLETE** (merged into RMM-09, shipped `5ea6076`) |
 
 ### 5.2 RELAY-00..06
 
