@@ -47,6 +47,18 @@ func (f *fakeKBStore) IngestKBRebootDone(ctx context.Context, orgID, agentID str
 	return f.rebootErr
 }
 
+func (f *fakeKBStore) PatchCatalogUpdateCVEIDs(ctx context.Context, orgID, kb string, cveIDs []string) error {
+	return nil
+}
+
+func (f *fakeKBStore) LookupCVEsByKB(ctx context.Context, orgID, kb string) ([]models.CVEEnrichment, error) {
+	return nil, nil
+}
+
+func (f *fakeKBStore) PatchCatalogUpdateCVSS(ctx context.Context, orgID, kb string, cvssScore *float64) error {
+	return nil
+}
+
 // fakeResolver returns a fixed org for any agent id.
 type fakeResolver struct {
 	orgID string

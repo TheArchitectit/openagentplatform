@@ -17,8 +17,10 @@ import (
 // handler. Only GetKBStatesByAgent is exercised by the handler; the other
 // methods are stubbed out.
 type fakePatchStore struct {
-	states []models.WinUpdateKBState
-	err    error
+	states    []models.WinUpdateKBState
+	cves      []models.CVEEnrichment
+	kbMatches []patches.CVEKBMatch
+	err       error
 }
 
 func (f *fakePatchStore) CreatePatchJob(ctx context.Context, job *models.PatchJob) error {
@@ -74,6 +76,43 @@ func (f *fakePatchStore) GetKBStatesByAgent(ctx context.Context, orgID, agentID 
 	for _, s := range f.states {
 		if s.OrgID == orgID && (agentID == "" || s.AgentID == agentID) {
 			out = append(out, s)
+		}
+	}
+	return out, nil
+}
+func (f *fakePatchStore) UpsertCVEEnrichment(ctx context.Context, cve *models.CVEEnrichment) error {
+	return nil
+}
+func (f *fakePatchStore) GetCVEEnrichment(ctx context.Context, cveID string) (*models.CVEEnrichment, error) {
+	return nil, nil
+}
+func (f *fakePatchStore) ListCVEEnrichments(ctx context.Context, limit int) ([]models.CVEEnrichment, error) {
+	return nil, nil
+}
+func (f *fakePatchStore) PatchCatalogUpdateCVEIDs(ctx context.Context, orgID, kb string, cveIDs []string) error {
+	return nil
+}
+func (f *fakePatchStore) PatchCatalogUpdateCVSS(ctx context.Context, orgID, kb string, cvssScore *float64) error {
+	return nil
+}
+func (f *fakePatchStore) LookupCVEsByKB(ctx context.Context, orgID, kb string) ([]models.CVEEnrichment, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	var out []models.CVEEnrichment
+	for _, e := range f.cves {
+		out = append(out, e)
+	}
+	return out, nil
+}
+func (f *fakePatchStore) LookupKBsByCVE(ctx context.Context, orgID, cveID string) ([]patches.CVEKBMatch, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	var out []patches.CVEKBMatch
+	for _, m := range f.kbMatches {
+		if m.KB != "" {
+			out = append(out, m)
 		}
 	}
 	return out, nil

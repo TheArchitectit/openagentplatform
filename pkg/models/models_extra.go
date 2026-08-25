@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -98,6 +99,24 @@ type PatchStats struct {
 	PendingApproval int            `json:"pending_approval"`
 	RecentFailures  int            `json:"recent_failures_24h"`
 	AvgApprovalTime float64        `json:"avg_approval_time_hours"`
+}
+
+// CVEEnrichment holds NVD-sourced metadata for a CVE record. It is
+// populated by the NVD ingest service and used for CVSS scores and
+// descriptions. The patch_catalog.cve_ids JSONB column stores the
+// CVE IDs associated with each KB; this table provides the detail.
+type CVEEnrichment struct {
+	ID             string           `json:"id"`
+	CVEID          string           `json:"cve_id"`
+	Source         string           `json:"source"`
+	CvssV3Score    *float64         `json:"cvss_v3_score,omitempty"`
+	CvssV3Severity string           `json:"cvss_v3_severity,omitempty"`
+	Description    string           `json:"description,omitempty"`
+	PublishedDate  *time.Time       `json:"published_date,omitempty"`
+	LastModified   *time.Time       `json:"last_modified,omitempty"`
+	RawData        json.RawMessage  `json:"raw_data,omitempty"`
+	CreatedAt      time.Time        `json:"created_at"`
+	UpdatedAt      time.Time        `json:"updated_at"`
 }
 
 // ScriptDefinition is a reusable, named script that can be enqueued for

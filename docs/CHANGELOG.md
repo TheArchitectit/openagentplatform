@@ -8,6 +8,50 @@ for the BSL-licensed releases.
 
 ---
 
+## [Unreleased] - 2026-08-24 -- RMM-05 CVE-to-Patch Correlation
+
+### Added
+
+- **CVE enrichment table** (`cve_enrichment`, migration `0014_rmm05_cve_enrichment`):
+  stores NVD-sourced CVE metadata (CVSS v3 score/severity, description,
+  published/modified dates, raw JSONB). UNIQUE on `cve_id`; indexed on
+  `cve_id` and `cvss_v3_severity`.
+- **`cvss_score` column on `patch_catalog`** (migration 0014): the max CVSS
+  v3 score across all CVEs associated with a KB, for quick sorting/filtering
+  without joining. Indexed.
+- **CVE store methods** (`internal/patches/store_cve.go`):
+  `UpsertCVEEnrichment` (idempotent via ON CONFLICT), `GetCVEEnrichment`,
+  `ListCVEEnrichments`, `PatchCatalogUpdateCVEIDs`, `PatchCatalogUpdateCVSS`,
+  `LookupCVEsByKB` (CVEs for a KB, org-scoped), `LookupKBsByCVE` (KBs for a
+  CVE, org-scoped, 200-row cap).
+- **NVD ingest service** (`internal/patches/nvd_ingest.go`):
+  `NVDIngester` fetches CVEs from the NVD API v2.0 and upserts them.
+  Configurable API key, base URL, timeout, page size. Callable from a
+  future scheduler or on-demand — no background loop (scheduler deferred).
+- **CVE-KB enrichment from agent scans** (`internal/patches/kb_ingest.go`):
+  `enrichCVEMapping` called at the end of `handleScan` — if the scan result
+  provides `CVEIDs` on `PatchInfo`, populates `patch_catalog.cve_ids` and
+  computes the max CVSS score. Best-effort (logs on failure, does not abort
+  scan ingest).
+- **CVE↔KB lookup API endpoint** `GET /api/v1/patches/cve`
+  (`handleLookupCVE`): exactly one of `?kb=` or `?cve=` required. Returns
+  CVEs for a KB or KBs for a CVE, org-scoped. Read-only, any authenticated
+  org member, no licensing gate.
+
+### Decisions
+
+- **CVE data source:** NVD (NIST), approved by user. Daily refresh cadence
+  (scheduler deferred).
+
+### Notes
+
+- Background scheduler for daily NVD refresh not included (deferred per
+  sprint spec Step 5 "optional"). `NVDIngester.IngestCVEs` is the callable
+  entry point.
+- No `rmm.winupdate.*` subjects introduced (forbidden by spec).
+
+---
+
 ## [Unreleased] - 2026-08-24 -- RMM-04 Reboot Coordination
 
 ### Added

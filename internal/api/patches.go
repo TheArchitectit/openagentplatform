@@ -479,6 +479,69 @@ func (s *Server) handleScheduleReboot(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleLookupCVE returns CVE↔KB correlation results. The query param
+// determines the lookup direction:
+//   - ?kb=KB123456 → CVEs for that KB
+//   - ?cve=CVE-2024-12345 → KBs that fix that CVE
+//
+// Exactly one of kb or cve must be provided. The endpoint is read-only
+// and available to any authenticated org member (no licensing gate, no
+// role gate). The store methods enforce org-scoping in their WHERE
+// clauses, so cross-tenant data cannot leak.
+func (s *Server) handleLookupCVE(w http.ResponseWriter, r *http.Request) {
+	if s.patchStore == nil {
+		http.Error(w, `{"error":"patch_store_not_configured"}`, http.StatusServiceUnavailable)
+		return
+	}
+	claims, ok := auth.UserFromContext(r.Context())
+	if !ok || claims == nil || claims.OrgID == "" {
+		http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
+		return
+	}
+	kb := r.URL.Query().Get("kb")
+	cve := r.URL.Query().Get("cve")
+	if kb == "" && cve == "" {
+		http.Error(w, `{"error":"kb or cve query parameter required"}`, http.StatusBadRequest)
+		return
+	}
+	if kb != "" && cve != "" {
+		http.Error(w, `{"error":"provide kb or cve, not both"}`, http.StatusBadRequest)
+		return
+	}
+	orgID := claims.OrgID
+	w.Header().Set("Content-Type", "application/json")
+	if kb != "" {
+		cves, err := s.patchStore.LookupCVEsByKB(r.Context(), orgID, kb)
+		if err != nil {
+			s.log.Error("cve lookup by kb failed", "kb", kb, "err", err)
+			http.Error(w, `{"error":"internal"}`, http.StatusInternalServerError)
+			return
+		}
+		if cves == nil {
+			cves = []models.CVEEnrichment{}
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"cves":  cves,
+			"total": len(cves),
+		})
+		return
+	}
+	// cve lookup
+	matches, err := s.patchStore.LookupKBsByCVE(r.Context(), orgID, cve)
+	if err != nil {
+		s.log.Error("kb lookup by cve failed", "cve", cve, "err", err)
+		http.Error(w, `{"error":"internal"}`, http.StatusInternalServerError)
+		return
+	}
+	if matches == nil {
+		matches = []patches.CVEKBMatch{}
+	}
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"patches": matches,
+		"total":   len(matches),
+	})
+}
+
 // errCrossOrgAgent is returned by checkAgentOrg when the requested agent
 // does not belong to the caller's org.
 var errCrossOrgAgent = errors.New("agent does not belong to org")

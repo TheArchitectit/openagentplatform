@@ -219,6 +219,11 @@ func (s *Server) mountAPISubRoutes(r chi.Router) {
 		// Per-KB WinUpdate state (RMM-03). Read-only; available to any
 		// authenticated org member. No licensing gate, no role gate.
 		r.Get("/kb", s.handleGetKBBatch)
+		// CVE↔KB correlation (RMM-05). Read-only; available to any
+		// authenticated org member. No licensing gate, no role gate.
+		// Query: ?kb=KB123456 (CVEs for KB) or ?cve=CVE-2024-12345
+		// (KBs that fix the CVE).
+		r.Get("/cve", s.handleLookupCVE)
 		// Reboot coordination (RMM-04). Enqueues a staggered reboot
 		// directive for the listed agents. Elevated role required.
 		// Mounted before the /{id} group so chi matches the static

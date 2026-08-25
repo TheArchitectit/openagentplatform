@@ -35,6 +35,11 @@ type kbIngestStore interface {
 	IngestKBScan(ctx context.Context, orgID, agentID, kb, severity string) (string, error)
 	IngestKBInstall(ctx context.Context, orgID, agentID, kb string, success, rebootRequired bool, errMsg string) (string, error)
 	IngestKBRebootDone(ctx context.Context, orgID, agentID string, kbs []string) error
+
+	// CVE enrichment (RMM-05).
+	PatchCatalogUpdateCVEIDs(ctx context.Context, orgID, kb string, cveIDs []string) error
+	LookupCVEsByKB(ctx context.Context, orgID, kb string) ([]models.CVEEnrichment, error)
+	PatchCatalogUpdateCVSS(ctx context.Context, orgID, kb string, cvssScore *float64) error
 }
 
 // NewKBConsumer builds a consumer. The resolver may not be nil; a nil
@@ -141,6 +146,12 @@ func (c *KBConsumer) handleScan(msg *nats.Msg) {
 				"agent_id", env.AgentID, "kb", kb, "err", err)
 		}
 	}
+
+	// CVE-KB correlation (RMM-05): if the scan result provides CVE IDs,
+	// populate patch_catalog.cve_ids and compute the max CVSS score for
+	// the KB from the enrichment table. Failures are logged and skipped;
+	// they do not abort the scan ingest.
+	c.enrichCVEMapping(context.Background(), orgID, env.Patches)
 }
 
 func (c *KBConsumer) handleInstall(msg *nats.Msg) {
@@ -208,5 +219,36 @@ func (c *KBConsumer) handleRebootDone(msg *nats.Msg) {
 	if err := c.store.IngestKBRebootDone(context.Background(), orgID, env.AgentID, env.KBs); err != nil {
 		c.log.Warn("kb reboot_done: ingest failed",
 			"agent_id", env.AgentID, "kbs", env.KBs, "err", err)
+	}
+}
+
+// enrichCVEMapping updates the patch_catalog cve_ids for the given
+// KB if the scan result provides CVE IDs, and computes the max CVSS
+// score from the enrichment table.
+func (c *KBConsumer) enrichCVEMapping(ctx context.Context, orgID string, patches []patcher.PatchInfo) {
+	for _, p := range patches {
+		if p.KBID == "" || len(p.CVEIDs) == 0 {
+			continue
+		}
+		if err := c.store.PatchCatalogUpdateCVEIDs(ctx, orgID, p.KBID, p.CVEIDs); err != nil {
+			c.log.Warn("cve: update cve_ids failed", "kb", p.KBID, "err", err)
+			continue
+		}
+		// Compute max CVSS score for this KB.
+		cves, err := c.store.LookupCVEsByKB(ctx, orgID, p.KBID)
+		if err != nil {
+			c.log.Warn("cve: lookup cves failed", "kb", p.KBID, "err", err)
+			continue
+		}
+		var maxScore float64
+		for _, cve := range cves {
+			if cve.CvssV3Score != nil && *cve.CvssV3Score > maxScore {
+				maxScore = *cve.CvssV3Score
+			}
+		}
+		if maxScore > 0 {
+			score := maxScore
+			_ = c.store.PatchCatalogUpdateCVSS(ctx, orgID, p.KBID, &score)
+		}
 	}
 }

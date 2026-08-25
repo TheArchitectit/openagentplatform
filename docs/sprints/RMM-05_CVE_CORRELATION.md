@@ -7,7 +7,7 @@ look-up endpoint the web UI already expects. Build-ready once the data-source
 decision (spec §10.7) is approved.
 **Priority:** P1 (Blocking)
 **Estimated Effort:** 6-9 hours
-**Status:** PENDING — gated on open decision 10.7 (CVE source + cadence)
+**Status:** COMPLETE
 **Dependencies:** RMM-03 (per-KB patch state to match against)
 
 ---
@@ -114,6 +114,32 @@ git status   # confirm clean
 | 3 | cve_ids populated on right KB | match test | KB↔CVE mapping correct per (org, kb) |
 | 4 | Look-up endpoint returns mappings | API test | CVE→KB and KB→CVE as UI expects |
 | 5 | Additive migration only | up/down | No alteration of existing patch tables |
+
+## Completion Record
+
+- **CVE source decision:** NVD (NIST) — approved by user, 2026-08-24. API v2.0 at `https://services.nvd.nist.gov/rest/json/cves/2.0`. Daily refresh cadence (scheduler deferred).
+- **Acceptance criteria verification:**
+  1. ✅ NVD chosen and recorded above
+  2. ✅ UpsertCVEEnrichment is idempotent via ON CONFLICT (TestUpsertCVEEnrichment_Idempotent)
+  3. ✅ PatchCatalogUpdateCVEIDs sets cve_ids on the right (org, kb); enrichCVEMapping called from KBConsumer.handleScan
+  4. ✅ GET /api/v1/patches/cve?kb=... returns CVEs; ?cve=... returns KBs (5 API tests)
+  5. ✅ Migration 0014 is additive: new cve_enrichment table + cvss_score column on patch_catalog (no ALTER of existing columns except adding cvss_score)
+- **New files:**
+  - `py/alembic/versions/0014_rmm05_cve_enrichment.py` — cve_enrichment table + cvss_score on patch_catalog
+  - `internal/patches/store_cve.go` — CVE store methods (5 tests)
+  - `internal/patches/store_cve_test.go`
+  - `internal/patches/nvd_ingest.go` — NVD API v2.0 ingest service (no scheduler)
+  - `internal/api/cve_test.go` — API endpoint tests (5 tests)
+- **Modified files:**
+  - `pkg/models/models_extra.go` — CVEEnrichment model
+  - `internal/patches/store_types.go` — Store interface + CVEKBMatch struct
+  - `internal/patches/kb_ingest.go` — enrichCVEMapping, kbIngestStore extended
+  - `internal/patches/kb_ingest_test.go` — fakeKBStore extended
+  - `internal/api/patches.go` — handleLookupCVE
+  - `internal/api/routes_sub.go` — GET /patches/cve route
+  - `internal/api/kb_patch_test.go` — fakePatchStore extended
+- **Deferred:** Background scheduler for daily NVD refresh (Step 5 of sprint spec). NVDIngester.IngestCVEs is callable from a future scheduler or on-demand.
+- **No `rmm.winupdate.*` subjects** (forbidden by spec)
 
 ## Reference
 

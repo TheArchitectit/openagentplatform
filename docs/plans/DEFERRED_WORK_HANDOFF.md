@@ -92,7 +92,7 @@ F0. Baseline (v1.2.0) — established
 | 3 | RMM-02 — Fleet alert-suppression maintenance windows | RMM-00 + window/precedence decisions | **COMPLETE** (shipped `4cf3602`) |
 | 4 | RMM-03 — Windows Update per-KB lifecycle | RMM-00 + state/identity decisions | **COMPLETE** (implemented and verified in-tree) |
 | 5 | RMM-04 — Reboot coordination | RMM-00 + approved reboot command contract | **COMPLETE** (implemented and verified in-tree) |
-| 6 | RMM-05 — CVE-to-patch correlation | RMM-00 + source/provenance decisions |
+| 6 | RMM-05 — CVE-to-patch correlation | RMM-00 + source/provenance decisions | **COMPLETE** (NVD source approved, implemented and verified in-tree) |
 | 7 | RMM-06 — Scheduled automation decision gate | RMM-00 + approved scheduling grammar |
 | 8 | RMM-07 — Agent self-update decision gate | RMM-00 + trust/rollout/transport decisions |
 | 9 | RMM-08 — VNC/RDP decision gate | RMM-00 + binary transport/consent/security decisions |
@@ -158,7 +158,7 @@ Silently skipping a transition is a protocol violation.
 | RMM-02 | `RMM-02_ALERT_MAINTENANCE_WINDOWS.md` | Fleet alert-suppression windows | **COMPLETE** (shipped `4cf3602`) |
 | RMM-03 | `RMM-03_WINUPDATE_STATE_MACHINE.md` | Windows Update per-KB lifecycle | **COMPLETE** (implemented and verified in-tree) |
 | RMM-04 | `RMM-04_REBOOT_COORDINATION.md` | Reboot coordination | **COMPLETE** (implemented and verified in-tree) |
-| RMM-05 | `RMM-05_CVE_CORRELATION.md` | CVE-to-patch correlation | PENDING |
+| RMM-05 | `RMM-05_CVE_CORRELATION.md` | CVE-to-patch correlation | **COMPLETE** (NVD source approved, implemented and verified in-tree) |
 | RMM-06 | `RMM-06_SCHEDULED_AUTOMATION_DECISION.md` | Scheduled automation decision gate | PENDING (blocked: §10.2 grammar) |
 | RMM-07 | `RMM-07_AGENT_SELF_UPDATE_DECISION.md` | Agent self-update decision gate | PENDING (blocked: §10.5 trust) |
 | RMM-08 | `RMM-08_VNC_RDP_DECISION.md` | VNC/RDP decision gate | PENDING (blocked: §10.8 data plane) |

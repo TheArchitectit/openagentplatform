@@ -49,6 +49,24 @@ type Store interface {
 	IngestKBRebootDone(ctx context.Context, orgID, agentID string, kbs []string) error
 	TransitionKB(ctx context.Context, orgID, agentID, kb, event string) (string, error)
 	GetKBStatesByAgent(ctx context.Context, orgID, agentID string) ([]models.WinUpdateKBState, error)
+
+	// CVE enrichment (RMM-05).
+	UpsertCVEEnrichment(ctx context.Context, cve *models.CVEEnrichment) error
+	GetCVEEnrichment(ctx context.Context, cveID string) (*models.CVEEnrichment, error)
+	ListCVEEnrichments(ctx context.Context, limit int) ([]models.CVEEnrichment, error)
+	PatchCatalogUpdateCVEIDs(ctx context.Context, orgID, kb string, cveIDs []string) error
+	PatchCatalogUpdateCVSS(ctx context.Context, orgID, kb string, cvssScore *float64) error
+	LookupCVEsByKB(ctx context.Context, orgID, kb string) ([]models.CVEEnrichment, error)
+	LookupKBsByCVE(ctx context.Context, orgID, cveID string) ([]CVEKBMatch, error)
+}
+
+// CVEKBMatch represents a CVE→KB correlation result.
+type CVEKBMatch struct {
+	KB        string   `json:"kb"`
+	Title     string   `json:"title,omitempty"`
+	Severity  string   `json:"severity,omitempty"`
+	CVEIDs    []string `json:"cve_ids"`
+	CvssScore *float64 `json:"cvss_score,omitempty"`
 }
 
 // patchPoolConn is the minimal pgx surface used by pgPatchStore. It is
