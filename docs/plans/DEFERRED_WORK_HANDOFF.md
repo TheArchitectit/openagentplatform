@@ -103,11 +103,11 @@ F0. Baseline (v1.2.0) — established
 |------:|------|------------|
 | 1 | RELAY-00 — Architecture and security decisions | F0 (established) |
 | 2 | RELAY-01 — Binary/config/deployment foundation; fail-closed WSS | RELAY-00 |
-| 3 | RELAY-02 — Issued identity and entitlement decision gate | RELAY-00; blocks admission |
+| 3 | RELAY-02 — Issued identity and entitlement decision gate | RELAY-00; I.3 resolved (layered mTLS + bearer token) |
 | 4 | RELAY-03 — WSS rendezvous decision + contingent forwarding | RELAY-01 + approved/implemented RELAY-02 |
 | 5 | RELAY-04 — Secure metering/observability contract | RELAY-03 + operator API decisions |
-| 6 | RELAY-05 — Discovery federation decision gate | RELAY-01..04 + D.2 approval |
-| 7 | RELAY-06 — E2E/private/load acceptance | RELAY-01..05 + I.3/D.2/E.4 approval |
+| 6 | RELAY-05 — Discovery federation decision gate | RELAY-01..04; D.2 resolved (gRPC discovery service) |
+| 7 | RELAY-06 — E2E/private/load acceptance | RELAY-01..05; I.3/D.2/E.4 resolved |
 
 ### 3.3 Cross-Track Rule
 
@@ -169,11 +169,11 @@ Silently skipping a transition is a protocol violation.
 |----|----------|-------|--------|
 | RELAY-00 | `RELAY-00_ARCHITECTURE_SECURITY.md` | Architecture/security outcomes and blockers | PENDING |
 | RELAY-01 | `RELAY-01_BINARY_CONFIG_DEPLOYMENT.md` | Fail-closed WSS binary/config/deployment foundation | PENDING |
-| RELAY-02 | `RELAY-02_ISSUED_IDENTITY_ENTITLEMENT.md` | Identity/credential/entitlement decision gate | PENDING (blocked: I.3) |
-| RELAY-03 | `RELAY-03_WSS_MATCHING_FORWARDING.md` | Rendezvous decisions + contingent forwarding | PENDING (blocked: D.2) |
+| RELAY-02 | `RELAY-02_ISSUED_IDENTITY_ENTITLEMENT.md` | Identity/credential/entitlement decision gate | PENDING (I.3 resolved — layered mTLS + bearer token) |
+| RELAY-03 | `RELAY-03_WSS_MATCHING_FORWARDING.md` | Rendezvous decisions + contingent forwarding | PENDING (I.3/D.2 resolved) |
 | RELAY-04 | `RELAY-04_METERING_OBSERVABILITY.md` | Secure operator metering/observability contract | PENDING |
-| RELAY-05 | `RELAY-05_DISCOVERY.md` | Discovery federation decision gate | PENDING (blocked: D.2) |
-| RELAY-06 | `RELAY-06_E2E_PRIVATE_LOAD.md` | Gated E2E/private/load acceptance | PENDING (blocked: I.3/D.2/E.4) |
+| RELAY-05 | `RELAY-05_DISCOVERY.md` | Discovery federation decision gate | PENDING (D.2 resolved — gRPC discovery service) |
+| RELAY-06 | `RELAY-06_E2E_PRIVATE_LOAD.md` | Gated E2E/private/load acceptance | PENDING (I.3/D.2/E.4 resolved) |
 
 ### 5.3 Operational Deferred Item — Spec-Review Bundle Publication
 

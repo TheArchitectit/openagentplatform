@@ -8,7 +8,7 @@ federation, and the E2E/private/load acceptance stage. Confirm the accounting-co
 baseline and record every unapproved choice as an explicit blocker.
 **Priority:** P1 (Blocking)
 **Estimated Effort:** 45-60 minutes
-**Status:** PENDING
+**Status:** APPROVED (decision gate populated 2026-08-25; downstream RELAY-01..06 await per-sprint go-ahead)
 
 ---
 
@@ -103,29 +103,54 @@ sprint must pass; a sprint that needs a decision absent here is BLOCKED.
 |---|----------|--------|--------|
 | R | WSS rendezvous (agents connect over WSS; relay matches legs) | APPROVED | RELAY-01/03 |
 | R | Dedicated `cmd/relay` binary, NOT wired into `cmd/server` (W8) | APPROVED | RELAY-01 |
-| I | Issued identity + entitlement is required before admission | OUTCOME APPROVED; MECHANISM BLOCKED by I.3 | RELAY-02 |
-| D | Discovery federation is a product outcome | OUTCOME APPROVED; SEMANTICS BLOCKED by D.2 | RELAY-05 |
-| E | E2E/private/load acceptance is required | OUTCOME APPROVED; EXECUTION BLOCKED by I.3/D.2/E.4 | RELAY-06 |
+| I | Issued identity + entitlement is required before admission | APPROVED (I.3 resolved; layered mTLS + bearer token) | RELAY-02 |
+| D | Discovery federation is a product outcome | APPROVED (D.2 resolved; dedicated gRPC discovery service) | RELAY-05 |
+| E | E2E/private/load acceptance is required | APPROVED (E.4 resolved; blind forwarder) | RELAY-06 |
 | — | Raw TCP byte forwarder | **UNAPPROVED** | blocked |
+
+#### Resolved mechanisms (formerly BLOCKED) — recorded 2026-08-25
+
+- **I.3 — Identity presentation (RESOLVED → layered):** Two layers.
+  - *Layer 1 (mTLS, RMM-09 Ed25519 CA):* agents present a client cert chained to
+    the platform Ed25519 CA, principal `oap:<agentID>`. The relay terminates WSS
+    and proves *who* is connecting at the socket layer (R.3 admission).
+  - *Layer 2 (signed bearer token):* each rendezvous request also carries a
+    short-lived token (agent ID + target + expiry, signed by the platform key).
+    The relay verifies it for *entitlement* (I.1/I.2 — authorization to reach the
+    target). mTLS = authentication; token = authorization. Not redundant: they
+    answer different questions. Reuses the shipped RMM-09 CA + cert model.
+- **D.2 — Discovery wire protocol / federation (RESOLVED → dedicated gRPC):**
+  a standalone gRPC discovery service carrying capability/agent records, with an
+  explicit federation handshake between relay instances. Clean contract boundary;
+  does not reuse the NATS bus (separate service by choice).
+- **E.4 — Relay-blind payloads (RESOLVED → blind forwarder):** agents establish
+  session keys *out-of-band* (WireGuard/SSH model from RMM-09); the relay only
+  ever moves ciphertext it cannot decrypt. Zero payload attack surface on the
+  relay. This is the strongest option (per-leg DTLS adds handshake attack surface;
+  relay-readable payloads contradict the spec's stated intent). Reuses the RMM-09
+  data-plane model.
 
 ### STEP 3: Record blockers (unapproved choices)
 
 The following MUST remain unimplemented until a dedicated design exists; any
 sprint found inventing one is in scope violation:
-- **Identity-presentation cryptography (spec I.3)** — how an issued identity is
-  cryptographically presented/verified (mTLS vs. token vs. other).
-- **End-to-end encryption mechanism (spec E.4)** — how the relay is kept from
-  reading payload secrets.
-- **Discovery wire protocol / federation semantics (spec D.2)**.
+- ~~**Identity-presentation cryptography (spec I.3)**~~ — **RESOLVED 2026-08-25**
+  (layered mTLS + signed bearer token; see §STEP 2). RELAY-02 may proceed.
+- ~~**End-to-end encryption mechanism (spec E.4)**~~ — **RESOLVED 2026-08-25**
+  (blind forwarder; see §STEP 2). RELAY-06 is unblocked.
+- ~~**Discovery wire protocol / federation semantics (spec D.2)**~~ —
+  **RESOLVED 2026-08-25** (dedicated gRPC discovery service; see §STEP 2).
+  RELAY-05 may proceed.
 - **Rendezvous handshake and matching semantics** — fields, namespace and tenant
   binding, pairing lifecycle, timeouts, duplicate policy, and close/error behavior.
 - **Operator API security and metric contracts** — authentication, authorization,
   listener binding, tenant visibility, metric names, and units.
 - **TLS/WSS test certificates** — generate at test time only; commit none.
 
-RELAY-02 through RELAY-06 MUST stop at their decision gates until every mechanism
-they depend on is approved. Approved outcomes are not authorization to invent the
-implementation contract.
+RELAY-02, RELAY-03, RELAY-05, and RELAY-06 are now unblocked. RELAY-01 and
+RELAY-04 were never blocked. Each sprint still passes through its own decision
+gate before building; approved outcomes are not authorization to invent an
+implementation contract that conflicts with §STEP 2.
 
 ---
 

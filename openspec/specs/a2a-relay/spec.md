@@ -176,9 +176,13 @@ target/tenant) before matching. This is the "not an open forwarder" property.
 I.2. `[PLANNED]` Unknown identities and denied entitlements MUST be rejected at
 admission and never registered, mirroring the empty-id rejection (3.3).
 
-I.3. `[BLOCKED]` The cryptographic mechanism by which an identity is presented
-and verified (mTLS vs. token vs. another scheme) is UNAPPROVED and MUST be the
-subject of a dedicated authentication design before implementation.
+I.3. `[PLANNED]` The cryptographic mechanism by which an identity is presented
+and verified is **RESOLVED 2026-08-25 as layered mTLS + signed bearer token**:
+agents present a client cert chained to the platform Ed25519 CA (principal
+`oap:<agentID>`) at WSS admission (transport authentication, R.3), and each
+rendezvous request carries a short-lived signed token (agent ID + target +
+expiry) for entitlement (I.1/I.2). mTLS = authentication; token = authorization.
+Reuses the RMM-09 Ed25519 CA + cert model.
 
 #### 7.3 Discovery Federation
 
@@ -186,8 +190,10 @@ D.1. `[PLANNED]` The relay MUST expose capability/agent discovery and MUST
 federate discovery records across relays so agents in different tenants or
 networks can resolve each other.
 
-D.2. `[BLOCKED]` The discovery wire protocol and federation semantics are
-UNAPPROVED pending a dedicated design; do not invent them.
+D.2. `[PLANNED]` The discovery wire protocol and federation semantics are
+**RESOLVED 2026-08-25 as a dedicated gRPC discovery service** with an explicit
+federation handshake between relay instances. Standalone service (does not reuse
+the NATS bus by choice); carries capability/agent records across tenants/networks.
 
 #### 7.4 E2E / Private / Load Acceptance
 
@@ -201,9 +207,11 @@ admitted.
 E.3. `[PLANNED]` A **load stage** validating per-tenant limits and metering
 under concurrency.
 
-E.4. `[BLOCKED]` End-to-end ENCRYPTION so the relay cannot read payload secrets
-(the package comment's claim) — the mechanism is UNAPPROVED and MUST resolve in
-a dedicated design; the load/E2E stage gates on it rather than implementing it.
+E.4. `[PLANNED]` End-to-end ENCRYPTION so the relay cannot read payload secrets
+is **RESOLVED 2026-08-25 as a blind forwarder**: agents establish session keys
+out-of-band (WireGuard/SSH model from RMM-09); the relay only ever moves
+ciphertext it cannot decrypt. Zero payload attack surface on the relay. The
+load/E2E stage (RELAY-06) validates the relayed session end-to-end.
 
 ---
 
