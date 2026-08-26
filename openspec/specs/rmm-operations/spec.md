@@ -1,10 +1,12 @@
 # RMM Operations
 
 > **Phase:** 1 (Core RMM) — extends `rmm-core` §14 planned extensions
-> **STATUS: PLANNED** — the eight domains below are tracked parity gaps, scoped
-> and source-anchored here; five are build-ready (RMM-01..RMM-05) and three are
-> decision-gated (RMM-06..RMM-08). None of the domains is claimable as COMPLETE
-> until its linked sprint lands.
+> **STATUS: PARTIAL** — the eight domains below are tracked parity gaps, scoped
+> and source-anchored here. RMM-01..RMM-05 are COMPLETE (shipped); RMM-06 is DESIGN
+> APPROVED (cron grammar resolved 2026-08-25, build pending); RMM-07/08 were merged
+> into RMM-09 and shipped (`5ea6076`). The spec body is reconciled against shipped
+> code; remaining DEFERRED markers in §8/§9 are historical records of the original
+> decision-gate framing, now resolved.
 > **Source:** `docs/GAP_ANALYSIS_RMM_PLATFORM.md` (G-RMM-002/003/004),
 > `docs/QA_REVIEW_OPENSPEC_COVERAGE.md` P3 items 10–11,
 > `openspec/specs/rmm-core/spec.md` §14
@@ -107,18 +109,29 @@ migration already defines one.
 topics. Reuse the existing `oap.agents.<id>.patch_*` subjects or add a sibling
 under `oap.agents.<id>.` per open decision 10.1.
 
-### 3. Scheduled Automation (AutomatedTask) — DEFERRED (RMM-06)
+### 3. Scheduled Automation (AutomatedTask) — DESIGN APPROVED (RMM-06)
 
 3.1. An `automated_tasks` JSONB column already exists on `Policy`
 (`py/alembic/versions/0005_policies.py:38`). No scheduler or entity binds it.
 
-3.2. The blocker is a scheduling-grammar decision, not a build decision: the
-original blueprint specified a 21-bit `schedule_bitmask`; cron-style recurrence
-is the alternative. These are incompatible. This spec MUST NOT pick one
-(open decision 10.2).
+3.2. **Grammar decision resolved (open decision 10.2 → Resolved):** cron-style
+recurrence, reusing the `internal/reports/` scheduler convention (`cron_expr`
+TEXT, 30s tick loop, `computeNextRun`, `@hourly/@daily/@weekly/@monthly`
+aliases + `M H DoM Mon DoW` 5-field parser). The 21-bit `schedule_bitmask` is
+rejected — zero implementations exist in-tree, its encoding is undocumented, and
+cron is strictly more expressive and auditable. Decision record:
+`docs/sprints/RMM-06_SCHEDULED_AUTOMATION_DECISION.md`.
 
-3.3. DEFERRED: RMM-06 is a decision gate that produces an approved scheduling
-grammar and entity shape; execution follows only after approval.
+3.3. Each `automated_tasks` element is a cron-scheduled task object with a
+discriminated `action` union (`patch_deploy | reboot | script_run |
+check_enable`), an IANA `timezone` (default UTC), and a persisted `next_run_at`.
+`cron_expr` is validated against the existing report-parser and rejected on
+parse failure (fail-closed).
+
+3.4. IN scope (contingent build): a recurring dispatcher following the
+rmm-core §12 in-process loop convention and the `internal/reports/` tick pattern;
+idempotent (at-least-once) execution by `id` + `last_run_at` comparison. OUT of
+scope: arbitrary LLM agent workflow automation (ties to A2A).
 
 ### 4. Maintenance Windows (Fleet Alert Suppression) — IN (RMM-02)
 
@@ -211,29 +224,28 @@ that contract (OpenAPI/handler shape) before building it.
 and cadence are undecided — the sprint MUST resolve this before building the
 ingester.
 
-### 8. Agent Self-Update — DEFERRED (RMM-07)
+### 8. Agent Self-Update — COMPLETE (RMM-07 → merged into RMM-09, shipped `5ea6076`)
 
-8.1. The agent reports its version today (`AgentVersion` in
-`pkg/agent/register.go:24` and `pkg/agent/hostinfo.go:29`, surfaced by
-`cmd/agent/main.go -version`). No push/update mechanism exists (G-RMM-003).
+8.1. ~~The agent reports its version today ... No push/update mechanism exists.~~
+**Resolved.** RMM-09 ships Ed25519 self-update: `pkg/agent/mesh/updater.go`
+verifies a base64 Ed25519 signature over the binary's SHA-256 before applying.
+The trust model (open decision 10.5) is **Resolved** — Ed25519 + SHA-256 gate,
+security review pending.
 
-8.2. The blocker is a trust/signing model, which is a security-review
-dependency, not a build ticket. DEFERRED: RMM-07 resolves the trust model and
-update channel; execution follows only after a security decision (open decision
-10.5).
+8.2. The original RMM-07 framing (§8.2 in earlier versions) treated this as a
+decision gate; it was merged into RMM-09 and is now shipped.
 
-### 9. VNC/RDP Remote Protocols — DEFERRED (RMM-08)
+### 9. VNC/RDP Remote Protocols — COMPLETE (RMM-08 → merged into RMM-09, shipped `5ea6076`)
 
-9.1. Only SSH over a text-PTY NATS bridge is operational today
+9.1. Only SSH over a text-PTY NATS bridge was operational originally
 (`pkg/agent/shell/`, `internal/remote/natsbridge.go`, `shell_manager.go`). The
 agent also has a WinRM protocol branch, but it is an explicit PowerShell
-`Read-Host` stub pending a real library and credentials — it is not operational
-WinRM support. VNC/RDP are binary protocols; the text base64 I/O bridge cannot
-carry them without a new binary-capable proxy data plane.
+`Read-Host` stub pending a real library and credentials — not operational WinRM.
 
-9.2. DEFERRED: RMM-08 is the highest-risk decision gate — a new binary proxy
-data plane with no current code to anchor to. It resolves that design and MUST
-NOT invent one prematurely (open decision 10.8).
+9.2. ~~DEFERRED: RMM-08 is the highest-risk decision gate — a new binary proxy
+data plane ...~~ **Resolved.** RMM-08 was merged into RMM-09, which shipped VNC/RDP
+over **SSH port-forward** (design-only Step 6) — reusing the tunnel fabric instead
+of building a new binary proxy. Open decision 10.8 is **Resolved**.
 
 ### 10. Open Decisions (never invent)
 
@@ -242,14 +254,14 @@ MUST restate the relevant one and gate on a recorded approval before building:
 
 | # | Decision | Domains | Status |
 |---|----------|---------|--------|
-| 10.1 | Reuse `oap.agents.<id>.patch_*` vs add sibling subjects | WinUpdate, Reboot | Open; default is extending `oap.agents.<id>.` |
-| 10.2 | AutomatedTask scheduling grammar: cron vs 21-bit bitmask | AutomatedTask | Open — blocks RMM-06 |
+| 10.1 | Reuse `oap.agents.<id>.patch_*` vs add sibling subjects | WinUpdate, Reboot | **Resolved-by-implementation** — add sibling subjects under `oap.agents.<id>.` (`internal/events/checkdispatcher.go:136`, `pkg/agent/mesh/updater.go`) |
+| 10.2 | AutomatedTask scheduling grammar: cron vs 21-bit bitmask | AutomatedTask | **Resolved — cron approved** (reuse `internal/reports/` scheduler; bitmask rejected) |
 | 10.3 | Patch-maintenance ≠ alert-suppression (keep separate) | Maintenance | Resolved by this spec |
-| 10.4 | Offline SLA: binary vs graded + scoping | Offline SLA | Open; binary liveness stays, SLA rule is additive |
-| 10.5 | Self-update trust/signing model | Self-update | Open — needs security review |
-| 10.6 | Reboot ownership: server-coordinated vs agent /r | Reboot | Open |
-| 10.7 | CVE data source + cadence (NVD/OSV/MSRC) | CVE | Open |
-| 10.8 | VNC/RDP binary proxy data plane | VNC/RDP | Open — highest risk |
+| 10.4 | Offline SLA: binary vs graded + scoping | Offline SLA | **Resolved-by-implementation** — RMM-01 shipped binary-liveness + additive SLA rule (`6ff3a17`) |
+| 10.5 | Self-update trust/signing model | Self-update | **Resolved** (Ed25519 + SHA-256 gate, `pkg/agent/mesh/updater.go`) — security review pending |
+| 10.6 | Reboot ownership: server-coordinated vs agent /r | Reboot | **Resolved-by-implementation** — server-coordinated `PatchDeployer.CoordinateReboots` (RMM-04, `internal/api/patches.go:398`) |
+| 10.7 | CVE data source + cadence (NVD/OSV/MSRC) | CVE | **Resolved-by-implementation** — NVD source (RMM-05, `internal/patches/nvd_ingest.go`) |
+| 10.8 | VNC/RDP binary proxy data plane | VNC/RDP | **Resolved** — reuse SSH tunnel port-forward (RMM-08→09), not a new proxy |
 
 ### 11. Data Model and Migration Notes
 

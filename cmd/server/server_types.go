@@ -17,6 +17,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/policy"
 	"github.com/openagentplatform/openagentplatform/internal/reports"
 	"github.com/openagentplatform/openagentplatform/internal/resilience"
+	"github.com/openagentplatform/openagentplatform/internal/scheduled"
 	"github.com/openagentplatform/openagentplatform/internal/tenancy"
 	secretsauth "github.com/openagentplatform/openagentplatform/secrets/auth"
 	"github.com/openagentplatform/openagentplatform/secrets/inject"
@@ -44,6 +45,10 @@ type Server struct {
 	// reportScheduler runs scheduled report generation on a 30s tick.
 	// nil when the report schema could not be created (logged, non-fatal).
 	reportScheduler *reports.Scheduler
+	// scheduledScheduler runs scheduled automated tasks (RMM-06) on a 30s
+	// tick. nil when the scheduled schema could not be created (logged,
+	// non-fatal).
+	scheduledScheduler *scheduled.Scheduler
 	eventBridge     *bridge.Bridge
 	rpcBridge       *bridge.RPCBridge
 	// grpcServer serves the A2A gRPC transport on cfg.GRPCPort. nil when

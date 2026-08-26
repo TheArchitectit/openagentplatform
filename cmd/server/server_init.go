@@ -190,6 +190,12 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 	// continue so /reports endpoints return 503 rather than crashing.
 	reportScheduler := wireReports(apiServer, pool, log)
 
+	// --- Scheduled automation (RMM-06) -------------------------------
+	// Store + cron scheduler. The schema is created idempotently at startup;
+	// if the database is unreachable or the DDL fails we log and continue so
+	// /api/v1/scheduled endpoints return 503 rather than crashing.
+	scheduledScheduler := wireScheduled(apiServer, pool, log)
+
 	// --- Remote shell ------------------------------------------------------
 	// Session manager + WS handler + credential store + recording store.
 	wireShell(apiServer, pool, natsClient.Conn(), log)
@@ -271,6 +277,7 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		policyEngine:      policyEngine,
 		patchScheduler:    patchScheduler,
 		reportScheduler:   reportScheduler,
+		scheduledScheduler: scheduledScheduler,
 		eventBridge:       eventBridge,
 		rpcBridge:         rpcBridge,
 		secretsSweeper:    svc.secretsSweeper,

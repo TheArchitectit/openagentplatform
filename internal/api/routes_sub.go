@@ -343,4 +343,8 @@ func (s *Server) mountAPISubRoutes(r chi.Router) {
 	// Secrets management endpoints. When no resolver is
 	// configured these return 503. Resolving a secret is
 	// admin-only.
+
+	// Scheduled automation (RMM-06). When no scheduled store is
+	// configured these return 503.
+	s.mountScheduled(r)
 }

@@ -172,3 +172,34 @@ type AuditEvent struct {
 	Metadata  map[string]any `json:"metadata"`
 	CreatedAt time.Time      `json:"created_at"`
 }
+
+// AutomatedTaskAction is the discriminated action an automated task performs.
+const (
+	TaskActionPatchDeploy TaskAction = "patch_deploy"
+	TaskActionReboot      TaskAction = "reboot"
+	TaskActionScriptRun   TaskAction = "script_run"
+	TaskActionCheckEnable TaskAction = "check_enable"
+)
+
+// TaskAction is the discriminated action type.
+type TaskAction string
+
+// AutomatedTask is a cron-scheduled action bound to a Policy. It is persisted as
+// an element of the Policy.automated_tasks JSONB array
+// (py/alembic/versions/0005_policies.py). The cron_expr is validated against the
+// internal/reports parseSimpleCron parser (+ @hourly/@daily/@weekly/@monthly
+// aliases) and rejected on parse failure (fail-closed).
+type AutomatedTask struct {
+	ID        string          `json:"id"`
+	Name      string          `json:"name"`
+	Enabled   bool            `json:"enabled"`
+	CronExpr  string          `json:"cron_expr"`
+	Action    TaskAction      `json:"action"`
+	Params    json.RawMessage `json:"params"`
+	Timezone  string          `json:"timezone"`
+	NextRunAt *time.Time      `json:"next_run_at,omitempty"`
+	LastRunAt *time.Time      `json:"last_run_at,omitempty"`
+	LastStatus string         `json:"last_status,omitempty"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+}

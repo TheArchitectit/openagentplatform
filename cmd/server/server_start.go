@@ -62,6 +62,13 @@ func (s *Server) Start(ctx context.Context) error {
 		}
 	}
 
+	// Start the scheduled automation scheduler (30s tick for due tasks).
+	if s.scheduledScheduler != nil {
+		if err := s.scheduledScheduler.Start(hbCtx); err != nil {
+			s.log.Warn("scheduled scheduler start failed", "err", err)
+		}
+	}
+
 	// Start the billing sync loop and the metering flush loop, sharing hbCtx
 	// so they are cancelled on shutdown. The metering queue is flushed one
 	// final time in Shutdown() before the process exits.

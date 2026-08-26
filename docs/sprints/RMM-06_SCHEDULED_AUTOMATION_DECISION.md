@@ -7,8 +7,74 @@ scheduled automation; execution is contingent on approval. Decision-gated — NO
 a build ticket.
 **Priority:** P2 (Normal)
 **Estimated Effort:** 4-6 hours (decision) + contingent build
-**Status:** PENDING
+**Status:** DECISION RECORDED (10.2 resolved — cron approved)
 **Dependencies:** RMM-00 (spec records this as DEFERRED / open decision 10.2)
+
+---
+
+## Decision Record — 10.2 Scheduling Grammar
+
+**Decision:** Cron-style recurrence. The 21-bit `schedule_bitmask` is rejected.
+
+**Rationale:**
+1. **Precedent.** `internal/reports/` already ships a working cron scheduler
+   (`scheduler.go`) with a 30s tick loop, `cron_expr` TEXT storage,
+   `@hourly/@daily/@weekly/@monthly` aliases, and a `M H * * *` field parser.
+   Reusing this pattern is strictly cheaper than inventing a new encoding.
+2. **Expressiveness.** Cron covers weekly day+time, monthly day-of-month,
+   multi-day, and arbitrary combinations. The 21-bit bitmask's encoding
+   semantics are undocumented in the legacy blueprint and cannot express
+   "second Tuesday of the month" or "every 15 minutes" without re-deriving
+   the bit layout from scratch.
+3. **Ecosystem.** Cron is the industry standard (systemd, AWS EventBridge,
+   every RMM on the market). Operators already know it; no training cost.
+4. **Fail-closed.** The bitmask is a single integer — a misread bit silently
+   shifts every schedule. Cron expressions are human-readable and auditable.
+
+**Rejected alternative:** 21-bit `schedule_bitmask`. Zero implementations exist
+anywhere in the codebase; the encoding is undocumented; it would require a
+bespoke parser + validator with no reusable precedent.
+
+**Consequences:**
+- `automated_tasks` JSONB schema becomes a list of cron-scheduled task objects
+  (see §JSONB Schema below).
+- The scheduler reuses the `internal/reports/` tick-loop convention (30s poll,
+  `computeNextRun`, persist `next_run_at`).
+- The 21-bit bitmask is removed from the design vocabulary; no code references
+  it going forward.
+
+---
+
+## JSONB Schema — `automated_tasks`
+
+Each element in the JSONB array is a scheduled-task object:
+
+```json
+{
+  "id": "uuid",
+  "name": "string (human label)",
+  "enabled": true,
+  "cron_expr": "M H DoM Mon DoW  (5-field cron, required)",
+  "action": "patch_deploy | reboot | script_run | check_enable",
+  "params": {},
+  "timezone": "IANA tz, default UTC",
+  "next_run_at": "ISO-8601 timestamp (computed, persisted)",
+  "last_run_at": "ISO-8601 timestamp",
+  "last_status": "ok | error",
+  "created_at": "ISO-8601",
+  "updated_at": "ISO-8601"
+}
+```
+
+- `cron_expr`: validated against the same parser as `internal/reports`
+  (`parseSimpleCron` + `@hourly/@daily/@weekly/@monthly` aliases). Reject on
+  parse failure — fail closed.
+- `action` + `params`: discriminated union. `patch_deploy` references a
+  `PatchJob`, `script_run` references a `ScriptDefinition`, `reboot` takes no
+  params, `check_enable` references a `CheckDefinition`. The action enum is
+  the extension point for future task types.
+- `timezone`: IANA name (e.g. `America/New_York`). The scheduler loads the
+   location and computes next-run in that zone. Defaults to UTC if absent.
 
 ---
 

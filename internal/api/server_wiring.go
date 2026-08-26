@@ -8,6 +8,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/patches"
 	"github.com/openagentplatform/openagentplatform/internal/reports"
 	"github.com/openagentplatform/openagentplatform/internal/resilience"
+	"github.com/openagentplatform/openagentplatform/internal/scheduled"
 	"github.com/openagentplatform/openagentplatform/secrets/resolver"
 )
 
@@ -36,6 +37,18 @@ func (s *Server) SetReportsStore(store reports.Store) {
 // When nil the generation/scheduling endpoints return 503.
 func (s *Server) SetReportsScheduler(sched *reports.Scheduler) {
 	s.reportsScheduler = sched
+}
+
+// SetScheduledStore wires the scheduled automation Store into the API server.
+// When nil the scheduled automation endpoints return 503.
+func (s *Server) SetScheduledStore(store scheduled.Store) {
+	s.scheduledStore = store
+}
+
+// SetScheduledScheduler wires the scheduled automation Scheduler into the
+// API server. When nil the scheduled generation endpoints return 503.
+func (s *Server) SetScheduledScheduler(sched *scheduled.Scheduler) {
+	s.scheduledScheduler = sched
 }
 
 // SetReportsDeliverer wires the report Deliverer into the API server.

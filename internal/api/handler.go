@@ -26,6 +26,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/remote"
 	"github.com/openagentplatform/openagentplatform/internal/reports"
 	"github.com/openagentplatform/openagentplatform/internal/resilience"
+	"github.com/openagentplatform/openagentplatform/internal/scheduled"
 	"github.com/openagentplatform/openagentplatform/secrets/resolver"
 )
 
@@ -116,6 +117,12 @@ type Server struct {
 	// reportsScheduler triggers scheduled report runs. May be nil;
 	// report generation/scheduling endpoints return 503 when unset.
 	reportsScheduler *reports.Scheduler
+	// scheduledStore is the scheduled automation persistence interface.
+	// May be nil; scheduled automation endpoints return 503 when unset.
+	scheduledStore scheduled.Store
+	// scheduledScheduler triggers scheduled automated tasks. May be nil;
+	// scheduled generation endpoints return 503 when unset.
+	scheduledScheduler *scheduled.Scheduler
 	// reportsDeliverer verifies presigned download tokens for the
 	// /reports/runs/{id}/download endpoint. May be nil; download
 	// returns 503 when unset.

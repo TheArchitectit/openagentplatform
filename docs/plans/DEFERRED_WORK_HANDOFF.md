@@ -93,7 +93,7 @@ F0. Baseline (v1.2.0) — established
 | 4 | RMM-03 — Windows Update per-KB lifecycle | RMM-00 + state/identity decisions | **COMPLETE** (implemented and verified in-tree) |
 | 5 | RMM-04 — Reboot coordination | RMM-00 + approved reboot command contract | **COMPLETE** (implemented and verified in-tree) |
 | 6 | RMM-05 — CVE-to-patch correlation | RMM-00 + source/provenance decisions | **COMPLETE** (NVD source approved, implemented and verified in-tree) |
-| 7 | RMM-06 — Scheduled automation decision gate | RMM-00 + approved scheduling grammar | DEFERRED (scheduling grammar deferred; focus on tunnel fabric first) |
+| 7 | RMM-06 — Scheduled automation decision gate | RMM-00 + approved scheduling grammar | **DESIGN APPROVED** (cron grammar resolved 2026-08-25; see record) |
 | 8 | RMM-07 — Agent self-update decision gate | RMM-00 + trust/rollout/transport decisions | **COMPLETE** (merged into RMM-09, shipped `5ea6076`) |
 | 9 | RMM-08 — VNC/RDP decision gate | RMM-00 + binary transport/consent/security decisions | **COMPLETE** (merged into RMM-09, shipped `5ea6076`) |
 
@@ -159,7 +159,7 @@ Silently skipping a transition is a protocol violation.
 | RMM-03 | `RMM-03_WINUPDATE_STATE_MACHINE.md` | Windows Update per-KB lifecycle | **COMPLETE** (implemented and verified in-tree) |
 | RMM-04 | `RMM-04_REBOOT_COORDINATION.md` | Reboot coordination | **COMPLETE** (implemented and verified in-tree) |
 | RMM-05 | `RMM-05_CVE_CORRELATION.md` | CVE-to-patch correlation | **COMPLETE** (NVD source approved, implemented and verified in-tree) |
-| RMM-06 | `RMM-06_SCHEDULED_AUTOMATION_DECISION.md` | Scheduled automation decision gate | DEFERRED (grammar decision postponed) |
+| RMM-06 | `RMM-06_SCHEDULED_AUTOMATION_DECISION.md` | Scheduled automation decision gate | **DESIGN APPROVED** (cron grammar resolved 2026-08-25; bitmask rejected) |
 | RMM-07 | `RMM-07_AGENT_SELF_UPDATE_DECISION.md` | Agent self-update decision gate | **COMPLETE** (merged into RMM-09, shipped `5ea6076`) |
 | RMM-08 | `RMM-08_VNC_RDP_DECISION.md` | VNC/RDP decision gate | **COMPLETE** (merged into RMM-09, shipped `5ea6076`) |
 
