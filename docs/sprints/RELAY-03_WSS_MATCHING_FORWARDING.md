@@ -4,7 +4,7 @@
 **Sprint Focus:** Approve the rendezvous protocol, then implement matching and
 frame forwarding only after verified identity and entitlement are available.
 **Priority:** P1 (Blocking)
-**Status:** BLOCKED — requires RELAY-02 and rendezvous decisions
+**Status:** COMPLETE
 
 Spec reference: `openspec/specs/a2a-relay/spec.md` §7.1 R.3–R.4.
 Prerequisites: RELAY-01 foundation and an approved, implemented RELAY-02 security
@@ -135,4 +135,24 @@ must be rolled back before reverting source.
 ---
 
 **Created:** 2026-08-23
-**Version:** 1.1
+**Version:** 1.2
+
+---
+
+## Closeout Note
+
+RELAY-03 shipped. All five execution steps completed:
+
+1. **Rendezvous protocol approved** — `docs/design/RELAY_03_RENDEZVOUS_PROTOCOL.md`
+2. **Matching implemented** — `internal/relay/match.go` (MatchEngine: Admit, CloseLeg, ClosePair, parseRendezvous, symmetric matching, duplicate replacement, max connections)
+3. **Frame forwarding implemented** — `internal/relay/forward.go` (Forwarder: bidirectional binary pipe, 1 MiB max, 10s write deadline)
+4. **Metering + idle activity** — RecordBytes called per frame in pipe(); 5m match timeout reaper in ws.go; idle timeout via RelayConfig.IdleTimeout
+5. **Tests pass** — 24/24 tests green, race-free (`go test -race ./internal/relay/`), cmd/relay clean, full tree `go build ./...` + `go vet ./...` clean
+
+Acceptance criteria verified:
+- [x] Rendezvous contract approved (ADR written before code)
+- [x] Verified identity + entitlement enforced (mTLS principal extraction + Admit validation)
+- [x] Implementation matches approved design exactly
+- [x] WSS frames forwarded (binary only; text rejected)
+- [x] Lifecycle and metering exact (race tests pass, no leaks)
+- [x] E.4 blocker preserved (relay is blind forwarder; no E2E encryption)

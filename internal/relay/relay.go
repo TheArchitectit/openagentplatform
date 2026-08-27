@@ -79,6 +79,8 @@ type RelayService struct {
 	metrics     map[string]*RelayMetrics
 	mu          sync.RWMutex
 	log         *slog.Logger
+	matchEngine *MatchEngine
+	forwarder   *Forwarder
 }
 
 // NewRelayService creates a new relay service.
@@ -86,12 +88,25 @@ func NewRelayService(config RelayConfig, log *slog.Logger) *RelayService {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &RelayService{
+	svc := &RelayService{
 		config:      config,
 		connections: make(map[string]*RelayConnection),
 		metrics:     make(map[string]*RelayMetrics),
 		log:         log,
 	}
+	svc.matchEngine = NewMatchEngine(svc)
+	svc.forwarder = NewForwarder(svc.matchEngine)
+	return svc
+}
+
+// MatchEngine returns the match engine.
+func (s *RelayService) MatchEngine() *MatchEngine {
+	return s.matchEngine
+}
+
+// Forwarder returns the forwarder.
+func (s *RelayService) Forwarder() *Forwarder {
+	return s.forwarder
 }
 
 // EstablishConnection establishes a relay connection between two agents.

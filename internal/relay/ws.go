@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"log/slog"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -72,21 +74,111 @@ func (s *RelayService) ServeWS(ctx context.Context, ln net.Listener, up wsUpgrad
 	return err
 }
 
-// handleWSS upgrades a single HTTP request to a WebSocket. Per RELAY-01 scope it
-// does NOT forward and does NOT register the connection; it closes the socket
-// immediately after the upgrade completes (fail-closed until RELAY-02).
+// handleWSS upgrades a single HTTP request to a WebSocket, admits the leg via
+// the MatchEngine (RELAY-02 mTLS + entitlement), and if matched starts frame
+// forwarding. Fails closed at every validation point.
 func (s *RelayService) handleWSS(w http.ResponseWriter, r *http.Request, up wsUpgrader) {
 	conn, err := up.Upgrade(w, r, nil)
 	if err != nil {
-		// Upgrade failure: gorilla already wrote the error response.
 		s.log.Debug("relay: wss upgrade rejected", "remote", r.RemoteAddr, "err", err)
 		return
 	}
-	// Fail-closed admission boundary: no identity check yet (I.3 unresolved in
-	// RELAY-01). Close without registering — ListConnections stays empty.
-	s.log.Info("relay: wss upgraded but admission not yet implemented; closing",
-		"remote", r.RemoteAddr)
-	_ = conn.Close()
+
+	// Extract mTLS principal (RELAY-02 §1.1). The CN/SAN on the client cert.
+	tlsPrincipal := extractPrincipal(r)
+	if tlsPrincipal == "" {
+		s.log.Info("relay: no mTLS principal; closing", "remote", r.RemoteAddr)
+		_ = conn.Close()
+		return
+	}
+
+	// Parse the rendezvous handshake message within the handshake timeout.
+	msg, err := parseRendezvous(conn, 30*time.Second)
+	if err != nil {
+		s.log.Info("relay: rendezvous rejected", "remote", r.RemoteAddr, "err", err)
+		_ = conn.Close()
+		return
+	}
+
+	// Admit and match.
+	if s.matchEngine == nil {
+		s.log.Warn("relay: match engine not initialized; closing")
+		_ = conn.Close()
+		return
+	}
+
+	leg, partner, err := s.matchEngine.Admit(conn, tlsPrincipal, msg)
+	if err != nil {
+		s.log.Info("relay: admission rejected", "remote", r.RemoteAddr, "err", err)
+		_ = conn.Close()
+		return
+	}
+
+	if partner != nil {
+		// Matched! Start forwarding in a background goroutine.
+		s.log.Info("relay: legs matched; forwarding",
+			"conn_id_a", partner.ConnID, "conn_id_b", leg.ConnID)
+		go s.forwarder.Run(r.Context(), leg, partner)
+	} else {
+		// Pending leg — waiting for counterpart. The match timeout reaper
+		// handles expiry (RELAY-03 §4, 5m match timeout).
+		s.log.Info("relay: leg pending", "conn_id", leg.ConnID,
+			"source", leg.AgentID, "target", leg.TargetID)
+	}
+}
+
+// extractPrincipal pulls the CN or first SAN from the TLS handshake's client
+// certificate. Returns empty string if no client cert was presented.
+func extractPrincipal(r *http.Request) string {
+	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
+		return ""
+	}
+	cert := r.TLS.PeerCertificates[0]
+	// Prefer Subject CommonName.
+	if cert.Subject.CommonName != "" {
+		return cert.Subject.CommonName
+	}
+	// Fall back to first DNS SAN.
+	if len(cert.DNSNames) > 0 {
+		return cert.DNSNames[0]
+	}
+	return ""
+}
+
+// StartMatchTimeoutReaper runs a background goroutine that closes legs which
+// have been in LegPending for longer than matchTimeout. It exits when ctx is
+// cancelled (server shutdown).
+func StartMatchTimeoutReaper(ctx context.Context, engine *MatchEngine, matchTimeout time.Duration, log *slog.Logger) {
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				now := time.Now().UTC()
+				engine.mu.Lock()
+				for key, leg := range engine.pends {
+					leg.mu.Lock()
+					if leg.State == LegPending && now.Sub(leg.AddedAt) > matchTimeout {
+						leg.State = LegClosed
+						leg.closeErr = errors.New("match_timeout")
+						leg.mu.Unlock()
+						delete(engine.pends, key)
+						_ = leg.Conn.Close()
+						engine.svc.CloseConnection(nil, leg.ConnID)
+						log.Info("relay: match timeout, closing pending leg",
+							"conn_id", leg.ConnID,
+							"source", leg.AgentID, "target", leg.TargetID)
+					} else {
+						leg.mu.Unlock()
+					}
+				}
+				engine.mu.Unlock()
+			}
+		}
+	}()
 }
 
 // ListenAndServe is a convenience that wraps a TCP listener with the relay's
