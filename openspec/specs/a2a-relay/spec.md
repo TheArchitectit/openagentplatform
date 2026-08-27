@@ -172,17 +172,21 @@ I.1. `[PLANNED]` An **issued-identity registry**: every agent connecting
 through the relay MUST present an identity ISSUED by the platform, and the
 relay MUST check **entitlement** (authorization to relay to a given
 target/tenant) before matching. This is the "not an open forwarder" property.
+Frozen contract: docs/design/RELAY_02_IDENTITY_ENTITLEMENT_ADR.md.
 
 I.2. `[PLANNED]` Unknown identities and denied entitlements MUST be rejected at
-admission and never registered, mirroring the empty-id rejection (3.3).
+admission and never registered, mirroring the empty-id rejection (3.3). The
+freeze adds explicit edge cases (expired/revoked/malformed token, principal
+mismatch, no symmetric match grant) — all close without registration.
 
 I.3. `[PLANNED]` The cryptographic mechanism by which an identity is presented
 and verified is **RESOLVED 2026-08-25 as layered mTLS + signed bearer token**:
 agents present a client cert chained to the platform Ed25519 CA (principal
 `oap:<agentID>`) at WSS admission (transport authentication, R.3), and each
 rendezvous request carries a short-lived signed token (agent ID + target +
-expiry) for entitlement (I.1/I.2). mTLS = authentication; token = authorization.
-Reuses the RMM-09 Ed25519 CA + cert model.
+expiry + jti) for entitlement (I.1/I.2). mTLS = authentication; token =
+authorization. Reuses the RMM-09 Ed25519 CA + cert model. Full lifecycle
+(issuance/renewal/expiry/revocation/replay) frozen in the ADR.
 
 #### 7.3 Discovery Federation
 

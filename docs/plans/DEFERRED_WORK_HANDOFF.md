@@ -169,7 +169,7 @@ Silently skipping a transition is a protocol violation.
 |----|----------|-------|--------|
 | RELAY-00 | `RELAY-00_ARCHITECTURE_SECURITY.md` | Architecture/security outcomes and blockers | PENDING |
 | RELAY-01 | `RELAY-01_BINARY_CONFIG_DEPLOYMENT.md` | Fail-closed WSS binary/config/deployment foundation | PENDING |
-| RELAY-02 | `RELAY-02_ISSUED_IDENTITY_ENTITLEMENT.md` | Identity/credential/entitlement decision gate | PENDING (I.3 resolved — layered mTLS + bearer token) |
+| RELAY-02 | `RELAY-02_ISSUED_IDENTITY_ENTITLEMENT.md` | Identity/credential/entitlement decision gate | **APPROVED** (contract frozen 2026-08-26; build lands in RELAY-03) |
 | RELAY-03 | `RELAY-03_WSS_MATCHING_FORWARDING.md` | Rendezvous decisions + contingent forwarding | PENDING (I.3/D.2 resolved) |
 | RELAY-04 | `RELAY-04_METERING_OBSERVABILITY.md` | Secure operator metering/observability contract | PENDING |
 | RELAY-05 | `RELAY-05_DISCOVERY.md` | Discovery federation decision gate | PENDING (D.2 resolved — gRPC discovery service) |

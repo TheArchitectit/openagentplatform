@@ -4,7 +4,7 @@
 **Sprint Focus:** Approve the authentication, issuance, revocation, trust, and
 entitlement contract required before any relay admission code is implemented.
 **Priority:** P1 (Blocking)
-**Status:** BLOCKED — requires architecture/security approval
+**Status:** APPROVED (decision gate frozen 2026-08-26; see ADR; build lands in RELAY-03)
 
 Spec reference: `openspec/specs/a2a-relay/spec.md` §7.1 R.3 and §7.2 I.1–I.3.
 Prerequisite: [RELAY-00](./RELAY-00_ARCHITECTURE_SECURITY.md). RELAY-01 remains
@@ -111,6 +111,27 @@ open, keep this sprint BLOCKED and do not begin RELAY-03.
 
 This sprint changes decision/spec documents only. Revert only the current sprint's
 documentation commit if approval is withdrawn. Never rewrite prior history.
+
+---
+
+## CLOSEOUT (2026-08-26)
+
+RELAY-02 is a DECISION-ONLY sprint (its own scope boundary forbids `.go`
+changes). The full identity + entitlement contract is frozen in
+`docs/design/RELAY_02_IDENTITY_ENTITLEMENT_ADR.md` and mirrored into spec
+§7.2 I.1–I.3:
+
+- **I.3 (auth mechanism):** layered mTLS (platform Ed25519 CA, principal
+  `oap:<agentID>`, `RequireAndVerifyClientCert`) + signed bearer token
+  (agentID|target|tenant|iat|exp|jti, Ed25519). mTLS = auth, token = authz.
+- **Lifecycle:** issuance/renewal/expiry/revocation/replay all specified; CA
+  key from secret/KMS, not in-memory.
+- **Entitlement:** YAML grant schema, default-deny, checked at admission +
+  symmetric grant at match, audit logs with no credential material.
+- **Edge failure:** every rejection closes the leg without `EstablishConnection`.
+
+Sprint flips BLOCKED → APPROVED. Admission wiring (the actual `.go`) is
+RELAY-03's scope, now unblocked.
 
 ---
 
