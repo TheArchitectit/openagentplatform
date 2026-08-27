@@ -8,7 +8,7 @@ sprint only establishes the runnable foundation + WSS listener skeleton; byte
 matching/forwarding lands in RELAY-03.
 **Priority:** P1 (Blocking)
 **Estimated Effort:** 2-3 hours
-**Status:** PENDING
+**Status:** COMPLETE
 
 Spec reference: `openspec/specs/a2a-relay/spec.md` §7.1 R.1–R.2. Accounting
 contract §1–§6 untouched. Decision gate: [RELAY-00](./RELAY-00_ARCHITECTURE_SECURITY.md).
@@ -183,6 +183,19 @@ go test ./cmd/relay/ -v
 git rm -rf cmd/relay deploy/relay internal/relay/ws.go internal/relay/ws_test.go
 git status
 ```
+
+---
+
+## CLOSEOUT (2026-08-26)
+
+RELAY-01 shipped: `cmd/relay` binary (flags/env → RelayConfig; WSS listener via
+gorilla/websocket, already in go.mod), `internal/relay/ws.go` (fail-closed
+admission boundary — upgrades then closes every session without registering),
+and `deploy/relay/` (systemd unit + README). All acceptance criteria pass:
+config validates (missing cert/key errors), unauthenticated WSS fails closed
+(`ListConnections` stays empty), non-WSS rejected, no forwarding, prior
+accounting tests untouched. Build/vet/test green on the relay packages and the
+whole tree. No raw TCP forwarder; not wired into `cmd/server`. RELAY-02 ready.
 
 ---
 

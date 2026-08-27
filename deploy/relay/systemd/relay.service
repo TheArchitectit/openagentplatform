@@ -1,0 +1,27 @@
+[Unit]
+Description=OpenAgentPlatform Managed A2A Relay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/oap-relay \
+  -listen ${RELAY_LISTEN_ADDR:-:7000} \
+  -cert /etc/oap/relay/server.crt \
+  -key /etc/oap/relay/server.key \
+  -trust-config /etc/oap/relay/trust.yaml \
+  -max-connections ${RELAY_MAX_CONNECTIONS:-1000} \
+  -idle-timeout ${RELAY_IDLE_TIMEOUT:-30m}
+Restart=on-failure
+RestartSec=5
+User=oap-relay
+Group=oap-relay
+# The relay terminates TLS itself; no ambient capabilities needed.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/oap-relay
+
+[Install]
+WantedBy=multi-user.target
