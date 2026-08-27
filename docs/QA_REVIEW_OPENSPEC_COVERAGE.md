@@ -33,7 +33,7 @@ All 43 spec dirs contain a real `spec.md`. Verdicts are against the live tree on
 | Spec | Status (2026-08-26) | Notes |
 |------|---------------------|-------|
 | rmm-core | PARTIAL → reconciled | §14 drift fixed; all 8 extensions now SHIPPED |
-| rmm-operations | PARTIAL → reconciled | RMM-01..09 COMPLETE; RMM-06 COMPLETE (cron); open decisions resolved |
+| rmm-operations | PARTIAL → reconciled | RMM-01..09 COMPLETE; RMM-06 COMPLETE (shipped `3f8e495`); open decisions resolved |
 | endpoint-agent | COMPLETE | `cmd/agent` + `pkg/agent/` including mesh/tunnel |
 | check-library | PARTIAL | Server-side catalog; accurate vs code |
 | remote-access | COMPLETE | NATS-shell + RMM-09 tunnel fabric noted |
@@ -45,7 +45,7 @@ All 43 spec dirs contain a real `spec.md`. Verdicts are against the live tree on
 | event-task-bridge | COMPLETE | |
 | event-bus | SUPERSEDED | Replaced by event-bus-nats |
 | event-bus-nats | COMPLETE | NATS client, heartbeat, dispatch, tracing |
-| hitl-approval | COMPLETE | |
+| hitl-approval | PARTIAL | `/a2a/v1/approvals` HITL API not built; only patch-approval exists (`internal/patches/`) |
 | process-pool | COMPLETE | |
 | auth-rbac | COMPLETE | |
 | secret-management | COMPLETE | |
@@ -143,3 +143,34 @@ All 43 spec dirs contain a real `spec.md`. Verdicts are against the live tree on
 
 **Audit performed by:** Claude (Agent-GDUI-2026)
 **Last verified:** 2026-08-26 against `main` at current HEAD
+
+---
+
+## 6. Independent Verification Pass (2026-08-26)
+
+Four parallel audit agents covered all 43 specs across RMM, A2A, platform, and
+commercial scopes. The A2A agent (`72ff9d7`) fixed its own scope findings; three
+other agents identified additional P0/P1 items that commit did not address.
+These were independently verified against live code and fixed in this pass:
+
+| # | Sev | Finding | Fix |
+|---|-----|---------|-----|
+| 6 | P0 | `hitl-approval` STATUS: COMPLETE but `/a2a/v1/approvals` HITL API not built | Flipped to PARTIAL; added implementation note |
+| 7 | P0 | `rmm-operations` §3 still said RMM-06 "DESIGN APPROVED / build pending" | Flipped to COMPLETE (shipped `3f8e495`); reconciled §3.1/3.3/3.4 to first-class table |
+| 8 | P1 | `commercial-licensing` §5.2 claimed PostgreSQL RLS; actual model is app-layer `org_id` | Corrected to reflect app-layer enforcement; RLS noted as future option |
+| 9 | P1 | `data-model` omitted RMM-09 mesh + RMM-06 scheduled entities/migrations | Added 4 rows (MeshPeer, MeshSession, AgentRelease, AutomatedTask) + §9.0 migration note |
+| 10 | P2 | `reporting` §6.1 stale line count (386→109) | Corrected |
+
+**Discounted agent findings (verified false):**
+- Platform agent's auth-rbac P0 ("gateway middleware PLANNED") — `RequireRole` IS a
+  middleware in `internal/auth/middleware.go:100`; spec is accurate. Not a P0.
+- Commercial agent's remote-access-session P1 ("wrong App Path `internal/session/`")
+  — `internal/session/` DOES exist (recorder.go + recorder_test.go). Not a P1.
+
+**Remaining verified deferred/stub items** (no code, no commitment):
+- `hitl-approval` `/a2a/v1/approvals` — spec is design target, not shipped
+- `managed-backup` — DRAFT, greenfield
+- `observability-telemetry` (untracked spec describes OTel pipeline; no `internal/observability` package)
+- `platform-foundation-schema` (untracked; partially contradicts RMM-06 first-class table)
+- P1 RMM parity gaps: cloud inventory, EDR ingest, mobile app
+- P2/P3 RMM parity gaps: SCP-over-tunnel, SNMP, SIEM forwarding

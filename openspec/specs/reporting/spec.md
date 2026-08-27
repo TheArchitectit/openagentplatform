@@ -26,7 +26,7 @@ surface lives in `internal/api/reports.go`, registered in
 `internal/api/routes_routes.go` under `/api/v1/reports`.
 
 **`internal/reporting/` — an in-memory enterprise reporting service (dead
-code).** A single file (`internal/reporting/reporting.go`, 386 lines)
+code).** A single file (`internal/reporting/reporting.go`, 109 lines)
 implementing a `ReportService` with 4 hardcoded templates, placeholder report
 data, CSV export, and daily/weekly/monthly schedule arithmetic — all in
 in-memory maps with no persistence. It has 19 unit tests but **zero importers

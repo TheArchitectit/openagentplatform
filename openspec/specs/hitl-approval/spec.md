@@ -1,12 +1,19 @@
 # Human-in-the-Loop Approval (HITL)
 
-> **Phase:** 2 | **Status:** COMPLETE | **Spec:** openspec/specs/hitl-approval/spec.md
+> **Phase:** 2 | **Status:** PARTIAL | **Spec:** openspec/specs/hitl-approval/spec.md
 
 ---
 
 ## Description
 
 Approval workflow for agent actions that require human authorization before execution. Covers request creation, notification delivery, approval/rejection flow, timeout escalation, and full audit trail.
+
+> **Implementation note:** The standalone `/a2a/v1/approvals` HITL API described
+> in this spec is **not yet built**. Patch-approval exists as a separate subsystem
+> (`internal/patches/`, `internal/api/patches.go`) with `RequiredApprovals` and
+> `CountApprovals` — but that is a patch-deployment gate, not the general HITL
+> approval workflow spec'd here. This spec remains the design target for the
+> A2A HITL service when it is built.
 
 ---
 

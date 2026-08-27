@@ -2,11 +2,10 @@
 
 > **Phase:** 1 (Core RMM) — extends `rmm-core` §14 planned extensions
 > **STATUS: PARTIAL** — the eight domains below are tracked parity gaps, scoped
-> and source-anchored here. RMM-01..RMM-05 are COMPLETE (shipped); RMM-06 is DESIGN
-> APPROVED (cron grammar resolved 2026-08-25, build pending); RMM-07/08 were merged
-> into RMM-09 and shipped (`5ea6076`). The spec body is reconciled against shipped
-> code; remaining DEFERRED markers in §8/§9 are historical records of the original
-> decision-gate framing, now resolved.
+> and source-anchored here. RMM-01..RMM-06 are COMPLETE (shipped); RMM-07/08 were
+> merged into RMM-09 and shipped (`5ea6076`). The spec body is reconciled against
+> shipped code; remaining DEFERRED markers in §8/§9 are historical records of the
+> original decision-gate framing, now resolved.
 > **Source:** `docs/GAP_ANALYSIS_RMM_PLATFORM.md` (G-RMM-002/003/004),
 > `docs/QA_REVIEW_OPENSPEC_COVERAGE.md` P3 items 10–11,
 > `openspec/specs/rmm-core/spec.md` §14
@@ -109,10 +108,12 @@ migration already defines one.
 topics. Reuse the existing `oap.agents.<id>.patch_*` subjects or add a sibling
 under `oap.agents.<id>.` per open decision 10.1.
 
-### 3. Scheduled Automation (AutomatedTask) — DESIGN APPROVED (RMM-06)
+### 3. Scheduled Automation (AutomatedTask) — COMPLETE (RMM-06, shipped `3f8e495`)
 
-3.1. An `automated_tasks` JSONB column already exists on `Policy`
-(`py/alembic/versions/0005_policies.py:38`). No scheduler or entity binds it.
+3.1. RMM-06 shipped as a **first-class `automated_tasks` table** (migration
+`py/alembic/versions/0016_rmm06_scheduled_automation.py`), not the JSONB column
+on `Policy` originally sketched in `0005_policies.py`. The table is org-scoped
+(`org_id`) with a `next_run_at` index for due-task lookups.
 
 3.2. **Grammar decision resolved (open decision 10.2 → Resolved):** cron-style
 recurrence, reusing the `internal/reports/` scheduler convention (`cron_expr`
@@ -122,15 +123,15 @@ rejected — zero implementations exist in-tree, its encoding is undocumented, a
 cron is strictly more expressive and auditable. Decision record:
 `docs/sprints/RMM-06_SCHEDULED_AUTOMATION_DECISION.md`.
 
-3.3. Each `automated_tasks` element is a cron-scheduled task object with a
-discriminated `action` union (`patch_deploy | reboot | script_run |
-check_enable`), an IANA `timezone` (default UTC), and a persisted `next_run_at`.
-`cron_expr` is validated against the existing report-parser and rejected on
-parse failure (fail-closed).
+3.3. Each `automated_tasks` row is a cron-scheduled task with a discriminated
+`action` union (`patch_deploy | reboot | script_run | check_enable`), an IANA
+`timezone` (default UTC), and a persisted `next_run_at`. `cron_expr` is validated
+against the existing report-parser and rejected on parse failure (fail-closed).
 
-3.4. IN scope (contingent build): a recurring dispatcher following the
-rmm-core §12 in-process loop convention and the `internal/reports/` tick pattern;
-idempotent (at-least-once) execution by `id` + `last_run_at` comparison. OUT of
+3.4. IMPLEMENTED: `internal/scheduled/` (cron parser + 30s tick scheduler +
+org-scoped PGStore), `internal/api/scheduled.go` (REST CRUD + manual run,
+admin/technician RBAC), `cmd/server/server_scheduled.go` (fail-open wiring).
+Idempotent (at-least-once) execution by `id` + `last_run_at` comparison. OUT of
 scope: arbitrary LLM agent workflow automation (ties to A2A).
 
 ### 4. Maintenance Windows (Fleet Alert Suppression) — IN (RMM-02)

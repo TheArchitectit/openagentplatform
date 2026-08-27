@@ -109,9 +109,13 @@ and grace status without contacting support.
 5.1. A tenant model MUST be implemented, with every tenant-scoped record
 attributable to exactly one tenant.
 
-5.2. Data isolation MUST be enforced at the data layer via PostgreSQL Row Level
-Security, not by application filtering alone (open question O2: RLS versus
-schema-per-tenant).
+5.2. Data isolation is enforced at the application layer: every API handler reads
+the tenant/org ID from the authenticated `SessionClaims.OrgID` (never from the
+request body) and passes it as a SQL `WHERE org_id = $n` filter. PostgreSQL RLS
+is **not** wired — `TenantMigrator` exists but its migrations target diverged
+table names and have no callers in `cmd/server` (see `data-model` spec Known
+Limitations #2). RLS remains a future hardening option (open question O2) but is
+not the current enforcement mechanism.
 
 5.3. Every query path MUST have an integration test asserting cross-tenant
 access is impossible, per risk R7.

@@ -76,6 +76,10 @@ grouped by domain. Table names are those referenced by the live stores:
 | `ScriptDefinition` | `script_definitions` | Scripts | Soft-deleted via `deleted_at` |
 | `ScriptRun` | `script_runs` | Scripts | One execution per agent |
 | `AuditEvent` | *(diverged — see §7.2)* | Audit | Superseded by `internal/audit.Event` |
+| `MeshPeer` | `mesh_peers` | Mesh (RMM-09) | WireGuard pubkey + mesh IP; org-scoped |
+| `MeshSession` | `mesh_sessions` | Mesh (RMM-09) | Operator→agent tunnel session; org-scoped |
+| `AgentRelease` | `agent_releases` | Mesh (RMM-09) | Signed binary release; org-scoped |
+| `AutomatedTask` | `automated_tasks` | Scheduled (RMM-06) | Cron-scheduled action; org-scoped |
 
 1.2. Every persisted entity that belongs to a tenant MUST carry an `org_id`
 string column. The live exceptions are join/child tables that inherit tenancy
@@ -250,6 +254,15 @@ versioned `TenantMigrator`, `ENABLE`/`FORCE ROW LEVEL SECURITY` helpers, and
 with a covering index (§8.3 policy on `tenant_id`).
 
 ### 9. Schema Management and Retention
+
+9.0. **Migration inventory (relevant to this spec):** the platform uses a
+decoupled Python/Alembic migration set under `py/alembic/versions/` for the
+`oap` Postgres database. Recent RMM migrations: `0015_rmm09_mesh` (creates
+`mesh_peers`, `mesh_sessions`, `agent_releases` — all org-scoped) and
+`0016_rmm06_scheduled_automation` (creates `automated_tasks`, org-scoped,
+replacing the earlier JSONB-on-`Policy` sketch in `0005_policies`). The Go
+stores target these table names directly (e.g. `internal/mesh/store.go`,
+`internal/scheduled/store_tasks.go`).
 
 9.1. Database bootstrap MUST enable the `uuid-ossp`, `pgcrypto`, and
 `timescaledb` extensions (`deploy/postgres/init.sql`).
