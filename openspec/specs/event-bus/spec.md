@@ -2,14 +2,12 @@
 
 > **Phase:** 1 (Core RMM) — server-side event backbone; subject taxonomy is
 > normatively documented in the `rmm-core` spec §5
-> **STATUS: PARTIAL** — the three components (`Client`, `HeartbeatHandler`,
-> `CheckDispatcher`) are implemented and wired in `cmd/server`. The heartbeat
-> decode contract and duplicate-result persistence gaps from the coverage
-> audit are fixed (W1, W2): `models.Heartbeat` now decodes tolerant
-> timestamps, and `CheckDispatcher` is the assignment publisher while
-> `internal/checks.ResultIngestor` is the sole result-persistence owner.
-> Remaining gaps are non-blocking (no JetStream replay semantics, unused
-> `assignSub` seam, untracked consumer-span errors — see Known Limitations).
+> **STATUS: SUPERSEDED** — this spec has been replaced by
+> [`event-bus-nats`](../event-bus-nats/spec.md), which was authored 2026-08-25
+> against the live `internal/events/` code and carries the NATS client,
+> subject vocabulary, heartbeat decode, check dispatch, and tracing
+> requirements in full. This document is retained for historical reference
+> only; new requirements MUST be added to `event-bus-nats`.
 > **Source:** authored 2026-08-23 from code (audit docs/QA_REVIEW_OPENSPEC_COVERAGE.md §4)
 > **App Path:** `internal/events/` (nats.go, heartbeat.go, checkdispatcher.go),
 > wired by `cmd/server/main.go`, `cmd/server/server_init.go`,

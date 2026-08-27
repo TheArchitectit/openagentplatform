@@ -1,9 +1,12 @@
 # RMM Core
 
 > **Phase:** 1 (Core RMM)
-> **STATUS: PARTIAL** — core capabilities implemented in Go; named state machines,
-> automation entities, and some service boundaries below are still aspirational.
-> See §4.7, §12, and the "Not Yet Implemented" notes throughout.
+> **STATUS: PARTIAL** — core capabilities implemented in Go; the RMM-01..RMM-09
+> operations extensions that this spec's §14 once listed as "not implemented"
+> have since shipped (tracked in `openspec/specs/rmm-operations/spec.md`). The
+> remaining aspirational items are the named lifecycle state machines in §4.4
+> and the §10.4 VNC/RDP binary proxy (delivered as a tunnel-fabric design in
+> RMM-09 instead). See the "Shipped" notes throughout.
 > **Source:** `docs/architecture/RMM_CORE.md` *(historical design doc — partially stale,
 > see its correction banner)*
 > **App Path:** `internal/checks/`, `internal/alerts/`, `internal/policy/`,
@@ -94,9 +97,12 @@ high-write time-series table with independent retention pruning.
 multi-tenant queries stay selective. Tenant isolation is enforced at the
 database level via row-level security (see `internal/tenancy/`).
 
-2.5. Not implemented (previously claimed by this spec, moved to planned):
-`WinUpdate` (per-KB Windows update tracking), `AutomatedTask`
-(`schedule_bitmask` scheduled automation). See §14.
+2.5. Previously listed here as "not implemented," both are now **shipped**:
+`WinUpdate` (per-KB Windows update tracking — RMM-03, `internal/patches/kb_ingest.go`)
+and `AutomatedTask` (cron-scheduled automation — RMM-06, `internal/scheduled/`,
+replacing the rejected 21-bit `schedule_bitmask`). The `AutomatedTask` Go model
+lives in `pkg/models/models_extra.go`; the per-KB state machine is in
+`internal/patches/`. See `rmm-operations` §1/§3.
 
 ### 3. Enums and Status Fields
 
@@ -127,10 +133,15 @@ completed/failed, with the approving user recorded.
 
 4.4. NOT YET IMPLEMENTED (do not claim COMPLETE):
 - **ScriptRun** lifecycle machine (pending/running/success/error/timeout/cancelled).
-- **RemoteSession** lifecycle machine (requested/active/closed states).
+- **RemoteSession** lifecycle machine (requested/active/closed states) — the
+  shell path today uses the 3-value `SessionStatus` in `internal/remote/`
+  (see `remote-access` spec §2.4); a formal 7-state machine is not built.
 - **Agent lifecycle** machine (pending/online/degraded/offline/uninstalled) —
   liveness today is heartbeat-TTL based (§13), not a formal machine.
-- **WinUpdate** machine — depends on §14 scope decision.
+
+  **Shipped (removed from this list):** the **WinUpdate** per-KB state machine
+  is implemented in RMM-03 (`internal/patches/kb_ingest.go` + `kb_patch` store);
+  §2.5/§14 no longer list it as pending.
 
 4.5. When any §4.4 machine gets built, it MUST follow the §4.1 transition-table
 pattern and reuse the A2A manager's machine conventions (`a2a/manager/statemachine.go`)
@@ -196,7 +207,9 @@ deduplication keys and suppress duplicate alerts for the same condition.
 7.5. Alert state changes MUST go exclusively through the Alert state machine.
 
 7.6. Scheduled maintenance windows (suppress alerts during defined periods) are
-NOT implemented — see §14.
+**shipped** — RMM-02 (`internal/api/patches.go` + `internal/patches/scheduler.go`).
+Alert suppression during maintenance windows is implemented and verified. See
+`rmm-operations` §2.
 
 ### 8. Policies
 
@@ -232,10 +245,13 @@ with the approving user.
 retry failures.
 
 9.5. `NeedsReboot` reporting exists on patch targets; full reboot coordination
-(reboot prompts, maintenance-window scheduling of reboots) is NOT implemented —
-see §14.
+(reboot prompts, maintenance-window scheduling of reboots) is **shipped** —
+RMM-04 (`internal/patches/deployer_strategies_reboot.go`, server-coordinated
+`CoordinateReboots`). See `rmm-operations` §6.
 
-9.6. CVE correlation to patch records is NOT yet implemented.
+9.6. CVE correlation to patch records is **shipped** — RMM-05
+(`internal/patches/nvd_ingest.go`, NVD source). CVE-to-patch linkage is
+implemented and verified. See `rmm-operations` §7.
 
 ### 10. Scripts and Remote Access
 
@@ -250,7 +266,10 @@ not only on completion (server `internal/api/scripts_run.go`, agent
 
 10.4. Remote access MUST support SSH and WinRM transports tunneled over NATS
 plus a web terminal (`internal/remote/natsbridge.go`,
-`shell_manager.go`, `internal/terminal/`). VNC/RDP proxying is NOT implemented.
+`shell_manager.go`, `internal/terminal/`). VNC/RDP proxying is available via
+the RMM-09 secure tunnel fabric (`internal/mesh/`, `pkg/agent/mesh/`):
+SSH port-forwarding over a WireGuard mesh tunnel, rather than a separate
+binary proxy. See `rmm-operations` §9 and `remote-access` spec.
 
 10.5. Remote sessions MUST be recorded and replayable
 (`internal/session/`, `internal/remote/recorder.go`) with audit trail.
@@ -293,8 +312,9 @@ server (`internal/events/heartbeat handler`).
 13.3. Full check-in with an inventory snapshot occurs over REST on registration
 and periodically thereafter.
 
-13.4. Offline-agent SLA alerting ("agent silent > N hours" rules) is NOT
-implemented — see §14.
+13.4. Offline-agent SLA alerting ("agent silent > N hours" rules) is **shipped** —
+RMM-01 (`internal/api/routes_auth_alerts.go`, binary liveness + additive SLA rule).
+See `rmm-operations` §4.
 
 ### 14. Planned Extensions (not implemented — do not claim)
 
@@ -305,21 +325,33 @@ this section links/deduplicates rather than re-specifying them. They originated
 from `docs/GAP_ANALYSIS_RMM_PLATFORM.md` and
 `docs/QA_REVIEW_OPENSPEC_COVERAGE.md` P3 items 10–11:
 
-14.1. Windows Update management: per-KB tracking, approve/install/fail/reboot
-state machine, scan/install dispatch subjects.
+14.1. **Windows Update management** — SHIPPED (RMM-03): per-KB tracking,
+approve/install/fail/reboot state machine, scan/install dispatch subjects.
 
-14.2. Scheduled automation tasks (`AutomatedTask`): recurring task execution
-with weekday/hour/dom/month scheduling.
+14.2. **Scheduled automation tasks (`AutomatedTask`)** — SHIPPED (RMM-06):
+recurring task execution with cron grammar (5-field + `@` aliases), replacing
+the rejected 21-bit `schedule_bitmask`.
 
-14.3. Maintenance windows: scheduled alert suppression periods.
+14.3. **Maintenance windows** — SHIPPED (RMM-02): scheduled alert suppression
+periods.
 
-14.4. Offline-agent SLA alerting rules.
+14.4. **Offline-agent SLA alerting** — SHIPPED (RMM-01): binary liveness +
+additive SLA rule for "agent silent > N hours".
 
-14.5. Agent self-update channel (version reported today; push/update mechanism
-absent).
+14.5. **Agent self-update channel** — SHIPPED (RMM-09, merged from RMM-07):
+Ed25519 + SHA-256 verified self-update (`pkg/agent/mesh/updater.go`); operator-
+gated reboot, no silent auto-update.
 
-14.6. Full reboot coordination workflow after patching.
+14.6. **Full reboot coordination workflow** — SHIPPED (RMM-04): server-coordinated
+reboot after patching.
 
-14.7. CVE-to-patch correlation.
+14.7. **CVE-to-patch correlation** — SHIPPED (RMM-05): NVD source ingestion and
+CVE-to-patch linkage.
 
-14.8. VNC/RDP remote protocols (SSH/WinRM/web-terminal only today).
+14.8. **VNC/RDP remote protocols** — SHIPPED as design (RMM-09, merged from
+RMM-08): SSH port-forward over the WireGuard tunnel fabric, not a new binary
+proxy. The raw-binary-proxy option was rejected.
+
+> All eight extensions above were delivered as the RMM-01..RMM-09 sprints and
+> are tracked in `openspec/specs/rmm-operations/spec.md`. This section is now a
+> closed-out record, not an open backlog.

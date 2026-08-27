@@ -292,9 +292,11 @@ Resize requests are currently logged only (no SIGWINCH path wired).
    7-state `RemoteSession` machine; only the 3-value `SessionStatus`
    exists here, and `StatusClosing` is never assigned. State-machine
    tracking belongs to rmm-core §4.4.
-3. **VNC/RDP not implemented** — SSH/WinRM/web-terminal only
-   (rmm-core §14.8). WinRM remains a powershell stub; `defaultCommandBuilder`
-   never requests a TTY for it.
+3. **VNC/RDP delivered via tunnel fabric** — SSH/WinRM/web-terminal over NATS
+   remain the primary path (rmm-core §10.4). RMM-09 ships VNC/RDP as SSH
+   port-forwarding over the WireGuard mesh tunnel fabric (`internal/mesh/`,
+   `pkg/agent/mesh/ssh.go`) rather than a new binary proxy; WinRM remains a
+   powershell stub and `defaultCommandBuilder` never requests a TTY for it.
 4. **Credential store is in-memory**, lost on restart (only the optional
    `SHELL_CREDENTIAL_KEY` AES-GCM encryption at rest is configured in
    `wireShell`); hash-chain tamper evidence is nominal only (see 5.4);

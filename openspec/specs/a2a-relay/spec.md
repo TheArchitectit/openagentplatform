@@ -22,10 +22,13 @@ core**: a `RelayService` tracks relay connections per tenant, enforces
 per-tenant connection limits, meters relayed bytes for billing, and reaps
 idle connections. All state is held in memory behind a `sync.RWMutex`.
 
-The package was delivered in Sprint 6.3 (Story 6.3.4, commit `fcf49af`).
-It is a service-layer library: the network listener, byte forwarding, and
-leg authentication described in the package doc comment are **not yet
-implemented**, and the package is not wired into any server binary.
+The accounting core was delivered in Sprint 6.3 (Story 6.3.4, commit
+`fcf49af`). RELAY-01 then added the WSS listener skeleton
+(`internal/relay/ws.go`) and the dedicated `cmd/relay` binary (W8 decision:
+not wired into `cmd/server`). The byte forwarding and leg matching described
+in the package doc comment remain **not yet implemented** (RELAY-03); the
+identity/entitlement admission (RELAY-02) and discovery (RELAY-05) are
+decision-approved but not yet coded.
 
 ## User Story
 
@@ -221,21 +224,19 @@ load/E2E stage (RELAY-06) validates the relayed session end-to-end.
 
 ## Known Limitations
 
-- **No network transport.** Despite `RelayConfig.ListenAddr` and
-  `RelayConfig.TLSConfig`, the package contains no listener, no TLS
-  termination, and no byte forwarding — `RecordBytes` is bookkeeping
-  that callers must drive. The config fields are currently unused.
-  The approved direction for this is recorded in §7 (PLANNED,
-  tracked by RELAY-00..RELAY-06).
-- **Parked: not wired into any binary (W8 decision).** Nothing under
-  `cmd/` constructs a `RelayService`. The package stays a library with
-  correct bookkeeping semantics; wiring it into a dedicated relay binary
-  requires the missing network transport (below) and an authentication
-  design, so it is deliberately left out of the main server process until
-  both exist.
-- **Doc-comment features unimplemented.** The package comment claims
-  "Authentication on both legs (not open forwarder)" and "End-to-end
-  encryption (relay cannot read secrets)"; neither exists in the code.
+- **WSS listener shipped, transport plumbing partial.** RELAY-01 delivered
+  `internal/relay/ws.go` (WSS listener that terminates TLS and upgrades to
+  WebSocket) and the dedicated `cmd/relay` binary (W8 decision respected —
+  NOT wired into `cmd/server`). The listener is fail-closed: it upgrades then
+  closes every session without registering until RELAY-03 implements the
+  mTLS + bearer-token admission (§7.2 I.3). Byte forwarding / leg matching
+  is NOT yet implemented (RELAY-03). `RecordBytes` is still bookkeeping that
+  the forwarder will drive.
+- **Doc-comment features partially unimplemented.** The package comment
+  claims "Authentication on both legs (not open forwarder)" and "End-to-end
+  encryption (relay cannot read secrets)". The E2E design is RESOLVED as a
+  blind forwarder (E.4) and authentication is RESOLVED as layered mTLS +
+  bearer token (I.3), but neither is implemented in code yet (RELAY-02/03).
 - **`ConnectionStatusError` is dead code** — declared and tested as a
   constant but never assigned by any state transition.
 - **Idleness is now tracked by last activity** (fixed in the W8 commit):
