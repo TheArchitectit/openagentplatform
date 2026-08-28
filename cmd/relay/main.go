@@ -34,9 +34,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	// I.3: load the issued-identity trust config (token verification key +
+	// entitlement grants). Fail-closed — the relay must not start without it.
+	trustCfg, err := relay.LoadTrustConfig(flags.TrustConfigPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "relay: %v\n", err)
+		os.Exit(1)
+	}
+
 	log := logger.New("info")
 
 	svc := relay.NewRelayService(cfg, log)
+	svc.SetTrustConfig(trustCfg)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

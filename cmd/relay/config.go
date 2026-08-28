@@ -30,6 +30,10 @@ type Flags struct {
 // additive-only: no existing RelayConfig field is removed or repurposed. The
 // TLSConfig is loaded here (fail-closed) so the listener always has a valid
 // certificate before ServeWS binds.
+//
+// Since I.3 (RELAY-02), the WSS TLS config also requires mTLS client
+// certificates verified against the platform CA (--trust-ca). This is the same
+// CA pool used by the admin listener; a single --trust-ca flag covers both.
 func (f *Flags) relayConfig() (relay.RelayConfig, error) {
 	if f.CertFile == "" || f.KeyFile == "" {
 		return relay.RelayConfig{}, fmt.Errorf("relay: -cert and -key are required for WSS")
@@ -42,12 +46,38 @@ func (f *Flags) relayConfig() (relay.RelayConfig, error) {
 		Certificates: []tls.Certificate{cert},
 		MinVersion:   tls.VersionTLS12,
 	}
+
+	// I.3: require mTLS on the WSS data plane (RELAY-02 §1.1). The same --trust-ca
+	// flag supplies the CA pool for both WSS and admin listeners.
+	if f.TrustCAPath != "" {
+		pool, err := loadCAPool(f.TrustCAPath)
+		if err != nil {
+			return relay.RelayConfig{}, fmt.Errorf("relay: load WSS trust CA: %w", err)
+		}
+		tlsCfg.ClientCAs = pool
+		tlsCfg.ClientAuth = tls.RequireAndVerifyClientCert
+	}
+
 	return relay.RelayConfig{
 		ListenAddr:     f.WSSListenAddr,
 		TLSConfig:      tlsCfg,
 		MaxConnections: f.MaxConnections,
 		IdleTimeout:    f.IdleTimeout,
 	}, nil
+}
+
+// loadCAPool reads a PEM-encoded CA certificate file and returns an x509 pool.
+// Shared by the WSS and admin TLS configs.
+func loadCAPool(path string) (*x509.CertPool, error) {
+	pem, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read CA file: %w", err)
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(pem) {
+		return nil, fmt.Errorf("CA file contains no valid certificates")
+	}
+	return pool, nil
 }
 
 // adminTLSConfig builds the admin listener's TLS config: the same server
@@ -62,13 +92,9 @@ func (f *Flags) adminTLSConfig() (*tls.Config, error) {
 	if f.TrustCAPath == "" {
 		return nil, fmt.Errorf("relay: -trust-ca is required for the admin listener")
 	}
-	pem, err := os.ReadFile(f.TrustCAPath)
+	pool, err := loadCAPool(f.TrustCAPath)
 	if err != nil {
-		return nil, fmt.Errorf("relay: read trust CA: %w", err)
-	}
-	pool := x509.NewCertPool()
-	if !pool.AppendCertsFromPEM(pem) {
-		return nil, fmt.Errorf("relay: trust CA file contains no valid certificates")
+		return nil, fmt.Errorf("relay: admin listener trust CA: %w", err)
 	}
 
 	return relay.AdminTLSConfig(cert, pool), nil
@@ -85,7 +111,7 @@ func ParseFlags(args []string) (*Flags, error) {
 	fs.StringVar(&f.CertFile, "cert", "", "TLS certificate file for WSS (required)")
 	fs.StringVar(&f.KeyFile, "key", "", "TLS key file for WSS (required)")
 	fs.StringVar(&f.AdminAddr, "admin-addr", "127.0.0.1:9090", "admin listener bind address")
-	fs.StringVar(&f.TrustCAPath, "trust-ca", "", "platform CA cert PEM for admin mTLS (required)")
+	fs.StringVar(&f.TrustCAPath, "trust-ca", "", "platform CA cert PEM for WSS + admin mTLS (required)")
 	fs.StringVar(&f.TrustConfigPath, "trust-config", "", "issued-identity trust config path (RELAY-02)")
 	fs.IntVar(&f.MaxConnections, "max-connections", 1000, "per-tenant max concurrent connections (0 = unlimited)")
 	fs.DurationVar(&f.IdleTimeout, "idle-timeout", 30*time.Minute, "idle connection reaping window")

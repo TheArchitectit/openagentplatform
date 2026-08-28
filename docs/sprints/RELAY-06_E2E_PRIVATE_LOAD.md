@@ -134,11 +134,11 @@ identity checks as a rollback shortcut.
 | D.2 discovery protocol | `docs/design/RELAY_05_DISCOVERY_FEDERATION_ADR.md` | APPROVED |
 | D.2 discovery implementation | deferred (RELAY-05 Step 4 successor sprint) | ABSENT |
 | I.3 design | `docs/design/RELAY_02_IDENTITY_ENTITLEMENT_ADR.md` | APPROVED |
-| I.3 implementation | `-trust-config` unconsumed; WSS TLS lacks `ClientAuth=RequireAndVerifyClientCert`; `Admit` grants entitlement unconditionally | ABSENT |
+| I.3 implementation | `trust.go` (TrustConfig + VerifyToken + CheckEntitlement + jti LRU); WSS TLS `ClientAuth=RequireAndVerifyClientCert` via `--trust-ca`; `extractIdentity` derives principal + tenant from cert SANs; `handleWSS` enforces token + jti + entitlement before Admit | PRESENT |
 | E.4 design | blind-forwarder (out-of-band keys) | APPROVED |
 | E.4 acceptance | not tested | NOT RUN |
 
-Step 1 HALT. RELAY-06 stays BLOCKED on the two implementation gaps above.
-The acceptance stage will reopen only after the I.3 admission implementation
-lands and the discovery successor sprint ships its local registry +
-federation RPCs.
+I.3 admission implementation has landed (RELAY-03 wiring + trust.go + tests).
+RELAY-06 remains BLOCKED on the single remaining implementation gap: the
+discovery successor sprint (local registry + federation RPCs). The acceptance
+stage reopens after that successor sprint ships.

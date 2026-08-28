@@ -1,6 +1,7 @@
 package relay
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"sync"
@@ -97,7 +98,7 @@ func (m *MatchEngine) Admit(conn *websocket.Conn, tlsPrincipal string, msg Rende
 
 	// Register the connection via the accounting core.
 	connRecord, err := m.svc.EstablishConnection(
-		nil, // ctx not needed for in-memory store
+		context.Background(), // ctx not needed for in-memory store
 		msg.TenantID, tlsPrincipal, msg.TargetID,
 	)
 	if err != nil {
@@ -141,7 +142,7 @@ func (m *MatchEngine) Admit(conn *websocket.Conn, tlsPrincipal string, msg Rende
 		existing.State = LegClosed
 		existing.closeErr = errors.New("duplicate_leg")
 		existing.mu.Unlock()
-		m.svc.CloseConnection(nil, existing.ConnID)
+		m.svc.CloseConnection(context.Background(), existing.ConnID)
 		if existing.Conn != nil {
 			_ = existing.Conn.Close()
 		}
@@ -174,7 +175,7 @@ func (m *MatchEngine) CloseLeg(leg *Leg) {
 	}
 	m.mu.Unlock()
 
-	m.svc.CloseConnection(nil, leg.ConnID)
+	m.svc.CloseConnection(context.Background(), leg.ConnID)
 	if leg.Conn != nil {
 		_ = leg.Conn.Close()
 	}

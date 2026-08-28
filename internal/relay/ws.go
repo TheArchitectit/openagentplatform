@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -84,10 +85,11 @@ func (s *RelayService) handleWSS(w http.ResponseWriter, r *http.Request, up wsUp
 		return
 	}
 
-	// Extract mTLS principal (RELAY-02 §1.1). The CN/SAN on the client cert.
-	tlsPrincipal := extractPrincipal(r)
-	if tlsPrincipal == "" {
-		s.log.Info("relay: no mTLS principal; closing", "remote", r.RemoteAddr)
+	// Extract verified mTLS identity: principal + tenant, both from the client
+	// cert (RELAY-02 §1.1, §2.4). The request body is never the trust anchor.
+	principal, tenant := extractIdentity(r)
+	if principal == "" || tenant == "" {
+		s.log.Info("relay: no mTLS identity; closing", "remote", r.RemoteAddr)
 		_ = conn.Close()
 		return
 	}
@@ -100,14 +102,52 @@ func (s *RelayService) handleWSS(w http.ResponseWriter, r *http.Request, up wsUp
 		return
 	}
 
-	// Admit and match.
+	// I.3 admission gate (RELAY-02 ADR §2.3, §2.5). Fails closed: a missing
+	// trust config, a bad token, a repeated jti, or no entitlement closes the
+	// leg before it is ever registered.
+	if s.trust == nil || s.jti == nil {
+		s.log.Warn("relay: trust config not installed; closing", "remote", r.RemoteAddr)
+		_ = conn.Close()
+		return
+	}
+
+	if msg.AgentID != principal {
+		s.log.Info("relay: principal spoof attempt; closing",
+			"remote", r.RemoteAddr, "cert_principal", principal, "msg_agent", msg.AgentID)
+		_ = conn.Close()
+		return
+	}
+
+	if err := s.trust.VerifyToken(msg.Token, principal, msg.TargetID, tenant, time.Now()); err != nil {
+		s.log.Info("relay: token verification failed; closing", "remote", r.RemoteAddr, "err", err)
+		_ = conn.Close()
+		return
+	}
+
+	if s.jti.seen(msg.JTI, time.Now()) {
+		s.log.Info("relay: token replay detected; closing", "remote", r.RemoteAddr)
+		_ = conn.Close()
+		return
+	}
+
+	if !s.trust.CheckEntitlement(tenant, principal, msg.TargetID) {
+		s.log.Info("relay: no entitlement; closing",
+			"remote", r.RemoteAddr, "tenant", tenant, "source", principal, "target", msg.TargetID)
+		_ = conn.Close()
+		return
+	}
+
+	// Derive the tenant from the cert, never the request body (RELAY-03 §2).
+	msg.TenantID = tenant
+
+	// Admit and match. Admit re-checks the principal as a backstop.
 	if s.matchEngine == nil {
 		s.log.Warn("relay: match engine not initialized; closing")
 		_ = conn.Close()
 		return
 	}
 
-	leg, partner, err := s.matchEngine.Admit(conn, tlsPrincipal, msg)
+	leg, partner, err := s.matchEngine.Admit(conn, principal, msg)
 	if err != nil {
 		s.log.Info("relay: admission rejected", "remote", r.RemoteAddr, "err", err)
 		_ = conn.Close()
@@ -127,22 +167,41 @@ func (s *RelayService) handleWSS(w http.ResponseWriter, r *http.Request, up wsUp
 	}
 }
 
-// extractPrincipal pulls the CN or first SAN from the TLS handshake's client
-// certificate. Returns empty string if no client cert was presented.
-func extractPrincipal(r *http.Request) string {
+// extractIdentity pulls the principal and tenant from the verified mTLS client
+// certificate. The principal is the first identity SAN/CN carrying the
+// `oap:<agentID>` token; the tenant is the first `oap:tenant:<id>` SAN. Both
+// are derived from the certificate — never from the request body (RELAY-02
+// §2.4, RELAY-03 §2). Returns ("", "") when no recognized identity exists.
+func extractIdentity(r *http.Request) (principal, tenant string) {
 	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
-		return ""
+		return "", ""
 	}
 	cert := r.TLS.PeerCertificates[0]
-	// Prefer Subject CommonName.
-	if cert.Subject.CommonName != "" {
-		return cert.Subject.CommonName
+
+	// Candidate identity tokens, in priority order: DNS SANs, URI SANs, then CN.
+	tokens := append([]string{}, cert.DNSNames...)
+	for _, u := range cert.URIs {
+		tokens = append(tokens, u.String())
 	}
-	// Fall back to first DNS SAN.
-	if len(cert.DNSNames) > 0 {
-		return cert.DNSNames[0]
+	tokens = append(tokens, cert.Subject.CommonName)
+
+	for _, tok := range tokens {
+		tok = strings.TrimSpace(tok)
+		if tok == "" {
+			continue
+		}
+		switch {
+		case strings.HasPrefix(tok, "oap:tenant:"):
+			if tenant == "" {
+				tenant = strings.TrimPrefix(tok, "oap:tenant:")
+			}
+		case strings.HasPrefix(tok, "oap:role:"):
+			// Operator-only marker; agents never carry this — skip it.
+		case principal == "":
+			principal = tok
+		}
 	}
-	return ""
+	return principal, tenant
 }
 
 // StartMatchTimeoutReaper runs a background goroutine that closes legs which
@@ -167,7 +226,7 @@ func StartMatchTimeoutReaper(ctx context.Context, engine *MatchEngine, matchTime
 						leg.mu.Unlock()
 						delete(engine.pends, key)
 						_ = leg.Conn.Close()
-						engine.svc.CloseConnection(nil, leg.ConnID)
+						engine.svc.CloseConnection(context.TODO(), leg.ConnID)
 						log.Info("relay: match timeout, closing pending leg",
 							"conn_id", leg.ConnID,
 							"source", leg.AgentID, "target", leg.TargetID)

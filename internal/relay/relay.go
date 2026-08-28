@@ -81,6 +81,8 @@ type RelayService struct {
 	log         *slog.Logger
 	matchEngine *MatchEngine
 	forwarder   *Forwarder
+	trust       *TrustConfig // I.3: identity + entitlement verification (RELAY-02)
+	jti         *jtiCache    // I.3: token replay prevention (RELAY-02 §1.3)
 }
 
 // NewRelayService creates a new relay service.
@@ -97,6 +99,19 @@ func NewRelayService(config RelayConfig, log *slog.Logger) *RelayService {
 	svc.matchEngine = NewMatchEngine(svc)
 	svc.forwarder = NewForwarder(svc.matchEngine)
 	return svc
+}
+
+// SetTrustConfig installs the I.3 trust configuration (identity + entitlement
+// verification). Must be called before ServeWS; nil leaves the service in
+// fail-closed mode (every leg is rejected).
+func (s *RelayService) SetTrustConfig(tc *TrustConfig) {
+	s.trust = tc
+	s.jti = newJtiCache()
+}
+
+// Trust returns the installed trust config (nil when unset).
+func (s *RelayService) Trust() *TrustConfig {
+	return s.trust
 }
 
 // MatchEngine returns the match engine.
