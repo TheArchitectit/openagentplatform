@@ -2,8 +2,10 @@ package main
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"flag"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/openagentplatform/openagentplatform/internal/relay"
@@ -17,6 +19,8 @@ type Flags struct {
 	WSSListenAddr   string        // e.g. ":7000"
 	CertFile        string        // TLS cert for WSS
 	KeyFile         string        // TLS key for WSS
+	AdminAddr       string        // admin listener bind address (loopback by default)
+	TrustCAPath     string        // platform CA cert PEM for admin mTLS (RELAY-04)
 	TrustConfigPath string        // issued-identity trust config (consumed in RELAY-02)
 	MaxConnections  int           // per-tenant connection cap (0 = unlimited)
 	IdleTimeout     time.Duration // idle reaping window
@@ -46,6 +50,30 @@ func (f *Flags) relayConfig() (relay.RelayConfig, error) {
 	}, nil
 }
 
+// adminTLSConfig builds the admin listener's TLS config: the same server
+// certificate as WSS, plus mandatory client-certificate verification against
+// the platform CA. Fail-closed: a missing or unreadable CA file is an error.
+func (f *Flags) adminTLSConfig() (*tls.Config, error) {
+	cert, err := tls.LoadX509KeyPair(f.CertFile, f.KeyFile)
+	if err != nil {
+		return nil, fmt.Errorf("relay: load TLS key pair: %w", err)
+	}
+
+	if f.TrustCAPath == "" {
+		return nil, fmt.Errorf("relay: -trust-ca is required for the admin listener")
+	}
+	pem, err := os.ReadFile(f.TrustCAPath)
+	if err != nil {
+		return nil, fmt.Errorf("relay: read trust CA: %w", err)
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(pem) {
+		return nil, fmt.Errorf("relay: trust CA file contains no valid certificates")
+	}
+
+	return relay.AdminTLSConfig(cert, pool), nil
+}
+
 // ParseFlags populates a Flags from command-line flags (and returns the flagset
 // so tests can inject custom args). Defaults: listen on :7000, 1000 per-tenant
 // connections, 30-minute idle timeout. Cert/key/trust-config are empty by
@@ -56,6 +84,8 @@ func ParseFlags(args []string) (*Flags, error) {
 	fs.StringVar(&f.WSSListenAddr, "listen", ":7000", "WSS listen address")
 	fs.StringVar(&f.CertFile, "cert", "", "TLS certificate file for WSS (required)")
 	fs.StringVar(&f.KeyFile, "key", "", "TLS key file for WSS (required)")
+	fs.StringVar(&f.AdminAddr, "admin-addr", "127.0.0.1:9090", "admin listener bind address")
+	fs.StringVar(&f.TrustCAPath, "trust-ca", "", "platform CA cert PEM for admin mTLS (required)")
 	fs.StringVar(&f.TrustConfigPath, "trust-config", "", "issued-identity trust config path (RELAY-02)")
 	fs.IntVar(&f.MaxConnections, "max-connections", 1000, "per-tenant max concurrent connections (0 = unlimited)")
 	fs.DurationVar(&f.IdleTimeout, "idle-timeout", 30*time.Minute, "idle connection reaping window")

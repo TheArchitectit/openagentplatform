@@ -180,6 +180,14 @@ func (m *MatchEngine) CloseLeg(leg *Leg) {
 	}
 }
 
+// PendingLegCount returns the number of legs currently awaiting a counterpart.
+// Used by the operator health endpoint (RELAY-04).
+func (m *MatchEngine) PendingLegCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return len(m.pends)
+}
+
 // ClosePartner closes both legs of a matched pair (the match partner and the
 // given leg). Used by the forwarder when one leg closes.
 func (m *MatchEngine) ClosePair(leg *Leg) {

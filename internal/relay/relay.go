@@ -261,6 +261,21 @@ func (s *RelayService) GetMetrics(ctx context.Context, tenantID string) *RelayMe
 	return metrics
 }
 
+// AllMetrics returns a snapshot of every tenant's metrics, keyed by tenant ID.
+// It reuses existing accounting state — no new counters are created (RELAY-04
+// scope boundary: no new accounting or billing export).
+func (s *RelayService) AllMetrics(ctx context.Context) map[string]*RelayMetrics {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	out := make(map[string]*RelayMetrics, len(s.metrics))
+	for id, m := range s.metrics {
+		cp := *m
+		out[id] = &cp
+	}
+	return out
+}
+
 // CleanupIdleConnections closes idle connections.
 func (s *RelayService) CleanupIdleConnections(ctx context.Context) int {
 	s.mu.Lock()

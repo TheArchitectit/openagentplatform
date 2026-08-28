@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -42,6 +43,9 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 		}
 		if f.WSSListenAddr != ":7000" {
 			t.Errorf("default listen = %q, want :7000", f.WSSListenAddr)
+		}
+		if f.AdminAddr != "127.0.0.1:9090" {
+			t.Errorf("default admin-addr = %q, want 127.0.0.1:9090", f.AdminAddr)
 		}
 		if f.MaxConnections != 1000 {
 			t.Errorf("default max-connections = %d, want 1000", f.MaxConnections)
@@ -88,6 +92,36 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 		}
 		if len(cfg.TLSConfig.Certificates) != 1 {
 			t.Fatalf("certificates = %d, want 1", len(cfg.TLSConfig.Certificates))
+		}
+	})
+
+	t.Run("admin TLS requires trust CA", func(t *testing.T) {
+		certPath, keyPath := generateTestCert(t)
+		f, err := ParseFlags([]string{"-cert", certPath, "-key", keyPath})
+		if err != nil {
+			t.Fatalf("ParseFlags: %v", err)
+		}
+		if _, err := f.adminTLSConfig(); err == nil {
+			t.Fatal("adminTLSConfig should error when -trust-ca is empty")
+		}
+	})
+
+	t.Run("admin TLS loads CA (fail-closed mTLS)", func(t *testing.T) {
+		certPath, keyPath := generateTestCert(t)
+		// A self-signed cert is its own CA; reuse it as the trust anchor.
+		f, err := ParseFlags([]string{"-cert", certPath, "-key", keyPath, "-trust-ca", certPath})
+		if err != nil {
+			t.Fatalf("ParseFlags: %v", err)
+		}
+		cfg, err := f.adminTLSConfig()
+		if err != nil {
+			t.Fatalf("adminTLSConfig: %v", err)
+		}
+		if cfg.ClientAuth != tls.RequireAndVerifyClientCert {
+			t.Errorf("ClientAuth = %v, want RequireAndVerifyClientCert", cfg.ClientAuth)
+		}
+		if cfg.ClientCAs == nil {
+			t.Error("ClientCAs should not be nil")
 		}
 	})
 }

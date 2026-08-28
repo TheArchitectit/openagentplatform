@@ -23,12 +23,18 @@ per-tenant connection limits, meters relayed bytes for billing, and reaps
 idle connections. All state is held in memory behind a `sync.RWMutex`.
 
 The accounting core was delivered in Sprint 6.3 (Story 6.3.4, commit
-`fcf49af`). RELAY-01 then added the WSS listener skeleton
-(`internal/relay/ws.go`) and the dedicated `cmd/relay` binary (W8 decision:
-not wired into `cmd/server`). The byte forwarding and leg matching described
-in the package doc comment remain **not yet implemented** (RELAY-03); the
-identity/entitlement admission (RELAY-02) and discovery (RELAY-05) are
-decision-approved but not yet coded.
+`fcf49af`). RELAY-01 added the WSS listener skeleton (`internal/relay/ws.go`)
+and the dedicated `cmd/relay` binary (W8 decision: not wired into `cmd/server`).
+RELAY-03 implemented the rendezvous protocol, leg matching
+(`internal/relay/match.go`), and bidirectional frame forwarding
+(`internal/relay/forward.go`). RELAY-04 added the operator observability
+surface (`internal/relay/admin.go`) — a separate loopback-default mTLS
+listener exposing `/admin/health` and tenant-scoped `/admin/metrics`
+(contract: `docs/design/RELAY_04_OPERATOR_API_ADR.md`).
+
+Remaining decision-approved but not yet coded: entitlement-gated admission
+(RELAY-02 trust-config wiring) and discovery federation (RELAY-05). E2E
+encryption remains a blind-forwarder contract (E.4).
 
 ## User Story
 
@@ -164,10 +170,15 @@ rendezvous. Admission SHALL reuse `EstablishConnection` so per-tenant limits
 the I.3 authentication design is approved; unauthenticated legs MUST be closed
 without registration.
 
-R.4. `[PLANNED]` Two admitted legs are matched by the relay only after the
+R.4. `[PARTIAL]` Two admitted legs are matched by the relay only after the
 entitlement check passes for the target (I.1); matched legs then exchange
 frames through the relay. `RecordBytes` (4.x) and `LastActivityAt` idle reaping
 (5.x) MUST run on real frames.
+> **Implemented (RELAY-03):** symmetric matching, duplicate replacement,
+> bidirectional binary frame forwarding (1 MiB cap, 10s write deadline), and
+> `RecordBytes` on every forwarded frame with `LastActivityAt` refresh. The
+> entitlement-gated admission (I.1) is the remaining gap — admission currently
+> grants entitlement unconditionally pending trust-config wiring (RELAY-06).
 
 #### 7.2 Issued Identity & Entitlement
 
@@ -224,19 +235,19 @@ load/E2E stage (RELAY-06) validates the relayed session end-to-end.
 
 ## Known Limitations
 
-- **WSS listener shipped, transport plumbing partial.** RELAY-01 delivered
-  `internal/relay/ws.go` (WSS listener that terminates TLS and upgrades to
-  WebSocket) and the dedicated `cmd/relay` binary (W8 decision respected —
-  NOT wired into `cmd/server`). The listener is fail-closed: it upgrades then
-  closes every session without registering until RELAY-03 implements the
-  mTLS + bearer-token admission (§7.2 I.3). Byte forwarding / leg matching
-  is NOT yet implemented (RELAY-03). `RecordBytes` is still bookkeeping that
-  the forwarder will drive.
-- **Doc-comment features partially unimplemented.** The package comment
-  claims "Authentication on both legs (not open forwarder)" and "End-to-end
-  encryption (relay cannot read secrets)". The E2E design is RESOLVED as a
-  blind forwarder (E.4) and authentication is RESOLVED as layered mTLS +
-  bearer token (I.3), but neither is implemented in code yet (RELAY-02/03).
+- **Matching and forwarding shipped, admission still fail-closed on
+  entitlement.** RELAY-03 delivered the rendezvous protocol, symmetric leg
+  matching, duplicate replacement, and bidirectional binary frame forwarding
+  (`match.go` + `forward.go`), driven by the WSS admission path in `ws.go`.
+  Entitlement-gated admission (§7.2 I.1) is NOT yet wired — `Admit` grants
+  entitlement unconditionally pending trust-config loading; the mTLS principal
+  and token claims are the intended trust anchors (I.3). RELAY-06 closes this.
+- **Operator API shipped, loopback-only by default.** RELAY-04 delivered
+  `internal/relay/admin.go`: a separate mTLS listener (`--admin-addr`,
+  default `127.0.0.1:9090`) serving `/admin/health` and tenant-scoped
+  `/admin/metrics`. Requires `--trust-ca`; role SANs (`relay-admin` /
+  `relay-operator`) enforce tenant visibility. Durable billing export is
+  out of scope (RELAY-04 boundary).
 - **`ConnectionStatusError` is dead code** — declared and tested as a
   constant but never assigned by any state transition.
 - **Idleness is now tracked by last activity** (fixed in the W8 commit):

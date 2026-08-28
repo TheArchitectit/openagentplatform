@@ -4,7 +4,7 @@
 **Sprint Focus:** Approve and expose a secure operator observability surface over
 existing relay accounting, without inventing billing metrics or tenant access.
 **Priority:** P2 (Normal)
-**Status:** BLOCKED — requires RELAY-03 and operator API decisions
+**Status:** COMPLETE
 
 Spec reference: `openspec/specs/a2a-relay/spec.md` §4, §6, and §7.1 R.4.
 
@@ -115,4 +115,37 @@ Remove deployed listener configuration before source rollback.
 ---
 
 **Created:** 2026-08-23
-**Version:** 1.1
+**Version:** 1.2
+
+---
+
+## Closeout Note
+
+RELAY-04 shipped. All three execution steps completed:
+
+1. **Operator API contract approved** — `docs/design/RELAY_04_OPERATOR_API_ADR.md`
+   - D.1: Separate admin listener, loopback-only default (`127.0.0.1:9090`)
+   - D.2: mTLS with operator role SAN, reusing Ed25519 CA
+   - D.3: Tiered visibility — `relay-admin` sees all tenants; `relay-operator` sees only bound tenants
+2. **Secured surface implemented** — `internal/relay/admin.go`
+   - `/admin/health` — liveness, uptime, active connections, pending legs
+   - `/admin/metrics` — tenant-scoped metrics with role-based visibility enforcement
+   - `operatorIdentity()` — extracts role/tenant SANs from client cert
+   - `AdminTLSConfig()` — fail-closed mTLS config builder
+   - `AllMetrics()` on RelayService — read-only snapshot of all tenant accounting
+   - `PendingLegCount()` on MatchEngine — pending leg gauge for health
+3. **Tests pass** — 10 admin-specific tests covering:
+   - Unauthenticated rejection (health + metrics)
+   - Unrecognized role → 403
+   - Admin sees all tenants
+   - Admin filtered by ?tenant= query
+   - Operator sees only bound tenants
+   - Operator cross-tenant query → 403
+   - Config tests: admin-addr default, adminTLSConfig fail-closed, mTLS enforcement
+
+Acceptance criteria verified:
+- [x] Security contract approved (mTLS + role SAN + tiered visibility)
+- [x] Metric contract approved (existing RelayMetrics, no new counters)
+- [x] No tenant leakage (cross-tenant and unauthenticated tests reject)
+- [x] Existing accounting reused (AllMetrics reads from RelayMetrics)
+- [x] Shutdown and logs safe (no sensitive material logged)

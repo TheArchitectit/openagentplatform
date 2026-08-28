@@ -9,7 +9,9 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"os/signal"
@@ -47,11 +49,51 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Start the admin listener (RELAY-04) in a goroutine. It binds a separate
+	// loopback-default port and requires mTLS with a role SAN. A failure to
+	// configure or bind the admin surface is fatal — the relay must not run
+	// without a secured operator surface.
+	adminErr := startAdmin(ctx, flags, svc, log)
+
 	log.Info("relay: starting WSS listener", "addr", cfg.ListenAddr, "max_connections", cfg.MaxConnections)
 	if err := svc.ListenAndServe(ctx, tcpLn); err != nil {
 		log.Error("relay: listener exited", "err", err)
 		os.Exit(1)
 	}
 
+	// If the admin server errored, surface it after WSS shutdown.
+	if err := <-adminErr; err != nil {
+		log.Error("relay: admin listener exited", "err", err)
+		os.Exit(1)
+	}
+
 	log.Info("relay: shutdown complete")
+}
+
+// startAdmin configures and serves the admin listener. It returns a channel
+// that receives the server's exit error (nil on clean shutdown). It blocks on
+// configuration and bind errors, which are fatal.
+func startAdmin(ctx context.Context, flags *Flags, svc *relay.RelayService, log *slog.Logger) <-chan error {
+	errCh := make(chan error, 1)
+
+	tlsCfg, err := flags.adminTLSConfig()
+	if err != nil {
+		errCh <- err
+		return errCh
+	}
+
+	adminLn, err := net.Listen("tcp", flags.AdminAddr)
+	if err != nil {
+		errCh <- fmt.Errorf("relay: admin listen failed on %s: %w", flags.AdminAddr, err)
+		return errCh
+	}
+	tlsLn := tls.NewListener(adminLn, tlsCfg)
+
+	admin := relay.NewAdminServer(svc, log)
+
+	log.Info("relay: starting admin listener", "addr", flags.AdminAddr)
+	go func() {
+		errCh <- admin.Serve(ctx, tlsLn)
+	}()
+	return errCh
 }
