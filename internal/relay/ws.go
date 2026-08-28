@@ -57,7 +57,7 @@ func (s *RelayService) ServeWS(ctx context.Context, ln net.Listener, up wsUpgrad
 	}
 	srv := &http.Server{
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			s.handleWSS(w, r, up)
+			s.handleWSS(ctx, w, r, up)
 		}),
 		// No ReadTimeout/WriteTimeout: connection lifetime is governed by
 		// IdleTimeout reaping (RELAY-03 attaches that). Keep defaults sane.
@@ -78,7 +78,12 @@ func (s *RelayService) ServeWS(ctx context.Context, ln net.Listener, up wsUpgrad
 // handleWSS upgrades a single HTTP request to a WebSocket, admits the leg via
 // the MatchEngine (RELAY-02 mTLS + entitlement), and if matched starts frame
 // forwarding. Fails closed at every validation point.
-func (s *RelayService) handleWSS(w http.ResponseWriter, r *http.Request, up wsUpgrader) {
+//
+// srvCtx is the listener-lifetime context. The forwarded pair outlives this
+// HTTP request (the connection is hijacked), so the forwarder is bound to
+// srvCtx — never r.Context(), which is canceled the moment this handler
+// returns and would terminate forwarding before a single frame moves.
+func (s *RelayService) handleWSS(srvCtx context.Context, w http.ResponseWriter, r *http.Request, up wsUpgrader) {
 	conn, err := up.Upgrade(w, r, nil)
 	if err != nil {
 		s.log.Debug("relay: wss upgrade rejected", "remote", r.RemoteAddr, "err", err)
@@ -158,7 +163,7 @@ func (s *RelayService) handleWSS(w http.ResponseWriter, r *http.Request, up wsUp
 		// Matched! Start forwarding in a background goroutine.
 		s.log.Info("relay: legs matched; forwarding",
 			"conn_id_a", partner.ConnID, "conn_id_b", leg.ConnID)
-		go s.forwarder.Run(r.Context(), leg, partner)
+		go s.forwarder.Run(srvCtx, leg, partner)
 	} else {
 		// Pending leg — waiting for counterpart. The match timeout reaper
 		// handles expiry (RELAY-03 §4, 5m match timeout).
