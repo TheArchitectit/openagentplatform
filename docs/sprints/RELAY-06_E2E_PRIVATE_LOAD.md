@@ -5,7 +5,7 @@
 observability, discovery, and payload-encryption decisions are approved and their
 required implementations exist.
 **Priority:** P2 (Normal)
-**Status:** BLOCKED — depends on I.3, D.2, and E.4
+**Status:** BLOCKED — I.3 implementation and discovery implementation absent
 
 Spec reference: `openspec/specs/a2a-relay/spec.md` §7.4 E.1–E.4.
 Prerequisites: completed RELAY-01..05 plus an approved E.4 design.
@@ -121,4 +121,24 @@ identity checks as a rollback shortcut.
 ---
 
 **Created:** 2026-08-23
-**Version:** 1.1
+**Version:** 1.2
+
+---
+
+## Gate Verification Record (2026-08-24)
+
+| Gate | Evidence | Verdict |
+|------|----------|---------|
+| Rendezvous semantics | `docs/design/RELAY_03_RENDEZVOUS_PROTOCOL.md` + `match.go`/`forward.go` + tests | PRESENT |
+| Operator API | `docs/design/RELAY_04_OPERATOR_API_ADR.md` + `admin.go` + tests | PRESENT |
+| D.2 discovery protocol | `docs/design/RELAY_05_DISCOVERY_FEDERATION_ADR.md` | APPROVED |
+| D.2 discovery implementation | deferred (RELAY-05 Step 4 successor sprint) | ABSENT |
+| I.3 design | `docs/design/RELAY_02_IDENTITY_ENTITLEMENT_ADR.md` | APPROVED |
+| I.3 implementation | `-trust-config` unconsumed; WSS TLS lacks `ClientAuth=RequireAndVerifyClientCert`; `Admit` grants entitlement unconditionally | ABSENT |
+| E.4 design | blind-forwarder (out-of-band keys) | APPROVED |
+| E.4 acceptance | not tested | NOT RUN |
+
+Step 1 HALT. RELAY-06 stays BLOCKED on the two implementation gaps above.
+The acceptance stage will reopen only after the I.3 admission implementation
+lands and the discovery successor sprint ships its local registry +
+federation RPCs.
