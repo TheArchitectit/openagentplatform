@@ -5,7 +5,7 @@
 observability, discovery, and payload-encryption decisions are approved and their
 required implementations exist.
 **Priority:** P2 (Normal)
-**Status:** PARTIAL — E.4 blind-forwarder acceptance run; discovery §1.4 provenance shipped; load/soak acceptance (criterion 4) still has no approved plan
+**Status:** COMPLETE — all five acceptance criteria pass. E.2 private-relay, E.4 blind-forwarder, and E.3 load/soak (Tiered thresholds, approved 2026-08-27) all RUN and green.
 
 Spec reference: `openspec/specs/a2a-relay/spec.md` §7.4 E.1–E.4.
 Prerequisites: completed RELAY-01..05 plus an approved E.4 design.
@@ -118,12 +118,13 @@ identity checks as a rollback shortcut.
 - D.2 discovery federation protocol and implementation (COMPLETE: §1.4 provenance signing/verification landed).
 - E.4 end-to-end payload protection acceptance (RUN: blind-forwarder `internal/relay/e4_acceptance_test.go`).
 - E.2 private-relay acceptance (RUN: `internal/relay/e2_private_relay_test.go` — no open forwarder).
-- Load/soak acceptance (criterion 4): no approved thresholds/durations yet.
+- E.3 load acceptance (RUN: `internal/relay/e3_load_test.go` — per-tenant cap race-free under 64 workers at C=1000; metering exact).
+- E.3 soak acceptance (RUN: `internal/relay/e3_soak_test.go` — 50 pairs × 5 min × 1 MiB frames; zero goroutine leak; metering consistent).
 
 ---
 
 **Created:** 2026-08-23
-**Version:** 1.4
+**Version:** 1.5
 
 ---
 
@@ -141,6 +142,8 @@ identity checks as a rollback shortcut.
 | E.4 acceptance | `internal/relay/e4_acceptance_test.go` — two mTLS legs, bidirectional opaque ciphertext forwarded intact + exact metering; relay in-memory state never contains the plaintext; text + oversized frames close the pair | RUN |
 | E.2 design | private relay — not an open forwarder (only issued, entitled clients admitted) | APPROVED |
 | E.2 acceptance | `internal/relay/e2_private_relay_test.go` — missing mTLS cert, untrusted CA, and non-entitled (default-deny) clients all rejected with nothing registered | RUN |
+| E.3 design | load stage validating per-tenant limits + metering under concurrency; thresholds from an approved acceptance plan | APPROVED (Tiered: C=1000, G=64, P=50×1 MiB, D=5 min) |
+| E.3 acceptance | `internal/relay/e3_load_test.go` (cap + metering under 64-way concurrency, race-clean) + `internal/relay/e3_soak_test.go` (50 pairs × 5 min, no goroutine leak); found + fixed the per-tenant cap race | RUN |
 
 I.3 admission implementation has landed (RELAY-03 wiring + trust.go + tests).
 D.2 discovery implementation is now COMPLETE: ADR §1.4 provenance signatures
@@ -156,5 +159,14 @@ cert from an untrusted CA, or with a valid cert + token but no entitlement grant
 is turned away before any connection is registered — the relay is not a general
 open forwarder. This closes the spec's former "entitlement-gated admission NOT
 yet wired" known limitation.
-RELAY-06 remains PARTIAL on a single item: load/soak acceptance (criterion 4)
-has no approved thresholds or durations, and this sprint does not invent them.
+E.3 load/soak acceptance (criterion 4) is RUN at the approved Tiered thresholds
+(C=1000, G=64, P=50 pairs × 1 MiB frames, D=5 minutes). The load test caught a
+real production defect: EstablishConnection split the active-count check (RLock)
+from the insert (Lock), so concurrent establishments could all observe the
+pre-cap count and overshoot the per-tenant limit. The check+insert is now a
+single atomic section (`relay.go`), and the cap is exact under 64-way race.
+The soak ran 50 matched pairs for 5 minutes (~1.3 GB relayed) and confirmed zero
+goroutine leak on teardown, with metering internally consistent.
+RELAY-06 is COMPLETE. The overall managed-relay spec (`a2a-relay`) remains
+PARTIAL on its own plan items (§7.1 R.3, R.4, §7.2, D.1 labels) which are
+tracked separately; this sprint's five criteria are all satisfied.

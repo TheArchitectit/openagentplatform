@@ -55,9 +55,9 @@ type RelayConnection struct {
 type ConnectionStatus string
 
 const (
-	ConnectionStatusActive   ConnectionStatus = "active"
-	ConnectionStatusClosed   ConnectionStatus = "closed"
-	ConnectionStatusError    ConnectionStatus = "error"
+	ConnectionStatusActive ConnectionStatus = "active"
+	ConnectionStatusClosed ConnectionStatus = "closed"
+	ConnectionStatusError  ConnectionStatus = "error"
 )
 
 // RelayMetrics contains relay usage metrics.
@@ -137,17 +137,21 @@ func (s *RelayService) EstablishConnection(ctx context.Context, tenantID, source
 		return nil, fmt.Errorf("target agent ID is required")
 	}
 
-	// Check connection limit
-	s.mu.RLock()
+	// The active-connection check and the insert MUST be atomic: the limit scan
+	// is only correct if no concurrent establishment can interleave between
+	// counting and inserting (RELAY spec §3.2 — reject once the tenant has
+	// reached the limit, under concurrency). A separate RLock scan + Lock
+	// insert allowed concurrent establishments to all observe the pre-cap
+	// count and overshoot; the E.3 load stage caught this.
+	s.mu.Lock()
 	activeCount := 0
 	for _, conn := range s.connections {
 		if conn.TenantID == tenantID && conn.Status == ConnectionStatusActive {
 			activeCount++
 		}
 	}
-	s.mu.RUnlock()
-
 	if s.config.MaxConnections > 0 && activeCount >= s.config.MaxConnections {
+		s.mu.Unlock()
 		return nil, fmt.Errorf("connection limit reached for tenant %s", tenantID)
 	}
 
@@ -164,7 +168,6 @@ func (s *RelayService) EstablishConnection(ctx context.Context, tenantID, source
 		Status:         ConnectionStatusActive,
 	}
 
-	s.mu.Lock()
 	s.connections[connID] = conn
 
 	// Update metrics
