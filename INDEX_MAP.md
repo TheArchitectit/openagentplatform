@@ -20,8 +20,11 @@ active work. Start here, in order, and stop at any gate that is blocked.
    - RELAY: begin with **RELAY-00** (`docs/sprints/RELAY-00_ARCHITECTURE_SECURITY.md`),
      then RELAY-01..06.
 3. **Respect the gates.** RELAY mechanisms **I.3 (identity), D.2 (discovery),
-   and E.4 (E2E encryption) are UNAPPROVED/BLOCKED.** RELAY-02..06 MUST stop at
-   their decision gates; approved *outcomes* are not authorization to invent the
+   and E.4 (E2E encryption)** are APPROVED and implemented: I.3 admission lands
+   in `trust.go` + the WSS gate, D.2 federation + §1.4 provenance signatures in
+   `discovery*.go`, and E.4 blind-forwarder acceptance in `e4_acceptance_test.go`.
+   RELAY-06's load/soak acceptance has no approved plan — do not invent
+   thresholds. Approved *outcomes* are not authorization to invent the
    implementation contract.
 4. **Background item, not started:** the spec-review repository publication is
    `BLOCKED_DECISION` — it stays local and unpushed until you supply a remote URL.
@@ -69,7 +72,7 @@ Do not reopen v1.2.0 (`4194dac`) shipped work. See `STATUS.md` for project state
 | deferred-work-handoff | DEFERRED_WORK_HANDOFF.md | docs/plans/ | **START HERE** — master entry point for deferred RMM, relay, and review-repository work |
 | rmm-operations | spec.md | openspec/specs/rmm-operations/ | RMM contract for eight deferred operations; §10 holds the eight open decisions |
 | rmm-sprints | RMM-00..08 | docs/sprints/ | RMM entry point is RMM-00 (foundation), then RMM-01..05, then decision-gated RMM-06..08 |
-| relay-sprints | RELAY-00..06 | docs/sprints/ | RELAY entry point is RELAY-00 (architecture/security), then RELAY-01..06; I.3/D.2/E.4 are BLOCKED |
+| relay-sprints | RELAY-00..06 | docs/sprints/ | RELAY entry point is RELAY-00 (architecture/security), then RELAY-01..06; I.3/D.2/E.4 implemented; load/soak plan outstanding |
 | spec-review-publication | SPEC_REVIEW_BUNDLE_HANDOFF.md | docs/reviews/ | Publication runbook for the separate review repository — BLOCKED_DECISION until a remote URL is supplied |
 | validation | SPRINT_TEMPLATE.md | docs/sprints/ | Completion gate & validation loop |
 | completion | SPRINT_TEMPLATE.md | docs/sprints/ | Pre-completion checklist |

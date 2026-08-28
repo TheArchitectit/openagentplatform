@@ -5,7 +5,7 @@
 observability, discovery, and payload-encryption decisions are approved and their
 required implementations exist.
 **Priority:** P2 (Normal)
-**Status:** BLOCKED — E.4 acceptance not run; discovery PARTIAL (§1.4 provenance signing deferred)
+**Status:** PARTIAL — E.4 blind-forwarder acceptance run; discovery §1.4 provenance shipped; load/soak acceptance (criterion 4) still has no approved plan
 
 Spec reference: `openspec/specs/a2a-relay/spec.md` §7.4 E.1–E.4.
 Prerequisites: completed RELAY-01..05 plus an approved E.4 design.
@@ -16,11 +16,11 @@ Prerequisites: completed RELAY-01..05 plus an approved E.4 design.
 
 | Check | Requirement | Verify |
 |-------|-------------|--------|
-| **READ FIRST** | Read approved designs and implemented contracts from RELAY-01..05 | [ ] |
-| **NO AUTH BYPASS** | Every deployed mode uses verified identity + entitlement | [ ] |
-| **TEST-ONLY FIXTURES** | Dev identities/bypasses never enter production config paths | [ ] |
-| **NO CRYPTO INVENTION** | E.4 mechanism must already be approved | [ ] |
-| **NO COMPLETION OVERSTATEMENT** | Report PARTIAL/BLOCKED while any dependency remains | [ ] |
+| **READ FIRST** | Read approved designs and implemented contracts from RELAY-01..05 | [x] |
+| **NO AUTH BYPASS** | Every deployed mode uses verified identity + entitlement | [x] |
+| **TEST-ONLY FIXTURES** | Dev identities/bypasses never enter production config paths | [x] |
+| **NO CRYPTO INVENTION** | E.4 mechanism must already be approved | [x] |
+| **NO COMPLETION OVERSTATEMENT** | Report PARTIAL/BLOCKED while any dependency remains | [x] |
 
 ---
 
@@ -115,13 +115,14 @@ identity checks as a rollback shortcut.
 
 - I.3 authentication and credential lifecycle (implemented: trust.go + WSS gate).
 - Approved rendezvous semantics and secure operator API (implemented).
-- D.2 discovery federation protocol and implementation (PARTIAL: §1.4 provenance signing deferred).
-- E.4 end-to-end payload-encryption design and implementation.
+- D.2 discovery federation protocol and implementation (COMPLETE: §1.4 provenance signing/verification landed).
+- E.4 end-to-end payload protection acceptance (RUN: blind-forwarder `internal/relay/e4_acceptance_test.go`).
+- Load/soak acceptance (criterion 4): no approved thresholds/durations yet.
 
 ---
 
 **Created:** 2026-08-23
-**Version:** 1.2
+**Version:** 1.3
 
 ---
 
@@ -132,16 +133,20 @@ identity checks as a rollback shortcut.
 | Rendezvous semantics | `docs/design/RELAY_03_RENDEZVOUS_PROTOCOL.md` + `match.go`/`forward.go` + tests | PRESENT |
 | Operator API | `docs/design/RELAY_04_OPERATOR_API_ADR.md` + `admin.go` + tests | PRESENT |
 | D.2 discovery protocol | `docs/design/RELAY_05_DISCOVERY_FEDERATION_ADR.md` | APPROVED |
-| D.2 discovery implementation | `internal/relay/discovery.go` + `discovery_grpc.go` + `discoverypb/` + admin route + tests | PARTIAL (§1.4 provenance signing deferred) |
+| D.2 discovery implementation | `internal/relay/discovery.go` + `discovery_grpc.go` + `discoverypb/` + admin route + tests | PRESENT (§1.4 provenance signing/verification landed) |
 | I.3 design | `docs/design/RELAY_02_IDENTITY_ENTITLEMENT_ADR.md` | APPROVED |
 | I.3 implementation | `trust.go` (TrustConfig + VerifyToken + CheckEntitlement + jti LRU); WSS TLS `ClientAuth=RequireAndVerifyClientCert` via `--trust-ca`; `extractIdentity` derives principal + tenant from cert SANs; `handleWSS` enforces token + jti + entitlement before Admit | PRESENT |
 | E.4 design | blind-forwarder (out-of-band keys) | APPROVED |
-| E.4 acceptance | not tested | NOT RUN |
+| E.4 acceptance | `internal/relay/e4_acceptance_test.go` — two mTLS legs, bidirectional opaque ciphertext forwarded intact + exact metering; relay in-memory state never contains the plaintext; text + oversized frames close the pair | RUN |
 
 I.3 admission implementation has landed (RELAY-03 wiring + trust.go + tests).
-D.2 discovery implementation has landed (discovery.go + discovery_grpc.go +
-discoverypb/ + admin route + tests). The implementation is PARTIAL: ADR §1.4
-provenance signature verification is deferred pending per-relay Ed25519 key
-distribution.
-RELAY-06 remains BLOCKED on: (1) E.4 acceptance not yet run, (2) discovery
-§1.4 provenance signing deferred.
+D.2 discovery implementation is now COMPLETE: ADR §1.4 provenance signatures
+are signed on local publish/withdraw and verified on ingest against per-peer
+Ed25519 keys (mTLS-only fallback when a peer key is absent).
+E.4 blind-forwarder acceptance is now RUN over the full authenticated stack and
+passes. The test surfaced and fixed one production bug: the forwarder was bound
+to the per-request `r.Context()`, which is cancelled the moment `handleWSS`
+returns — so no frame would ever have been forwarded in production. The forwarder
+now uses the listener-lifetime context (`srvCtx`, threaded through `ServeWS`).
+RELAY-06 remains PARTIAL on a single item: load/soak acceptance (criterion 4)
+has no approved thresholds or durations, and this sprint does not invent them.

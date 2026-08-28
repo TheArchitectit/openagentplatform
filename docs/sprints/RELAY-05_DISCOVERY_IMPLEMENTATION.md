@@ -5,7 +5,7 @@
 DiscoveryRegistry (Phase 1), then the gRPC federation service + hybrid sync
 (Phase 2), then the operator admin route and config wiring.
 **Priority:** P2 (Normal)
-**Status:** PARTIAL — Phases 1–2 shipped; provenance signature verification deferred
+**Status:** COMPLETE — Phases 1–2 and §1.4 provenance signing/verification shipped
 
 Spec reference: `docs/design/RELAY_05_DISCOVERY_FEDERATION_ADR.md` §6–§7
 and `openspec/specs/a2a-relay/spec.md` §7.3 D.1–D.2.
@@ -53,10 +53,14 @@ PHASE 2 (federation, shipped):
 OPERATOR SURFACE (shipped):
   - GET /admin/discovery, role+tenant scoped (ADR §5.2)
 
-EXPLICITLY DEFERRED:
-  - Provenance signature verification (ADR §1.4) — needs per-relay Ed25519
-    key configuration that does not exist. Peer auth is mTLS transport-level;
-    provenance signatures are carried, checked for presence, but not verified.
+PROVENANCE SIGNATURES — ADR §1.4 (shipped):
+  - Per-relay Ed25519 signing key via trust config `relay_signing_key`
+    (optional; unsigned when absent — mTLS-only mode)
+  - Per-peer verification key via `Federation.Peers[].pub_key` (optional;
+    fail-closed on malformed keys)
+  - Local Publish/Withdraw signed; inbound `IngestRemote`/`IngestRemoteWithdraw`
+    verified when a peer key is configured, else accepted at mTLS transport
+    level (ADR §2.2)
 OUT OF SCOPE:
   - No E2E payload encryption (E.4 remains independent)
   - No migration/persistence seams (in-memory store, per ADR phase boundary)
@@ -90,7 +94,16 @@ startup reconcile end-to-end through a bufconn server).
 `trust.go`; relayID/registry/Federation wiring in `cmd/relay/main.go`. Covered by
 `admin_test.go` (nil registry 404, admin sees all, operator tenant scoping).
 
-### STEP 4: Verification (DONE)
+### STEP 4: Provenance signatures — ADR §1.4 (DONE)
+
+Optional Ed25519 signing/verification keying in `trust.go` (`relay_signing_key`,
+`Federation.Peers[].pub_key`); canonical signing bytes + signature on
+local Publish/Withdraw and verification on ingest in `discovery.go` /
+`discovery_grpc.go`. Covered by `discovery_test.go` (signed publish/withdraw
+verified against the origin key, wrong-key rejection, missing-signature
+rejection, mTLS-only acceptance for unkeyed peers).
+
+### STEP 5: Verification (DONE)
 
 `go build ./...`, `go vet`, and `go test -race ./internal/relay/` all pass.
 
@@ -105,7 +118,7 @@ startup reconcile end-to-end through a bufconn server).
 | 3 | Conflict rules honored | Origin-relay authoritative; replay + conflicting-origin rejected |
 | 4 | Sync model wired | push fan-out + 5m pull + 30s ping + startup reconcile |
 | 5 | Operator surface scoped | /admin/discovery role+tenant gated |
-| 6 | No overstatement | PARTIAL while §1.4 signature verification is absent |
+| 6 | Provenance signatures | local records signed; inbound verified against configured peer keys (ADR §1.4) |
 
 ---
 
@@ -120,13 +133,11 @@ relay configuration before reverting source.
 
 ## BLOCKERS / DEFERRED
 
-- **ADR §1.4 provenance signature verification** — the single remaining ADR
-  requirement. Requires an approved per-relay Ed25519 signing/verification key
-  distribution mechanism; until then peer trust rests on mTLS transport
-  authentication alone. This is the honest reason the implementation is PARTIAL,
-  not COMPLETE.
+- None. ADR §1.4 provenance signing/verification has landed (optional per-relay
+  `relay_signing_key` + per-peer `pub_key`). All Phases 1–2 requirements and
+  §1.4 are implemented and verified.
 
 ---
 
 **Created:** 2026-08-27
-**Version:** 1.0
+**Version:** 1.1
