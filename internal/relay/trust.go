@@ -52,7 +52,14 @@ type TrustConfig struct {
 	Entitlements   []Entitlement      `json:"entitlements"        yaml:"entitlements"`
 	Federation     *FederationSection `json:"federation"     yaml:"federation"`
 
-	verifyKey ed25519.PublicKey // decoded PlatformKeyB64
+	// RelaySigningKeyB64 is the base64-encoded Ed25519 private key (64-byte
+	// seed) this relay uses to sign discovery provenance records (ADR §1.4).
+	// Optional: when absent, local publishes and withdraws are unsigned and
+	// inbound signature verification is skipped (mTLS-only mode).
+	RelaySigningKeyB64 string `json:"relay_signing_key" yaml:"relay_signing_key"`
+
+	verifyKey ed25519.PublicKey  // decoded PlatformKeyB64
+	signKey   ed25519.PrivateKey // decoded RelaySigningKeyB64
 }
 
 // FederationSection extends the trust config with discovery federation peers
@@ -64,9 +71,13 @@ type FederationSection struct {
 }
 
 // FederationPeerConfig names one peer relay and its gRPC endpoint (ADR §2.4).
+// PubKeyB64 carries the peer's Ed25519 provenance-verification public key
+// (ADR §1.4); when present, inbound records from that peer must verify against
+// it. Absent means mTLS-only trust for that peer.
 type FederationPeerConfig struct {
-	RelayID  string `json:"relay_id" yaml:"relay_id"`
-	Endpoint string `json:"endpoint" yaml:"endpoint"`
+	RelayID   string `json:"relay_id" yaml:"relay_id"`
+	Endpoint  string `json:"endpoint" yaml:"endpoint"`
+	PubKeyB64 string `json:"pub_key" yaml:"pub_key"`
 }
 
 // DefaultFederationPullInterval is the pull cadence used when the config
@@ -109,6 +120,14 @@ func LoadTrustConfig(path string) (*TrustConfig, error) {
 		return nil, fmt.Errorf("relay: platform_public_key: %w", err)
 	}
 	tc.verifyKey = key
+
+	if tc.RelaySigningKeyB64 != "" {
+		sk, err := decodeEd25519PrivateKey(tc.RelaySigningKeyB64)
+		if err != nil {
+			return nil, fmt.Errorf("relay: relay_signing_key: %w", err)
+		}
+		tc.signKey = sk
+	}
 	return &tc, nil
 }
 
@@ -132,6 +151,65 @@ func decodeEd25519Key(s string) (ed25519.PublicKey, error) {
 		return ed25519.PublicKey(raw), nil
 	}
 	return nil, fmt.Errorf("invalid base64 key")
+}
+
+// decodeEd25519PrivateKey accepts standard or URL-safe base64 (padded or
+// unpadded) of the 64-byte Ed25519 private key seed.
+func decodeEd25519PrivateKey(s string) (ed25519.PrivateKey, error) {
+	s = strings.TrimSpace(s)
+	for _, enc := range []*base64.Encoding{
+		base64.RawURLEncoding,
+		base64.URLEncoding,
+		base64.RawStdEncoding,
+		base64.StdEncoding,
+	} {
+		raw, err := enc.DecodeString(s)
+		if err != nil {
+			continue
+		}
+		if len(raw) != ed25519.PrivateKeySize {
+			return nil, fmt.Errorf("expected %d bytes, got %d", ed25519.PrivateKeySize, len(raw))
+		}
+		return ed25519.PrivateKey(raw), nil
+	}
+	return nil, fmt.Errorf("invalid base64 key")
+}
+
+// SigningPublicKey returns the Ed25519 public key corresponding to the relay's
+// signing private key, or nil when no signing key is configured.
+func (t *TrustConfig) SigningPublicKey() ed25519.PublicKey {
+	if t.signKey == nil {
+		return nil
+	}
+	return t.signKey.Public().(ed25519.PublicKey)
+}
+
+// SigningKey returns the relay's provenance-signing private key (ADR §1.4), or
+// nil when none is configured. Used to seed the discovery registry.
+func (t *TrustConfig) SigningKey() ed25519.PrivateKey {
+	return t.signKey
+}
+
+// PeerVerifyKeys resolves the discovery verification keys for federated peers
+// (ADR §1.4), keyed by origin relay ID. Peers lacking a public key are omitted;
+// inbound signatures from them are accepted without verification (mTLS-only).
+// A malformed peer public key is reported as an error (fail-closed).
+func (t *TrustConfig) PeerVerifyKeys() (map[string]ed25519.PublicKey, error) {
+	out := make(map[string]ed25519.PublicKey)
+	if t.Federation == nil {
+		return out, nil
+	}
+	for _, p := range t.Federation.Peers {
+		if p.PubKeyB64 == "" {
+			continue
+		}
+		key, err := decodeEd25519Key(p.PubKeyB64)
+		if err != nil {
+			return nil, fmt.Errorf("relay: peer %s pub_key: %w", p.RelayID, err)
+		}
+		out[p.RelayID] = key
+	}
+	return out, nil
 }
 
 // CheckEntitlement reports whether source→target is granted within tenant.

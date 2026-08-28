@@ -1,6 +1,7 @@
 package relay
 
 import (
+	"crypto/ed25519"
 	"testing"
 	"time"
 
@@ -165,5 +166,108 @@ func TestDiscoveryRegistry_Expire(t *testing.T) {
 	}
 	if len(d.Snapshot()) != 0 {
 		t.Fatal("record should be gone after expiry")
+	}
+}
+
+// Provenance signing + verification (ADR §1.4).
+
+func TestDiscoveryRegistry_ProvenanceSignAndVerify(t *testing.T) {
+	originPub, originPriv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Origin relay signs its own publishes.
+	origin := NewDiscoveryRegistry("relay-a", nil)
+	origin.SetSigningKey(originPriv)
+
+	env := testEnvelope("agent-a", "t1", 1, VisibilityTenantPrivate, nil, time.Hour)
+	env.Provenance.OriginRelayID = "relay-a"
+	if err := origin.Publish(env); err != nil {
+		t.Fatalf("origin publish: %v", err)
+	}
+	published := origin.Snapshot()["agent-a"]
+	if len(published.Provenance.Signature) == 0 {
+		t.Fatal("expected a signature on the published record")
+	}
+
+	// Consumer verifies against the origin's public key.
+	consumer := NewDiscoveryRegistry("relay-b", nil)
+	consumer.SetPeerVerifyKeys(map[string]ed25519.PublicKey{"relay-a": originPub})
+	if err := consumer.IngestRemote(published); err != nil {
+		t.Fatalf("consumer ingest: %v", err)
+	}
+
+	// Withdraw carries a signed envelope too. Capture the fan-out envelope the
+	// observer receives and verify it against the origin key.
+	var withdrew *DiscoveryEnvelope
+	origin.SetObserver(func(env *DiscoveryEnvelope, withdraw bool) {
+		if withdraw {
+			withdrew = env
+		}
+	})
+	if err := origin.Withdraw("agent-a", "t1", 2); err != nil {
+		t.Fatalf("origin withdraw: %v", err)
+	}
+	if withdrew == nil || len(withdrew.Provenance.Signature) == 0 {
+		t.Fatal("expected a signed withdraw envelope")
+	}
+	if !ed25519.Verify(originPub, provenanceSignBytes(withdrew), withdrew.Provenance.Signature) {
+		t.Fatal("withdraw signature did not verify against origin key")
+	}
+}
+
+func TestDiscoveryRegistry_ProvenanceInvalidSignatureRejected(t *testing.T) {
+	_, originPriv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherPub, _, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	origin := NewDiscoveryRegistry("relay-a", nil)
+	origin.SetSigningKey(originPriv)
+	env := testEnvelope("agent-a", "t1", 1, VisibilityTenantPrivate, nil, time.Hour)
+	env.Provenance.OriginRelayID = "relay-a"
+	if err := origin.Publish(env); err != nil {
+		t.Fatal(err)
+	}
+	published := origin.Snapshot()["agent-a"]
+
+	// Consumer is configured with the WRONG key: signature must be rejected.
+	consumer := NewDiscoveryRegistry("relay-b", nil)
+	consumer.SetPeerVerifyKeys(map[string]ed25519.PublicKey{"relay-a": otherPub})
+	if err := consumer.IngestRemote(published); err == nil {
+		t.Fatal("expected invalid_signature rejection")
+	}
+}
+
+func TestDiscoveryRegistry_ProvenanceMissingSignatureRejected(t *testing.T) {
+	pub, _, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// A record with no signature, but a configured key for its origin: rejected.
+	consumer := NewDiscoveryRegistry("relay-b", nil)
+	consumer.SetPeerVerifyKeys(map[string]ed25519.PublicKey{"relay-a": pub})
+
+	env := testEnvelope("agent-a", "t1", 1, VisibilityTenantPrivate, nil, time.Hour)
+	env.Provenance.OriginRelayID = "relay-a"
+	env.Provenance.Signature = nil
+	if err := consumer.IngestRemote(env); err == nil {
+		t.Fatal("expected missing_signature rejection")
+	}
+}
+
+func TestDiscoveryRegistry_ProvenanceUnkeyedPeerAccepted(t *testing.T) {
+	// No verification key configured for the origin → mTLS-only mode accepts.
+	consumer := NewDiscoveryRegistry("relay-b", nil)
+	env := testEnvelope("agent-a", "t1", 1, VisibilityTenantPrivate, nil, time.Hour)
+	env.Provenance.OriginRelayID = "relay-a"
+	if err := consumer.IngestRemote(env); err != nil {
+		t.Fatalf("unkeyed peer should be accepted (mTLS-only mode): %v", err)
 	}
 }

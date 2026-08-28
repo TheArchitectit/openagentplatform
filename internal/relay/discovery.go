@@ -1,9 +1,12 @@
 package relay
 
 import (
+	"crypto/ed25519"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -65,6 +68,8 @@ type DiscoveryRegistry struct {
 	operatorAllowlists map[string][]string           // tenant ID -> tenant IDs it may see
 	log                *slog.Logger
 	onUpdate           func(env *DiscoveryEnvelope, withdraw bool) // federation fan-out (ADR §2.3)
+	signKey            ed25519.PrivateKey                          // ADR §1.4 provenance signing key
+	peerVerifyKeys     map[string]ed25519.PublicKey                // origin_relay_id -> verify key
 }
 
 // NewDiscoveryRegistry creates an empty registry bound to the given relay ID.
@@ -77,6 +82,7 @@ func NewDiscoveryRegistry(relayID string, log *slog.Logger) *DiscoveryRegistry {
 		records:            make(map[string]*DiscoveryEnvelope),
 		withdrawn:          make(map[string]uint64),
 		operatorAllowlists: make(map[string][]string),
+		peerVerifyKeys:     make(map[string]ed25519.PublicKey),
 		log:                log,
 	}
 }
@@ -97,6 +103,64 @@ func (d *DiscoveryRegistry) SetOperatorAllowlists(allowlists map[string][]string
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.operatorAllowlists = allowlists
+}
+
+// SetSigningKey installs the Ed25519 private key used to sign provenance records
+// (ADR §1.4). When nil, local publishes/withdraws are unsigned.
+func (d *DiscoveryRegistry) SetSigningKey(key ed25519.PrivateKey) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.signKey = key
+}
+
+// SetPeerVerifyKeys installs the Ed25519 public keys for verifying inbound
+// provenance records from peer relays (ADR §1.4). The map key is the origin
+// relay ID. When a peer has no entry, its provenance signatures are accepted
+// without verification (mTLS-only mode).
+func (d *DiscoveryRegistry) SetPeerVerifyKeys(keys map[string]ed25519.PublicKey) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.peerVerifyKeys = keys
+}
+
+// provenanceSignBytes canonicalizes the fields covered by a provenance
+// signature (ADR §1.4): the record, its version, and its authorship. The
+// record is carried as its exact JSON bytes (json.RawMessage) so the encoding
+// is deterministic on both sides of the wire.
+func provenanceSignBytes(env *DiscoveryEnvelope) []byte {
+	s := struct {
+		OriginRelayID  string          `json:"origin_relay_id"`
+		TenantID       string          `json:"tenant_id"`
+		PublisherAgent string          `json:"publisher_agent"`
+		Version        uint64          `json:"version"`
+		Record         json.RawMessage `json:"record"`
+	}{
+		OriginRelayID:  env.Provenance.OriginRelayID,
+		TenantID:       env.Provenance.TenantID,
+		PublisherAgent: env.Provenance.PublisherAgent,
+		Version:        env.Version,
+	}
+	s.Record, _ = json.Marshal(env.Record)
+	b, _ := json.Marshal(s)
+	return b
+}
+
+// verifyProvenanceLocked checks the record's provenance signature against the
+// origin relay's configured public key (ADR §1.4). When no key is configured
+// for the origin relay, verification is skipped (mTLS-only mode). The caller
+// must hold d.mu.
+func (d *DiscoveryRegistry) verifyProvenanceLocked(env *DiscoveryEnvelope) error {
+	key, ok := d.peerVerifyKeys[env.Provenance.OriginRelayID]
+	if !ok {
+		return nil
+	}
+	if len(env.Provenance.Signature) == 0 {
+		return errors.New("discovery: missing_signature")
+	}
+	if !ed25519.Verify(key, provenanceSignBytes(env), env.Provenance.Signature) {
+		return errors.New("discovery: invalid_signature")
+	}
+	return nil
 }
 
 // Publish stores a record. Fails on a missing agent ID, a version not strictly
@@ -132,6 +196,13 @@ func (d *DiscoveryRegistry) Publish(env *DiscoveryEnvelope) error {
 	if existing, ok := d.records[id]; ok && env.Version <= existing.Version {
 		d.mu.Unlock()
 		return fmt.Errorf("discovery: version %d is not above stored version %d", env.Version, existing.Version)
+	}
+
+	// Sign provenance (ADR §1.4): if a signing key is configured, sign the
+	// canonical form of the record and attach the signature.
+	if d.signKey != nil {
+		env.Provenance.OriginRelayID = d.relayID
+		env.Provenance.Signature = ed25519.Sign(d.signKey, provenanceSignBytes(env))
 	}
 
 	cp := *env
@@ -177,6 +248,7 @@ func (d *DiscoveryRegistry) Withdraw(agentID string, tenantID string, version ui
 	delete(d.records, agentID)
 	d.withdrawn[agentID] = version
 	obs := d.onUpdate
+	signKey := d.signKey
 	d.mu.Unlock()
 
 	d.log.Info("discovery: record withdrawn",
@@ -184,14 +256,18 @@ func (d *DiscoveryRegistry) Withdraw(agentID string, tenantID string, version ui
 	if obs != nil {
 		// synthesizes the withdraw envelope peers need for a tombstone
 		// (ADR §1.5: withdraw carries the same provenance + higher version).
-		obs(&DiscoveryEnvelope{
+		wenv := &DiscoveryEnvelope{
 			Record: models.AgentCard{ID: agentID},
 			Provenance: Provenance{
 				OriginRelayID: d.relayID,
 				TenantID:      tenantID,
 			},
 			Version: version,
-		}, true)
+		}
+		if signKey != nil {
+			wenv.Provenance.Signature = ed25519.Sign(signKey, provenanceSignBytes(wenv))
+		}
+		obs(wenv, true)
 	}
 	return nil
 }
@@ -235,17 +311,13 @@ func (d *DiscoveryRegistry) crossTenantAllowed(callerTenant string, env *Discove
 	case VisibilityGlobalPublic:
 		return true
 	case VisibilityTenantAllowlisted:
-		for _, t := range env.Visibility.Allowlist {
-			if t == callerTenant {
-				return true
-			}
+		if slices.Contains(env.Visibility.Allowlist, callerTenant) {
+			return true
 		}
 		// Owner-side operator allowlist: the owning tenant's allowlist names
 		// caller tenants it permits (broader grant, ADR §4.2).
-		for _, t := range d.operatorAllowlists[owning] {
-			if t == callerTenant {
-				return true
-			}
+		if slices.Contains(d.operatorAllowlists[owning], callerTenant) {
+			return true
 		}
 		return false
 	default: // tenant_private

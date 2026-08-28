@@ -7,11 +7,11 @@ package relay
 // the origin-relay-authoritative conflict rules on ingest, and drives the
 // hybrid push+pull synchronization loop against configured peers.
 //
-// Provenance signature verification (ADR §1.4) is not yet wired: it requires
-// per-relay Ed25519 signing/verification key configuration that does not exist
-// in the current trust config. Peer authentication for the gRPC channel comes
-// from mTLS at the transport layer (ADR §2.2); provenance is checked for
-// presence and origin, but its signature is carried without verification.
+// Provenance signatures (ADR §1.4) are signed on local publish/withdraw using
+// the relay signing key from the trust config, and verified on ingest against
+// the origin relay's configured public key. A peer without a configured public
+// key is verified at mTLS transport level only (ADR §2.2) — its signatures are
+// carried but not checked.
 
 import (
 	"context"
@@ -137,6 +137,13 @@ func (d *DiscoveryRegistry) IngestRemote(env *DiscoveryEnvelope) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
+	// ADR §1.4: verify the provenance signature when the origin relay's public
+	// key is configured. A missing or invalid signature is rejected — an
+	// untrusted record is never stored (ADR §3 rule 4).
+	if err := d.verifyProvenanceLocked(env); err != nil {
+		return err
+	}
+
 	if withdrawn := d.withdrawn[env.Record.ID]; env.Version <= withdrawn {
 		return fmt.Errorf("discovery: version %d is not above withdrawn version %d", env.Version, withdrawn)
 	}
@@ -158,10 +165,18 @@ func (d *DiscoveryRegistry) IngestRemote(env *DiscoveryEnvelope) error {
 }
 
 // IngestRemoteWithdraw applies a federated withdraw tombstone (ADR §1.5, §3).
-// The tombstone is keyed by the origin relay's monotonic version and suppresses
-// stale re-publishes. A withdraw that targets a still-present record from a
-// different origin is rejected as a conflict.
-func (d *DiscoveryRegistry) IngestRemoteWithdraw(agentID, originRelayID string, version uint64) error {
+// The withdraw carries the same provenance as the record, so its signature is
+// verified the same way (ADR §1.4). The tombstone is keyed by the origin
+// relay's monotonic version and suppresses stale re-publishes. A withdraw that
+// targets a still-present record from a different origin is rejected as a
+// conflict.
+func (d *DiscoveryRegistry) IngestRemoteWithdraw(env *DiscoveryEnvelope) error {
+	if env == nil {
+		return errors.New("discovery: nil envelope")
+	}
+	agentID := env.Record.ID
+	originRelayID := env.Provenance.OriginRelayID
+	version := env.Version
 	if agentID == "" {
 		return errors.New("discovery: agent id required")
 	}
@@ -177,6 +192,10 @@ func (d *DiscoveryRegistry) IngestRemoteWithdraw(agentID, originRelayID string, 
 
 	d.mu.Lock()
 	defer d.mu.Unlock()
+
+	if err := d.verifyProvenanceLocked(env); err != nil {
+		return err
+	}
 
 	if existing, ok := d.records[agentID]; ok && existing.Provenance.OriginRelayID != originRelayID {
 		return errors.New("discovery: conflicting_origin")
@@ -220,7 +239,7 @@ func (s *discoveryFederationServer) PushRecord(ctx context.Context, req *discove
 		return &discoverypb.PushResponse{Accepted: false, RejectionReason: "invalid_envelope"}, nil
 	}
 	if req.GetWithdraw() {
-		err = s.registry.IngestRemoteWithdraw(env.Record.ID, env.Provenance.OriginRelayID, env.Version)
+		err = s.registry.IngestRemoteWithdraw(env)
 	} else {
 		err = s.registry.IngestRemote(env)
 	}
@@ -368,7 +387,6 @@ func (f *Federation) Broadcast(env *DiscoveryEnvelope, withdraw bool) {
 
 	req := &discoverypb.PushRequest{Envelope: envelopeToProto(env), Withdraw: withdraw}
 	for _, p := range peers {
-		p := p
 		go func() {
 			client, err := p.getClient(f.dial)
 			if err != nil {

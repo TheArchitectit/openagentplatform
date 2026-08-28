@@ -52,6 +52,20 @@ func main() {
 	// driver is started; otherwise the registry is local-only.
 	relayID := "local" // TODO: derive from relay cert CN once relay-cert SAN convention lands
 	registry := relay.NewDiscoveryRegistry(relayID, log)
+
+	// ADR §1.4: seed provenance signing (local records) and peer verification
+	// keys (inbound records) from the trust config. Fail-closed on a malformed
+	// peer public key.
+	if trustCfg.SigningKey() != nil {
+		registry.SetSigningKey(trustCfg.SigningKey())
+	}
+	verifyKeys, err := trustCfg.PeerVerifyKeys()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "relay: %v\n", err)
+		os.Exit(1)
+	}
+	registry.SetPeerVerifyKeys(verifyKeys)
+
 	var fed *relay.Federation
 	if trustCfg.Federation != nil && len(trustCfg.Federation.Peers) > 0 {
 		fed = relay.NewFederation(relayID, registry, cfg.TLSConfig, trustCfg.Federation, log)

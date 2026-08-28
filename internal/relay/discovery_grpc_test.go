@@ -140,7 +140,9 @@ func TestIngestRemoteWithdrawTombstone(t *testing.T) {
 	if err := d.IngestRemote(env); err != nil {
 		t.Fatalf("ingest: %v", err)
 	}
-	if err := d.IngestRemoteWithdraw("agent-a", "relay-2", 2); err != nil {
+	wenv := testEnvelope("agent-a", "t1", 2, VisibilityTenantPrivate, nil, time.Hour)
+	wenv.Provenance.OriginRelayID = "relay-2"
+	if err := d.IngestRemoteWithdraw(wenv); err != nil {
 		t.Fatalf("withdraw: %v", err)
 	}
 	if len(d.Snapshot()) != 0 {
@@ -161,7 +163,9 @@ func TestIngestRemoteWithdrawTombstone(t *testing.T) {
 	}
 
 	// Local-authoritative withdraw rejected.
-	if err := d.IngestRemoteWithdraw("agent-a", "relay-1", 4); err == nil {
+	localW := testEnvelope("agent-a", "t1", 4, VisibilityTenantPrivate, nil, time.Hour)
+	localW.Provenance.OriginRelayID = "relay-1"
+	if err := d.IngestRemoteWithdraw(localW); err == nil {
 		t.Fatal("expected local_authoritative withdrawal rejection")
 	}
 }
