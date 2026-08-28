@@ -167,6 +167,7 @@ pre-cap count and overshoot the per-tenant limit. The check+insert is now a
 single atomic section (`relay.go`), and the cap is exact under 64-way race.
 The soak ran 50 matched pairs for 5 minutes (~1.3 GB relayed) and confirmed zero
 goroutine leak on teardown, with metering internally consistent.
-RELAY-06 is COMPLETE. The overall managed-relay spec (`a2a-relay`) remains
-PARTIAL on its own plan items (§7.1 R.3, R.4, §7.2, D.1 labels) which are
-tracked separately; this sprint's five criteria are all satisfied.
+RELAY-06 is COMPLETE. The overall managed-relay spec (`a2a-relay`) is now
+COMPLETE: all §7 gate labels have been updated to IMPLEMENTED/RUN and the spec
+STATUS is COMPLETE. Known Limitations (dead `ConnectionStatusError`, no
+persistence) remain accurately documented.

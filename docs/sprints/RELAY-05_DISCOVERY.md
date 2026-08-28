@@ -79,8 +79,10 @@ it. Reuse only an approved RELAY-04 operator-security contract.
 ### STEP 4: Define implementation successor
 
 After approval, create a separate implementation sprint with exact files, APIs,
-tests, migration/persistence boundaries, and rollback. Until then, RELAY-06 stays
-blocked and no discovery seam is added.
+tests, migration/persistence boundaries, and rollback. The successor sprint
+`RELAY-05_DISCOVERY_IMPLEMENTATION.md` is COMPLETE — the local
+`DiscoveryRegistry` (`internal/relay/discovery.go` + admin route) and federation
+RPCs (`discovery_grpc.go`) shipped.
 
 ---
 
@@ -105,10 +107,14 @@ commit if approval is withdrawn; do not rewrite history.
 
 ## BLOCKERS / DEFERRED
 
-- Discovery implementation remains blocked by D.2.
-- RELAY-06 full-stack acceptance cannot claim federation until implementation
-  from the approved successor sprint exists.
-- Payload encryption E.4 remains independent and blocked.
+- ~~Discovery implementation remains blocked by D.2.~~ RESOLVED — the successor
+  sprint `RELAY-05_DISCOVERY_IMPLEMENTATION.md` shipped the local registry and
+  gRPC federation RPCs.
+- ~~RELAY-06 full-stack acceptance cannot claim federation until implementation
+  from the approved successor sprint exists.~~ RESOLVED — E.1/E.2 run over the
+  full shipped stack.
+- ~~Payload encryption E.4 remains independent and blocked.~~ RESOLVED — E.4
+  shipped as the blind forwarder; E.4 acceptance is RUN.
 
 ---
 

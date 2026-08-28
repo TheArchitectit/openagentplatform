@@ -206,7 +206,7 @@ Do not reopen v1.2.0 (`4194dac`) shipped work. See `STATUS.md` for project state
 | **CHANGELOG.md (root)** | Project changelog; docs/CHANGELOG.md holds the sprint-by-sprint (phase) history | When tracking release history |
 | **openspec/specs/rmm-core** | RMM core spec (rewritten 2026-08-23 to Go reality; §14 links the deferred contract) | When implementing RMM features |
 | **openspec/specs/rmm-operations** | Planned contract for eight deferred RMM operations; decisions and sprint ordering are explicit | Before starting RMM-00..08 |
-| **openspec/specs/a2a-relay** | partial in-memory accounting core (per-tenant limits, byte metering, idle reaping); WSS transport/security architecture planned and approval-gated — no transport wired | Before starting RELAY-00..06 |
+| **openspec/specs/a2a-relay** | COMPLETE managed relay: accounting core + WSS admission (mTLS+token), entitlement-gated matching/forwarding, admin surface, discovery federation, and E2E/private/load acceptance | Before starting RELAY-00..06 |
 | **docs/plans/DEFERRED_WORK_HANDOFF.md** | Master dependency order, validation rules, and stop conditions for lower-capability agents | When handing off deferred work |
 | **docs/reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md** | Non-force publication runbook for the existing separate spec-review repository | When a remote URL is supplied |
 | **openspec/specs/managed-backup** | Managed Backup integration contract; canonical seam contracts (run states, 18 event names, integrity states, restore states); DRAFT greenfield | When designing/implementing backup integration |
@@ -219,7 +219,7 @@ Do not reopen v1.2.0 (`4194dac`) shipped work. See `STATUS.md` for project state
 | **openspec/specs/resilience** | rate limiter, wired adapter breaker, graceful shutdown, retry; in-memory/distributed limits | When touching resilience/rate limits |
 | **openspec/specs/audit-log** | hash-chained audit events, GapCount verification, read API; retention/concurrency/hash limits | When touching audit |
 | **openspec/specs/event-bus** | core NATS client, tracing, eight-subject taxonomy, heartbeat/check ingest with single persistence owner | When touching internal/events subjects |
-| **openspec/specs/a2a-relay** | partial in-memory accounting core (per-tenant limits, byte metering, idle reaping); WSS transport/security architecture planned and approval-gated — no transport wired | When touching internal/relay |
+| **openspec/specs/a2a-relay** | COMPLETE managed relay: accounting core + WSS admission (mTLS+token), entitlement-gated matching/forwarding, admin surface, discovery federation, and E2E/private/load acceptance | When touching internal/relay |
 | **openspec/specs/check-library** | 5 built-in check templates + seeding; PARTIAL (5 of 9 types) | When touching checklib/check catalog |
 | **openspec/specs/remote-access** | wired shell over NATS, WS bridge, agent handler, recordings; transport/storage limits | When touching remote/terminal/session/shell |
 | **openspec/specs/data-model** | all 22 pkg/models structs ↔ tables; PARTIAL (DDL drift, RLS mismatch documented) | When touching models/schema |

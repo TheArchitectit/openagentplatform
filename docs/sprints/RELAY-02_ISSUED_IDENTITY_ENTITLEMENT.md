@@ -137,9 +137,12 @@ RELAY-03's scope, now unblocked.
 
 ## BLOCKERS / DEFERRED
 
-- RELAY-03 matching and forwarding is blocked until this gate passes.
-- Operator APIs must separately resolve authentication and tenant visibility.
-- Discovery protocol (D.2) and payload encryption (E.4) remain separate blockers.
+- ~~RELAY-03 matching and forwarding is blocked until this gate passes.~~ RESOLVED —
+  gate passed; RELAY-03 shipped the rendezvous protocol and forwarding.
+- ~~Operator APIs must separately resolve authentication and tenant visibility.~~ RESOLVED —
+  RELAY-04 shipped the mTLS operator admin surface with role-SAN visibility.
+- ~~Discovery protocol (D.2) and payload encryption (E.4) remain separate blockers.~~ RESOLVED —
+  D.2 shipped as gRPC federation (RELAY-05); E.4 shipped as the blind forwarder (RUN).
 
 ---
 

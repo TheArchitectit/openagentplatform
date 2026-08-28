@@ -128,9 +128,12 @@ must be rolled back before reverting source.
 
 ## BLOCKERS / DEFERRED
 
-- RELAY-02 authentication/credential/entitlement gate.
-- Approved rendezvous protocol described above.
-- E2E payload encryption (E.4).
+- ~~RELAY-02 authentication/credential/entitlement gate.~~ RESOLVED — I.3 admission
+  wired into `handleWSS` (mTLS + bearer-token + entitlement before `Admit`).
+- ~~Approved rendezvous protocol described above.~~ RESOLVED —
+  `docs/design/RELAY_03_RENDEZVOUS_PROTOCOL.md`.
+- ~~E2E payload encryption (E.4).~~ RESOLVED — blind forwarder shipped; E.4
+  acceptance is RUN (`e4_acceptance_test.go`).
 
 ---
 

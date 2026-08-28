@@ -108,9 +108,11 @@ Remove deployed listener configuration before source rollback.
 
 ## BLOCKERS / DEFERRED
 
-- RELAY-03 must freeze byte-accounting ownership and units.
-- Operator authentication/authorization and tenant visibility need approval.
-- Durable billing export remains a separate decision.
+- ~~RELAY-03 must freeze byte-accounting ownership and units.~~ RESOLVED —
+  RELAY-03 shipped; `RecordBytes` per-frame accounting is frozen.
+- ~~Operator authentication/authorization and tenant visibility need approval.~~ RESOLVED —
+  mTLS + role SANs + tiered visibility shipped in this sprint.
+- Durable billing export remains a separate decision (out of scope for RELAY-04).
 
 ---
 

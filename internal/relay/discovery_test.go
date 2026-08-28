@@ -10,7 +10,7 @@ import (
 
 func testEnvelope(id, tenant string, version uint64, scope VisibilityScope, skills []models.Skill, ttl time.Duration) *DiscoveryEnvelope {
 	return &DiscoveryEnvelope{
-		Record: models.AgentCard{ID: id, Skills: skills},
+		Record:     models.AgentCard{ID: id, Skills: skills},
 		Provenance: Provenance{TenantID: tenant, PublishedAt: time.Now()},
 		Visibility: Visibility{Scope: scope},
 		TTL:        ttl,

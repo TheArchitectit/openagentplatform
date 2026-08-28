@@ -28,8 +28,11 @@ func (g gorillaUpgrader) Upgrade(w http.ResponseWriter, r *http.Request, h http.
 	return g.up.Upgrade(w, r, h)
 }
 
-// defaultUpgrader returns a gorilla upgrader that rejects non-WSS origins. The
-// relay only ever runs behind TLS (R.1), so cross-origin checks are enforced.
+// defaultUpgrader returns a gorilla upgrader that accepts any Origin. Identity
+// is established by mTLS client certificates, not by browser Origin, so the
+// WebSocket-level origin check is intentionally permissive. (See QA note: a
+// browser that auto-selects a client cert could still be driven by a
+// cross-origin page; tightening this is an open product decision.)
 func defaultUpgrader() wsUpgrader {
 	return gorillaUpgrader{up: &websocket.Upgrader{
 		ReadBufferSize:  4096,
@@ -40,12 +43,14 @@ func defaultUpgrader() wsUpgrader {
 
 // ServeWS runs the WSS listener loop. It accepts TCP connections, terminates TLS
 // (via the net.Listener supplied by the caller), performs the WebSocket upgrade,
-// and — because identity admission (I.3) is not yet implemented — IMMEDIATELY
-// closes every upgraded session WITHOUT calling EstablishConnection.
+// and routes each session through handleWSS: mTLS principal + signed bearer-token
+// admission (I.3), entitlement-gated matching (I.1), and forwarding. A session is
+// registered only after admission passes; denied clients are closed without
+// registration (I.2).
 //
 // This is the fail-closed boundary mandated by RELAY-00/RELAY-01: no
-// unauthenticated admission stub exists. RELAY-02 replaces this with verified
-// mTLS + bearer-token admission before any connection is registered.
+// unauthenticated admission stub exists. Verified mTLS + bearer-token admission
+// (RELAY-02) runs before any connection is registered.
 //
 // The listener must already be bound and wrapped for TLS by the caller (main.go
 // wraps it with tls.NewListener using RelayConfig.TLSConfig). ServeWS blocks
@@ -227,11 +232,10 @@ func StartMatchTimeoutReaper(ctx context.Context, engine *MatchEngine, matchTime
 					leg.mu.Lock()
 					if leg.State == LegPending && now.Sub(leg.AddedAt) > matchTimeout {
 						leg.State = LegClosed
-						leg.closeErr = errors.New("match_timeout")
 						leg.mu.Unlock()
 						delete(engine.pends, key)
 						_ = leg.Conn.Close()
-						engine.svc.CloseConnection(context.TODO(), leg.ConnID)
+						engine.svc.CloseConnection(ctx, leg.ConnID)
 						log.Info("relay: match timeout, closing pending leg",
 							"conn_id", leg.ConnID,
 							"source", leg.AgentID, "target", leg.TargetID)

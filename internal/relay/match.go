@@ -30,25 +30,24 @@ type RendezvousMsg struct {
 type LegState int
 
 const (
-	LegAdded     LegState = iota // registered, not yet validated
-	LegPending                   // validated, waiting for counterpart
-	LegMatched                   // paired, forwarding
-	LegClosed                    // terminal
+	LegAdded   LegState = iota // registered, not yet validated
+	LegPending                 // validated, waiting for counterpart
+	LegMatched                 // paired, forwarding
+	LegClosed                  // terminal
 )
 
 // Leg represents a single admitted WebSocket connection on the relay.
 type Leg struct {
-	Conn       *websocket.Conn
-	TenantID   string
-	AgentID    string // source agent (from mTLS principal)
-	TargetID   string // target agent (from rendezvous message)
-	ConnID     string // from EstablishConnection
-	State      LegState
-	Partner    *Leg // set when matched
-	MatchedAt  time.Time
-	AddedAt    time.Time
-	mu         sync.Mutex // protects State, Partner
-	closeErr   error
+	Conn      *websocket.Conn
+	TenantID  string
+	AgentID   string // source agent (from mTLS principal)
+	TargetID  string // target agent (from rendezvous message)
+	ConnID    string // from EstablishConnection
+	State     LegState
+	Partner   *Leg // set when matched
+	MatchedAt time.Time
+	AddedAt   time.Time
+	mu        sync.Mutex // protects State, Partner
 }
 
 // MatchEngine manages leg admission, pairing, and lifecycle. It sits between
@@ -56,8 +55,8 @@ type Leg struct {
 type MatchEngine struct {
 	svc   *RelayService
 	log   interface{ Info(string, ...any) }
-	mu    sync.Mutex                        // protects pending map + leg writes
-	pends map[string]*Leg                   // key: "tenant:source→target"
+	mu    sync.Mutex      // protects pending map + leg writes
+	pends map[string]*Leg // key: "tenant:source→target"
 }
 
 // NewMatchEngine creates a MatchEngine bound to the given RelayService.
@@ -140,7 +139,6 @@ func (m *MatchEngine) Admit(conn *websocket.Conn, tlsPrincipal string, msg Rende
 		// Close the existing stale pending leg.
 		existing.mu.Lock()
 		existing.State = LegClosed
-		existing.closeErr = errors.New("duplicate_leg")
 		existing.mu.Unlock()
 		m.svc.CloseConnection(context.Background(), existing.ConnID)
 		if existing.Conn != nil {
@@ -209,11 +207,10 @@ func (m *MatchEngine) ClosePair(leg *Leg) {
 func parseRendezvous(conn *websocket.Conn, deadline time.Duration) (RendezvousMsg, error) {
 	var msg RendezvousMsg
 	_ = conn.SetReadDeadline(time.Now().Add(deadline))
-	msgType, raw, err := conn.ReadMessage()
+	_, raw, err := conn.ReadMessage()
 	if err != nil {
 		return msg, err
 	}
-	_ = msgType
 	if err := json.Unmarshal(raw, &msg); err != nil {
 		return msg, errors.New("malformed_rendezvous")
 	}

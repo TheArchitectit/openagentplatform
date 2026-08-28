@@ -185,8 +185,8 @@ git status        # confirm no unexpected changes
 | FILES:     internal/relay/*.go (read-only), spec.md §7           |
 | APPROVED:  WSS rendezvous, cmd/relay binary, identity+entitlement|
 |            discovery federation, E2E/private/load stage          |
-| BLOCKED:   TCP forwarder, identity crypto (I.3), E2E crypto (E.4)|
-|            discovery protocol (D.2), TLS test certs              |
+| BLOCKED:   TCP forwarder, TLS test certs                        |
+| RESOLVED:  identity crypto (I.3), E2E crypto (E.4), D.2        |
 | ROLLBACK:  none needed (no production edits)                     |
 +------------------------------------------------------------------+
 ```

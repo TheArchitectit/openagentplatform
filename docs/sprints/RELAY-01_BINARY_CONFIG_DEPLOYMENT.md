@@ -201,12 +201,14 @@ whole tree. No raw TCP forwarder; not wired into `cmd/server`. RELAY-02 ready.
 
 ## BLOCKERS / DEFERRED
 
-- **Identity admission (spec I.3 crypto)** — the admission hook stays a TODO
-  stub; real identity/entitlement is RELAY-02, and the verification crypto is a
-  dedicated-design blocker.
-- **Matching/forwarding** — RELAY-03; deliberately absent here.
+- ~~**Identity admission (spec I.3 crypto)** — the admission hook stays a TODO
+  stub; real identity/entitlement is RELAY-02.~~ RESOLVED — I.3 wired into
+  `handleWSS` (mTLS + bearer-token + entitlement).
+- ~~**Matching/forwarding** — RELAY-03; deliberately absent here.~~ RESOLVED —
+  RELAY-03 shipped `match.go`/`forward.go`.
 - **Raw TCP forwarder** — UNAPPROVED (spec R.1); must never be added.
-- **WSS library availability** — HALT if no approved dependency.
+- ~~**WSS library availability** — HALT if no approved dependency.~~ RESOLVED —
+  gorilla/websocket approved and shipped.
 
 ---
 

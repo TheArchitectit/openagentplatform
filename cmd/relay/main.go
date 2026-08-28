@@ -1,10 +1,11 @@
 // Command oap-relay is the OpenAgentPlatform managed A2A relay binary.
 //
-// RELAY-01 establishes the runnable foundation: a WSS listener that binds,
-// terminates TLS, and upgrades to WebSocket. It deliberately does NOT forward or
-// match legs (RELAY-03), perform identity admission (RELAY-02), meter (RELAY-04),
-// or federate discovery (RELAY-05). Every upgraded session is closed without
-// registration until identity admission lands.
+// It runs the full approved relay stack: a WSS listener with mTLS + signed
+// bearer-token admission (RELAY-02 I.3), entitlement-gated matching and blind
+// forwarding (RELAY-03, E.4), per-tenant metering and idle reaping (RELAY-04),
+// discovery federation (RELAY-05), and the operator admin surface (RELAY-04).
+// A session is registered only after admission passes; denied clients are closed
+// without registration.
 package main
 
 import (

@@ -1,6 +1,6 @@
 # OpenAgentPlatform — OpenSpec Coverage Audit
 
-**Audit date:** 2026-08-23 (original) · **Re-verified:** 2026-08-26 (this update)
+**Audit date:** 2026-08-23 (original) · **Re-verified:** 2026-08-27 (this update)
 **Repo:** `/mnt/data/git/openagentplatform` (live tree, `main`)
 **Scope:** 43 capability specs in `openspec/specs/*/spec.md` vs. live Go/Python/React code
 
@@ -21,8 +21,9 @@ and `cmd/relay` binary. The `event-bus` spec has been superseded by `event-bus-n
 **What remains:**
 - **P3 — real RMM parity gaps** (code AND spec both absent): cloud control,
   hypervisor monitoring, active security/EDR, power/UPS monitoring, mobile companion.
-- **RELAY track PARTIAL:** a2a-relay spec STATUS correctly reflects PARTIAL (forwarding,
-  discovery, and identity code not yet built; decisions approved).
+- **RELAY track COMPLETE:** all RELAY-00..06 gates and implementation sprints have
+  shipped; a2a-relay spec STATUS flipped to COMPLETE. Remaining Known Limitations
+  (dead `ConnectionStatusError`, no persistence) are accurately documented.
 
 ---
 
@@ -37,7 +38,7 @@ All 43 spec dirs contain a real `spec.md`. Verdicts are against the live tree on
 | endpoint-agent | COMPLETE | `cmd/agent` + `pkg/agent/` including mesh/tunnel |
 | check-library | PARTIAL | Server-side catalog; accurate vs code |
 | remote-access | COMPLETE | NATS-shell + RMM-09 tunnel fabric noted |
-| a2a-relay | PARTIAL | Accounting core + RELAY-01 WSS listener + RELAY-02 ADR; forwarding RELAY-03 |
+| a2a-relay | COMPLETE | Full stack shipped: admission, matching, forwarding, discovery, E2E acceptance |
 | a2a-gateway | COMPLETE | |
 | a2a-agent-registry | COMPLETE | |
 | a2a-framework-adapters | COMPLETE | |
@@ -76,7 +77,7 @@ All 43 spec dirs contain a real `spec.md`. Verdicts are against the live tree on
 | semantic-scanning | COMPLETE | |
 | managed-backup | DRAFT | Greenfield; no implementation exists yet |
 
-**Counts:** 31 COMPLETE · 7 PARTIAL · 1 SUPERSEDED · 1 DRAFT · 3 COMPLETE (new/untracked)
+**Counts:** 32 COMPLETE · 6 PARTIAL · 1 SUPERSEDED · 1 DRAFT · 3 COMPLETE (new/untracked)
 
 ---
 
@@ -102,11 +103,11 @@ All 43 spec dirs contain a real `spec.md`. Verdicts are against the live tree on
 |--------|--------|-------------|
 | RELAY-00 | APPROVED | Decision gate populated; I.3/D.2/E.4 resolved |
 | RELAY-01 | COMPLETE | WSS listener + cmd/relay binary shipped; a2a-relay §1/Known Limitations updated |
-| RELAY-02 | APPROVED | Identity + entitlement ADR frozen; no code (decision-only) |
-| RELAY-03 | PENDING | Forwarding/matching (next build sprint) |
-| RELAY-04 | PENDING | Metering/observability |
-| RELAY-05 | PENDING | gRPC discovery service (D.2 resolved) |
-| RELAY-06 | PENDING | E2E/private/load (I.3/D.2/E.4 resolved) |
+| RELAY-02 | APPROVED | Identity + entitlement ADR frozen; wiring in RELAY-03 |
+| RELAY-03 | COMPLETE | Rendezvous matching + bidirectional forwarding shipped |
+| RELAY-04 | COMPLETE | Operator admin surface (health, metrics, discovery) shipped |
+| RELAY-05 | COMPLETE | Decision gate (APPROVED) + implementation (local registry + gRPC federation) |
+| RELAY-06 | COMPLETE | E.2 private-relay, E.3 load/soak, E.4 blind-forwarder acceptance all RUN |
 
 ---
 
@@ -142,7 +143,7 @@ All 43 spec dirs contain a real `spec.md`. Verdicts are against the live tree on
 ---
 
 **Audit performed by:** Claude (Agent-GDUI-2026)
-**Last verified:** 2026-08-26 against `main` at current HEAD
+**Last verified:** 2026-08-27 against `main` at current HEAD
 
 ---
 
@@ -174,3 +175,53 @@ These were independently verified against live code and fixed in this pass:
 - `platform-foundation-schema` (untracked; partially contradicts RMM-06 first-class table)
 - P1 RMM parity gaps: cloud inventory, EDR ingest, mobile app
 - P2/P3 RMM parity gaps: SCP-over-tunnel, SNMP, SIEM forwarding
+
+---
+
+## 7. Relay Full-Stack Audit + QA Round (2026-08-27)
+
+Full work-vs-spec audit of `a2a-relay` after RELAY-06. Every finding below was
+reconciled; the spec STATUS and all sprint/QA doc labels now reflect the shipped
+stack. No new requirements were added and no mechanisms were invented.
+
+### 7.1 Work-vs-spec result
+
+All §7 gates R.1–R.4, I.1–I.3, D.1–D.2, E.1–E.4 are implemented or RUN. The
+spec header previously read "PLANNED — NOT IMPLEMENTED" with every gate
+`[PLANNED]`/`[BLOCKED]`/`[PARTIAL]` and front matter "Remaining
+decision-approved but not yet coded" — all corrected. STATUS flipped
+PARTIAL → COMPLETE (the spec's own §7 condition, "STATUS stays PARTIAL until
+the approved work ships", is now satisfied).
+
+### 7.2 Code findings (fixed)
+
+| # | Finding | Action |
+|---|---------|--------|
+| C1 | `cmd/relay/main.go` package doc claimed no forwarding/matching/admission/metering | Rewrote to describe the shipped stack |
+| C2 | `internal/relay/ws.go` `ServeWS` doc claimed admission not implemented and every session closed unregistered | Rewrote to describe `handleWSS` admission/entitlement/forwarding |
+| C3 | `ws.go` reaper used `context.TODO()` for `CloseConnection` in production | Replaced with the reaper's `ctx` |
+| C4 | `match.go` + `discovery_test.go` not gofmt-clean | `gofmt -w` applied |
+
+### 7.3 Code findings (deferred — not a defect, documented)
+
+| # | Finding | Why deferred |
+|---|---------|--------------|
+| D1 | `ConnectionStatusError` constant never assigned in a transition | Spec §2.2 **requires** the `"error"` vocabulary entry, so the constant is not removable; remains a documented Known Limitation |
+| D2 | `cmd/relay/main.go:53` `relayID := "local"` (TODO to derive from relay cert CN) | The SAN convention for a relay identity cert has not landed; deriving it would invent a mechanism — left as a deferred TODO |
+
+### 7.4 Doc findings (fixed)
+
+| # | Finding | Action |
+|---|---------|--------|
+| D3 | spec front matter claimed entitlement admission + federation "not yet coded" | Rewrote as all-shipped |
+| D4 | spec §7 header + 11 gate labels stale (`[PLANNED]`/`[BLOCKED]`/`[PARTIAL]`) | Flipped to `[IMPLEMENTED]`/`[RUN]`; R.4 "unconditional grant" note corrected |
+| D5 | QA doc §3 RELAY table listed RELAY-03/04/05/06 as PENDING | Flipped to COMPLETE; counts 31→32 COMPLETE / 7→6 PARTIAL |
+| D6 | RELAY-00 quick-reference card still listed I.3/E.4/D.2 as BLOCKED | Marked RESOLVED; only TCP forwarder + TLS test certs remain blocked |
+| D7 | RELAY-01/02/03/04/05 BLOCKERS sections stale | Each resolved blocker marked RESOLVED with the sprint that cleared it |
+| D8 | INDEX_MAP.md + HEADER_MAP.md a2a-relay entries read "accounting core only / no transport wired" | Rewrote to describe the full shipped stack |
+
+### 7.5 QA round result
+
+`go test -race ./internal/relay/...` green (303s, includes 5-minute soak);
+`go vet ./internal/relay/... ./cmd/relay/...` clean; `gofmt -l` clean across
+`cmd/relay/` and `internal/relay/` after C4.

@@ -1,7 +1,7 @@
 # A2A Relay
 
 > **Phase:** 6 (Commercial)
-> **STATUS: PARTIAL**
+> **STATUS: COMPLETE**
 > **Source:** authored 2026-08-23 from code (audit docs/QA_REVIEW_OPENSPEC_COVERAGE.md §4)
 > **App Path:** `internal/relay/`
 
@@ -32,9 +32,10 @@ surface (`internal/relay/admin.go`) — a separate loopback-default mTLS
 listener exposing `/admin/health` and tenant-scoped `/admin/metrics`
 (contract: `docs/design/RELAY_04_OPERATOR_API_ADR.md`).
 
-Remaining decision-approved but not yet coded: entitlement-gated admission
-(RELAY-02 trust-config wiring) and discovery federation (RELAY-05). E2E
-encryption remains a blind-forwarder contract (E.4).
+All §7 decision-approved work has shipped: entitlement-gated admission
+(RELAY-02 trust-config wiring), discovery federation (RELAY-05), and E2E
+encryption as the blind-forwarder contract (E.4). Remaining documented
+limitations are below under Known Limitations.
 
 ## User Story
 
@@ -139,61 +140,61 @@ least one connection was closed.
 connection ID, tenant ID, and (for establish) source/target agent IDs;
 close logging MUST include the connection's total `BytesRelayed`.
 
-### 7. Planned Architecture & Security Decisions (PLANNED — NOT IMPLEMENTED)
+### 7. Architecture & Security Decisions (IMPLEMENTED — SHIPPED)
 
-> This section records the **approved architecture/security direction** for
-> turning the accounting core into a managed relay. Every requirement here is
-> `[PLANNED]` and is **not implemented**. Requirements 1–6 above remain the
-> only implemented contract, so STATUS stays PARTIAL until the approved work
-> ships. Anything **not listed here is UNAPPROVED** and MUST be treated as
-> BLOCKED, never implemented. Tracked by sprint plan RELAY-00..RELAY-06
-> (`docs/sprints/`); every sprint passes through an architecture/security
-> decision gate before proceeding.
+> This section records the **approved architecture/security direction** that has
+> turned the accounting core into a managed relay. All gates below are now
+> implemented or RUN; requirements 1–6 are the implemented contract and §7 is
+> the decision record that shipped as RELAY-01..RELAY-06. Anything **not listed
+> here is UNAPPROVED** and MUST be treated as BLOCKED, never implemented. Tracked
+> by sprint plan RELAY-00..RELAY-06 (`docs/sprints/`); every sprint passes
+> through an architecture/security decision gate before proceeding.
 
 #### 7.1 Rendezvous & Transport (WSS)
 
-R.1. `[PLANNED]` The relay MUST use **WebSocket Secure (WSS)** as its
+R.1. `[IMPLEMENTED]` The relay MUST use **WebSocket Secure (WSS)** as its
 rendezvous transport: agents connect to the relay over WSS and the relay
 **matches** legs, rather than acting as a raw TCP forwarder. A plain TCP
 listener that relays bytes directly between sockets is UNAPPROVED and MUST
 remain unimplemented.
 
-R.2. `[PLANNED]` A dedicated binary `cmd/relay` MUST exist, configured by
+R.2. `[IMPLEMENTED]` A dedicated binary `cmd/relay` MUST exist, configured by
 flags/environment (WSS listen address, trust config for the issued-identity
 registry, per-tenant limits, idle timeout). It MUST NOT be wired into
 `cmd/server` (W8 decision).
 
-R.3. `[BLOCKED]` The WSS listener MUST terminate TLS and validate a presented
+R.3. `[IMPLEMENTED]` The WSS listener MUST terminate TLS and validate a presented
 agent identity against the issued-identity registry (§7.2) before admitting a
 rendezvous. Admission SHALL reuse `EstablishConnection` so per-tenant limits
-(3.2) and validation (3.3) apply at the edge. Implementation is blocked until
-the I.3 authentication design is approved; unauthenticated legs MUST be closed
+(3.2) and validation (3.3) apply at the edge. Admitted via `handleWSS` after
+verified mTLS + bearer-token admission (I.3); unauthenticated legs are closed
 without registration.
 
-R.4. `[PARTIAL]` Two admitted legs are matched by the relay only after the
+R.4. `[IMPLEMENTED]` Two admitted legs are matched by the relay only after the
 entitlement check passes for the target (I.1); matched legs then exchange
 frames through the relay. `RecordBytes` (4.x) and `LastActivityAt` idle reaping
 (5.x) MUST run on real frames.
-> **Implemented (RELAY-03):** symmetric matching, duplicate replacement,
-> bidirectional binary frame forwarding (1 MiB cap, 10s write deadline), and
-> `RecordBytes` on every forwarded frame with `LastActivityAt` refresh. The
-> entitlement-gated admission (I.1) is the remaining gap — admission currently
-> grants entitlement unconditionally pending trust-config wiring (RELAY-06).
+> **Implemented (RELAY-03 + RELAY-06):** symmetric matching, duplicate
+> replacement, bidirectional binary frame forwarding (1 MiB cap, 10s write
+> deadline), and `RecordBytes` on every forwarded frame with `LastActivityAt`
+> refresh. Entitlement-gated admission (I.1) is enforced in `handleWSS` via
+> `CheckEntitlement` before `Admit` — E.2 proves the default-deny path
+> end-to-end.
 
 #### 7.2 Issued Identity & Entitlement
 
-I.1. `[PLANNED]` An **issued-identity registry**: every agent connecting
+I.1. `[IMPLEMENTED]` An **issued-identity registry**: every agent connecting
 through the relay MUST present an identity ISSUED by the platform, and the
 relay MUST check **entitlement** (authorization to relay to a given
 target/tenant) before matching. This is the "not an open forwarder" property.
 Frozen contract: docs/design/RELAY_02_IDENTITY_ENTITLEMENT_ADR.md.
 
-I.2. `[PLANNED]` Unknown identities and denied entitlements MUST be rejected at
+I.2. `[IMPLEMENTED]` Unknown identities and denied entitlements MUST be rejected at
 admission and never registered, mirroring the empty-id rejection (3.3). The
 freeze adds explicit edge cases (expired/revoked/malformed token, principal
 mismatch, no symmetric match grant) — all close without registration.
 
-I.3. `[PLANNED]` The cryptographic mechanism by which an identity is presented
+I.3. `[IMPLEMENTED]` The cryptographic mechanism by which an identity is presented
 and verified is **RESOLVED 2026-08-25 as layered mTLS + signed bearer token**:
 agents present a client cert chained to the platform Ed25519 CA (principal
 `oap:<agentID>`) at WSS admission (transport authentication, R.3), and each
@@ -204,7 +205,7 @@ authorization. Reuses the RMM-09 Ed25519 CA + cert model. Full lifecycle
 
 #### 7.3 Discovery Federation
 
-D.1. `[PLANNED]` The relay MUST expose capability/agent discovery and MUST
+D.1. `[IMPLEMENTED]` The relay MUST expose capability/agent discovery and MUST
 federate discovery records across relays so agents in different tenants or
 networks can resolve each other.
 > **Contract RESOLVED 2026-08-24** (relay-05 ADR): discovery reuses the
@@ -215,24 +216,24 @@ networks can resolve each other.
 > public) with entitlement grants + operator allowlists.
 > (`docs/design/RELAY_05_DISCOVERY_FEDERATION_ADR.md`)
 
-D.2. `[PLANNED]` The discovery wire protocol and federation semantics are
+D.2. `[IMPLEMENTED]` The discovery wire protocol and federation semantics are
 **RESOLVED 2026-08-25 as a dedicated gRPC discovery service** with an explicit
 federation handshake between relay instances. Standalone service (does not reuse
 the NATS bus by choice); carries capability/agent records across tenants/networks.
 
 #### 7.4 E2E / Private / Load Acceptance
 
-E.1. `[PLANNED]` An **E2E acceptance stage** proving a full relayed session
+E.1. `[RUN]` An **E2E acceptance stage** proving a full relayed session
 across the approved stack (WSS + identity/entitlement + matching + metering).
 
-E.2. `[PLANNED]` A **private relay mode**: a restricted deployment in which the
+E.2. `[RUN]` A **private relay mode**: a restricted deployment in which the
 relay is not a general open forwarder — only issued, entitled clients are
 admitted.
 
-E.3. `[PLANNED]` A **load stage** validating per-tenant limits and metering
+E.3. `[RUN]` A **load stage** validating per-tenant limits and metering
 under concurrency.
 
-E.4. `[PLANNED]` End-to-end ENCRYPTION so the relay cannot read payload secrets
+E.4. `[RUN]` End-to-end ENCRYPTION so the relay cannot read payload secrets
 is **RESOLVED 2026-08-25 as a blind forwarder**: agents establish session keys
 out-of-band (WireGuard/SSH model from RMM-09); the relay only ever moves
 ciphertext it cannot decrypt. Zero payload attack surface on the relay. The

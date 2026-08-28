@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"sync"
-
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -73,22 +72,16 @@ func (f *Forwarder) pipe(ctx context.Context, src, dst *Leg) {
 
 		// Reject non-binary frames (RELAY-03 §5.1).
 		if msgType != websocket.BinaryMessage {
-			src.mu.Lock()
-			src.closeErr = io.ErrUnexpectedEOF
-			src.mu.Unlock()
 			return
 		}
 
 		// Enforce message size limit (RELAY-03 §5.2).
 		if len(msg) > MaxFrameSize {
-			src.mu.Lock()
-			src.closeErr = ErrFrameTooLarge
-			src.mu.Unlock()
 			return
 		}
 
 		// Record bytes on the sending leg's connection.
-		_ = f.engine.svc.RecordBytes(nil, src.ConnID, int64(len(msg)))
+		_ = f.engine.svc.RecordBytes(ctx, src.ConnID, int64(len(msg)))
 
 		// Write frame to dst (with write deadline to enforce RELAY-03 §4).
 		_ = dst.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
@@ -99,6 +92,3 @@ func (f *Forwarder) pipe(ctx context.Context, src, dst *Leg) {
 		}
 	}
 }
-
-// ErrFrameTooLarge is returned when a frame exceeds MaxFrameSize.
-var ErrFrameTooLarge = io.ErrShortWrite // sentinel
