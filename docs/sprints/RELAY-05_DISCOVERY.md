@@ -4,7 +4,7 @@
 **Sprint Focus:** Approve discovery namespaces, privacy, authorization,
 provenance, expiry, conflicts, and federation semantics before implementation.
 **Priority:** P2 (Normal)
-**Status:** BLOCKED — spec D.2 is unresolved
+**Status:** APPROVED — decision gate complete
 
 Spec reference: `openspec/specs/a2a-relay/spec.md` §7.3 D.1–D.2.
 Prerequisites: RELAY-01..04 contracts must be approved and implemented.
@@ -113,4 +113,37 @@ commit if approval is withdrawn; do not rewrite history.
 ---
 
 **Created:** 2026-08-23
-**Version:** 1.1
+**Version:** 1.2
+
+---
+
+## Closeout Note
+
+RELAY-05 decision gate complete — **decision-only, no production changes**
+(criterion 5: "No mechanism invented" — zero `.go`/config changes).
+
+Approved contract: `docs/design/RELAY_05_DISCOVERY_FEDERATION_ADR.md`
+
+1. **Data model approved** — reuses `AgentCard` + federation envelope
+   (provenance, visibility, TTL, version, signature). Namespace: agent IDs
+   globally unique; origin relay owns the record.
+2. **Privacy approved** — three visibility scopes: `tenant_private` (default),
+   `tenant_allowlisted` (entitlement grants + operator allowlists),
+   `global_public` (opt-in). Default is fully private.
+3. **Protocol approved** — gRPC (D.2), hybrid push+pull sync, origin-relay
+   authoritative conflicts, TTL + explicit withdraw, Ed25519-signed
+   provenance, replay prevention via monotonic version.
+4. **Phase boundary stated** — Phase 1: local DiscoveryRegistry + admin route;
+   Phase 2: federation RPCs (PushRecord/PullRecords/Ping).
+
+Acceptance criteria verified:
+- [x] Data model approved (namespace, provenance, expiry, conflicts explicit)
+- [x] Privacy approved (publish/resolve/list authorization explicit)
+- [x] Protocol approved (wire, trust, sync, failure, versioning explicit)
+- [x] Phase boundary approved (local vs federated delivery stated)
+- [x] No mechanism invented (zero production `.go`/config changes)
+
+Implementation successor is a separate sprint (to be created) per Step 4:
+local DiscoveryRegistry first (`internal/relay/discovery.go` + admin route),
+federation RPCs second. RELAY-06 E2E/private/load acceptance precedes and
+stays independent of discovery implementation.

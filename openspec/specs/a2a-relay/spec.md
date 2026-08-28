@@ -207,6 +207,13 @@ authorization. Reuses the RMM-09 Ed25519 CA + cert model. Full lifecycle
 D.1. `[PLANNED]` The relay MUST expose capability/agent discovery and MUST
 federate discovery records across relays so agents in different tenants or
 networks can resolve each other.
+> **Contract RESOLVED 2026-08-24** (relay-05 ADR): discovery reuses the
+> existing `AgentCard` model wrapped in a federation envelope (provenance,
+> visibility, TTL, version). Hybrid push+pull sync over gRPC; origin-relay
+> authoritative conflict resolution; TTL + explicit withdraw expiry;
+> cross-tenant visibility via three scopes (private / allowlisted / global
+> public) with entitlement grants + operator allowlists.
+> (`docs/design/RELAY_05_DISCOVERY_FEDERATION_ADR.md`)
 
 D.2. `[PLANNED]` The discovery wire protocol and federation semantics are
 **RESOLVED 2026-08-25 as a dedicated gRPC discovery service** with an explicit
