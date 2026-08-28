@@ -5,7 +5,7 @@
 observability, discovery, and payload-encryption decisions are approved and their
 required implementations exist.
 **Priority:** P2 (Normal)
-**Status:** BLOCKED — I.3 implementation and discovery implementation absent
+**Status:** BLOCKED — E.4 acceptance not run; discovery PARTIAL (§1.4 provenance signing deferred)
 
 Spec reference: `openspec/specs/a2a-relay/spec.md` §7.4 E.1–E.4.
 Prerequisites: completed RELAY-01..05 plus an approved E.4 design.
@@ -113,9 +113,9 @@ identity checks as a rollback shortcut.
 
 ## BLOCKERS / DEFERRED
 
-- I.3 authentication and credential lifecycle.
-- Approved rendezvous semantics and secure operator API.
-- D.2 discovery federation protocol and implementation.
+- I.3 authentication and credential lifecycle (implemented: trust.go + WSS gate).
+- Approved rendezvous semantics and secure operator API (implemented).
+- D.2 discovery federation protocol and implementation (PARTIAL: §1.4 provenance signing deferred).
 - E.4 end-to-end payload-encryption design and implementation.
 
 ---
@@ -132,13 +132,16 @@ identity checks as a rollback shortcut.
 | Rendezvous semantics | `docs/design/RELAY_03_RENDEZVOUS_PROTOCOL.md` + `match.go`/`forward.go` + tests | PRESENT |
 | Operator API | `docs/design/RELAY_04_OPERATOR_API_ADR.md` + `admin.go` + tests | PRESENT |
 | D.2 discovery protocol | `docs/design/RELAY_05_DISCOVERY_FEDERATION_ADR.md` | APPROVED |
-| D.2 discovery implementation | deferred (RELAY-05 Step 4 successor sprint) | ABSENT |
+| D.2 discovery implementation | `internal/relay/discovery.go` + `discovery_grpc.go` + `discoverypb/` + admin route + tests | PARTIAL (§1.4 provenance signing deferred) |
 | I.3 design | `docs/design/RELAY_02_IDENTITY_ENTITLEMENT_ADR.md` | APPROVED |
 | I.3 implementation | `trust.go` (TrustConfig + VerifyToken + CheckEntitlement + jti LRU); WSS TLS `ClientAuth=RequireAndVerifyClientCert` via `--trust-ca`; `extractIdentity` derives principal + tenant from cert SANs; `handleWSS` enforces token + jti + entitlement before Admit | PRESENT |
 | E.4 design | blind-forwarder (out-of-band keys) | APPROVED |
 | E.4 acceptance | not tested | NOT RUN |
 
 I.3 admission implementation has landed (RELAY-03 wiring + trust.go + tests).
-RELAY-06 remains BLOCKED on the single remaining implementation gap: the
-discovery successor sprint (local registry + federation RPCs). The acceptance
-stage reopens after that successor sprint ships.
+D.2 discovery implementation has landed (discovery.go + discovery_grpc.go +
+discoverypb/ + admin route + tests). The implementation is PARTIAL: ADR §1.4
+provenance signature verification is deferred pending per-relay Ed25519 key
+distribution.
+RELAY-06 remains BLOCKED on: (1) E.4 acceptance not yet run, (2) discovery
+§1.4 provenance signing deferred.
