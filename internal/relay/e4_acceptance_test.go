@@ -123,9 +123,28 @@ type e2eRelay struct {
 
 const e2eTenant = "t1"
 
-// newE2eRelay builds a relay that admits exactly the given source→target
-// entitlements, with one client cert per agent ID.
+// fullMeshEntitlements grants source→target among every pair of the given
+// agents, within the test tenant.
+func fullMeshEntitlements(agentIDs []string) []Entitlement {
+	ents := make([]Entitlement, 0, len(agentIDs)*len(agentIDs))
+	for _, a := range agentIDs {
+		for _, b := range agentIDs {
+			ents = append(ents, Entitlement{TenantID: e2eTenant, SourceAgentID: a, TargetAgentID: b, Action: "relay"})
+		}
+	}
+	return ents
+}
+
+// newE2eRelay builds a relay admitting every full-mesh pair among agentIDs,
+// with one client cert per agent ID.
 func newE2eRelay(t *testing.T, agentIDs ...string) *e2eRelay {
+	return newE2eRelayWithEntitlements(t, fullMeshEntitlements(agentIDs), agentIDs...)
+}
+
+// newE2eRelayWithEntitlements builds a relay with an explicit entitlement set,
+// so negative paths (default-deny, sub-mesh) can be exercised. One client cert
+// is issued per agent ID; the token-signing platform key is fresh per fixture.
+func newE2eRelayWithEntitlements(t *testing.T, ents []Entitlement, agentIDs ...string) *e2eRelay {
 	t.Helper()
 
 	// Platform token-signing key (Ed25519, same key class as the discovery
@@ -133,14 +152,6 @@ func newE2eRelay(t *testing.T, agentIDs ...string) *e2eRelay {
 	pub, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		t.Fatalf("platform key: %v", err)
-	}
-
-	// Entitle the full mesh among the fixture's agents.
-	ents := make([]Entitlement, 0, len(agentIDs)*len(agentIDs))
-	for _, a := range agentIDs {
-		for _, b := range agentIDs {
-			ents = append(ents, Entitlement{TenantID: e2eTenant, SourceAgentID: a, TargetAgentID: b, Action: "relay"})
-		}
 	}
 
 	svc := NewRelayService(RelayConfig{MaxConnections: 100, IdleTimeout: time.Minute}, nil)
@@ -192,6 +203,15 @@ func newE2eRelay(t *testing.T, agentIDs ...string) *e2eRelay {
 	return r
 }
 
+// dialWSS dials the relay's WSS endpoint with an explicit TLS client config
+// and returns the connection or the handshake error. Exposed so negative paths
+// (missing client cert, cert from an untrusted CA) can assert TLS rejection.
+func (r *e2eRelay) dialWSS(tlsCfg *tls.Config) (*websocket.Conn, error) {
+	dialer := websocket.Dialer{TLSClientConfig: tlsCfg}
+	conn, _, err := dialer.Dial(r.url, nil)
+	return conn, err
+}
+
 // dialAndAdmit connects over WSS with the agent's mTLS cert, completes the
 // rendezvous handshake (signed bearer token + fresh jti), and returns the
 // admitted WebSocket.
@@ -202,11 +222,10 @@ func (r *e2eRelay) dialAndAdmit(t *testing.T, agentID, targetID string) *websock
 	if !ok {
 		t.Fatalf("no fixture cert for %q", agentID)
 	}
-	dialer := websocket.Dialer{TLSClientConfig: &tls.Config{
+	conn, err := r.dialWSS(&tls.Config{
 		RootCAs:      r.ca.pool,
 		Certificates: []tls.Certificate{cert},
-	}}
-	conn, _, err := dialer.Dial(r.url, nil)
+	})
 	if err != nil {
 		t.Fatalf("wss dial %s: %v", agentID, err)
 	}

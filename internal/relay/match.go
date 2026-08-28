@@ -91,10 +91,10 @@ func (m *MatchEngine) Admit(conn *websocket.Conn, tlsPrincipal string, msg Rende
 		return nil, nil, errors.New("target_id_required")
 	}
 
-	// Validate entitlement (RELAY-02 §2.1): source→target must exist in the
-	// trust config. Placeholder — will be wired with real trust config in
-	// a future sprint; for now entitlement is always granted if we reach this
-	// point (mTLS + token are verified by the caller before calling Admit).
+	// Entitlement (RELAY-02 §2.1) is enforced by the caller before Admit:
+	// handleWSS checks CheckEntitlement and closes the leg on denial, so a leg
+	// reaching this point has already passed the entitlement gate. Admit
+	// therefore trusts its caller rather than re-checking (layered gate).
 
 	// Register the connection via the accounting core.
 	connRecord, err := m.svc.EstablishConnection(

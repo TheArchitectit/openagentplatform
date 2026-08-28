@@ -117,12 +117,13 @@ identity checks as a rollback shortcut.
 - Approved rendezvous semantics and secure operator API (implemented).
 - D.2 discovery federation protocol and implementation (COMPLETE: §1.4 provenance signing/verification landed).
 - E.4 end-to-end payload protection acceptance (RUN: blind-forwarder `internal/relay/e4_acceptance_test.go`).
+- E.2 private-relay acceptance (RUN: `internal/relay/e2_private_relay_test.go` — no open forwarder).
 - Load/soak acceptance (criterion 4): no approved thresholds/durations yet.
 
 ---
 
 **Created:** 2026-08-23
-**Version:** 1.3
+**Version:** 1.4
 
 ---
 
@@ -138,6 +139,8 @@ identity checks as a rollback shortcut.
 | I.3 implementation | `trust.go` (TrustConfig + VerifyToken + CheckEntitlement + jti LRU); WSS TLS `ClientAuth=RequireAndVerifyClientCert` via `--trust-ca`; `extractIdentity` derives principal + tenant from cert SANs; `handleWSS` enforces token + jti + entitlement before Admit | PRESENT |
 | E.4 design | blind-forwarder (out-of-band keys) | APPROVED |
 | E.4 acceptance | `internal/relay/e4_acceptance_test.go` — two mTLS legs, bidirectional opaque ciphertext forwarded intact + exact metering; relay in-memory state never contains the plaintext; text + oversized frames close the pair | RUN |
+| E.2 design | private relay — not an open forwarder (only issued, entitled clients admitted) | APPROVED |
+| E.2 acceptance | `internal/relay/e2_private_relay_test.go` — missing mTLS cert, untrusted CA, and non-entitled (default-deny) clients all rejected with nothing registered | RUN |
 
 I.3 admission implementation has landed (RELAY-03 wiring + trust.go + tests).
 D.2 discovery implementation is now COMPLETE: ADR §1.4 provenance signatures
@@ -148,5 +151,10 @@ passes. The test surfaced and fixed one production bug: the forwarder was bound
 to the per-request `r.Context()`, which is cancelled the moment `handleWSS`
 returns — so no frame would ever have been forwarded in production. The forwarder
 now uses the listener-lifetime context (`srvCtx`, threaded through `ServeWS`).
+E.2 private-relay acceptance is also RUN: a client without an mTLS cert, with a
+cert from an untrusted CA, or with a valid cert + token but no entitlement grant
+is turned away before any connection is registered — the relay is not a general
+open forwarder. This closes the spec's former "entitlement-gated admission NOT
+yet wired" known limitation.
 RELAY-06 remains PARTIAL on a single item: load/soak acceptance (criterion 4)
 has no approved thresholds or durations, and this sprint does not invent them.

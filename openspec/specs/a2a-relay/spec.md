@@ -242,13 +242,15 @@ load/E2E stage (RELAY-06) validates the relayed session end-to-end.
 
 ## Known Limitations
 
-- **Matching and forwarding shipped, admission still fail-closed on
-  entitlement.** RELAY-03 delivered the rendezvous protocol, symmetric leg
-  matching, duplicate replacement, and bidirectional binary frame forwarding
-  (`match.go` + `forward.go`), driven by the WSS admission path in `ws.go`.
-  Entitlement-gated admission (§7.2 I.1) is NOT yet wired — `Admit` grants
-  entitlement unconditionally pending trust-config loading; the mTLS principal
-  and token claims are the intended trust anchors (I.3). RELAY-06 closes this.
+- **Matching and forwarding shipped; admission is issued + entitled.** RELAY-03
+  delivered the rendezvous protocol, symmetric leg matching, duplicate
+  replacement, and bidirectional binary frame forwarding (`match.go` +
+  `forward.go`), driven by the WSS admission path in `ws.go`.
+  Entitlement-gated admission (§7.2 I.1) is enforced in `handleWSS`
+  (`CheckEntitlement`) before `Admit` — denied clients are closed with nothing
+  registered. The mTLS principal and token claims are the identity anchors
+  (I.3); RELAY-06 E.2 (`e2_private_relay_test.go`) proves the default-deny path
+  end-to-end.
 - **Operator API shipped, loopback-only by default.** RELAY-04 delivered
   `internal/relay/admin.go`: a separate mTLS listener (`--admin-addr`,
   default `127.0.0.1:9090`) serving `/admin/health` and tenant-scoped
