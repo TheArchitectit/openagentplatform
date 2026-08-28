@@ -10,6 +10,9 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
+
+	"github.com/openagentplatform/openagentplatform/a2a/models"
 )
 
 // certWith builds a x509.Certificate carrying the given role SAN (empty to omit)
@@ -186,5 +189,77 @@ func TestAdminHandleMetrics_OperatorCrossTenantForbidden(t *testing.T) {
 	admin.handleMetrics(w, reqWithCert(certWith("relay-operator", "tenant-a"), "/admin/metrics?tenant=tenant-b"))
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403", w.Code)
+	}
+}
+
+func TestAdminHandleDiscovery_NilRegistry(t *testing.T) {
+	admin := newAdminFixture() // no SetDiscoveryRegistry → nil
+	w := httptest.NewRecorder()
+	admin.handleDiscovery(w, reqWithCert(certWith("relay-admin"), "/admin/discovery"))
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", w.Code)
+	}
+}
+
+func TestAdminHandleDiscovery_AdminSeesAll(t *testing.T) {
+	admin := newAdminFixture()
+	reg := NewDiscoveryRegistry("relay-1", nil)
+	_ = reg.Publish(&DiscoveryEnvelope{
+		Record:     models.AgentCard{ID: "agent-a", Name: "Agent A"},
+		Provenance: Provenance{OriginRelayID: "relay-1", TenantID: "tenant-a"},
+		Visibility: Visibility{Scope: VisibilityTenantPrivate},
+		TTL:        time.Hour, Version: 1,
+	})
+	_ = reg.Publish(&DiscoveryEnvelope{
+		Record:     models.AgentCard{ID: "agent-b", Name: "Agent B"},
+		Provenance: Provenance{OriginRelayID: "relay-1", TenantID: "tenant-b"},
+		Visibility: Visibility{Scope: VisibilityGlobalPublic},
+		TTL:        time.Hour, Version: 1,
+	})
+	admin.SetDiscoveryRegistry(reg)
+
+	w := httptest.NewRecorder()
+	admin.handleDiscovery(w, reqWithCert(certWith("relay-admin"), "/admin/discovery"))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("json: %v", err)
+	}
+	if int(resp["total"].(float64)) != 2 {
+		t.Fatalf("expected 2 records, got %v", resp["total"])
+	}
+}
+
+func TestAdminHandleDiscovery_OperatorScoped(t *testing.T) {
+	admin := newAdminFixture()
+	reg := NewDiscoveryRegistry("relay-1", nil)
+	_ = reg.Publish(&DiscoveryEnvelope{
+		Record:     models.AgentCard{ID: "agent-a", Name: "Agent A"},
+		Provenance: Provenance{OriginRelayID: "relay-1", TenantID: "tenant-a"},
+		Visibility: Visibility{Scope: VisibilityTenantPrivate},
+		TTL:        time.Hour, Version: 1,
+	})
+	_ = reg.Publish(&DiscoveryEnvelope{
+		Record:     models.AgentCard{ID: "agent-b", Name: "Agent B"},
+		Provenance: Provenance{OriginRelayID: "relay-1", TenantID: "tenant-b"},
+		Visibility: Visibility{Scope: VisibilityGlobalPublic},
+		TTL:        time.Hour, Version: 1,
+	})
+	admin.SetDiscoveryRegistry(reg)
+
+	// Operator with tenant-a SAN: sees only tenant-a records.
+	w := httptest.NewRecorder()
+	admin.handleDiscovery(w, reqWithCert(certWith("relay-operator", "tenant-a"), "/admin/discovery"))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("json: %v", err)
+	}
+	if int(resp["total"].(float64)) != 1 {
+		t.Fatalf("operator should see 1 record (tenant-a only), got %v", resp["total"])
 	}
 }

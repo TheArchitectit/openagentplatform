@@ -47,11 +47,43 @@ type Entitlement struct {
 // --trust-config. The mTLS CA pool is separate (--trust-ca): this file holds
 // only the token-signing public key and entitlement grants.
 type TrustConfig struct {
-	Version        int           `json:"version"             yaml:"version"`
-	PlatformKeyB64 string        `json:"platform_public_key" yaml:"platform_public_key"`
-	Entitlements   []Entitlement `json:"entitlements"        yaml:"entitlements"`
+	Version        int                `json:"version"             yaml:"version"`
+	PlatformKeyB64 string             `json:"platform_public_key" yaml:"platform_public_key"`
+	Entitlements   []Entitlement      `json:"entitlements"        yaml:"entitlements"`
+	Federation     *FederationSection `json:"federation"     yaml:"federation"`
 
 	verifyKey ed25519.PublicKey // decoded PlatformKeyB64
+}
+
+// FederationSection extends the trust config with discovery federation peers
+// (RELAY-05 ADR §2.4). Absent (nil) means no federation peers are configured.
+type FederationSection struct {
+	Peers            []FederationPeerConfig `json:"peers"             yaml:"peers"`
+	PullInterval     string                 `json:"pull_interval"     yaml:"pull_interval"` // e.g. "5m"
+	StartupReconcile bool                   `json:"startup_reconcile" yaml:"startup_reconcile"`
+}
+
+// FederationPeerConfig names one peer relay and its gRPC endpoint (ADR §2.4).
+type FederationPeerConfig struct {
+	RelayID  string `json:"relay_id" yaml:"relay_id"`
+	Endpoint string `json:"endpoint" yaml:"endpoint"`
+}
+
+// DefaultFederationPullInterval is the pull cadence used when the config
+// does not set one (ADR §2.3: 5 minutes).
+const DefaultFederationPullInterval = 5 * time.Minute
+
+// PullIntervalDuration resolves the configured pull interval, falling back to
+// DefaultFederationPullInterval when unset, zero, or malformed.
+func (f *FederationSection) PullIntervalDuration() time.Duration {
+	if f == nil || f.PullInterval == "" {
+		return DefaultFederationPullInterval
+	}
+	d, err := time.ParseDuration(f.PullInterval)
+	if err != nil || d <= 0 {
+		return DefaultFederationPullInterval
+	}
+	return d
 }
 
 // LoadTrustConfig reads and validates the trust config file. Fail-closed: a
@@ -127,11 +159,11 @@ func (t *TrustConfig) CheckEntitlement(tenantID, source, target string) bool {
 // tokenClaims is the signed bearer-token payload (RELAY-02 §1.2):
 // `agentID | targetAgentID | tenantID | iat | exp`.
 type tokenClaims struct {
-	AgentID    string
-	TargetID   string
-	TenantID   string
-	IssuedAt   int64
-	ExpiryAt   int64
+	AgentID  string
+	TargetID string
+	TenantID string
+	IssuedAt int64
+	ExpiryAt int64
 }
 
 // VerifyToken verifies the Ed25519 signature over the token payload and checks
@@ -189,11 +221,11 @@ func (t *TrustConfig) decodeAndVerify(token string) (tokenClaims, error) {
 		return c, errors.New("token_malformed")
 	}
 	return tokenClaims{
-		AgentID:   strings.TrimSpace(fields[0]),
-		TargetID:  strings.TrimSpace(fields[1]),
-		TenantID:  strings.TrimSpace(fields[2]),
-		IssuedAt:  iat,
-		ExpiryAt:  exp,
+		AgentID:  strings.TrimSpace(fields[0]),
+		TargetID: strings.TrimSpace(fields[1]),
+		TenantID: strings.TrimSpace(fields[2]),
+		IssuedAt: iat,
+		ExpiryAt: exp,
 	}, nil
 }
 

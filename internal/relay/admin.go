@@ -19,6 +19,7 @@ import (
 // recognized role SAN and enforce per-role tenant visibility.
 type AdminServer struct {
 	svc       *RelayService
+	registry  *DiscoveryRegistry // optional: nil when discovery is not configured
 	log       *slog.Logger
 	startedAt time.Time
 }
@@ -29,6 +30,12 @@ func NewAdminServer(svc *RelayService, log *slog.Logger) *AdminServer {
 		log = slog.Default()
 	}
 	return &AdminServer{svc: svc, log: log, startedAt: time.Now().UTC()}
+}
+
+// SetDiscoveryRegistry wires the discovery registry for the /admin/discovery
+// route (RELAY-05 ADR §5.2). Nil (the default) means the route returns 404.
+func (a *AdminServer) SetDiscoveryRegistry(r *DiscoveryRegistry) {
+	a.registry = r
 }
 
 const (
@@ -83,6 +90,7 @@ func (a *AdminServer) Serve(ctx context.Context, ln net.Listener) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/admin/health", a.handleHealth)
 	mux.HandleFunc("/admin/metrics", a.handleMetrics)
+	mux.HandleFunc("/admin/discovery", a.handleDiscovery)
 
 	srv := &http.Server{
 		Handler:           mux,
@@ -212,6 +220,57 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+// handleDiscovery serves the discovery registry listing (RELAY-05 ADR §5.2).
+// relay-admin sees all records; relay-operator sees only tenants bound to its
+// cert SANs. When the registry is nil (discovery not configured), returns 404.
+func (a *AdminServer) handleDiscovery(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if a.registry == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "discovery_not_configured"})
+		return
+	}
+
+	principal, ok := operatorIdentity(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "client_cert_required"})
+		return
+	}
+	if principal.Role != RoleAdmin && principal.Role != RoleOperator {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "unrecognized_role"})
+		return
+	}
+
+	snapshot := a.registry.Snapshot()
+	type discoveryRecord struct {
+		AgentID     string `json:"agent_id"`
+		TenantID    string `json:"tenant_id"`
+		Name        string `json:"name"`
+		Scope       string `json:"scope"`
+		Version     uint64 `json:"version"`
+		OriginRelay string `json:"origin_relay"`
+	}
+
+	records := make([]discoveryRecord, 0, len(snapshot))
+	for _, env := range snapshot {
+		// Operator: skip tenants outside their SAN list.
+		if principal.Role == RoleOperator && !principal.Tenants[env.Provenance.TenantID] {
+			continue
+		}
+		records = append(records, discoveryRecord{
+			AgentID:     env.Record.ID,
+			TenantID:    env.Provenance.TenantID,
+			Name:        env.Record.Name,
+			Scope:       string(env.Visibility.Scope),
+			Version:     env.Version,
+			OriginRelay: env.Provenance.OriginRelayID,
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"records": records, "total": len(records)})
 }
 
 // AdminTLSConfig builds the TLS configuration for the admin listener: a server

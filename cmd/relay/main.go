@@ -47,6 +47,17 @@ func main() {
 	svc := relay.NewRelayService(cfg, log)
 	svc.SetTrustConfig(trustCfg)
 
+	// Discovery: local registry + optional federation (RELAY-05). When the
+	// trust config contains a federation section with peers, the Federation
+	// driver is started; otherwise the registry is local-only.
+	relayID := "local" // TODO: derive from relay cert CN once relay-cert SAN convention lands
+	registry := relay.NewDiscoveryRegistry(relayID, log)
+	var fed *relay.Federation
+	if trustCfg.Federation != nil && len(trustCfg.Federation.Peers) > 0 {
+		fed = relay.NewFederation(relayID, registry, cfg.TLSConfig, trustCfg.Federation, log)
+		registry.SetObserver(fed.Broadcast)
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -62,9 +73,16 @@ func main() {
 	// loopback-default port and requires mTLS with a role SAN. A failure to
 	// configure or bind the admin surface is fatal — the relay must not run
 	// without a secured operator surface.
-	adminErr := startAdmin(ctx, flags, svc, log)
+	adminErr := startAdmin(ctx, flags, svc, registry, log)
 
 	log.Info("relay: starting WSS listener", "addr", cfg.ListenAddr, "max_connections", cfg.MaxConnections)
+
+	// Start federation (push+pull+ping loops) before WSS so startup
+	// reconciliation finishes before any agent connections arrive.
+	if fed != nil {
+		log.Info("relay: starting discovery federation", "peers", fed.PeerCount())
+		go fed.Start(ctx)
+	}
 	if err := svc.ListenAndServe(ctx, tcpLn); err != nil {
 		log.Error("relay: listener exited", "err", err)
 		os.Exit(1)
@@ -82,7 +100,7 @@ func main() {
 // startAdmin configures and serves the admin listener. It returns a channel
 // that receives the server's exit error (nil on clean shutdown). It blocks on
 // configuration and bind errors, which are fatal.
-func startAdmin(ctx context.Context, flags *Flags, svc *relay.RelayService, log *slog.Logger) <-chan error {
+func startAdmin(ctx context.Context, flags *Flags, svc *relay.RelayService, registry *relay.DiscoveryRegistry, log *slog.Logger) <-chan error {
 	errCh := make(chan error, 1)
 
 	tlsCfg, err := flags.adminTLSConfig()
@@ -99,6 +117,7 @@ func startAdmin(ctx context.Context, flags *Flags, svc *relay.RelayService, log 
 	tlsLn := tls.NewListener(adminLn, tlsCfg)
 
 	admin := relay.NewAdminServer(svc, log)
+	admin.SetDiscoveryRegistry(registry)
 
 	log.Info("relay: starting admin listener", "addr", flags.AdminAddr)
 	go func() {

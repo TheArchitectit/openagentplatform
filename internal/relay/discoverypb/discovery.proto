@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package oap.discovery.v1;
+
+option go_package = "github.com/openagentplatform/openagentplatform/internal/relay/discoverypb";
+
+// ============================================================
+// Discovery federation protocol (RELAY-05 ADR §2). The federated
+// record reuses the a2a AgentCard model; the wire `record` field carries
+// its JSON encoding so no parallel data model is invented (ADR §1.1).
+// ============================================================
+
+message DiscoveryEnvelope {
+  bytes record        = 1; // JSON-serialized a2a AgentCard
+  Provenance provenance = 2;
+  Visibility visibility = 3;
+  int64 ttl_nanos     = 4; // TTL as signed nanoseconds
+  uint64 version      = 5; // monotonic version within origin relay
+}
+
+message Provenance {
+  string origin_relay_id = 1;
+  string tenant_id       = 2;
+  int64 published_at     = 3; // unix nanoseconds at origin relay
+  string publisher_agent = 4; // agent ID, or "system" for operator
+  bytes signature        = 5; // Ed25519 by origin relay CA key
+}
+
+message Visibility {
+  string scope              = 1; // tenant_private | tenant_allowlisted | global_public
+  repeated string allowlist = 2; // tenant IDs allowed when scope = tenant_allowlisted
+}
+
+message PushRequest {
+  DiscoveryEnvelope envelope = 1;
+  bool withdraw              = 2; // true = tombstone/withdraw, not publish
+}
+
+message PushResponse {
+  bool accepted           = 1;
+  string rejection_reason = 2; // e.g. "version_too_low", "invalid_signature"
+}
+
+message PullRequest {
+  string requesting_relay_id = 1;
+  uint64 since_version       = 2; // only records newer than this
+}
+
+// Health/liveness probe (ADR §2.5).
+message PingRequest {}
+message PingResponse {}
+
+// ============================================================
+// Service
+// ============================================================
+
+service DiscoveryFederation {
+  // Push: origin relay notifies peers of a new/updated/withdrawn record.
+  rpc PushRecord(PushRequest) returns (PushResponse);
+
+  // Pull: a relay requests the peer's record set (reconciliation).
+  rpc PullRecords(PullRequest) returns (stream DiscoveryEnvelope);
+
+  // Ping: health check for peer liveness.
+  rpc Ping(PingRequest) returns (PingResponse);
+}
