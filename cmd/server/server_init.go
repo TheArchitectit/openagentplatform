@@ -244,11 +244,24 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 	// OAP_ENABLE_TENANT_MIGRATIONS=1 because it mutates shared schema at
 	// startup; the migrator uses database/sql over a stdlib bridge to the
 	// same Postgres DSN as the pool.
-	if os.Getenv("OAP_ENABLE_TENANT_MIGRATIONS") == "1" {
-		sqldb, err := sql.Open("pgx", cfg.PostgresDSN)
-		if err != nil {
-			log.Warn("tenant migrations: cannot open db", "error", err)
-		} else {
+	//
+	// The same stdlib handle backs TenantStore/TenantConfigStore, which
+	// are constructed when the DB is reachable (multi-tenancy spec §5).
+	// Nil stores mean "tenancy persistence unavailable" — the same
+	// optional-handle posture as every other Server field.
+	var tenantStore *tenancy.TenantStore
+	var tenantConfigStore *tenancy.TenantConfigStore
+	var tenantDB *sql.DB
+	if sqldb, oerr := sql.Open("pgx", cfg.PostgresDSN); oerr != nil {
+		log.Warn("tenancy: cannot open stdlib db handle", "error", oerr)
+	} else if perr := sqldb.PingContext(context.Background()); perr != nil {
+		log.Warn("tenancy: stdlib db unreachable; tenant stores disabled", "error", perr)
+		_ = sqldb.Close()
+	} else {
+		tenantDB = sqldb
+		tenantStore = tenancy.NewTenantStore(sqldb)
+		tenantConfigStore = tenancy.NewTenantConfigStore(sqldb)
+		if os.Getenv("OAP_ENABLE_TENANT_MIGRATIONS") == "1" {
 			migrator := tenancy.NewTenantMigrator(sqldb)
 			mCtx, mCancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer mCancel()
@@ -257,8 +270,6 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 			} else {
 				log.Info("tenant migrations applied")
 			}
-			// The migrator is one-shot at startup; close its handle.
-			_ = sqldb.Close()
 		}
 	}
 
@@ -283,6 +294,9 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		secretsSweeper:    svc.secretsSweeper,
 		secretsRevocation: svc.secretsRevocation,
 		retentionPurger:   retentionPurger,
+		tenantDB:          tenantDB,
+		tenantStore:       tenantStore,
+		tenantConfigStore: tenantConfigStore,
 		billingSvc:        svc.billingSvc,
 		meteringSvc:       svc.meteringSvc,
 		rateLimiter:       svc.rateLimiter,

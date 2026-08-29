@@ -21,14 +21,17 @@ var TenantMigrations = []TenantMigration{
 			CREATE TABLE IF NOT EXISTS tenants (
 				id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 				name VARCHAR(255) NOT NULL,
-				slug VARCHAR(100) NOT NULL UNIQUE,
+				slug VARCHAR(100) NOT NULL,
 				settings JSONB DEFAULT '{}',
 				created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 				updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 				deleted_at TIMESTAMP WITH TIME ZONE
 			);
 
-			CREATE INDEX IF NOT EXISTS idx_tenants_slug ON tenants(slug) WHERE deleted_at IS NULL;
+			-- Spec §5.1: only ACTIVE slugs are unique. A bare UNIQUE would
+			-- burn the slug of every soft-deleted tenant forever, which
+			-- contradicts slugExists' deleted_at IS NULL scope.
+			CREATE UNIQUE INDEX IF NOT EXISTS idx_tenants_slug ON tenants(slug) WHERE deleted_at IS NULL;
 			CREATE INDEX IF NOT EXISTS idx_tenants_deleted_at ON tenants(deleted_at) WHERE deleted_at IS NOT NULL;
 		`,
 		Down: `DROP TABLE IF EXISTS tenants;`,

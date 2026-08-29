@@ -42,12 +42,17 @@ CREATE INDEX IF NOT EXISTS idx_agents_last_seen ON agents (last_seen);
 CREATE TABLE IF NOT EXISTS tenants (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name        TEXT NOT NULL,
-    slug        TEXT NOT NULL UNIQUE,
+    slug        TEXT NOT NULL,
     settings    JSONB,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at  TIMESTAMPTZ
 );
+-- Slug uniqueness applies only to ACTIVE tenants (spec §5.1: reject
+-- duplicate active slugs). A bare UNIQUE here would burn the slug of
+-- every soft-deleted tenant forever; the store's slugExists check
+-- already scopes to deleted_at IS NULL, so the constraint must match.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tenants_slug ON tenants (slug) WHERE deleted_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS check_definitions (
     id                TEXT PRIMARY KEY,

@@ -195,6 +195,13 @@ func (s *Server) Shutdown(ctx context.Context) error {
 		}))
 	}
 
+	// 2c. Tenancy stdlib DB handle (backs the stores and migrator).
+	if s.tenantDB != nil {
+		s.graceful.Register("tenant-db", resilience.CloserFunc(func(_ context.Context) error {
+			return s.tenantDB.Close()
+		}))
+	}
+
 	// 3. Rate limiter janitor.
 	s.graceful.Register("rate-limiter", resilience.CloserFunc(func(_ context.Context) error {
 		s.rateLimiter.Stop()

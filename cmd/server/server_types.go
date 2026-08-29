@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"log/slog"
 	"net"
 	"net/http"
@@ -62,6 +63,16 @@ type Server struct {
 	// of audit_events and check_results rows whose age exceeds the
 	// per-tenant retention policy.
 	retentionPurger *tenancy.RetentionPurger
+	// tenantDB is the stdlib database/sql handle backing the tenancy
+	// stores and (behind OAP_ENABLE_TENANT_MIGRATIONS) the RLS migrator.
+	// Closed at shutdown. nil when the handle could not be opened/pinged.
+	tenantDB *sql.DB
+	// tenantStore persists tenants (multi-tenancy spec §5.1). nil when
+	// the DB was unreachable — same optional-handle posture as every
+	// other Server field.
+	tenantStore *tenancy.TenantStore
+	// tenantConfigStore persists per-tenant key/value config (spec §5.2).
+	tenantConfigStore *tenancy.TenantConfigStore
 	// secretsRevocation holds the JWT revocation list for A2A tokens.
 	secretsRevocation *secretsauth.RevocationList
 	// billingSvc / meteringSvc are nil when STRIPE_SECRET_KEY is unset
