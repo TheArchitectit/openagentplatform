@@ -27,6 +27,9 @@ func RegisterHITLRoutes(r chi.Router, s *Server) {
 	r.Route("/approvals", func(r chi.Router) {
 		// Reads: any authenticated org member.
 		r.Get("/", s.handleListApprovals)
+		// Real-time lifecycle stream (R6.5). Static path, so it is not
+		// shadowed by /{id}.
+		r.Get("/events", s.handleApprovalEvents)
 		r.Get("/{id}", s.handleGetApproval)
 		// Creating and deciding drive what an agent is allowed to
 		// execute, so they are elevated-role like the task-invoke routes.
@@ -125,7 +128,12 @@ func (s *Server) handleGetApproval(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"get_failed"}`, http.StatusInternalServerError)
 		return
 	}
-	writeRESTJSON(w, http.StatusOK, req)
+	// R1.3: the detail view carries the decision history (engine audit
+	// entries) alongside the request fields.
+	writeRESTJSON(w, http.StatusOK, struct {
+		*hitl.ApprovalRequest
+		History []hitl.AuditEntry `json:"history"`
+	}{ApprovalRequest: req, History: s.hitlManager.AuditLog(id)})
 }
 
 // handleApproveApproval — R1.4.

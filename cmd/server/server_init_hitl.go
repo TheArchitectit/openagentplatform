@@ -38,7 +38,11 @@ func buildHITLEngine(apiServer *api.Server, alertStore alerts.Store, notifierReg
 	manager.SetNotifier(notifier)
 	// R4.4: mirror the approval lifecycle into the tamper-evident audit trail.
 	api.WireHITLAudit(manager, auditSvc, log)
+	// R6.5: fan lifecycle actions to SSE subscribers for the approval queue UI.
+	stream := api.NewApprovalEventStream()
+	api.WireHITLStream(manager, stream)
 	apiServer.SetHITLManager(manager)
+	apiServer.SetHITLStream(stream)
 
 	engine := hitl.NewEscalationEngine(manager, hitlCheckInterval)
 	log.Info("hitl: approval engine enabled",

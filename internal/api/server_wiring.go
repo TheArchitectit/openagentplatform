@@ -85,6 +85,13 @@ func (s *Server) SetHITLManager(m *hitl.ApprovalManager) {
 	s.hitlManager = m
 }
 
+// SetHITLStream wires the SSE fan-out for approval lifecycle events
+// (hitl-approval spec R6.5). May be nil; the events route then returns
+// 503 hitl_not_configured.
+func (s *Server) SetHITLStream(stream *ApprovalEventStream) {
+	s.hitlStream = stream
+}
+
 // SetAdapterBreaker wires the circuit breaker that guards calls to the
 // Python adapter service. May be nil; proxy calls then run unbroken.
 func (s *Server) SetAdapterBreaker(cb *resilience.CircuitBreaker) {

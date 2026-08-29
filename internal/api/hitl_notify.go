@@ -302,7 +302,7 @@ func WireHITLAudit(m *hitl.ApprovalManager, svc *audit.AuditService, log *slog.L
 	if m == nil {
 		return
 	}
-	m.SetAuditSink(func(entry hitl.AuditEntry) {
+	m.AddAuditSink(func(entry hitl.AuditEntry) {
 		if svc == nil {
 			return
 		}

@@ -14,7 +14,7 @@ func TestAuditSinkReceivesLifecycle(t *testing.T) {
 	var got []AuditEntry
 	mgr := NewApprovalManager(DefaultApprovalTypes())
 	mgr.SetStore(NewMemStore())
-	mgr.SetAuditSink(func(e AuditEntry) {
+	mgr.AddAuditSink(func(e AuditEntry) {
 		mu.Lock()
 		got = append(got, e)
 		mu.Unlock()

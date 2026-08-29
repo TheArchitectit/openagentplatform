@@ -139,6 +139,10 @@ type Server struct {
 	// hitlManager is the Human-in-the-Loop approval engine (a2a/hitl).
 	// May be nil; approval routes return 503 when unset.
 	hitlManager *hitl.ApprovalManager
+	// hitlStream fans approval lifecycle actions to SSE subscribers for
+	// the approval queue UI (spec R6.5). May be nil; the events route
+	// returns 503 when unset.
+	hitlStream *ApprovalEventStream
 	// tierResolver resolves the commercial tier for an org ID from the
 	// platform license file. When nil, all orgs default to Community.
 	tierResolver func(orgID string) license.Tier
