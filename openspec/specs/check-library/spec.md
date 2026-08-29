@@ -1,7 +1,7 @@
 # Check Library
 
 > **Phase:** 1 (Core RMM)
-> **STATUS: PARTIAL**
+> **STATUS: COMPLETE**
 > **Source:** authored 2026-08-23 from code (audit docs/QA_REVIEW_OPENSPEC_COVERAGE.md §4)
 > **App Path:** `internal/checklib/`
 
@@ -32,7 +32,9 @@ and dispatches them to agents over NATS (`rmm-core` §6.4). The library
 itself never talks to agents — it only produces definitions.
 
 Delivered in Sprint 1.1 (Story 1.1.3, commit `3b89f01`); mutating-route
-RBAC hardened in commit `432e966`.
+RBAC hardened in commit `432e966`. The catalog was extended from 5 to the
+full 9-template set (§2.1, spec reconciliation approved by user
+2026-08-27) with a test suite covering the catalog, HTTP API, and seeder.
 
 ## User Story
 
@@ -40,8 +42,8 @@ RBAC hardened in commit `432e966`.
 **I want** a curated list of built-in checks with sane defaults that I
 can instantiate with one request, overriding only what I need,
 **so that** I get working monitoring immediately without hand-writing
-check configuration for common cases like ping, CPU, memory, disk, and
-service status.
+check configuration for common cases like ping, HTTP, TCP, DNS, CPU,
+memory, disk, service status, and script execution.
 
 ---
 
@@ -71,7 +73,8 @@ instantiated from the catalog is executable by an agent.
 
 ### 2. Catalog Contents
 
-2.1. The catalog MUST define exactly 5 templates:
+2.1. The catalog MUST define exactly 9 templates — one per rmm-core §3.2
+checker type (reconciled 2026-08-27, approved by user):
 
 | Template ID | Name | CheckType | Category | Default interval / timeout |
 |-------------|------|-----------|----------|---------------------------|
@@ -80,6 +83,10 @@ instantiated from the catalog is executable by an agent.
 | `builtin-memory` | Memory Usage | `memory` | `system` | 60 s / 10 s |
 | `builtin-disk` | Disk Usage | `disk` | `system` | 300 s / 10 s |
 | `builtin-service` | Service Status | `service` | `system` | 60 s / 10 s |
+| `builtin-http` | HTTP Endpoint | `http` | `network` | 60 s / 15 s |
+| `builtin-tcp` | TCP Port | `tcp` | `network` | 60 s / 10 s |
+| `builtin-dns` | DNS Resolution | `dns` | `network` | 60 s / 10 s |
+| `builtin-script` | Script | `script` | `system` | 300 s / 60 s |
 
 2.2. Each template MUST ship a `DefaultConfig` usable without
 modification (e.g. ping: `host 8.8.8.8, count 3, timeout_ms 3000`;
@@ -174,28 +181,23 @@ MUST log a warning and MUST NOT prevent the server from starting.
 including `script`).
 
 6.2. This spec covers the SERVER-side catalog only, which MUST contain
-the 5 templates of §2.1. The catalog's check types are a strict subset
-of §6.1's set; every catalog type MUST remain executable agent-side, but
-the catalog is not required to cover all 9 types (see Known
-Limitations).
+the 9 templates of §2.1 — the full rmm-core §3.2 set, matching §6.1
+exactly. Every catalog type MUST remain executable agent-side.
 
 ---
 
 ## Known Limitations
 
-- **Catalog covers 5 of the 9 checker types.** `rmm-core` §6.2 requires
-  the built-in library to ship with the full §3.2 set; there are no
-  templates for `http`, `tcp`, `dns`, or `script` (the latter three are
-  network/agent-execution types an operator can still create manually
-  via the checks CRUD). STATUS is PARTIAL on this basis.
-- **No validation of overrides.** `ConfigSchema` is never enforced:
-  instantiation accepts arbitrary `config` keys/values and does not
-  check types, `required`, `min`/`max`, or `enum`.
+- **`ConfigSchema` is informational by design.** Per §2.3 the server does
+  not treat the schema as a validation gate: instantiation accepts
+  arbitrary `config` keys/values and does not check types, `required`,
+  `min`/`max`, or `enum`. Overrides are only sanity-checked indirectly
+  (the checks CRUD's `validateCheckConfig` runs on later updates via
+  `PUT /checks/{id}`). This is intentional design, not a missing
+  validation gate.
 - **Scheduling bounds not enforced here.** `rmm-core` §6.3 requires
   `interval_seconds ≥ 30` and `timeout_seconds ≤ 3600` enforced by
   validation; the instantiate handler passes values through unbounded.
-- **No tests.** `internal/checklib/` has no `*_test.go` files; behavior
-  is exercised only indirectly through the API layer.
 - **`GetTemplateByName` is dead code** — its doc comment says the seeder
   uses it, but `Seed()` matches on raw `name + check_type` SQL instead.
 - **Seeded rows are org-less** (`org_id ''`) and instantiation permits

@@ -220,7 +220,7 @@ Do not reopen v1.2.0 (`4194dac`) shipped work. See `STATUS.md` for project state
 | **openspec/specs/audit-log** | hash-chained audit events, GapCount verification, read API; retention/concurrency/hash limits | When touching audit |
 | **openspec/specs/event-bus** | core NATS client, tracing, eight-subject taxonomy, heartbeat/check ingest with single persistence owner | When touching internal/events subjects |
 | **openspec/specs/a2a-relay** | COMPLETE managed relay: accounting core + WSS admission (mTLS+token), entitlement-gated matching/forwarding, admin surface, discovery federation, and E2E/private/load acceptance | When touching internal/relay |
-| **openspec/specs/check-library** | 5 built-in check templates + seeding; PARTIAL (5 of 9 types) | When touching checklib/check catalog |
+| **openspec/specs/check-library** | COMPLETE: 9 built-in check templates (full rmm-core §3.2 set) + seeding; catalog/API/seeder tested | When touching checklib/check catalog |
 | **openspec/specs/remote-access** | wired shell over NATS, WS bridge, agent handler, recordings; transport/storage limits | When touching remote/terminal/session/shell |
 | **openspec/specs/data-model** | all 22 pkg/models structs ↔ tables; PARTIAL (DDL drift, RLS mismatch documented) | When touching models/schema |
 | **openspec/specs/adapter-service** | py/oap FastAPI unit: routes, settings, cost; PARTIAL (proxy path mismatch, empty registry) | When touching py/oap or a2a proxy |

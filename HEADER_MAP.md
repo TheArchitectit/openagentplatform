@@ -1845,7 +1845,7 @@ reporting 248, resilience 213.
 | audit-log | COMPLETE | `GapCount` reports filtered-chain discontinuities; retention anchors, concurrent extension, hash coverage, and synchronous policy remain concerns |
 | event-bus | PARTIAL | core NATS with eight-subject taxonomy; tolerant heartbeat decode and single check-result persistence owner are fixed; no replay/ack durability |
 | a2a-relay | COMPLETE | full stack — admission (mTLS+token), matching, blind forwarding, admin, discovery federation, E2E/private/load acceptance |
-| check-library | PARTIAL | 5 of 9 checker types cataloged; no override validation |
+| check-library | COMPLETE | 9 of 9 checker types cataloged; ConfigSchema informational by design (no override validation per §2.3) |
 | remote-access | PARTIAL | HTTP/WS/NATS/agent shell path and recording hooks are wired; transport and durable storage limitations remain |
 | data-model | PARTIAL | no checked-in DDL; Agent struct/column drift (`total_ram`); RLS targets wrong table names |
 | adapter-service | PARTIAL | Go/Python proxy routes are aligned; auth, deployment startup, in-memory cost state, fixed origins, and live E2E proof remain |

@@ -36,7 +36,7 @@ All 43 spec dirs contain a real `spec.md`. Verdicts are against the live tree on
 | rmm-core | PARTIAL → reconciled | §14 drift fixed; all 8 extensions now SHIPPED |
 | rmm-operations | PARTIAL → reconciled | RMM-01..09 COMPLETE; RMM-06 COMPLETE (shipped `3f8e495`); open decisions resolved |
 | endpoint-agent | COMPLETE | `cmd/agent` + `pkg/agent/` including mesh/tunnel |
-| check-library | PARTIAL | Server-side catalog; accurate vs code |
+| check-library | COMPLETE | Full 9-template catalog (rmm-core §3.2 set); library + seeder tested |
 | remote-access | COMPLETE | NATS-shell + RMM-09 tunnel fabric noted |
 | a2a-relay | COMPLETE | Full stack shipped: admission, matching, forwarding, discovery, E2E acceptance |
 | a2a-gateway | COMPLETE | |
@@ -77,7 +77,7 @@ All 43 spec dirs contain a real `spec.md`. Verdicts are against the live tree on
 | semantic-scanning | COMPLETE | |
 | managed-backup | DRAFT | Greenfield; no implementation exists yet |
 
-**Counts:** 32 COMPLETE · 6 PARTIAL · 1 SUPERSEDED · 1 DRAFT · 3 COMPLETE (new/untracked)
+**Counts:** 33 COMPLETE · 5 PARTIAL · 1 SUPERSEDED · 1 DRAFT · 3 COMPLETE (new/untracked)
 
 ---
 
@@ -132,7 +132,7 @@ All 43 spec dirs contain a real `spec.md`. Verdicts are against the live tree on
 | adapter-service | PARTIAL | Not integrated with gateway routing |
 | multi-tenancy store layer | PARTIAL | TenantStore/TenantConfigStore unwired |
 | data-model DDL | PARTIAL | No checked-in DDL for platform tables |
-| check-library | PARTIAL | Server-side catalog; accurate vs code |
+| check-library | COMPLETE | Resolved 2026-08-27: 4 templates (http/tcp/dns/script) added; 9-type set shipped |
 | Cloud inventory sync | Not started | P1 gap from RMM_2026_GAP_ANALYSIS |
 | EDR ingest pipeline | Not started | P1 gap |
 | Mobile companion app | Not started | P1 gap |
