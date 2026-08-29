@@ -16,9 +16,19 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/openagentplatform/openagentplatform/internal/auth"
 )
+
+// dbPool is the minimal pgx surface used by the library and seeder. It is
+// satisfied by *pgxpool.Pool in production and by pgxmock pools in tests
+// (same pattern as internal/mesh's meshPoolConn).
+type dbPool interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
 
 // CheckTemplate is a built-in check definition that can be instantiated
 // into a real check_definitions row. The "config" field contains the
@@ -38,18 +48,32 @@ type CheckTemplate struct {
 // Library is the catalog. It is a stateless service; the templates
 // are returned from BuiltInChecks() on every call.
 type Library struct {
-	db *pgxpool.Pool // optional; the catalog itself is in-memory
+	db dbPool // optional; the catalog itself is in-memory
 }
 
 // NewLibrary constructs a Library. db may be nil; the library still serves
 // the catalog and the instantiate endpoint will return 503 if db is nil.
 func NewLibrary(db *pgxpool.Pool) *Library {
+	if db == nil {
+		// Store an untyped nil so l.db == nil stays true when a typed-nil
+		// *pgxpool.Pool is converted into the dbPool interface.
+		return &Library{db: nil}
+	}
+	return &Library{db: db}
+}
+
+// newLibraryWithPool constructs a Library from any dbPool implementation.
+// It exists so tests can inject pgxmock pools; production callers should
+// use NewLibrary.
+func newLibraryFromPool(db dbPool) *Library {
 	return &Library{db: db}
 }
 
 // BuiltInChecks returns the canonical set of CheckTemplate values that
-// correspond to the checkers registered in pkg/agent/checkers. The order
-// here is the order presented in the UI.
+// correspond to the checkers registered in pkg/agent/checkers. It covers the
+// full rmm-core §3.2 set — ping, http, tcp, dns, cpu, memory, disk, service,
+// script — so every checker the agent registers has a first-class catalog
+// offering. The order here is the order presented in the UI.
 func BuiltInChecks() []CheckTemplate {
 	return []CheckTemplate{
 		{
@@ -62,9 +86,9 @@ func BuiltInChecks() []CheckTemplate {
 			DefaultIntervalSecs: 60,
 			DefaultTimeoutSecs:  10,
 			ConfigSchema: map[string]any{
-				"host":        map[string]any{"type": "string", "required": true, "description": "Hostname or IP to ping"},
-				"count":       map[string]any{"type": "integer", "default": 3, "description": "Number of echo requests"},
-				"timeout_ms":  map[string]any{"type": "integer", "default": 3000, "description": "Per-packet timeout"},
+				"host":       map[string]any{"type": "string", "required": true, "description": "Hostname or IP to ping"},
+				"count":      map[string]any{"type": "integer", "default": 3, "description": "Number of echo requests"},
+				"timeout_ms": map[string]any{"type": "integer", "default": 3000, "description": "Per-packet timeout"},
 			},
 		},
 		{
@@ -118,8 +142,65 @@ func BuiltInChecks() []CheckTemplate {
 			DefaultIntervalSecs: 60,
 			DefaultTimeoutSecs:  10,
 			ConfigSchema: map[string]any{
-				"service_name":  map[string]any{"type": "string", "required": true, "description": "systemd unit name (without .service)"},
+				"service_name":   map[string]any{"type": "string", "required": true, "description": "systemd unit name (without .service)"},
 				"expected_state": map[string]any{"type": "string", "default": "running", "enum": []string{"running", "stopped"}},
+			},
+		},
+		{
+			ID:                  "builtin-http",
+			Name:                "HTTP Endpoint",
+			CheckType:           "http",
+			Description:         "HTTP GET a URL from the agent and alert when the status code is not 2xx/3xx.",
+			Category:            "network",
+			DefaultConfig:       map[string]any{"url": "https://example.com", "expected_status": 200},
+			DefaultIntervalSecs: 60,
+			DefaultTimeoutSecs:  15,
+			ConfigSchema: map[string]any{
+				"url":             map[string]any{"type": "string", "required": true, "description": "Absolute URL to request"},
+				"expected_status": map[string]any{"type": "integer", "default": 200, "min": 100, "max": 599, "description": "Status code the check must return"},
+			},
+		},
+		{
+			ID:                  "builtin-tcp",
+			Name:                "TCP Port",
+			CheckType:           "tcp",
+			Description:         "Verify a TCP endpoint accepts connections on a host and port.",
+			Category:            "network",
+			DefaultConfig:       map[string]any{"host": "localhost", "port": 22},
+			DefaultIntervalSecs: 60,
+			DefaultTimeoutSecs:  10,
+			ConfigSchema: map[string]any{
+				"host": map[string]any{"type": "string", "required": true, "description": "Hostname or IP to connect to"},
+				"port": map[string]any{"type": "integer", "required": true, "min": 1, "max": 65535, "description": "TCP port to dial"},
+			},
+		},
+		{
+			ID:                  "builtin-dns",
+			Name:                "DNS Resolution",
+			CheckType:           "dns",
+			Description:         "Resolve a hostname via the agent's resolver and alert when no A/AAAA record is returned.",
+			Category:            "network",
+			DefaultConfig:       map[string]any{"resolver": "system", "query": "example.com"},
+			DefaultIntervalSecs: 60,
+			DefaultTimeoutSecs:  10,
+			ConfigSchema: map[string]any{
+				"resolver": map[string]any{"type": "string", "default": "system", "description": "Resolver to use; 'system' uses the agent's resolver"},
+				"query":    map[string]any{"type": "string", "required": true, "description": "Hostname to resolve"},
+			},
+		},
+		{
+			ID:                  "builtin-script",
+			Name:                "Script",
+			CheckType:           "script",
+			Description:         "Run a script or command on the agent via the executor and alert on a non-zero exit code.",
+			Category:            "system",
+			DefaultConfig:       map[string]any{"path": ""},
+			DefaultIntervalSecs: 300,
+			DefaultTimeoutSecs:  60,
+			ConfigSchema: map[string]any{
+				"path":    map[string]any{"type": "string", "required": true, "description": "Path of the script to run on the agent"},
+				"runtime": map[string]any{"type": "string", "default": "bash", "enum": []string{"bash", "powershell", "pwsh", "python", "python3", "node"}},
+				"args":    map[string]any{"type": "array", "description": "Arguments passed to the script"},
 			},
 		},
 	}
@@ -292,5 +373,6 @@ func (l *Library) RegisterMutatingRoutes(r chi.Router) {
 
 // ErrNoDB is returned by helpers that require a database connection.
 var ErrNoDB = errors.New("checklib: database not configured")
+
 // ensure context import is used (keep compiler happy if helpers grow)
 var _ = context.Background

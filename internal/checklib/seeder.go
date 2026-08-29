@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // SeedResult summarises what the seeder did.
@@ -25,7 +24,10 @@ type SeedResult struct {
 // the library but do not run until an operator explicitly enables and
 // assigns them. This is idempotent: running it again on a populated
 // database is a no-op.
-func Seed(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger) (SeedResult, error) {
+//
+// pool is the minimal pgx surface (see Library's dbPool): *pgxpool.Pool in
+// production, pgxmock pools in tests.
+func Seed(ctx context.Context, pool dbPool, log *slog.Logger) (SeedResult, error) {
 	res := SeedResult{Seeded: []string{}, Skipped: []string{}, Errors: []string{}}
 	if pool == nil {
 		return res, ErrNoDB
