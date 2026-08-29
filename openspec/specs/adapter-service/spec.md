@@ -1,7 +1,8 @@
 # Adapter Service
 
 > **Phase:** 2 (A2A + Agents)
-> **STATUS: PARTIAL** (implemented as a standalone service but not integrated with gateway/API routing)
+> **STATUS: COMPLETE** (standalone service + Go translation proxy; live
+> end-to-end through `/api/v1/a2a/*` verified by `TestA2AProxyLiveE2E`)
 > **Source:** authored 2026-08-23 from code (audit `docs/QA_REVIEW_OPENSPEC_COVERAGE.md` §4 #9)
 > **App Path:** `py/oap/`
 
@@ -237,10 +238,14 @@ wired the Python `bridge.AdapterClient` (BaseURL `http://localhost:8001`) into t
 A2A gateway via `bridge.RPCBridge` in `cmd/server/server_init_a2a.go`, the
 `docs/QA_REVIEW_PHASE2_v2.md` finding P2-1 ("3-way contract divergence ... every
 A2A call 404s") was resolved only at the route/handler/mock level. That same
-document's own remediation note (line 117) records that **"verified only at
+document's own remediation note (line 117) recorded that **"verified only at
 route/handler/mock level; live end-to-end against a running Python adapter
-service is a future runtime check."** No reverse-proxy integration against a
-running adapter service has been verified end-to-end. Cross-reference:
+service is a future runtime check."** That runtime check has since landed: the
+opt-in `internal/api/a2a_proxy_live_test.go` (`TestA2AProxyLiveE2E`, enabled
+with `OAP_TEST_ADAPTER_E2E=http://localhost:8001`) drives real
+`GET /api/v1/a2a/adapters` and `GET /api/v1/a2a/costs/summary` requests through
+the proxy against a running FastAPI process and asserts a valid round-trip —
+run green on 2026-08-29 (group audit). Cross-reference:
 `docs/QA_REVIEW_PHASE2_v2.md` P2-1, P2-2, P2-4 (findings) and the `6c473cb`
 remediation block.
 
@@ -265,9 +270,14 @@ QA_REVIEW_PHASE2_v2 ("orphaned" claim) are fixed as of the W7 commit:
   The Python service intentionally has no global task-event feed; a real feed
   would require NATS-backed fan-out and is tracked separately.
 
-The remaining gap for this subsystem is purely the live end-to-end runtime
-check above; unit-level contracts are pinned by `a2a_proxy_test.go` (mock
-upstreams now assert the versioned paths).
+The live end-to-end runtime gap is closed by `TestA2AProxyLiveE2E` above;
+unit-level contracts are pinned by `a2a_proxy_test.go` (mock upstreams now
+assert the versioned paths) and the missing-SDK degradation path by
+`py/oap/tests/test_orchestrator_degraded.py`. Note that with no framework
+SDKs installed the registry is *populated but every adapter skips at
+`start()`* — `GET /api/v1/a2a/adapters` correctly returns an empty list;
+an adapter appearing in the registry list requires its SDK (or
+`OZORE_API_KEY`) to be installed on the service host.
 
 **No authentication on the service.** The FastAPI app applies only CORS; there
 is no JWT/OIDC middleware despite `settings.py` declaring `oidc_*` and `jwt_*`
