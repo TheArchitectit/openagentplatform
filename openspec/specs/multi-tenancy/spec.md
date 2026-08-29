@@ -1,7 +1,8 @@
 # Multi-Tenancy
 
 > **Phase:** 6 (Commercial: gating, multi-tenancy, relay, reporting, billing)
-> **STATUS: PARTIAL** — isolation/quota/tier wiring applied (W6); store layer still unwired
+> **STATUS: PARTIAL** — isolation/quota/tier wiring applied (W6); store layer wired into
+> server lifecycle (a420855) but not yet consumed by an API surface
 > **Source:** authored 2026-08-23 from code (audit `docs/QA_REVIEW_OPENSPEC_COVERAGE.md` §4)
 > **App Path:** `internal/tenancy/`
 >
@@ -242,11 +243,12 @@ crashing the worker. A nil pool MUST be a no-op.
   isolation against a real PostgreSQL.
 - **RLS coverage is incomplete by design.** Only nine tables get policies;
   `script_runs` and `report_templates` get indexes but no `ENABLE RLS` /
-  policy. The migration's comment claims a `COALESCE`-style permissive
-  fallback for rows whose `org_id` may be empty, but the policy expressions
-  are plain `org_id = current_setting('app.tenant_id', true)` with no such
-  fallback — so empty-`org_id` rows are hidden once RLS is enabled, and no
-  policy admits platform operators outside a tenant context.
+  policy. The policy expressions are plain
+  `org_id = current_setting('app.tenant_id', true)` with no `COALESCE`-style
+  permissive fallback — so empty-`org_id` rows (pre-tenancy data, seeded
+  org-less rows) are hidden once RLS is enabled, and no policy admits
+  platform operators outside a tenant context. (The migration comment now
+  states this plainly; it previously claimed a fallback that never existed.)
 - **Quota enforcement is fail-open and single-metric.** `EnforceQuota`
   returns nil when no `TenantContext` is present, and `QuotaMiddleware`
   passes requests through without one; the only wired resource is

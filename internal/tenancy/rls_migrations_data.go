@@ -74,10 +74,10 @@ var TenantMigrations = []TenantMigration{
 		Version: 3,
 		Name:    "enable_rls",
 		// RLS keyed on current_setting('app.tenant_id') compared as
-		// TEXT against org_id. Tables whose org_id may be NULL/empty in
-		// existing rows use a permissive fallback via COALESCE so the
-		// policy does not silently hide pre-tenancy rows from platform
-		// operators; see multi-tenancy spec Known Limitations.
+		// TEXT against org_id. No permissive COALESCE fallback: rows
+		// whose org_id is NULL/empty (pre-tenancy data) are hidden once
+		// RLS is active — documented in the multi-tenancy spec Known
+		// Limitations ("RLS coverage is incomplete by design").
 		Up: `
 			ALTER TABLE agents ENABLE ROW LEVEL SECURITY;
 			ALTER TABLE check_definitions ENABLE ROW LEVEL SECURITY;
