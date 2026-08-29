@@ -1833,7 +1833,7 @@ numbered Requirements, and Known Limitations where applicable. Updated line coun
 audit-log 242, billing-stripe 223, endpoint-agent 411, event-bus 249,
 multi-tenancy 278, notifications 267, observability 279, remote-access 313,
 reporting 248, resilience 213, data-model 360, adapter-service 300,
-check-library 225, hitl-approval 94.
+check-library 225, hitl-approval 114.
 
 | Spec | STATUS | Current fidelity note |
 |------|--------|-----------------------|

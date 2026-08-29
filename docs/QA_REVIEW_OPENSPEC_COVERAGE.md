@@ -24,6 +24,10 @@ and `cmd/relay` binary. The `event-bus` spec has been superseded by `event-bus-n
 - **RELAY track COMPLETE:** all RELAY-00..06 gates and implementation sprints have
   shipped; a2a-relay spec STATUS flipped to COMPLETE. Remaining Known Limitations
   (dead `ConnectionStatusError`, no persistence) are accurately documented.
+- **Five-spec round COMPLETE (§8, 2026-08-29):** check-library, data-model,
+  multi-tenancy, adapter-service, hitl-approval implemented + group-audited.
+  Open follow-ups surfaced there: retention purger (KL #6, decision-gated),
+  HITL Postgres store, multi-tenancy API consumption.
 
 ---
 
@@ -46,13 +50,13 @@ All 43 spec dirs contain a real `spec.md`. Verdicts are against the live tree on
 | event-task-bridge | COMPLETE | |
 | event-bus | SUPERSEDED | Replaced by event-bus-nats |
 | event-bus-nats | COMPLETE | NATS client, heartbeat, dispatch, tracing |
-| hitl-approval | PARTIAL | `/a2a/v1/approvals` HITL API not built; only patch-approval exists (`internal/patches/`) |
+| hitl-approval | COMPLETE | R1–R6.5 shipped 2026-08-29 (846e861..2dd88e6): engine, decision API, SSE, web queue |
 | process-pool | COMPLETE | |
 | auth-rbac | COMPLETE | |
 | secret-management | COMPLETE | |
 | commercial-licensing | COMPLETE | |
 | frontend-react | PARTIAL | UI not fully wired |
-| adapter-service | PARTIAL | Standalone service; not integrated with gateway routing |
+| adapter-service | COMPLETE | Live e2e through the Go proxy verified (TestA2AProxyLiveE2E, 2026-08-29) |
 | reporting | COMPLETE | |
 | resilience | COMPLETE | |
 | audit-log | COMPLETE | |
@@ -61,8 +65,8 @@ All 43 spec dirs contain a real `spec.md`. Verdicts are against the live tree on
 | deploy-pipeline | COMPLETE | |
 | documentation-standards | COMPLETE | |
 | infrastructure-standards | COMPLETE | |
-| multi-tenancy | PARTIAL | Isolation/quota wired (W6); store layer still unwired |
-| data-model | PARTIAL | Go struct layer complete; no checked-in DDL |
+| multi-tenancy | PARTIAL | Isolation/quota/stores wired (W6/a420855); store layer not yet consumed by an API surface |
+| data-model | PARTIAL | Go struct layer complete; two divergent checked-in schema sources; purger non-functional (KL #6) |
 | notifications | COMPLETE | |
 | notifications-dispatch | COMPLETE (new) | Untracked; authored 2026-08-25 |
 | observability | COMPLETE | |
@@ -77,7 +81,7 @@ All 43 spec dirs contain a real `spec.md`. Verdicts are against the live tree on
 | semantic-scanning | COMPLETE | |
 | managed-backup | DRAFT | Greenfield; no implementation exists yet |
 
-**Counts:** 33 COMPLETE · 5 PARTIAL · 1 SUPERSEDED · 1 DRAFT · 3 COMPLETE (new/untracked)
+**Counts:** 35 COMPLETE · 3 PARTIAL · 1 SUPERSEDED · 1 DRAFT · 3 COMPLETE (new/untracked)
 
 ---
 
@@ -129,9 +133,11 @@ All 43 spec dirs contain a real `spec.md`. Verdicts are against the live tree on
 |------|--------|-------|
 | managed-backup | DRAFT | Greenfield; spec is the design, no code yet |
 | frontend-react | PARTIAL | UI wiring incomplete |
-| adapter-service | PARTIAL | Not integrated with gateway routing |
-| multi-tenancy store layer | PARTIAL | TenantStore/TenantConfigStore unwired |
-| data-model DDL | PARTIAL | No checked-in DDL for platform tables |
+| adapter-service | RESOLVED 2026-08-29 | Live e2e through Go proxy (see §8); spec COMPLETE |
+| multi-tenancy store layer | RESOLVED 2026-08-29 | Stores wired (a420855); API consumption remains open (spec §5) |
+| data-model DDL | RESOLVED 2026-08-29 | deploy/migrations 001+002 checked in (9996a99/26827e0); divergence vs Alembic documented as KL #2 |
+| hitl-approval | RESOLVED 2026-08-29 | R1–R6.5 shipped; in-memory store documented as Known Limitation 1 |
+| Retention purger | OPEN | KL #6: non-functional as checked in; fix needs a deliberate schema migration (decision-gated) |
 | check-library | COMPLETE | Resolved 2026-08-27: 4 templates (http/tcp/dns/script) added; 9-type set shipped |
 | Cloud inventory sync | Not started | P1 gap from RMM_2026_GAP_ANALYSIS |
 | EDR ingest pipeline | Not started | P1 gap |
@@ -143,7 +149,7 @@ All 43 spec dirs contain a real `spec.md`. Verdicts are against the live tree on
 ---
 
 **Audit performed by:** Claude (Agent-GDUI-2026)
-**Last verified:** 2026-08-27 against `main` at current HEAD
+**Last verified:** 2026-08-29 against `main` at current HEAD (§8 five-spec round)
 
 ---
 
@@ -225,3 +231,49 @@ the approved work ships", is now satisfied).
 `go test -race ./internal/relay/...` green (303s, includes 5-minute soak);
 `go vet ./internal/relay/... ./cmd/relay/...` clean; `gofmt -l` clean across
 `cmd/relay/` and `internal/relay/` after C4.
+
+---
+
+## 8. Five-Spec Implementation + Group Audit Round (2026-08-28 → 2026-08-29)
+
+Five specs implemented inline (unit by unit, commit per unit) and then audited
+work-vs-spec with parallel audit agents: **check-library, data-model,
+multi-tenancy, adapter-service, hitl-approval**. No spec was rewritten from
+scratch; no requirement was added; no mechanism was invented.
+
+### 8.1 Implementation chains
+
+| Spec | Commits | Result |
+|------|---------|--------|
+| check-library | 9ca7f94, bbf6456, 12abdb4 | Full 9-template catalog (rmm-core §3.2); audit chain fixed canonicalDetails/µs-truncate/chain_seq along the way |
+| multi-tenancy | a420855 | TenantStore/TenantConfigStore wired + live-DB tests |
+| data-model | 9996a99, 26827e0 | deploy/migrations/001+002 checked in, reconstructed from store SQL |
+| adapter-service | 3d9fc62 | Missing framework SDKs degrade per-adapter at start() instead of crashing |
+| hitl-approval | 846e861..a27841b, 2dd88e6 (R1–R6.5) | Engine+API+notify+escalation+audit+task gate+SSE+web queue+detail |
+
+### 8.2 Group-audit outcomes (findings verified at source before acting)
+
+| Spec | Verdict | Action |
+|------|---------|--------|
+| check-library | GAPS (4 real) | 14ca68e — §4.5 JSON error bodies (writeJSONError), §5.3 seeder logs marshal failures, §2.2 script no-op template + "usable" defined, tautology + stale comment |
+| adapter-service | PASS | f317cdb — STATUS flipped to COMPLETE only after live `TestA2AProxyLiveE2E` re-run through the Go proxy against a real uvicorn (2026-08-29); spec text reconciled |
+| multi-tenancy | 2 real / 4 false | 73379bd — fixed the COALESCE-fallback comment claim and stale header; refused the fabricated evidence (cited nonexistent 003/005 migrations, "12 policies" vs actual 9, phantom middleware claims) |
+| data-model | evidence unverifiable | fd24b1e — audit agent cited nonexistent files/lines; full self-verification instead. Real drift fixed in spec: "no checked-in DDL" (stale), §8.3/§8.4 (old tenant_id-UUID model → shipped org_id 9-table), §9.4 table name, KL #1 resolved/#2 rewritten/#4 annotated. NEW live finding KL #6: retention purger is non-functional as checked in (needs deleted_at/created_at/org_id the schemas don't all provide) — documented honestly, fix is a schema-design decision |
+| hitl-approval | all PASS | 96464c2 — R1.1–R6.5 verified clause-by-clause inline; spec drift fixed (routes to mounted /api/v1/a2a/approvals URLs, R1.6 escalation-transient amendment, stale "not yet built" note replaced, new Known Limitations: in-memory store, per-approval queryability, role-mirror gate) |
+
+### 8.3 Accepted product inconsistency (for roadmap)
+
+`a2a:write` (operator) does not grant HITL decision rights; backend gates
+create/approve/reject on `admin|technician`. The web UI mirrors the backend.
+ROLE_PERMISSIONS deliberately untouched — flagged for product, not patched.
+
+### 8.4 QA round result
+
+Full gate with `OAP_TEST_PG_DSN` set: `go build ./... && go vet ./... &&
+go test ./...` exit 0 (0 FAIL). Live DB-gated tests ran (tenancy integration);
+`TestA2AProxyLiveE2E` is opt-in (`OAP_TEST_ADAPTER_E2E`) and was run
+explicitly. `web/`: `tsc -b --force` clean, `vitest run` 19/19,
+`vite build` clean, `eslint .` clean. `gofmt -l` flags only
+`a2a/gateway/gateway.go` — verified pre-existing at 846e861^ (untouched,
+left alone). Push per spec executed after this closeout (all 24 local commits,
+9ca7f94..HEAD, fast-forward on main; no force).
