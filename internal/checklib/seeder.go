@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
-
-	"github.com/jackc/pgx/v5"
 )
 
 // SeedResult summarises what the seeder did.
@@ -96,6 +94,3 @@ func Seed(ctx context.Context, pool dbPool, log *slog.Logger) (SeedResult, error
 	)
 	return res, nil
 }
-
-// ensure pgx import is retained (Scan into int above)
-var _ = pgx.ErrNoRows

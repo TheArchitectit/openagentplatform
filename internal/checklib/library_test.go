@@ -1,7 +1,6 @@
 package checklib
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -111,8 +110,8 @@ func TestTemplateDefaultConfigs(t *testing.T) {
 	}{
 		{"builtin-http", map[string]any{"url": "https://example.com", "expected_status": 200}},
 		{"builtin-tcp", map[string]any{"host": "localhost", "port": 22}},
-		{"builtin-dns", map[string]any{"resolver": "system", "query": "example.com"}},
-		{"builtin-script", map[string]any{"path": ""}},
+		{"builtin-dns", map[string]any{"hostname": "example.com"}},
+		{"builtin-script", map[string]any{"runtime": "bash", "script_body": ""}},
 	}
 	for _, c := range cases {
 		tmpl, err := FindTemplate(c.id)
@@ -496,7 +495,7 @@ func TestInstantiateInsertFailure(t *testing.T) {
 		WithArgs(pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg(),
 			pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg(), pgxmock.AnyArg(),
 			pgxmock.AnyArg(), pgxmock.AnyArg()).
-		WillReturnError(contextDeadlineExceeded())
+		WillReturnError(simulatedInsertError())
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/library/builtin-ping/create", nil)
@@ -520,7 +519,7 @@ func TestInstantiateInsertFailure(t *testing.T) {
 	}
 }
 
-func contextDeadlineExceeded() error {
+func simulatedInsertError() error {
 	return errInsertFailed{}
 }
 
@@ -589,13 +588,30 @@ func doRequest(r chi.Router, method, path string) int {
 }
 
 // TestNewTemplatesSeededShape verifies the seeder contract holds for the
-// new templates: Seed() would insert one disabled row per template. See
-// seeder_test.go for the full seeder behavior tests.
+// new templates: Seed() would insert one disabled row per template. It also
+// pins the DefaultConfig keys to the platform's canonical per-type schemas
+// (internal/api validateCheckConfig), so an instantiated row survives a
+// later PUT /checks/{id} validation (spec §2.2). See seeder_test.go for the
+// full seeder behavior tests.
 func TestNewTemplatesSeededShape(t *testing.T) {
+	wantKeys := map[string][]string{
+		"builtin-http":   {"url", "expected_status"},
+		"builtin-tcp":    {"host", "port"},
+		"builtin-dns":    {"hostname"},
+		"builtin-script": {"runtime", "script_body"},
+	}
 	for _, id := range []string{"builtin-http", "builtin-tcp", "builtin-dns", "builtin-script"} {
 		tmpl, err := FindTemplate(id)
 		if err != nil {
 			t.Fatalf("FindTemplate(%s): %v", id, err)
+		}
+		for _, k := range wantKeys[id] {
+			if _, ok := tmpl.DefaultConfig[k]; !ok {
+				t.Errorf("%s DefaultConfig missing canonical key %q (got %v)", id, k, tmpl.DefaultConfig)
+			}
+		}
+		if len(tmpl.DefaultConfig) != len(wantKeys[id]) {
+			t.Errorf("%s DefaultConfig = %v, want exactly keys %v", id, tmpl.DefaultConfig, wantKeys[id])
 		}
 		if _, err := json.Marshal(tmpl.DefaultConfig); err != nil {
 			t.Errorf("%s DefaultConfig not marshalable: %v", id, err)
@@ -604,5 +620,4 @@ func TestNewTemplatesSeededShape(t *testing.T) {
 			t.Errorf("%s ConfigSchema not marshalable: %v", id, err)
 		}
 	}
-	_ = context.Background
 }

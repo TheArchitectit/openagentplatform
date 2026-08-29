@@ -194,12 +194,24 @@ exactly. Every catalog type MUST remain executable agent-side.
   `min`/`max`, or `enum`. Overrides are only sanity-checked indirectly
   (the checks CRUD's `validateCheckConfig` runs on later updates via
   `PUT /checks/{id}`). This is intentional design, not a missing
-  validation gate.
+  validation gate. Template `DefaultConfig`s follow the same per-type key
+  set as `validateCheckConfig` (e.g. dns `hostname`, script
+  `runtime`+`script_body`) so instantiated rows survive that later
+  validation.
+- **Not end-to-end runnable without an assignment translation layer.** The
+  dispatcher publishes `CheckAssignment{config: {...}}` while the agent's
+  `CheckCommand` consumes `target`/`options`; no server-side translator
+  converts a definition's `config` map into those fields, and the agent
+  checkers read `target` + `options` keys (`threshold`, `path`, …) rather
+  than the catalog's `*_percent`/`host`-style config keys. §1.4's
+  executability guarantee is at the type level (registered checker), not a
+  verified config-key handoff.
 - **Scheduling bounds not enforced here.** `rmm-core` §6.3 requires
   `interval_seconds ≥ 30` and `timeout_seconds ≤ 3600` enforced by
   validation; the instantiate handler passes values through unbounded.
-- **`GetTemplateByName` is dead code** — its doc comment says the seeder
-  uses it, but `Seed()` matches on raw `name + check_type` SQL instead.
+- **`GetTemplateByName` is exported but uncalled** (kept for API
+  compatibility; covered by a unit test). `Seed()` matches on raw
+  `name + check_type` SQL instead.
 - **Seeded rows are org-less** (`org_id ''`) and instantiation permits
   empty org when unauthenticated; both rely on the authenticated mount
   in `routes_sub.go` for any real access control.

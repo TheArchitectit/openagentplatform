@@ -180,27 +180,30 @@ func BuiltInChecks() []CheckTemplate {
 			CheckType:           "dns",
 			Description:         "Resolve a hostname via the agent's resolver and alert when no A/AAAA record is returned.",
 			Category:            "network",
-			DefaultConfig:       map[string]any{"resolver": "system", "query": "example.com"},
+			DefaultConfig:       map[string]any{"hostname": "example.com"},
 			DefaultIntervalSecs: 60,
 			DefaultTimeoutSecs:  10,
 			ConfigSchema: map[string]any{
-				"resolver": map[string]any{"type": "string", "default": "system", "description": "Resolver to use; 'system' uses the agent's resolver"},
-				"query":    map[string]any{"type": "string", "required": true, "description": "Hostname to resolve"},
+				"hostname":   map[string]any{"type": "string", "required": true, "description": "Hostname to resolve"},
+				"nameserver": map[string]any{"type": "string", "description": "Optional resolver override (the agent currently uses its system resolver)"},
 			},
 		},
 		{
 			ID:                  "builtin-script",
 			Name:                "Script",
 			CheckType:           "script",
-			Description:         "Run a script or command on the agent via the executor and alert on a non-zero exit code.",
+			Description:         "Run a script on the agent via the executor and alert on a non-zero exit code.",
 			Category:            "system",
-			DefaultConfig:       map[string]any{"path": ""},
+			DefaultConfig:       map[string]any{"runtime": "bash", "script_body": ""},
 			DefaultIntervalSecs: 300,
 			DefaultTimeoutSecs:  60,
 			ConfigSchema: map[string]any{
-				"path":    map[string]any{"type": "string", "required": true, "description": "Path of the script to run on the agent"},
-				"runtime": map[string]any{"type": "string", "default": "bash", "enum": []string{"bash", "powershell", "pwsh", "python", "python3", "node"}},
-				"args":    map[string]any{"type": "array", "description": "Arguments passed to the script"},
+				"runtime":     map[string]any{"type": "string", "required": true, "default": "bash", "enum": []string{"bash", "sh", "powershell", "pwsh", "python", "python3", "node", "cmd"}},
+				"script_body": map[string]any{"type": "string", "required": true, "description": "Inline script source executed on the agent"},
+				"timeout_seconds": map[string]any{
+					"type": "integer", "default": 30,
+					"description": "Script-execution ceiling inside the agent (independent of the check's scheduling timeout)",
+				},
 			},
 		},
 	}
@@ -216,8 +219,9 @@ func FindTemplate(id string) (CheckTemplate, error) {
 	return CheckTemplate{}, fmt.Errorf("template not found: %s", id)
 }
 
-// GetTemplateByName returns the first template whose Name matches (case-insensitive),
-// used by the seeder to look up built-in checks by canonical name.
+// GetTemplateByName returns the first template whose Name matches
+// (case-insensitive). Currently uncalled in production (the seeder matches
+// on raw name + check_type SQL instead); retained for API compatibility.
 func GetTemplateByName(name string) (CheckTemplate, bool) {
 	for _, t := range BuiltInChecks() {
 		if strings.EqualFold(t.Name, name) {
@@ -373,6 +377,3 @@ func (l *Library) RegisterMutatingRoutes(r chi.Router) {
 
 // ErrNoDB is returned by helpers that require a database connection.
 var ErrNoDB = errors.New("checklib: database not configured")
-
-// ensure context import is used (keep compiler happy if helpers grow)
-var _ = context.Background
