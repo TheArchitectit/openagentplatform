@@ -111,7 +111,10 @@ func TestTemplateDefaultConfigs(t *testing.T) {
 		{"builtin-http", map[string]any{"url": "https://example.com", "expected_status": 200}},
 		{"builtin-tcp", map[string]any{"host": "localhost", "port": 22}},
 		{"builtin-dns", map[string]any{"hostname": "example.com"}},
-		{"builtin-script", map[string]any{"runtime": "bash", "script_body": ""}},
+		// script_body ships as an explicit no-op so the default passes
+		// checks-side validation (spec §2.2); service_name stays empty —
+		// no safe universal unit exists (see Known Limitations in the spec).
+		{"builtin-script", map[string]any{"runtime": "bash", "script_body": "exit 0 # no-op template — replace before assigning to agents"}},
 	}
 	for _, c := range cases {
 		tmpl, err := FindTemplate(c.id)
@@ -258,6 +261,9 @@ func TestInstantiateNilDB(t *testing.T) {
 	}
 	if got := strings.TrimSpace(rec.Body.String()); got != `{"error":"db_unavailable"}` {
 		t.Errorf("nil pool body = %q, want db_unavailable", got)
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+		t.Errorf("nil pool Content-Type = %q, want application/json (spec §4.5)", ct)
 	}
 }
 

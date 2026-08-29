@@ -57,7 +57,10 @@ func Seed(ctx context.Context, pool dbPool, log *slog.Logger) (SeedResult, error
 
 		cfgJSON, err := json.Marshal(t.DefaultConfig)
 		if err != nil {
+			// §5.3 requires per-template failures to be BOTH recorded and
+			// logged.
 			msg := fmt.Sprintf("marshal config failed for %s: %v", t.Name, err)
+			log.Warn("seeder: config marshal failed", "name", t.Name, "err", err)
 			res.Errors = append(res.Errors, msg)
 			continue
 		}

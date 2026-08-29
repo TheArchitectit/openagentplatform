@@ -62,7 +62,7 @@ func NewLibrary(db *pgxpool.Pool) *Library {
 	return &Library{db: db}
 }
 
-// newLibraryWithPool constructs a Library from any dbPool implementation.
+// newLibraryFromPool constructs a Library from any dbPool implementation.
 // It exists so tests can inject pgxmock pools; production callers should
 // use NewLibrary.
 func newLibraryFromPool(db dbPool) *Library {
@@ -194,7 +194,7 @@ func BuiltInChecks() []CheckTemplate {
 			CheckType:           "script",
 			Description:         "Run a script on the agent via the executor and alert on a non-zero exit code.",
 			Category:            "system",
-			DefaultConfig:       map[string]any{"runtime": "bash", "script_body": ""},
+			DefaultConfig:       map[string]any{"runtime": "bash", "script_body": "exit 0 # no-op template — replace before assigning to agents"},
 			DefaultIntervalSecs: 300,
 			DefaultTimeoutSecs:  60,
 			ConfigSchema: map[string]any{
@@ -240,23 +240,32 @@ func (l *Library) handleListLibrary(w http.ResponseWriter, _ *http.Request) {
 	})
 }
 
+// writeJSONError emits a JSON error body with the given status. http.Error
+// cannot be used here: it forces Content-Type: text/plain, and spec §4.5
+// requires JSON error responses.
+func writeJSONError(w http.ResponseWriter, body string, status int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_, _ = w.Write([]byte(body))
+}
+
 // handleInstantiateFromTemplate creates a check_definitions row from a
 // built-in template. The request body may override the default config,
 // name, description, interval, and timeout. The new check is created
 // in the authenticated user's org (or empty org_id if unauthenticated).
 func (l *Library) handleInstantiateFromTemplate(w http.ResponseWriter, r *http.Request) {
 	if l.db == nil {
-		http.Error(w, `{"error":"db_unavailable"}`, http.StatusServiceUnavailable)
+		writeJSONError(w, `{"error":"db_unavailable"}`, http.StatusServiceUnavailable)
 		return
 	}
 	templateID := chi.URLParam(r, "template_id")
 	if templateID == "" {
-		http.Error(w, `{"error":"missing_template_id"}`, http.StatusBadRequest)
+		writeJSONError(w, `{"error":"missing_template_id"}`, http.StatusBadRequest)
 		return
 	}
 	tmpl, err := FindTemplate(templateID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"template_not_found","detail":%q}`, err.Error()), http.StatusNotFound)
+		writeJSONError(w, fmt.Sprintf(`{"error":"template_not_found","detail":%q}`, err.Error()), http.StatusNotFound)
 		return
 	}
 
@@ -308,7 +317,7 @@ func (l *Library) handleInstantiateFromTemplate(w http.ResponseWriter, r *http.R
 
 	cfgJSON, err := json.Marshal(cfg)
 	if err != nil {
-		http.Error(w, `{"error":"config_marshal_failed"}`, http.StatusInternalServerError)
+		writeJSONError(w, `{"error":"config_marshal_failed"}`, http.StatusInternalServerError)
 		return
 	}
 	now := time.Now().UTC()
@@ -318,7 +327,7 @@ func (l *Library) handleInstantiateFromTemplate(w http.ResponseWriter, r *http.R
 			id, org_id, name, description, check_type, config,
 			interval_seconds, timeout_seconds, enabled, created_at, updated_at
 		) VALUES (
-			$1, COALESCE(NULLIF($2,''), ''), $3, $4, $5, $6,
+			$1, $2, $3, $4, $5, $6,
 			$7, $8, $9, $10, $10
 		)
 		RETURNING created_at, updated_at
@@ -329,7 +338,7 @@ func (l *Library) handleInstantiateFromTemplate(w http.ResponseWriter, r *http.R
 		interval, timeout, enabled, now,
 	).Scan(&createdAt, &updatedAt)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"insert_failed","detail":%q}`, err.Error()), http.StatusInternalServerError)
+		writeJSONError(w, fmt.Sprintf(`{"error":"insert_failed","detail":%q}`, err.Error()), http.StatusInternalServerError)
 		return
 	}
 

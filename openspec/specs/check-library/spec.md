@@ -90,7 +90,13 @@ checker type (reconciled 2026-08-27, approved by user):
 
 2.2. Each template MUST ship a `DefaultConfig` usable without
 modification (e.g. ping: `host 8.8.8.8, count 3, timeout_ms 3000`;
-cpu: `threshold_percent 90, duration_seconds 60`).
+cpu: `threshold_percent 90, duration_seconds 60`). "Usable" means the
+default passes the platform's canonical per-type validation
+(`internal/api` `validateCheckConfig`) so an instantiated row survives a
+later `PUT /checks/{id}`; the `script` template therefore ships an
+explicit no-op body (`exit 0 …`), and `service` is the one documented
+exception — no safe universal unit name exists, so its default ships
+`service_name: ""` (see Known Limitations).
 
 2.3. Each template SHOULD carry a `ConfigSchema` describing its
 parameters as a per-key map (`type`, `required`, `default`, `min`,
