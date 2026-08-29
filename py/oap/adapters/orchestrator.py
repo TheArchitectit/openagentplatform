@@ -65,9 +65,19 @@ class OrchestrationService(AdapterMatchingMixin):
         self._start_time = time.monotonic()
 
         # Register every adapter that was imported via @register_adapter.
+        # An adapter whose framework package is not installed (or whose
+        # start() otherwise fails) is skipped and logged as degraded:
+        # the service stays up and answers for the adapters that are
+        # available (spec §11: framework packages need not be installed;
+        # degradation is the designed behavior). Previously a single
+        # FrameworkNotFoundError from cls() aborted startup entirely.
         for name, cls in ADAPTER_REGISTRY.items():
-            instance = cls()
-            await instance.start()
+            try:
+                instance = cls()
+                await instance.start()
+            except AdapterError as exc:
+                logger.warning("Adapter %r unavailable, skipping: %s", name, exc)
+                continue
             self._adapters[name] = instance
             self._adapter_cards[name] = instance.agent_card
             logger.info("Registered adapter %r", name)
