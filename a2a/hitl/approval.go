@@ -53,7 +53,38 @@ type ApprovalTypeConfig struct {
 	OnTimeout        string        `json:"on_timeout"` // "reject" or "escalate"
 	MaxEscalations   int           `json:"max_escalations"`
 	EscalationGroups []string      `json:"escalation_groups,omitempty"`
+	// Template customizes the notification content for this approval
+	// type (spec R2.3). Empty fields fall back to DefaultApprovalTemplate.
+	Template ApprovalTemplate `json:"template,omitempty"`
+	// ReminderInterval is the delay between re-notification attempts for
+	// still-pending approvals (spec R2.4). Zero means "use the manager
+	// default". The number of re-notifications is bounded by
+	// MaxRenotifications.
+	ReminderInterval time.Duration `json:"reminder_interval,omitempty"`
 }
+
+// ApprovalTemplate is a Go text/template pair used to render approval
+// notifications. The template data exposes the request fields plus
+// Summary (payload rendered to one line) and ApprovalURL.
+type ApprovalTemplate struct {
+	Subject string `json:"subject,omitempty"`
+	Body    string `json:"body,omitempty"`
+}
+
+// DefaultApprovalTemplate is the notification template used when an
+// approval type does not configure its own. It carries every field R2.2
+// requires: action description, requester agent, urgency, approval URL.
+var DefaultApprovalTemplate = ApprovalTemplate{
+	Subject: "Approval requested: {{.ActionType}}",
+	Body: "Agent {{.RequesterAgentID}} requests approval for {{.ActionType}} " +
+		"(urgency: {{.Urgency}}).\nAction: {{.Summary}}\nTask: {{.TaskID}}\n" +
+		"Decide: {{.ApprovalURL}}",
+}
+
+// MaxRenotifications bounds the reminder loop (spec R2.4): an approval
+// receives at most this many re-notifications after its initial create
+// notification.
+const MaxRenotifications = 3
 
 // DefaultApprovalTypes returns the standard approval type configs.
 func DefaultApprovalTypes() []ApprovalTypeConfig {
@@ -80,6 +111,10 @@ type ApprovalRequest struct {
 	Urgency          string         `json:"urgency"` // critical, high, medium, low
 	Status           ApprovalStatus `json:"status"`
 	TaskID           string         `json:"task_id,omitempty"`
+	// OrgID scopes the request to the requesting tenant. Notification
+	// delivery fans out to this org's configured channels (spec R2.1);
+	// empty means unscoped.
+	OrgID string `json:"org_id,omitempty"`
 
 	// Escalation tracking.
 	EscalationDepth int    `json:"escalation_depth"`
@@ -96,6 +131,10 @@ type ApprovalRequest struct {
 
 	// Notifications.
 	NotificationsSent int `json:"notifications_sent"`
+	// NextReminderAt is when the reminder loop should re-notify this
+	// request (spec R2.4). Zero means "send the initial notification of
+	// the current (re)notification round on the next engine tick".
+	NextReminderAt time.Time `json:"next_reminder_at,omitempty"`
 }
 
 // IsTerminal returns true if the approval is in a final state.

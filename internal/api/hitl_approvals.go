@@ -69,7 +69,11 @@ func (s *Server) handleCreateApproval(w http.ResponseWriter, r *http.Request) {
 	if body.Urgency == "" {
 		body.Urgency = "medium"
 	}
-	req, err := s.hitlManager.CreateRequest(uuid.NewString(), body.ActionType, body.RequesterAgentID, body.Urgency, body.TaskID, body.Payload)
+	orgID := ""
+	if claims, ok := auth.UserFromContext(r.Context()); ok && claims != nil {
+		orgID = claims.OrgID
+	}
+	req, err := s.hitlManager.CreateRequestWithOrg(uuid.NewString(), body.ActionType, body.RequesterAgentID, body.Urgency, body.TaskID, orgID, body.Payload)
 	if err != nil {
 		// Unknown action type (the engine's validation signal) → 400.
 		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)

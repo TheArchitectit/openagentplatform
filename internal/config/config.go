@@ -10,16 +10,16 @@ import (
 )
 
 type Config struct {
-	HTTPPort      string
-	GRPCPort      string
-	Env           string
-	LogLevel      string
+	HTTPPort string
+	GRPCPort string
+	Env      string
+	LogLevel string
 
-	PostgresDSN   string
-	NATSURL       string
-	NATSCertFile  string
-	NATSKeyFile   string
-	NATSCAFile    string
+	PostgresDSN  string
+	NATSURL      string
+	NATSCertFile string
+	NATSKeyFile  string
+	NATSCAFile   string
 
 	OIDCIssuerURL    string
 	OIDCClientID     string
@@ -30,10 +30,16 @@ type Config struct {
 	SessionAudience string
 	SessionKeyPath  string
 
-	CookieDomain  string
-	CookieSecure  bool
+	CookieDomain string
+	CookieSecure bool
 
-	SentryDSN     string
+	// PublicBaseURL is the externally reachable origin of the web UI,
+	// used to build deep links inside notifications (e.g. HITL approval
+	// URLs, spec R2.2). Empty means "not configured" — links are then
+	// omitted from notification bodies.
+	PublicBaseURL string
+
+	SentryDSN string
 
 	// DebugMode enables sensitive diagnostic endpoints (pprof, config
 	// dump). Must never be true in production.
@@ -52,26 +58,27 @@ type Config struct {
 
 func Load() (*Config, error) {
 	c := &Config{
-		HTTPPort:        getEnv("HTTP_PORT", "8080"),
-		GRPCPort:        getEnv("GRPC_PORT", "9090"),
-		Env:             getEnv("APP_ENV", "development"),
-		LogLevel:        getEnv("LOG_LEVEL", "info"),
-		PostgresDSN:     os.Getenv("POSTGRES_DSN"),
-		NATSURL:         getEnv("NATS_URL", "nats://localhost:4222"),
-		NATSCertFile:    os.Getenv("NATS_CERT_FILE"),
-		NATSKeyFile:     os.Getenv("NATS_KEY_FILE"),
-		NATSCAFile:      os.Getenv("NATS_CA_FILE"),
-		OIDCIssuerURL:    os.Getenv("OIDC_ISSUER_URL"),
-		OIDCClientID:     os.Getenv("OIDC_CLIENT_ID"),
-		OIDCClientSecret: os.Getenv("OIDC_CLIENT_SECRET"),
-		OIDCRedirectURL:  getEnv("OIDC_REDIRECT_URL", "http://localhost:8080/auth/callback"),
-		SessionIssuer:    getEnv("SESSION_ISSUER", "openagentplatform"),
-		SessionAudience:  getEnv("SESSION_AUDIENCE", "oap-web"),
-		SessionKeyPath:   os.Getenv("SESSION_KEY_PATH"),
-		CookieDomain:     getEnv("COOKIE_DOMAIN", "localhost"),
-		CookieSecure:     getEnv("COOKIE_SECURE", "false") == "true",
-		SentryDSN:        os.Getenv("SENTRY_DSN"),
-		DebugMode:        getEnv("DEBUG_MODE", "false") == "true",
+		HTTPPort:           getEnv("HTTP_PORT", "8080"),
+		GRPCPort:           getEnv("GRPC_PORT", "9090"),
+		Env:                getEnv("APP_ENV", "development"),
+		LogLevel:           getEnv("LOG_LEVEL", "info"),
+		PostgresDSN:        os.Getenv("POSTGRES_DSN"),
+		NATSURL:            getEnv("NATS_URL", "nats://localhost:4222"),
+		NATSCertFile:       os.Getenv("NATS_CERT_FILE"),
+		NATSKeyFile:        os.Getenv("NATS_KEY_FILE"),
+		NATSCAFile:         os.Getenv("NATS_CA_FILE"),
+		OIDCIssuerURL:      os.Getenv("OIDC_ISSUER_URL"),
+		OIDCClientID:       os.Getenv("OIDC_CLIENT_ID"),
+		OIDCClientSecret:   os.Getenv("OIDC_CLIENT_SECRET"),
+		OIDCRedirectURL:    getEnv("OIDC_REDIRECT_URL", "http://localhost:8080/auth/callback"),
+		SessionIssuer:      getEnv("SESSION_ISSUER", "openagentplatform"),
+		SessionAudience:    getEnv("SESSION_AUDIENCE", "oap-web"),
+		SessionKeyPath:     os.Getenv("SESSION_KEY_PATH"),
+		CookieDomain:       getEnv("COOKIE_DOMAIN", "localhost"),
+		CookieSecure:       getEnv("COOKIE_SECURE", "false") == "true",
+		PublicBaseURL:      getEnv("PUBLIC_BASE_URL", "http://localhost:8080"),
+		SentryDSN:          os.Getenv("SENTRY_DSN"),
+		DebugMode:          getEnv("DEBUG_MODE", "false") == "true",
 		PolicyEvalInterval: getDurationEnv("POLICY_EVAL_INTERVAL", 5*time.Minute),
 		OzoreModel:         getEnv("OZORE_MODEL", "ozore/custom"),
 		OzoreBaseURL:       getEnv("OZORE_BASE_URL", "https://ozore.com/v1"),

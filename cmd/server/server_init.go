@@ -200,6 +200,9 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 	// Session manager + WS handler + credential store + recording store.
 	wireShell(apiServer, pool, natsClient.Conn(), log)
 
+	// --- HITL approval engine (hitl-approval spec) ------------------------
+	hitlEngine := buildHITLEngine(apiServer, alertStore, notifierReg, cfg, log)
+
 	// --- A2A gateway + RPC bridge ----------------------------------------
 	a2aGw, rpcBridge, eventBridge, err := buildA2AGateway(apiServer, pool, natsClient, log)
 	if err != nil {
@@ -274,35 +277,36 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 	}
 
 	return &Server{
-		cfg:               cfg,
-		log:               log,
-		httpServer:        httpServer,
-		apiServer:         apiServer,
-		natsClient:        natsClient,
-		pool:              pool,
-		tracerProvider:    tp,
-		heartbeat:         heartbeat,
-		dispatcher:        dispatcher,
-		ingestor:          ingestor,
-		alertEngine:       alertEngine,
-		policyEngine:      policyEngine,
-		patchScheduler:    patchScheduler,
-		reportScheduler:   reportScheduler,
+		cfg:                cfg,
+		log:                log,
+		httpServer:         httpServer,
+		apiServer:          apiServer,
+		natsClient:         natsClient,
+		pool:               pool,
+		tracerProvider:     tp,
+		heartbeat:          heartbeat,
+		dispatcher:         dispatcher,
+		ingestor:           ingestor,
+		alertEngine:        alertEngine,
+		policyEngine:       policyEngine,
+		patchScheduler:     patchScheduler,
+		reportScheduler:    reportScheduler,
 		scheduledScheduler: scheduledScheduler,
-		eventBridge:       eventBridge,
-		rpcBridge:         rpcBridge,
-		secretsSweeper:    svc.secretsSweeper,
-		secretsRevocation: svc.secretsRevocation,
-		retentionPurger:   retentionPurger,
-		tenantDB:          tenantDB,
-		tenantStore:       tenantStore,
-		tenantConfigStore: tenantConfigStore,
-		billingSvc:        svc.billingSvc,
-		meteringSvc:       svc.meteringSvc,
-		rateLimiter:       svc.rateLimiter,
-		adapterBreaker:    svc.adapterBreaker,
-		graceful:          svc.graceful,
-		grpcServer:        grpcServer,
-		grpcListener:      grpcListener,
+		eventBridge:        eventBridge,
+		rpcBridge:          rpcBridge,
+		hitlEngine:         hitlEngine,
+		secretsSweeper:     svc.secretsSweeper,
+		secretsRevocation:  svc.secretsRevocation,
+		retentionPurger:    retentionPurger,
+		tenantDB:           tenantDB,
+		tenantStore:        tenantStore,
+		tenantConfigStore:  tenantConfigStore,
+		billingSvc:         svc.billingSvc,
+		meteringSvc:        svc.meteringSvc,
+		rateLimiter:        svc.rateLimiter,
+		adapterBreaker:     svc.adapterBreaker,
+		graceful:           svc.graceful,
+		grpcServer:         grpcServer,
+		grpcListener:       grpcListener,
 	}, nil
 }

@@ -190,6 +190,27 @@ func TestHITLCreateGetListApproveReject(t *testing.T) {
 	}
 }
 
+// TestHITLCreateScopesOrg verifies the request's OrgID is taken from the
+// authenticated user's claims so notification fan-out (R2.1) stays scoped.
+func TestHITLCreateScopesOrg(t *testing.T) {
+	s, mgr := newHITLServer()
+	claims := &auth.SessionClaims{Email: "ops@example.com", Role: auth.RoleAdmin, OrgID: "org-9"}
+	rec := httptest.NewRecorder()
+	s.handleCreateApproval(rec, hitlRequest(http.MethodPost, "/api/v1/a2a/approvals",
+		`{"action_type":"config_change","requester_agent_id":"agent-1"}`, claims))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create: expected 201, got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var created hitl.ApprovalRequest
+	_ = json.Unmarshal(rec.Body.Bytes(), &created)
+	if created.OrgID != "org-9" {
+		t.Errorf("OrgID = %q, want org-9", created.OrgID)
+	}
+	if got, _ := mgr.GetRequest(created.ID); got.OrgID != "org-9" {
+		t.Errorf("stored OrgID = %q, want org-9", got.OrgID)
+	}
+}
+
 // TestHITLCreateValidation — 400s for malformed create bodies.
 func TestHITLCreateValidation(t *testing.T) {
 	s, _ := newHITLServer()

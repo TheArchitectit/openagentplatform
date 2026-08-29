@@ -36,7 +36,10 @@ func (ee *EscalationEngine) Start(ctx context.Context) {
 		for {
 			select {
 			case <-ee.ticker.C:
-				ee.checkExpired()
+				now := time.Now()
+				ee.checkExpired(now)
+				// Same loop drives re-notification (R2.4).
+				ee.manager.processReminders(now)
 			case <-ee.stopCh:
 				ee.ticker.Stop()
 				return
@@ -63,11 +66,9 @@ func (ee *EscalationEngine) Stop() {
 }
 
 // checkExpired scans all pending approvals and handles timeouts.
-func (ee *EscalationEngine) checkExpired() {
+func (ee *EscalationEngine) checkExpired(now time.Time) {
 	ee.manager.mu.Lock()
 	defer ee.manager.mu.Unlock()
-
-	now := time.Now()
 	for _, req := range ee.manager.byID {
 		if req.Status != StatusPending {
 			continue

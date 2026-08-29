@@ -53,6 +53,11 @@ func (s *Server) Start(ctx context.Context) error {
 		s.retentionPurger.Start(hbCtx)
 	}
 
+	// Start the HITL approval loop (timeouts, escalation, reminders).
+	if s.hitlEngine != nil {
+		s.hitlEngine.Start(hbCtx)
+	}
+
 	go s.patchScheduler.Run(hbCtx)
 
 	// Start the report scheduler (30s tick for due schedules).
@@ -191,6 +196,14 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if s.retentionPurger != nil {
 		s.graceful.Register("retention-purger", resilience.CloserFunc(func(_ context.Context) error {
 			s.retentionPurger.Stop()
+			return nil
+		}))
+	}
+
+	// 2d. HITL approval loop (timeouts, escalation, reminders).
+	if s.hitlEngine != nil {
+		s.graceful.Register("hitl-engine", resilience.CloserFunc(func(_ context.Context) error {
+			s.hitlEngine.Stop()
 			return nil
 		}))
 	}

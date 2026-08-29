@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/openagentplatform/openagentplatform/a2a/bridge"
+	"github.com/openagentplatform/openagentplatform/a2a/hitl"
 	"github.com/openagentplatform/openagentplatform/internal/alerts"
 	"github.com/openagentplatform/openagentplatform/internal/api"
 	"github.com/openagentplatform/openagentplatform/internal/billing"
@@ -50,8 +51,10 @@ type Server struct {
 	// tick. nil when the scheduled schema could not be created (logged,
 	// non-fatal).
 	scheduledScheduler *scheduled.Scheduler
-	eventBridge     *bridge.Bridge
-	rpcBridge       *bridge.RPCBridge
+	eventBridge        *bridge.Bridge
+	rpcBridge          *bridge.RPCBridge
+	// hitlEngine runs the HITL approval timeout/escalation/reminder loop.
+	hitlEngine *hitl.EscalationEngine
 	// grpcServer serves the A2A gRPC transport on cfg.GRPCPort. nil when
 	// the gRPC transport fails to bind (logged, non-fatal).
 	grpcServer   *grpc.Server
