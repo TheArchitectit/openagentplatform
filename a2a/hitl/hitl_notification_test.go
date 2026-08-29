@@ -13,6 +13,7 @@ type recordingNotifier struct {
 	mu            sync.Mutex
 	createCalls   []string
 	reminderCalls []string
+	timeoutCalls  []string
 	attempts      int // every call, including failed ones
 	failNext      bool
 }
@@ -34,6 +35,14 @@ func (n *recordingNotifier) SendReminder(_ context.Context, req *ApprovalRequest
 	defer n.mu.Unlock()
 	n.attempts++
 	n.reminderCalls = append(n.reminderCalls, req.ID)
+	return nil
+}
+
+func (n *recordingNotifier) SendTimeoutAlert(_ context.Context, req *ApprovalRequest) error {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.attempts++
+	n.timeoutCalls = append(n.timeoutCalls, req.ID)
 	return nil
 }
 
@@ -220,6 +229,112 @@ func TestReminderSkipsDecided(t *testing.T) {
 	}
 	mgr.processReminders(time.Now().Add(time.Hour))
 	waitForNotifier(t, notifier, 1, 0)
+}
+
+// TestTimeoutAlertAtMaxDepth verifies R3.5: an approval that expires at
+// maximum escalation depth is auto-rejected AND an admin timeout alert is
+// dispatched through the notification seam.
+func TestTimeoutAlertAtMaxDepth(t *testing.T) {
+	notifier := &recordingNotifier{}
+	// OnTimeout escalate with MaxEscalations 1: first timeout escalates
+	// (depth 0→1, re-armed because one escalation group exists), second
+	// timeout hits the depth cap → expired + admin alert.
+	typeCfgs := []ApprovalTypeConfig{
+		{Type: "t", TimeoutDuration: 10 * time.Millisecond, OnTimeout: "escalate", MaxEscalations: 1, EscalationGroups: []string{"g1"}},
+	}
+	mgr := NewApprovalManager(typeCfgs)
+	mgr.SetNotifier(notifier)
+
+	if _, err := mgr.CreateRequest("a1", "t", "agent-1", "high", "", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	engine := NewEscalationEngine(mgr, 5*time.Millisecond)
+	engine.Start(context.Background())
+
+	// Wait for the approval to expire at max depth.
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if req, err := mgr.GetRequest("a1"); err == nil && req.Status == StatusExpired {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	engine.Stop()
+
+	req, _ := mgr.GetRequest("a1")
+	if req.Status != StatusExpired {
+		t.Fatalf("expected expired at max depth, got %s", req.Status)
+	}
+	if req.DecisionNote != "max escalation depth reached" {
+		t.Errorf("decision note = %q", req.DecisionNote)
+	}
+
+	// The timeout alert was dispatched.
+	deadline = time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		notifier.mu.Lock()
+		n := len(notifier.timeoutCalls)
+		notifier.mu.Unlock()
+		if n == 1 {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	notifier.mu.Lock()
+	got := len(notifier.timeoutCalls)
+	notifier.mu.Unlock()
+	if got != 1 {
+		t.Errorf("timeout alerts = %d, want 1", got)
+	}
+
+	// Both the admin_alert and expired audit entries exist.
+	var sawAlert, sawExpired bool
+	for _, e := range mgr.AuditLog("a1") {
+		if e.Action == "admin_alert" {
+			sawAlert = true
+		}
+		if e.Action == "expired" {
+			sawExpired = true
+		}
+	}
+	if !sawAlert || !sawExpired {
+		t.Errorf("audit entries: admin_alert=%v expired=%v, want both true", sawAlert, sawExpired)
+	}
+}
+
+// TestNoTimeoutAlertOnPlainExpiry verifies the admin alert only fires at the
+// escalation-depth cap, not on ordinary timeout rejection.
+func TestNoTimeoutAlertOnPlainExpiry(t *testing.T) {
+	notifier := &recordingNotifier{}
+	typeCfgs := []ApprovalTypeConfig{
+		{Type: "t", TimeoutDuration: 10 * time.Millisecond, OnTimeout: "reject", MaxEscalations: 3},
+	}
+	mgr := NewApprovalManager(typeCfgs)
+	mgr.SetNotifier(notifier)
+
+	if _, err := mgr.CreateRequest("a1", "t", "agent-1", "high", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	engine := NewEscalationEngine(mgr, 5*time.Millisecond)
+	engine.Start(context.Background())
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if req, err := mgr.GetRequest("a1"); err == nil && req.Status == StatusExpired {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	engine.Stop()
+	time.Sleep(20 * time.Millisecond) // allow any stray alert to land
+
+	notifier.mu.Lock()
+	got := len(notifier.timeoutCalls)
+	notifier.mu.Unlock()
+	if got != 0 {
+		t.Errorf("plain timeout dispatched %d timeout alerts, want 0", got)
+	}
 }
 
 // TestNotificationFailureDoesNotAdvance verifies a failed delivery leaves

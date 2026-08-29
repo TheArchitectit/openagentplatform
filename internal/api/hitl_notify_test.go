@@ -167,6 +167,37 @@ func TestApprovalNotifierCustomTemplate(t *testing.T) {
 	}
 }
 
+// TestApprovalNotifierTimeoutAlert verifies R3.5: the timeout alert renders
+// with emergency severity and fixed system text regardless of urgency.
+func TestApprovalNotifierTimeoutAlert(t *testing.T) {
+	store := &stubChannelStore{channels: []notify.NotificationChannel{
+		{ID: "ch-1", OrgID: "org-a", Type: "test-channel", Enabled: true, Config: json.RawMessage(`{}`)},
+	}}
+	notifier, capture, _ := newTestApprovalNotifier(store)
+
+	req := testApproval("ap-5", "org-a")
+	req.Urgency = "low" // timeout alert must override to emergency
+	req.EscalationDepth = 3
+	if err := notifier.SendTimeoutAlert(context.Background(), req); err != nil {
+		t.Fatalf("SendTimeoutAlert: %v", err)
+	}
+	capture.mu.Lock()
+	defer capture.mu.Unlock()
+	if len(capture.alerts) != 1 {
+		t.Fatalf("expected 1 delivery, got %d", len(capture.alerts))
+	}
+	a := capture.alerts[0]
+	if a.Severity != "emergency" {
+		t.Errorf("timeout alert severity = %s, want emergency", a.Severity)
+	}
+	if kind, _ := a.Metadata["kind"].(string); kind != "approval_timeout" {
+		t.Errorf("kind = %q, want approval_timeout", kind)
+	}
+	if !strings.Contains(a.Message, "auto-rejected") || !strings.Contains(a.Message, "depth 3") {
+		t.Errorf("timeout alert body missing detail: %q", a.Message)
+	}
+}
+
 // TestApprovalNotifierUnscoped verifies an unscoped approval delivers nothing.
 func TestApprovalNotifierUnscoped(t *testing.T) {
 	store := &stubChannelStore{channels: []notify.NotificationChannel{

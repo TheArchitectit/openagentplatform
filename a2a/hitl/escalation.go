@@ -80,24 +80,51 @@ func (ee *EscalationEngine) checkExpired(now time.Time) {
 		cfg, ok := ee.manager.typeCfgs[req.ActionType]
 		if !ok {
 			// Unknown type — auto-reject.
-			ee.autoReject(req, now, "unknown action type")
+			ee.autoReject(req, now, "unknown action type", false)
 			continue
 		}
 
-		if cfg.OnTimeout == "escalate" && req.EscalationDepth < cfg.MaxEscalations {
+		switch {
+		case cfg.OnTimeout == "escalate" && req.EscalationDepth < cfg.MaxEscalations:
 			ee.escalate(req, cfg, now)
-		} else {
-			ee.autoReject(req, now, "timeout exceeded")
+		case cfg.OnTimeout == "escalate":
+			// R3.5: the depth cap was reached without a decision —
+			// auto-reject and alert the admin.
+			ee.autoReject(req, now, "max escalation depth reached", true)
+		default:
+			ee.autoReject(req, now, "timeout exceeded", false)
 		}
 	}
 }
 
-// autoReject rejects an expired approval.
-func (ee *EscalationEngine) autoReject(req *ApprovalRequest, now time.Time, reason string) {
+// autoReject rejects an expired approval. When alertAdmin is true (spec
+// R3.5: max escalation depth exhausted) it also dispatches a timeout alert
+// through the manager's notification seam.
+func (ee *EscalationEngine) autoReject(req *ApprovalRequest, now time.Time, reason string, alertAdmin bool) {
 	req.Status = StatusExpired
 	req.DecidedBy = "system"
 	req.DecidedAt = now
 	req.DecisionNote = reason
+
+	if alertAdmin {
+		if notifier := ee.manager.notifier; notifier != nil {
+			snapshot := *req
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+				if err := notifier.SendTimeoutAlert(ctx, &snapshot); err != nil {
+					log.Printf("hitl: timeout alert for approval %s failed: %v", snapshot.ID, err)
+				}
+			}()
+		}
+		ee.manager.appendAudit(AuditEntry{
+			ApprovalID: req.ID,
+			Action:     "admin_alert",
+			Actor:      "system",
+			Reason:     reason,
+			Timestamp:  now,
+		})
+	}
 
 	ee.manager.appendAudit(AuditEntry{
 		ApprovalID: req.ID,
@@ -153,12 +180,16 @@ func joinGroups(groups []string) string {
 // Notification — stub for Sprint 2.7 stories (email/Slack/webhook).
 // ============================================================
 
-// NotificationService sends approval notifications. The actual
-// delivery (email, Slack, webhook) is implemented in a later story.
+// NotificationService sends approval notifications through the platform's
+// channel infrastructure (email, Slack, webhook).
 type NotificationService interface {
 	// SendApprovalRequest notifies configured channels of a new approval.
 	SendApprovalRequest(ctx context.Context, req *ApprovalRequest) error
 
 	// SendReminder re-notifies about a still-pending approval.
 	SendReminder(ctx context.Context, req *ApprovalRequest) error
+
+	// SendTimeoutAlert notifies that an approval expired at maximum
+	// escalation depth (spec R3.5).
+	SendTimeoutAlert(ctx context.Context, req *ApprovalRequest) error
 }

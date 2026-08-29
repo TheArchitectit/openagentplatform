@@ -62,34 +62,60 @@ type templateData struct {
 
 // SendApprovalRequest delivers the create-time notification (R2.1).
 func (n *ApprovalNotifier) SendApprovalRequest(ctx context.Context, req *hitl.ApprovalRequest) error {
-	return n.send(ctx, req, false)
+	return n.send(ctx, req, "request")
 }
 
 // SendReminder delivers a re-notification for a still-pending approval (R2.4).
 func (n *ApprovalNotifier) SendReminder(ctx context.Context, req *hitl.ApprovalRequest) error {
-	return n.send(ctx, req, true)
+	return n.send(ctx, req, "reminder")
 }
 
-func (n *ApprovalNotifier) send(ctx context.Context, req *hitl.ApprovalRequest, isReminder bool) error {
+// SendTimeoutAlert delivers the R3.5 alert: an approval expired at maximum
+// escalation depth without a human decision.
+func (n *ApprovalNotifier) SendTimeoutAlert(ctx context.Context, req *hitl.ApprovalRequest) error {
+	return n.send(ctx, req, "timeout")
+}
+
+// send renders and dispatches one notification round. kind is "request"
+// (create, R2.1), "reminder" (R2.4), or "timeout" (R3.5 admin alert).
+func (n *ApprovalNotifier) send(ctx context.Context, req *hitl.ApprovalRequest, kind string) error {
 	if n.channels == nil || n.registry == nil {
 		n.log.Info("hitl notify: skipped, delivery not configured", "approval_id", req.ID)
 		return nil
 	}
-	subject, body, err := n.render(req, isReminder)
-	if err != nil {
-		return fmt.Errorf("hitl notify: render: %w", err)
+
+	var subject, body string
+	if kind == "timeout" {
+		// System-generated R3.5 alert: fixed text, emergency severity
+		// regardless of the request's urgency.
+		subject = fmt.Sprintf("Escalation exhausted: %s approval auto-rejected", req.ActionType)
+		body = fmt.Sprintf(
+			"Approval %s (%s, requester %s, urgency %s) expired at escalation depth %d without a human decision and was auto-rejected. Manual review required: %s",
+			req.ID, req.ActionType, req.RequesterAgentID, req.Urgency, req.EscalationDepth, n.ApprovalURL(req.ID))
+	} else {
+		var err error
+		subject, body, err = n.render(req, kind == "reminder")
+		if err != nil {
+			return fmt.Errorf("hitl notify: render: %w", err)
+		}
 	}
 
 	// The alert is the transport envelope for the shared notifiers; the
 	// approval content rides in Message + Metadata so email/slack/webhook
 	// templates can all surface it.
 	severity := urgencyToSeverity(req.Urgency)
-	kind := "approval_request"
-	if isReminder {
-		kind = "approval_reminder"
+	if kind == "timeout" {
+		severity = "emergency"
+	}
+	alertKind := "approval_request"
+	switch kind {
+	case "reminder":
+		alertKind = "approval_reminder"
+	case "timeout":
+		alertKind = "approval_timeout"
 	}
 	alert := &models.Alert{
-		ID:        "hitl-" + req.ID + "-" + kind,
+		ID:        "hitl-" + req.ID + "-" + alertKind,
 		CheckID:   "hitl:" + req.ActionType,
 		AgentID:   req.RequesterAgentID,
 		Severity:  severity,
@@ -98,7 +124,7 @@ func (n *ApprovalNotifier) send(ctx context.Context, req *hitl.ApprovalRequest, 
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
 		Metadata: map[string]any{
-			"kind":         kind,
+			"kind":         alertKind,
 			"subject":      subject,
 			"approval_id":  req.ID,
 			"action_type":  req.ActionType,
