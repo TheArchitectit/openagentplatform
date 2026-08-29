@@ -1,6 +1,6 @@
 # Human-in-the-Loop Approval (HITL)
 
-> **Phase:** 2 | **Status:** PARTIAL | **Spec:** openspec/specs/hitl-approval/spec.md
+> **Phase:** 2 | **Status:** COMPLETE | **Spec:** openspec/specs/hitl-approval/spec.md
 
 ---
 
@@ -8,12 +8,15 @@
 
 Approval workflow for agent actions that require human authorization before execution. Covers request creation, notification delivery, approval/rejection flow, timeout escalation, and full audit trail.
 
-> **Implementation note:** The standalone `/a2a/v1/approvals` HITL API described
-> in this spec is **not yet built**. Patch-approval exists as a separate subsystem
-> (`internal/patches/`, `internal/api/patches.go`) with `RequiredApprovals` and
-> `CountApprovals` — but that is a patch-deployment gate, not the general HITL
-> approval workflow spec'd here. This spec remains the design target for the
-> A2A HITL service when it is built.
+> **Implementation note (2026-08-29):** shipped as R1–R6.5 (commits
+> 846e861..2dd88e6). The engine lives in `a2a/hitl/` (approval manager,
+> escalation engine, in-memory store with audit sink); the HTTP API is mounted
+> under the platform `/api/v1` prefix at `/api/v1/a2a/approvals`
+> (`internal/api/hitl_approvals.go`), with notification delivery in
+> `internal/api/hitl_notify.go`, the SSE event stream in
+> `internal/api/hitl_events.go`, the task gate in
+> `a2a/gateway/approval_gate.go`, and the web queue at
+> `web/src/routes/approvals/`. Route paths below reflect the mounted URLs.
 
 ---
 
@@ -27,12 +30,12 @@ As an **admin**, I want to review and approve agent-initiated actions before the
 
 ### R1: Approval Request API
 
-- **R1.1:** `POST /a2a/v1/approvals` — create approval request (action_type, payload, requester_agent_id, urgency)
-- **R1.2:** `GET /a2a/v1/approvals` — list pending approvals (filterable by status, urgency, requester)
-- **R1.3:** `GET /a2a/v1/approvals/{id}` — get approval detail (full payload, decision history, comments)
-- **R1.4:** `POST /a2a/v1/approvals/{id}/approve` — approve (with optional comment, scope限定)
-- **R1.5:** `POST /a2a/v1/approvals/{id}/reject` — reject (with required reason)
-- **R1.6:** Approval states: `pending` → `approved` | `rejected` | `expired` | `escalated`
+- **R1.1:** `POST /api/v1/a2a/approvals` — create approval request (action_type, payload, requester_agent_id, urgency)
+- **R1.2:** `GET /api/v1/a2a/approvals` — list pending approvals (filterable by status, urgency, requester)
+- **R1.3:** `GET /api/v1/a2a/approvals/{id}` — get approval detail (full payload, decision history, comments)
+- **R1.4:** `POST /api/v1/a2a/approvals/{id}/approve` — approve (with optional comment, scope限定)
+- **R1.5:** `POST /api/v1/a2a/approvals/{id}/reject` — reject (with required reason)
+- **R1.6:** Approval states: `pending` → `approved` | `rejected` | `expired` | `escalated`. Escalation is transient: the engine re-arms the request to `pending` with a bumped `escalation_depth` in the same lock (`a2a/hitl/escalation.go`), so `escalated` never persists — escalated rows surface in Pending tagged with their depth.
 
 ### R2: Notification Delivery
 
@@ -86,6 +89,23 @@ As an **admin**, I want to review and approve agent-initiated actions before the
 | `config_change` | 4 hours | escalate | Agent requests system configuration change |
 
 ---
+
+## Known Limitations
+
+1. **Approvals are in-memory.** `ApprovalManager` persists through its
+   `Store` seam, but only `MemStore` implements it — a server restart clears
+   pending approvals, history, and reminder counters. A Postgres store is the
+   obvious next unit; until then the audit-trail guarantee (R4) holds only for
+   the event's lifetime.
+2. **R4.3 queryability is per-approval.** The decision history exposed by
+   R1.3 is keyed by approval id; cross-approval queries by actor or date range
+   run against `internal/audit` (`GET /api/v1/audit/events`, actor_id/action
+   filters), which receives every forwarded entry (R4.4) rather than the
+   engine's own log.
+3. **Decision gate is a role mirror.** Create/approve/reject require
+   `admin|technician` (`auth.RequireRole`), while `a2a:write` (operator) can
+   still POST via other surfaces — an accepted product inconsistency, mirrored
+   in the web UI role gate.
 
 ## References
 
