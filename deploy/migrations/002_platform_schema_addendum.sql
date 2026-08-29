@@ -9,6 +9,12 @@ CREATE TABLE IF NOT EXISTS audit_events (
     event_id      TEXT PRIMARY KEY,
     prev_hash     TEXT NOT NULL DEFAULT '',
     hash          TEXT NOT NULL DEFAULT '',
+    -- chain_seq fixes the global hash-chain order: the tip is the highest
+    -- chain_seq (insertion order, serialised by the writer lock), not the
+    -- newest timestamp — async mirrors (e.g. the HITL audit sink) can record
+    -- events with out-of-band timestamps in a different order than they
+    -- take the lock.
+    chain_seq     BIGSERIAL,
     "timestamp"   TIMESTAMPTZ NOT NULL DEFAULT now(),
     actor_type    TEXT NOT NULL DEFAULT '',
     actor_id      TEXT NOT NULL DEFAULT '',
@@ -17,13 +23,25 @@ CREATE TABLE IF NOT EXISTS audit_events (
     resource_id   TEXT NOT NULL DEFAULT '',
     details       JSONB,
     outcome       TEXT NOT NULL DEFAULT '',
-    ip            TEXT NOT NULL DEFAULT '',
-    user_agent    TEXT NOT NULL DEFAULT '',
-    org_id        TEXT NOT NULL DEFAULT '',
-    site_id       TEXT NOT NULL DEFAULT ''
+    -- ip/user_agent/org_id/site_id are nullable: audit.Record writes NULL for
+    -- empty values (nullString), and background/system writers (e.g. the HITL
+    -- audit sink) legitimately have none of them.
+    ip            TEXT,
+    user_agent    TEXT,
+    org_id        TEXT,
+    site_id       TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_audit_events_org_ts ON audit_events (org_id, "timestamp" DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_events_action ON audit_events (action);
+
+-- Idempotent corrections for databases created by the first revision of this
+-- file: audit.Record writes NULL for empty ip/user_agent/org_id/site_id
+-- (nullString), and the chain order needs the chain_seq column.
+ALTER TABLE audit_events ALTER COLUMN ip         DROP NOT NULL;
+ALTER TABLE audit_events ALTER COLUMN user_agent DROP NOT NULL;
+ALTER TABLE audit_events ALTER COLUMN org_id     DROP NOT NULL;
+ALTER TABLE audit_events ALTER COLUMN site_id    DROP NOT NULL;
+ALTER TABLE audit_events ADD COLUMN IF NOT EXISTS chain_seq BIGSERIAL;
 
 CREATE TABLE IF NOT EXISTS check_assignments (
     id          TEXT PRIMARY KEY,

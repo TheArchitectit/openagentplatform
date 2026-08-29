@@ -11,6 +11,7 @@ import (
 
 	"github.com/openagentplatform/openagentplatform/a2a/hitl"
 	"github.com/openagentplatform/openagentplatform/internal/alerts"
+	"github.com/openagentplatform/openagentplatform/internal/audit"
 	"github.com/openagentplatform/openagentplatform/internal/notify"
 	"github.com/openagentplatform/openagentplatform/pkg/models"
 )
@@ -286,3 +287,65 @@ func filterApprovalCapable(channels []notify.NotificationChannel) []notify.Notif
 
 // interface assertion is checked at compile time.
 var _ hitl.NotificationService = (*ApprovalNotifier)(nil)
+
+// WireHITLAudit installs the hitl-approval R4.4 integration: every entry the
+// engine appends to its own audit log (created, approved, rejected,
+// escalated, expired, notified, reminder, admin_alert) is mirrored into the
+// platform's tamper-evident, hash-chained audit trail via internal/audit.
+//
+// The events are queryable through the existing GET /api/v1/audit/events
+// endpoint with resource_type=hitl_approval and resource_id=<approval id>
+// (R4.3), and the chain per approval through GET /api/v1/audit/chain/.
+// Recording failures are logged and never propagate into the approval
+// lifecycle. svc may be nil (audit integration disabled).
+func WireHITLAudit(m *hitl.ApprovalManager, svc *audit.AuditService, log *slog.Logger) {
+	if m == nil {
+		return
+	}
+	m.SetAuditSink(func(entry hitl.AuditEntry) {
+		if svc == nil {
+			return
+		}
+		actorType := audit.ActorUser
+		if entry.Actor == "system" || entry.Actor == "" {
+			actorType = audit.ActorSystem
+		}
+		outcome := audit.OutcomeSuccess
+		switch entry.Action {
+		case "rejected":
+			outcome = audit.OutcomeDenied
+		case "expired":
+			outcome = audit.OutcomeFailure
+		}
+		details := map[string]any{"approval_action": entry.Action}
+		if entry.Reason != "" {
+			details["reason"] = entry.Reason
+		}
+		for k, v := range entry.Metadata {
+			details[k] = v
+		}
+		// Enrich with the approval's scope when still known to the engine.
+		orgID := ""
+		if req, err := m.GetRequest(entry.ApprovalID); err == nil {
+			orgID = req.OrgID
+			details["action_type"] = req.ActionType
+			details["urgency"] = req.Urgency
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if _, err := svc.Record(ctx, audit.EventInput{
+			ActorType:    actorType,
+			ActorID:      entry.Actor,
+			Action:       "hitl." + entry.Action,
+			ResourceType: "hitl_approval",
+			ResourceID:   entry.ApprovalID,
+			Details:      details,
+			Outcome:      outcome,
+			OrgID:        orgID,
+			Timestamp:    entry.Timestamp,
+		}); err != nil {
+			log.Warn("hitl audit: record failed", "action", entry.Action, "approval_id", entry.ApprovalID, "err", err)
+		}
+	})
+}

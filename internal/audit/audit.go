@@ -159,6 +159,11 @@ func (s *AuditService) Record(ctx context.Context, in EventInput) (*Event, error
 	if in.Timestamp.IsZero() {
 		in.Timestamp = time.Now().UTC()
 	}
+	// Normalise to the storage precision (PostgreSQL timestamptz keeps
+	// microseconds). The hash covers the RFC3339 representation of this
+	// timestamp; a nanosecond-precision value would not survive the DB
+	// round-trip and verification would compute a different string.
+	in.Timestamp = in.Timestamp.Truncate(time.Microsecond)
 
 	eventID := uuid.NewString()
 

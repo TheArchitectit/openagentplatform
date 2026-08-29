@@ -7,6 +7,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/a2a/hitl"
 	"github.com/openagentplatform/openagentplatform/internal/alerts"
 	"github.com/openagentplatform/openagentplatform/internal/api"
+	"github.com/openagentplatform/openagentplatform/internal/audit"
 	"github.com/openagentplatform/openagentplatform/internal/config"
 	"github.com/openagentplatform/openagentplatform/internal/notify"
 )
@@ -23,7 +24,7 @@ const hitlCheckInterval = 30 * time.Second
 // escalation/reminder loop that Run() starts. The in-memory store is the
 // only ApprovalStore shipped today; durable approval persistence is a
 // follow-on outside R1–R2 scope.
-func buildHITLEngine(apiServer *api.Server, alertStore alerts.Store, notifierReg *notify.NotifierRegistry, cfg *config.Config, log *slog.Logger) *hitl.EscalationEngine {
+func buildHITLEngine(apiServer *api.Server, alertStore alerts.Store, notifierReg *notify.NotifierRegistry, auditSvc *audit.AuditService, cfg *config.Config, log *slog.Logger) *hitl.EscalationEngine {
 	typeCfgs := hitl.DefaultApprovalTypes()
 	manager := hitl.NewApprovalManager(typeCfgs)
 	manager.SetStore(hitl.NewMemStore())
@@ -33,6 +34,8 @@ func buildHITLEngine(apiServer *api.Server, alertStore alerts.Store, notifierReg
 
 	notifier := api.NewApprovalNotifier(alertStore, notifierReg, typeCfgs, cfg.PublicBaseURL, log)
 	manager.SetNotifier(notifier)
+	// R4.4: mirror the approval lifecycle into the tamper-evident audit trail.
+	api.WireHITLAudit(manager, auditSvc, log)
 	apiServer.SetHITLManager(manager)
 
 	engine := hitl.NewEscalationEngine(manager, hitlCheckInterval)

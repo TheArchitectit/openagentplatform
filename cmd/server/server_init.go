@@ -201,7 +201,7 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 	wireShell(apiServer, pool, natsClient.Conn(), log)
 
 	// --- HITL approval engine (hitl-approval spec) ------------------------
-	hitlEngine := buildHITLEngine(apiServer, alertStore, notifierReg, cfg, log)
+	hitlEngine := buildHITLEngine(apiServer, alertStore, notifierReg, auditSvc, cfg, log)
 
 	// --- A2A gateway + RPC bridge ----------------------------------------
 	a2aGw, rpcBridge, eventBridge, err := buildA2AGateway(apiServer, pool, natsClient, log)

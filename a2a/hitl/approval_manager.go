@@ -24,6 +24,11 @@ type ApprovalManager struct {
 	// by the reminder loop (R2.4). Delivery is fire-and-forget: a failed
 	// notification never fails the request lifecycle.
 	notifier NotificationService
+	// auditSink is the optional external audit integration (spec R4.4).
+	// Every entry appended to the engine's own audit log is forwarded to
+	// it asynchronously, so the platform's tamper-evident audit trail
+	// mirrors approval lifecycle actions.
+	auditSink func(AuditEntry)
 	// defaultReminderInterval is the fallback re-notification delay for
 	// types without a per-type ReminderInterval.
 	defaultReminderInterval time.Duration
@@ -354,4 +359,27 @@ func (am *ApprovalManager) AuditLog(approvalID string) []AuditEntry {
 
 func (am *ApprovalManager) appendAudit(entry AuditEntry) {
 	am.auditLog = append(am.auditLog, entry)
+	// R4.4: mirror every lifecycle action into the external audit trail.
+	// Dispatch asynchronously with a value snapshot so the sink never
+	// runs under the manager lock.
+	if am.auditSink != nil {
+		sink := am.auditSink
+		snapshot := entry
+		if len(entry.Metadata) > 0 {
+			snapshot.Metadata = make(map[string]string, len(entry.Metadata))
+			for k, v := range entry.Metadata {
+				snapshot.Metadata[k] = v
+			}
+		}
+		go sink(snapshot)
+	}
+}
+
+// SetAuditSink attaches an external audit integration (spec R4.4). The
+// sink is called (asynchronously) for every entry appended to the
+// engine's own audit log.
+func (am *ApprovalManager) SetAuditSink(fn func(AuditEntry)) {
+	am.mu.Lock()
+	defer am.mu.Unlock()
+	am.auditSink = fn
 }

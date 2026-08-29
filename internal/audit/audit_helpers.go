@@ -14,9 +14,14 @@ import (
 )
 
 // latestHash returns the hash of the most recently recorded event, or the
-// empty string if no events have been recorded yet.
+// empty string if no events have been recorded yet. The tip is the highest
+// chain_seq (the order links were appended under writeMu), NOT the newest
+// timestamp: callers may supply an out-of-band event Timestamp (e.g. the
+// HITL sink mirrors engine events with their original timestamps) and two
+// Records can take writeMu in a different order than their timestamps sort.
+// Rows predating chain_seq fall back to timestamp order.
 func (s *AuditService) latestHash(ctx context.Context) (string, error) {
-	const q = `SELECT hash FROM audit_events ORDER BY timestamp DESC, event_id DESC LIMIT 1`
+	const q = `SELECT hash FROM audit_events ORDER BY COALESCE(chain_seq, -1) DESC, timestamp DESC, event_id DESC LIMIT 1`
 	var h string
 	err := s.pool.QueryRow(ctx, q).Scan(&h)
 	if err != nil {
@@ -49,25 +54,40 @@ func computeHash(ev *Event) string {
 	h.Write([]byte{0})
 	h.Write([]byte(ev.ResourceID))
 	h.Write([]byte{0})
-	if len(ev.Details) == 0 {
-		h.Write([]byte("null"))
-	} else {
-		h.Write(ev.Details)
-	}
+	h.Write(canonicalDetails(ev.Details))
 	h.Write([]byte{0})
 	h.Write([]byte(ev.Outcome))
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-// VerifyHash recomputes the hash for an event and compares it to the stored
-// value. Useful for clients that want to spot-check a single event.
 // detailsJSONForHash normalises raw stored details bytes to the canonical
-// form computeHash expects: the JSON null literal when empty.
+// form computeHash expects (see canonicalDetails).
 func detailsJSONForHash(details []byte) json.RawMessage {
+	return canonicalDetails(json.RawMessage(details))
+}
+
+// canonicalDetails returns the deterministic JSON encoding used for hashing:
+// null for empty input, otherwise the value re-marshalled through Go's
+// encoding/json, which sorts object keys lexicographically and produces
+// byte-identical output from equivalent JSON documents. The details column is
+// JSONB, which re-serialises with its own key order (shortest key first, then
+// alphabetical), so bytes stored in the database can differ from the bytes
+// marshalled at write time. Both Record and the verifiers hash over this
+// canonical form, so recomputation stays stable without rewriting the column.
+func canonicalDetails(details json.RawMessage) json.RawMessage {
 	if len(details) == 0 {
 		return json.RawMessage("null")
 	}
-	return json.RawMessage(details)
+	var v any
+	if err := json.Unmarshal(details, &v); err != nil {
+		// Not valid JSON: hash the raw bytes as stored.
+		return details
+	}
+	b, err := json.Marshal(v)
+	if err != nil {
+		return details
+	}
+	return json.RawMessage(b)
 }
 
 func VerifyHash(ev *Event) bool {
@@ -85,21 +105,18 @@ func marshalDetails(v any) (json.RawMessage, error) {
 	}
 	switch t := v.(type) {
 	case json.RawMessage:
-		if len(t) == 0 {
-			return json.RawMessage("null"), nil
-		}
-		return t, nil
+		return canonicalDetails(t), nil
 	case []byte:
-		if len(t) == 0 {
-			return json.RawMessage("null"), nil
-		}
-		return json.RawMessage(t), nil
+		return canonicalDetails(json.RawMessage(t)), nil
 	}
 	b, err := json.Marshal(v)
 	if err != nil {
 		return nil, err
 	}
-	return json.RawMessage(b), nil
+	// Run through the same canonical form verification uses, so the hash
+	// Record computes equals the hash GetEventChain recomputes from the
+	// (possibly re-serialised by JSONB) stored bytes.
+	return canonicalDetails(b), nil
 }
 
 func nullString(s string) any {
