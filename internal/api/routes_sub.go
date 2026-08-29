@@ -338,6 +338,10 @@ func (s *Server) mountAPISubRoutes(r chi.Router) {
 			r.Post("/invoke", s.handleA2AInvoke)
 			r.Post("/stream", s.handleA2AStream)
 		})
+
+		// HITL approval queue (hitl-approval spec R1). RegisterHITLRoutes
+		// applies its own role gate to the mutating endpoints.
+		RegisterHITLRoutes(r, s)
 	})
 
 	// Secrets management endpoints. When no resolver is

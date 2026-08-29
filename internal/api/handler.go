@@ -11,6 +11,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/openagentplatform/openagentplatform/a2a/bridge"
 	"github.com/openagentplatform/openagentplatform/a2a/gateway"
+	"github.com/openagentplatform/openagentplatform/a2a/hitl"
 	"github.com/openagentplatform/openagentplatform/internal/alerts"
 	"github.com/openagentplatform/openagentplatform/internal/audit"
 	"github.com/openagentplatform/openagentplatform/internal/auth"
@@ -135,6 +136,9 @@ type Server struct {
 	// a2aGateway is the A2A gateway used for native task CRUD + SSE. May
 	// be nil; task routes return 503 when unset.
 	a2aGateway *gateway.Gateway
+	// hitlManager is the Human-in-the-Loop approval engine (a2a/hitl).
+	// May be nil; approval routes return 503 when unset.
+	hitlManager *hitl.ApprovalManager
 	// tierResolver resolves the commercial tier for an org ID from the
 	// platform license file. When nil, all orgs default to Community.
 	tierResolver func(orgID string) license.Tier

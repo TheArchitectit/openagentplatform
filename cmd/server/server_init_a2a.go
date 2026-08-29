@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/openagentplatform/openagentplatform/a2a/bridge"
 	"github.com/openagentplatform/openagentplatform/a2a/gateway"
+	"github.com/openagentplatform/openagentplatform/a2a/hitl"
 	"github.com/openagentplatform/openagentplatform/a2a/manager"
 	"github.com/openagentplatform/openagentplatform/a2a/registry"
 	"github.com/openagentplatform/openagentplatform/a2a/router"
@@ -91,6 +92,14 @@ func buildA2AGateway(apiServer *api.Server, pool *pgxpool.Pool, natsClient *even
 	// The proxy's upstream calls run through the adapter circuit breaker;
 	// buildA2AGateway constructs it before wireSupportServices collects it.
 	apiServer.SetAdapterBreaker(newAdapterBreaker(log))
+
+	// HITL approval engine (hitl-approval spec R1). The in-memory store is
+	// the only ApprovalStore shipped in a2a/hitl today; durable approval
+	// persistence is a follow-on.
+	hitlManager := hitl.NewApprovalManager(hitl.DefaultApprovalTypes())
+	hitlManager.SetStore(hitl.NewMemStore())
+	apiServer.SetHITLManager(hitlManager)
+	log.Info("hitl: approval engine enabled", "types", len(hitl.DefaultApprovalTypes()))
 
 	return a2aGw, rpcBridge, eventBridge, nil
 }

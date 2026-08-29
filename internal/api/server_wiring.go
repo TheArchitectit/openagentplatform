@@ -3,6 +3,7 @@ package api
 import (
 	"github.com/openagentplatform/openagentplatform/a2a/bridge"
 	"github.com/openagentplatform/openagentplatform/a2a/gateway"
+	"github.com/openagentplatform/openagentplatform/a2a/hitl"
 	"github.com/openagentplatform/openagentplatform/internal/billing"
 	"github.com/openagentplatform/openagentplatform/internal/monitoring"
 	"github.com/openagentplatform/openagentplatform/internal/patches"
@@ -75,6 +76,13 @@ func (s *Server) SetBilling(stripe *billing.StripeClient, billingSvc *billing.Bi
 func (s *Server) SetA2AAdapterBridge(client *bridge.AdapterClient, gw *gateway.Gateway) {
 	s.a2aClient = client
 	s.a2aGateway = gw
+}
+
+// SetHITLManager wires the Human-in-the-Loop approval engine into the API
+// server so the /api/v1/a2a/approvals routes can serve it. May be nil; the
+// routes then return 503 hitl_not_configured.
+func (s *Server) SetHITLManager(m *hitl.ApprovalManager) {
+	s.hitlManager = m
 }
 
 // SetAdapterBreaker wires the circuit breaker that guards calls to the
