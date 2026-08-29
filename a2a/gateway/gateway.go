@@ -196,6 +196,17 @@ type Gateway struct {
 	auth   *Authenticator
 	limiter *RateLimiter
 	config Config
+	// approvalGate optionally holds tasks that declare requires_approval
+	// metadata in input-required until a human decides (hitl-approval
+	// spec R5). nil disables the gate.
+	approvalGate *ApprovalGate
+}
+
+// SetApprovalGate installs the R5 task/approval integration. Pass nil to
+// remove it. The gateway's SendTask consults the gate on every creation;
+// with no gate installed, behaviour is unchanged.
+func (g *Gateway) SetApprovalGate(gate *ApprovalGate) {
+	g.approvalGate = gate
 }
 
 // NewGateway constructs a Gateway with the given dependencies. All
@@ -253,6 +264,17 @@ func (g *Gateway) SendTask(ctx context.Context, id *Identity, t *models.Task) (*
 	if t == nil {
 		return nil, fmt.Errorf("a2a gateway: nil task")
 	}
+	// Fail fast before persisting anything: a task that demands approval
+	// must never run unheld, so declaring it without a configured gate (or
+	// without a valid action type) is rejected outright.
+	if declaresApproval(t.Metadata) {
+		if g.approvalGate == nil {
+			return nil, fmt.Errorf("a2a gateway: task declares %s but no approval gate is configured", MetaRequiresApproval)
+		}
+		if t.Metadata[MetaApprovalActionType] == "" {
+			return nil, fmt.Errorf("a2a gateway: task declares %s but no %s", MetaRequiresApproval, MetaApprovalActionType)
+		}
+	}
 
 	// Auto-route: if no agent specified, use the router
 	agentURL := t.AgentID
@@ -267,6 +289,33 @@ func (g *Gateway) SendTask(ctx context.Context, id *Identity, t *models.Task) (*
 	created, err := g.tasks.CreateTask(ctx, t.ContextID, agentURL, t.Metadata)
 	if err != nil {
 		return nil, fmt.Errorf("a2a gateway: create task: %w", err)
+	}
+
+	// HITL gate (spec R5): tasks declaring requires_approval metadata get a
+	// linked approval request and are parked in input-required until a
+	// human decides. The decision hook installed on the approval manager
+	// resumes (approve) or fails (reject/timeout) the task later.
+	if g.approvalGate != nil {
+		held, err := g.approvalGate.gateTask(t, created, id)
+		if err != nil {
+			return nil, err
+		}
+		if held {
+			// Persist the linkage so GET task shows approval_id (R5.1).
+			updated, err := g.tasks.UpdateTask(ctx, created)
+			if err != nil {
+				return nil, fmt.Errorf("a2a gateway: stamp approval id: %w", err)
+			}
+			created = updated
+			// Park the task: pending -> working -> input-required using the
+			// existing state-machine events (R5.2).
+			if created, err = g.tasks.UpdateStatus(ctx, created.ID, manager.EventStart, int(created.Version)); err != nil {
+				return nil, fmt.Errorf("a2a gateway: approval hold (start): %w", err)
+			}
+			if created, err = g.tasks.UpdateStatus(ctx, created.ID, manager.EventRequestInput, int(created.Version)); err != nil {
+				return nil, fmt.Errorf("a2a gateway: approval hold (input-required): %w", err)
+			}
+		}
 	}
 
 	// Notify subscribers

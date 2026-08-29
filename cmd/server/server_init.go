@@ -201,11 +201,16 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 	wireShell(apiServer, pool, natsClient.Conn(), log)
 
 	// --- HITL approval engine (hitl-approval spec) ------------------------
-	hitlEngine := buildHITLEngine(apiServer, alertStore, notifierReg, auditSvc, cfg, log)
+	hitlEngine, hitlManager := buildHITLEngine(apiServer, alertStore, notifierReg, auditSvc, cfg, log)
 
 	// --- A2A gateway + RPC bridge ----------------------------------------
 	a2aGw, rpcBridge, eventBridge, err := buildA2AGateway(apiServer, pool, natsClient, log)
 	if err != nil {
+		return nil, err
+	}
+	// R5: tasks declaring requires_approval are held by the gateway until
+	// the approval manager decides; the decision hook resumes/fails them.
+	if err := wireHITLGate(a2aGw, hitlManager, log); err != nil {
 		return nil, err
 	}
 

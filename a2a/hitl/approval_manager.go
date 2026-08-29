@@ -32,6 +32,11 @@ type ApprovalManager struct {
 	// defaultReminderInterval is the fallback re-notification delay for
 	// types without a per-type ReminderInterval.
 	defaultReminderInterval time.Duration
+	// decisionHooks are notified (asynchronously, with a value snapshot)
+	// whenever a request reaches a terminal decision: approved, rejected,
+	// or expired. Used by the A2A task gate (hitl-approval spec R5) to
+	// resume or fail the linked task.
+	decisionHooks []func(ApprovalRequest)
 }
 
 // NewApprovalManager creates a manager with the given type configs.
@@ -264,6 +269,7 @@ func (am *ApprovalManager) Approve(id, approver, note string) error {
 			Reason: note, Timestamp: now,
 		})
 	}
+	am.notifyDecisionLocked(req)
 	return nil
 }
 
@@ -304,6 +310,7 @@ func (am *ApprovalManager) Reject(id, approver, reason string) error {
 			Reason: reason, Timestamp: now,
 		})
 	}
+	am.notifyDecisionLocked(req)
 	return nil
 }
 
@@ -382,4 +389,38 @@ func (am *ApprovalManager) SetAuditSink(fn func(AuditEntry)) {
 	am.mu.Lock()
 	defer am.mu.Unlock()
 	am.auditSink = fn
+}
+
+// AddDecisionHook registers a callback invoked (asynchronously, with a
+// value snapshot) whenever a request reaches a terminal status:
+// approved, rejected, or expired. Hooks are additive; the manager keeps
+// no ordering guarantee between them. Used by the A2A task gate to
+// resume or fail the linked task (spec R5.3–R5.5).
+func (am *ApprovalManager) AddDecisionHook(fn func(ApprovalRequest)) {
+	am.mu.Lock()
+	defer am.mu.Unlock()
+	am.decisionHooks = append(am.decisionHooks, fn)
+}
+
+// notifyDecisionLocked fires the decision hooks for a request that just
+// reached a terminal status. Callers must hold am.mu. The snapshot is
+// dispatched asynchronously so hooks never run under the manager lock
+// (same pattern as appendAudit's sink dispatch).
+func (am *ApprovalManager) notifyDecisionLocked(req *ApprovalRequest) {
+	if len(am.decisionHooks) == 0 || !req.IsTerminal() {
+		return
+	}
+	snapshot := *req
+	if len(req.Payload) > 0 {
+		snapshot.Payload = make(map[string]any, len(req.Payload))
+		for k, v := range req.Payload {
+			snapshot.Payload[k] = v
+		}
+	}
+	hooks := make([]func(ApprovalRequest), len(am.decisionHooks))
+	copy(hooks, am.decisionHooks)
+	for _, fn := range hooks {
+		hook := fn
+		go hook(snapshot)
+	}
 }

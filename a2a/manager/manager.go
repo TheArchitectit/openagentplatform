@@ -66,6 +66,24 @@ func (m *TaskManager) CreateTask(ctx context.Context, sessionID, agentCardURL st
 }
 
 // ============================================================
+// UpdateTask (metadata)
+// ============================================================
+
+// UpdateTask persists caller-owned task fields (metadata, session, agent)
+// with optimistic concurrency: t.Version must match the stored row, and
+// the store increments the version on success. Returns the re-fetched task.
+// Status changes go through UpdateStatus (state-machine validated) instead.
+func (m *TaskManager) UpdateTask(ctx context.Context, t *models.Task) (*models.Task, error) {
+	if t == nil || t.ID == "" {
+		return nil, errors.New("a2a: task ID required")
+	}
+	if err := m.store.UpdateTask(ctx, t); err != nil {
+		return nil, err
+	}
+	return m.store.GetTask(ctx, t.ID)
+}
+
+// ============================================================
 // GetTask
 // ============================================================
 

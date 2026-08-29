@@ -134,6 +134,11 @@ func (ee *EscalationEngine) autoReject(req *ApprovalRequest, now time.Time, reas
 		Timestamp:  now,
 	})
 
+	// A timeout is a terminal decision (status=expired): fire the
+	// decision hooks so the linked task follows its configured timeout
+	// action (spec R5.5).
+	ee.manager.notifyDecisionLocked(req)
+
 	log.Printf("hitl: approval %s expired (type=%s, depth=%d)", req.ID, req.ActionType, req.EscalationDepth)
 }
 
