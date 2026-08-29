@@ -1831,13 +1831,14 @@
 Capability specs use a header block (Phase/STATUS/App Path), Description, User Story,
 numbered Requirements, and Known Limitations where applicable. Updated line counts:
 audit-log 242, billing-stripe 223, endpoint-agent 411, event-bus 249,
-multi-tenancy 276, notifications 267, observability 279, remote-access 313,
-reporting 248, resilience 213.
+multi-tenancy 278, notifications 267, observability 279, remote-access 313,
+reporting 248, resilience 213, data-model 360, adapter-service 300,
+check-library 225, hitl-approval 94.
 
 | Spec | STATUS | Current fidelity note |
 |------|--------|-----------------------|
 | endpoint-agent | COMPLETE | core NATS per-agent subjects; config-backed identity; checks/scripts/compliance/patch/shell behavior grounded in `cmd/agent` and `pkg/agent` |
-| multi-tenancy | PARTIAL | RLS context, quota middleware, and tier mapping are wired; migration guard, schema coverage, and purger limits remain |
+| multi-tenancy | PARTIAL | store layer wired into server lifecycle but not yet consumed by an API surface; RLS coverage is nine org_id tables by design |
 | observability | PARTIAL | PGX tracing, health checker, and metrics summary call sites are wired; monitoring alert/scorecard persistence remains dormant |
 | reporting | PARTIAL | PostgreSQL reports pipeline and routes are wired; duplicate in-memory package and scheduler/delivery constraints remain |
 | notifications | PARTIAL | notifier registry is wired into alert dispatch; configuration persistence and channel-management limits remain |
@@ -1847,8 +1848,9 @@ reporting 248, resilience 213.
 | a2a-relay | COMPLETE | full stack — admission (mTLS+token), matching, blind forwarding, admin, discovery federation, E2E/private/load acceptance |
 | check-library | COMPLETE | 9 of 9 checker types cataloged; ConfigSchema informational by design (no override validation per §2.3) |
 | remote-access | PARTIAL | HTTP/WS/NATS/agent shell path and recording hooks are wired; transport and durable storage limitations remain |
-| data-model | PARTIAL | no checked-in DDL; Agent struct/column drift (`total_ram`); RLS targets wrong table names |
-| adapter-service | PARTIAL | Go/Python proxy routes are aligned; auth, deployment startup, in-memory cost state, fixed origins, and live E2E proof remain |
+| data-model | PARTIAL | two divergent checked-in schema sources (Alembic vs deploy/migrations); retention purger non-functional (KL #6); Agent struct/column drift (`total_ram`) |
+| adapter-service | COMPLETE | py/oap unit + Go /api/v1/a2a/* proxy; live e2e verified (TestA2AProxyLiveE2E, 2026-08-29); adapters skip start() without SDKs by design |
+| hitl-approval | COMPLETE | engine + escalation re-arm, decision API (admin/technician gate), SSE stream, web queue + detail UI (R1–R6.5) |
 | platform-foundation | COMPLETE | env-only config, fixed pool sizing, embedded OpenAPI; no migration tool despite roadmap claim |
 
 ---

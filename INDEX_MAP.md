@@ -222,8 +222,9 @@ Do not reopen v1.2.0 (`4194dac`) shipped work. See `STATUS.md` for project state
 | **openspec/specs/a2a-relay** | COMPLETE managed relay: accounting core + WSS admission (mTLS+token), entitlement-gated matching/forwarding, admin surface, discovery federation, and E2E/private/load acceptance | When touching internal/relay |
 | **openspec/specs/check-library** | COMPLETE: 9 built-in check templates (full rmm-core §3.2 set) + seeding; catalog/API/seeder tested | When touching checklib/check catalog |
 | **openspec/specs/remote-access** | wired shell over NATS, WS bridge, agent handler, recordings; transport/storage limits | When touching remote/terminal/session/shell |
-| **openspec/specs/data-model** | all 22 pkg/models structs ↔ tables; PARTIAL (DDL drift, RLS mismatch documented) | When touching models/schema |
-| **openspec/specs/adapter-service** | py/oap FastAPI unit: routes, settings, cost; PARTIAL (proxy path mismatch, empty registry) | When touching py/oap or a2a proxy |
+| **openspec/specs/data-model** | all 25 pkg/models structs ↔ tables; PARTIAL (two divergent checked-in schema sources; retention purger non-functional — KL #6) | When touching models/schema |
+| **openspec/specs/adapter-service** | COMPLETE py/oap FastAPI unit: routes, settings, cost; Go /api/v1/a2a/* proxy verified by live e2e (TestA2AProxyLiveE2E) | When touching py/oap or a2a proxy |
+| **openspec/specs/hitl-approval** | COMPLETE human-in-the-loop approvals: engine + escalation re-arm, decision API (admin/technician), SSE events stream, web approval queue + detail UI | When touching a2a/hitl or /approvals UI |
 | **SECRETS_MANAGEMENT.md** | GitHub Secrets setup and rotation | When handling credentials |
 | **examples/** | Multi-language guardrails implementation examples | When exploring code examples |
 | **regression-prevention/** | Bug tracking & regression prevention examples | When logging bugs or creating prevention rules |
