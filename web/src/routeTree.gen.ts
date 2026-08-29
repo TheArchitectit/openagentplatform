@@ -19,6 +19,7 @@ import { Route as ScriptsIndexRouteImport } from './routes/scripts/index'
 import { Route as PoliciesIndexRouteImport } from './routes/policies/index'
 import { Route as PatchesIndexRouteImport } from './routes/patches/index'
 import { Route as ChecksIndexRouteImport } from './routes/checks/index'
+import { Route as ApprovalsIndexRouteImport } from './routes/approvals/index'
 import { Route as AlertsIndexRouteImport } from './routes/alerts/index'
 import { Route as AgentsIndexRouteImport } from './routes/agents/index'
 import { Route as A2aIndexRouteImport } from './routes/a2a/index'
@@ -35,6 +36,7 @@ import { Route as PatchesJobIdRouteImport } from './routes/patches/$jobId'
 import { Route as ChecksCheck_detail_componentsRouteImport } from './routes/checks/check_detail_components'
 import { Route as ChecksCheck_componentsRouteImport } from './routes/checks/check_components'
 import { Route as ChecksCheckIdRouteImport } from './routes/checks/$checkId'
+import { Route as ApprovalsApprovalIdRouteImport } from './routes/approvals/$approvalId'
 import { Route as AlertsAlertIdRouteImport } from './routes/alerts/$alertId'
 import { Route as AgentsAgentIdRouteImport } from './routes/agents/$agentId'
 import { Route as A2aTasksRouteImport } from './routes/a2a/tasks'
@@ -92,6 +94,11 @@ const PatchesIndexRoute = PatchesIndexRouteImport.update({
 const ChecksIndexRoute = ChecksIndexRouteImport.update({
   id: '/checks/',
   path: '/checks/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApprovalsIndexRoute = ApprovalsIndexRouteImport.update({
+  id: '/approvals/',
+  path: '/approvals/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AlertsIndexRoute = AlertsIndexRouteImport.update({
@@ -176,6 +183,11 @@ const ChecksCheckIdRoute = ChecksCheckIdRouteImport.update({
   path: '/checks/$checkId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApprovalsApprovalIdRoute = ApprovalsApprovalIdRouteImport.update({
+  id: '/approvals/$approvalId',
+  path: '/approvals/$approvalId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AlertsAlertIdRoute = AlertsAlertIdRouteImport.update({
   id: '/alerts/$alertId',
   path: '/alerts/$alertId',
@@ -227,6 +239,7 @@ export interface FileRoutesByFullPath {
   '/a2a/tasks': typeof A2aTasksRouteWithChildren
   '/agents/$agentId': typeof AgentsAgentIdRouteWithChildren
   '/alerts/$alertId': typeof AlertsAlertIdRoute
+  '/approvals/$approvalId': typeof ApprovalsApprovalIdRoute
   '/checks/$checkId': typeof ChecksCheckIdRoute
   '/checks/check_components': typeof ChecksCheck_componentsRoute
   '/checks/check_detail_components': typeof ChecksCheck_detail_componentsRoute
@@ -243,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/a2a/': typeof A2aIndexRoute
   '/agents/': typeof AgentsIndexRoute
   '/alerts/': typeof AlertsIndexRoute
+  '/approvals/': typeof ApprovalsIndexRoute
   '/checks/': typeof ChecksIndexRoute
   '/patches/': typeof PatchesIndexRoute
   '/policies/': typeof PoliciesIndexRoute
@@ -263,6 +277,7 @@ export interface FileRoutesByTo {
   '/a2a/tasks': typeof A2aTasksRouteWithChildren
   '/agents/$agentId': typeof AgentsAgentIdRouteWithChildren
   '/alerts/$alertId': typeof AlertsAlertIdRoute
+  '/approvals/$approvalId': typeof ApprovalsApprovalIdRoute
   '/checks/$checkId': typeof ChecksCheckIdRoute
   '/checks/check_components': typeof ChecksCheck_componentsRoute
   '/checks/check_detail_components': typeof ChecksCheck_detail_componentsRoute
@@ -279,6 +294,7 @@ export interface FileRoutesByTo {
   '/a2a': typeof A2aIndexRoute
   '/agents': typeof AgentsIndexRoute
   '/alerts': typeof AlertsIndexRoute
+  '/approvals': typeof ApprovalsIndexRoute
   '/checks': typeof ChecksIndexRoute
   '/patches': typeof PatchesIndexRoute
   '/policies': typeof PoliciesIndexRoute
@@ -300,6 +316,7 @@ export interface FileRoutesById {
   '/a2a/tasks': typeof A2aTasksRouteWithChildren
   '/agents/$agentId': typeof AgentsAgentIdRouteWithChildren
   '/alerts/$alertId': typeof AlertsAlertIdRoute
+  '/approvals/$approvalId': typeof ApprovalsApprovalIdRoute
   '/checks/$checkId': typeof ChecksCheckIdRoute
   '/checks/check_components': typeof ChecksCheck_componentsRoute
   '/checks/check_detail_components': typeof ChecksCheck_detail_componentsRoute
@@ -316,6 +333,7 @@ export interface FileRoutesById {
   '/a2a/': typeof A2aIndexRoute
   '/agents/': typeof AgentsIndexRoute
   '/alerts/': typeof AlertsIndexRoute
+  '/approvals/': typeof ApprovalsIndexRoute
   '/checks/': typeof ChecksIndexRoute
   '/patches/': typeof PatchesIndexRoute
   '/policies/': typeof PoliciesIndexRoute
@@ -338,6 +356,7 @@ export interface FileRouteTypes {
     | '/a2a/tasks'
     | '/agents/$agentId'
     | '/alerts/$alertId'
+    | '/approvals/$approvalId'
     | '/checks/$checkId'
     | '/checks/check_components'
     | '/checks/check_detail_components'
@@ -354,6 +373,7 @@ export interface FileRouteTypes {
     | '/a2a/'
     | '/agents/'
     | '/alerts/'
+    | '/approvals/'
     | '/checks/'
     | '/patches/'
     | '/policies/'
@@ -374,6 +394,7 @@ export interface FileRouteTypes {
     | '/a2a/tasks'
     | '/agents/$agentId'
     | '/alerts/$alertId'
+    | '/approvals/$approvalId'
     | '/checks/$checkId'
     | '/checks/check_components'
     | '/checks/check_detail_components'
@@ -390,6 +411,7 @@ export interface FileRouteTypes {
     | '/a2a'
     | '/agents'
     | '/alerts'
+    | '/approvals'
     | '/checks'
     | '/patches'
     | '/policies'
@@ -410,6 +432,7 @@ export interface FileRouteTypes {
     | '/a2a/tasks'
     | '/agents/$agentId'
     | '/alerts/$alertId'
+    | '/approvals/$approvalId'
     | '/checks/$checkId'
     | '/checks/check_components'
     | '/checks/check_detail_components'
@@ -426,6 +449,7 @@ export interface FileRouteTypes {
     | '/a2a/'
     | '/agents/'
     | '/alerts/'
+    | '/approvals/'
     | '/checks/'
     | '/patches/'
     | '/policies/'
@@ -447,6 +471,7 @@ export interface RootRouteChildren {
   A2aTasksRoute: typeof A2aTasksRouteWithChildren
   AgentsAgentIdRoute: typeof AgentsAgentIdRouteWithChildren
   AlertsAlertIdRoute: typeof AlertsAlertIdRoute
+  ApprovalsApprovalIdRoute: typeof ApprovalsApprovalIdRoute
   ChecksCheckIdRoute: typeof ChecksCheckIdRoute
   ChecksCheck_componentsRoute: typeof ChecksCheck_componentsRoute
   ChecksCheck_detail_componentsRoute: typeof ChecksCheck_detail_componentsRoute
@@ -463,6 +488,7 @@ export interface RootRouteChildren {
   A2aIndexRoute: typeof A2aIndexRoute
   AgentsIndexRoute: typeof AgentsIndexRoute
   AlertsIndexRoute: typeof AlertsIndexRoute
+  ApprovalsIndexRoute: typeof ApprovalsIndexRoute
   ChecksIndexRoute: typeof ChecksIndexRoute
   PatchesIndexRoute: typeof PatchesIndexRoute
   PoliciesIndexRoute: typeof PoliciesIndexRoute
@@ -542,6 +568,13 @@ declare module '@tanstack/react-router' {
       path: '/checks'
       fullPath: '/checks/'
       preLoaderRoute: typeof ChecksIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/approvals/': {
+      id: '/approvals/'
+      path: '/approvals'
+      fullPath: '/approvals/'
+      preLoaderRoute: typeof ApprovalsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/alerts/': {
@@ -656,6 +689,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChecksCheckIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/approvals/$approvalId': {
+      id: '/approvals/$approvalId'
+      path: '/approvals/$approvalId'
+      fullPath: '/approvals/$approvalId'
+      preLoaderRoute: typeof ApprovalsApprovalIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/alerts/$alertId': {
       id: '/alerts/$alertId'
       path: '/alerts/$alertId'
@@ -760,6 +800,7 @@ const rootRouteChildren: RootRouteChildren = {
   A2aTasksRoute: A2aTasksRouteWithChildren,
   AgentsAgentIdRoute: AgentsAgentIdRouteWithChildren,
   AlertsAlertIdRoute: AlertsAlertIdRoute,
+  ApprovalsApprovalIdRoute: ApprovalsApprovalIdRoute,
   ChecksCheckIdRoute: ChecksCheckIdRoute,
   ChecksCheck_componentsRoute: ChecksCheck_componentsRoute,
   ChecksCheck_detail_componentsRoute: ChecksCheck_detail_componentsRoute,
@@ -776,6 +817,7 @@ const rootRouteChildren: RootRouteChildren = {
   A2aIndexRoute: A2aIndexRoute,
   AgentsIndexRoute: AgentsIndexRoute,
   AlertsIndexRoute: AlertsIndexRoute,
+  ApprovalsIndexRoute: ApprovalsIndexRoute,
   ChecksIndexRoute: ChecksIndexRoute,
   PatchesIndexRoute: PatchesIndexRoute,
   PoliciesIndexRoute: PoliciesIndexRoute,

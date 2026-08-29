@@ -31,6 +31,7 @@ import {
   Radio,
   ListChecks,
   CircleDollarSign,
+  ClipboardCheck,
   Network,
   Building2,
   Users,
@@ -85,6 +86,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/policies', label: 'Policies', icon: ShieldCheck },
       { to: '/patches', label: 'Patches', icon: Wrench, showPatchBadge: true },
+      { to: '/approvals', label: 'Approvals', icon: ClipboardCheck },
       { to: '/scripts', label: 'Scripts', icon: FileCode2 },
       { to: '/shell-recordings', label: 'Shell Recordings', icon: Terminal, requiredPermission: 'shell:read' },
     ],
