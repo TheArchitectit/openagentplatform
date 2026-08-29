@@ -1,8 +1,10 @@
 # Data Model
 
 > **Phase:** 0 (Foundation) — schema was Phase 0 Sprint 0.1 Story 0.1.3; extended through later phases
-> **STATUS: PARTIAL** — Go struct layer complete and in active use; DB-layer reality
-> (checked-in DDL, RLS wiring, heartbeat persistence) is incomplete or drifted. See Known Limitations.
+> **STATUS: PARTIAL** — Go struct layer complete and in active use; a checked-in Go-oriented
+> platform DDL now exists (`deploy/migrations/001`+`002`) and the `TenantMigrator` is wired (opt-in).
+> Residual drift is the schema-source divergence and the retention/RLS column assumptions on
+> `check_results` (see Known Limitations #2, #6).
 > **Source:** authored 2026-08-23 from code (audit docs/QA_REVIEW_OPENSPEC_COVERAGE.md §4)
 > **App Path:** `pkg/models/`, `deploy/postgres/init.sql`, `internal/tenancy/`, `internal/*/store*.go`
 
@@ -11,7 +13,7 @@
 ## Description
 
 `pkg/models/` is the single shared data-model package for OpenAgentPlatform.
-Twenty-two Go structs plus one enum type (`PatchSeverity`) define the entire
+Twenty-five Go structs plus one enum type (`PatchSeverity`) define the entire
 platform domain: fleet (sites, agents, heartbeats), monitoring checks, the
 alert lifecycle, Rego compliance policies, patch approval workflows, script
 execution, and audit events. Every server-side store (`internal/api`,
@@ -23,15 +25,18 @@ Two structs are also NATS wire formats: `Heartbeat` is the payload agents
 publish on `oap.agents.<id>.heartbeat`, and `CheckResult` is the payload
 published on `oap.agents.<id>.results`.
 
-Persistence is PostgreSQL via `pgx`. There is **no checked-in DDL** for the
-platform tables: `deploy/postgres/init.sql` enables only three extensions
-(`uuid-ossp`, `pgcrypto`, `timescaledb`), and the stores are written to
-tolerate schema drift (descriptive errors or empty results when tables are
-absent). Table-level facts below are derived from the SQL embedded in the
-stores. Org tenancy is enforced at the **application layer** via `org_id`
-columns and `WHERE org_id = $n` filters; a row-level-security migration exists
-in `internal/tenancy/` but targets a different, older table set and is not
-wired into the server binary.
+Persistence is PostgreSQL via `pgx`. Two checked-in schema sources exist and
+diverge (see Known Limitations #2): the Python/Alembic set under
+`py/alembic/versions/` (the `oap` database, TimescaleDB hypertables, UUID
+`org_id`) and `deploy/migrations/001_platform_schema.sql` +
+`002_platform_schema_addendum.sql`, added in 9996a99/26827e0 by reconstructing
+the DDL from the SQL embedded in the Go stores (TEXT `org_id`).
+`deploy/postgres/init.sql` enables the three extensions (§9.1). The stores are
+written to tolerate schema drift (descriptive errors or empty results when
+tables are absent). Org tenancy is enforced at the **application layer** via
+`org_id` columns and `WHERE org_id = $n` filters; the `internal/tenancy`
+row-level-security migrations now target the live table set and are wired into
+the server binary behind `OAP_ENABLE_TENANT_MIGRATIONS=1` (W6, 3ad3f4f).
 
 ## User Story
 
@@ -63,6 +68,7 @@ grouped by domain. Table names are those referenced by the live stores:
 | `CheckResult` | `check_results` | Checks | High-write time series; retention-pruned |
 | `Alert` | `alerts` | Alerts | Lifecycle state machine; `dedup_key` |
 | `AlertRule` | `alert_rules` | Alerts | Scoping + routing rules |
+| `AlertSuppressionWindow` | `alert_suppression_windows` | Alerts | Fleet maintenance windows (RMM-02) |
 | `AlertStateMachine` | `alert_state_history` | Alerts | Append-only transition log |
 | `NotificationRecord` | `alert_notifications` | Alerts | Per-channel delivery status |
 | `Policy` | `policies` | Policies | Rego body; enforcement mode |
@@ -71,9 +77,11 @@ grouped by domain. Table names are those referenced by the live stores:
 | `PatchJob` | `patch_jobs` | Patches | 8-state approval workflow |
 | `PatchJobTarget` | `patch_job_targets` | Patches | Per-endpoint target status |
 | `ApprovalRecord` | `patch_approvals` | Patches | One row per approver decision |
+| `WinUpdateKBState` | `winupdate_kb_state` | Patches | Per-KB Windows-Update state (RMM-03) |
 | `PatchSeverity` | — | Patches | Enum: `critical`, `standard`, `major_os` |
 | `PatchStats` | — | Patches | Aggregate DTO for the dashboard |
-| `ScriptDefinition` | `script_definitions` | Scripts | Soft-deleted via `deleted_at` |
+| `CVEEnrichment` | `cve_enrichment` | Patches | Cached CVE lookups per patch |
+| `ScriptDefinition` | `script_definitions` | Scripts | Hard-deleted; no `deleted_at` column |
 | `ScriptRun` | `script_runs` | Scripts | One execution per agent |
 | `AuditEvent` | *(diverged — see §7.2)* | Audit | Superseded by `internal/audit.Event` |
 | `MeshPeer` | `mesh_peers` | Mesh (RMM-09) | WireGuard pubkey + mesh IP; org-scoped |
@@ -88,8 +96,11 @@ through their parent key: `check_assignments`, `check_results`,
 `patch_job_targets`, `patch_approvals`, `script_runs`.
 
 1.3. Entities with a create/update surface MUST carry `created_at` and
-`updated_at` timestamps. `Agent` and `ScriptDefinition` additionally carry a
-nullable `deleted_at` for soft delete.
+`updated_at` timestamps. Soft delete exists only in two places:
+`tenants.deleted_at` (001, filtered by `internal/tenancy/store.go`) and
+`agents.deleted_at` (Alembic 0002 only — the 001 `agents` table omits it). The
+retention purger additionally requires `deleted_at` on its target tables (§9.3,
+Known Limitations #6).
 
 ### 2. Fleet Domain
 
@@ -244,14 +255,20 @@ operations; when empty, the caller assumes responsibility for verification.
 multi-tenant queries stay selective (per rmm-core §2.4).
 
 8.3. `internal/tenancy` MUST provide row-level-security primitives: a
-versioned `TenantMigrator`, `ENABLE`/`FORCE ROW LEVEL SECURITY` helpers, and
-`tenant_isolation_*` policies keyed on
-`current_setting('app.tenant_id')::uuid` set via `SetTenantContext`.
+versioned `TenantMigrator` (opt-in at server start via
+`OAP_ENABLE_TENANT_MIGRATIONS=1`, wired in `cmd/server/server_init.go`), and
+`tenant_isolation_*` policies keyed on the TEXT
+`org_id = current_setting('app.tenant_id', true)` set via `SetTenantContext`
+(parameterised `set_config`, tenant-ID validated).
 
-8.4. RLS as authored applies to: `endpoints`, `checks`, `check_results`,
-`alerts`, `alert_rules`, `policies`, `scripts`, `secrets`, `secret_backends`,
-`audit_log` — each gaining a `tenant_id UUID REFERENCES tenants(id)` column
-with a covering index (§8.3 policy on `tenant_id`).
+8.4. RLS as authored (migration v3) applies to nine live tables — `agents`,
+`check_definitions`, `check_results`, `alerts`, `alert_rules`, `policies`,
+`script_definitions`, `patch_jobs`, `audit_events` — each scoped by its
+existing TEXT `org_id` column. Migration v2 adds `org_id` indexes to ten
+tables (adding `script_runs` and `report_templates`, which gain no policy).
+`check_results` and `audit_events` carry the column only in the Alembic
+schema; on the `deploy/migrations` schema the v2/v3 statements fail
+(Known Limitations #2, #6).
 
 ### 9. Schema Management and Retention
 
@@ -276,10 +293,10 @@ over `audit_events` and `check_results`, two-phase: soft-delete by setting
 `deleted_at` for rows older than the tenant's retention, then hard-delete rows
 soft-deleted longer than the 7-day grace period.
 
-9.4. Per-tenant retention MUST resolve from `alert_preferences.retention_days`
-when set (>0), falling back to the tier default (30d community, 90d pro,
-365d enterprise). Purge queries MUST be scoped so one tenant's purge cannot
-touch another tenant's rows.
+9.4. Per-tenant retention MUST resolve from
+`alert_global_preferences.retention_days` when set (>0), falling back to the
+tier default (30d community, 90d pro, 365d enterprise). Purge queries MUST be
+scoped so one tenant's purge cannot touch another tenant's rows.
 
 9.5. Purge activity MUST be observable via Prometheus counters/histograms
 (`purged_records_total{table,action}`, `purge_duration_seconds`,
@@ -289,32 +306,49 @@ touch another tenant's rows.
 
 ## Known Limitations
 
-1. **No checked-in platform DDL.** `deploy/postgres/init.sql` contains only
-   three `CREATE EXTENSION` statements; the `deploy/migrations` directory
-   referenced by `pgAgentStore`'s doc comment does not exist. All table-level
-   facts here were reconstructed from store SQL.
-2. **RLS is authored but not wired.** `TenantMigrator` has no callers in
-   `cmd/server`, and its migrations target table names that diverge from the
-   live schema (`endpoints` vs `agents`, `checks` vs `check_definitions`,
-   `scripts` vs `script_definitions`, `audit_log` vs `audit_events`), omit
-   patch/policy-violation tables, and use `tenant_id` UUID while the live
-   stores scope on string `org_id`. Actual isolation today is app-layer
-   `org_id` filtering. `SetTenantContext` also interpolates the tenant ID
-   directly into a `SET` string.
+1. **Resolved (2026-08-24).** A checked-in platform DDL now exists:
+   `deploy/migrations/001_platform_schema.sql` (9996a99) plus
+   `002_platform_schema_addendum.sql` (26827e0), reconstructed from the SQL
+   embedded in the Go stores.
+2. **Two divergent schema sources.** The `oap` production database is managed
+   by the Python/Alembic set under `py/alembic/versions/` (UUID `org_id`,
+   TimescaleDB hypertables, `agents.deleted_at`), while `deploy/migrations/`
+   was reconstructed for the Go stores (TEXT `org_id`, `"timestamp"` columns,
+   no hypertables). The two disagree on column sets for `check_results`,
+   `script_runs`, and `agents` — neither is applied automatically by the Go
+   server, and which one a deployment runs depends on how the database was
+   bootstrapped. `TenantMigrator` (v2 indexes, v3 policies) is wired into
+   `cmd/server` behind `OAP_ENABLE_TENANT_MIGRATIONS=1` (W6, 3ad3f4f) and
+   targets the live table names on TEXT `org_id`; on a database built from
+   `deploy/migrations` it fails on `check_results`/`audit_events`, whose 001
+   DDL omits `org_id` (#6). `SetTenantContext` is parameterised with
+   tenant-ID validation (`internal/tenancy/rls.go`).
 3. **Unused and diverged structs.** `User` has zero consumers outside
    `pkg/models`. `AuditEvent` diverged from the hash-chained
    `internal/audit.Event` actually written to `audit_events`.
    `CheckAssignmentDetail` and `PatchStats` are read-only DTOs, not rows.
 4. **Struct/column drift on `Agent`.** The `TotalMemoryMB` field is tagged
-   `db:"total_ram"` but store SQL uses `total_memory_mb`; the upsert persists
-   16 of ~30 struct fields, so `disks`, `services`, `wmi_detail`,
-   `inventory`, and `metadata` survive only as API transport.
+   `db:"total_ram"` (matching the Alembic column) while the Go store SQL uses
+   `total_memory_mb` (matching the `deploy/migrations` column) — a concrete
+   instance of the #2 divergence. The upsert persists 16 of ~30 struct fields,
+   so `disks`, `services`, `wmi_detail`, `inventory`, and `metadata` survive
+   only as API transport.
 5. **Heartbeat has no history.** It mutates the `agents` row; there is no
    time-series of heartbeats despite timescaledb being enabled.
-6. **Retention purger assumes `org_id` on purged tables.** The soft-delete
-   SQL references `<table>.org_id`, but the `check_results` insert omits any
-   `org_id` column — the two-phase purge can only run cleanly if the column
-   exists out-of-band.
+6. **Retention purger is non-functional as checked in.** `purgeTable`
+   (`internal/tenancy/cleanup.go`) requires `deleted_at`, `created_at`, and
+   `org_id` on each target table, but no checked-in schema provides
+   `deleted_at` on either target: on the `deploy/migrations` schema
+   `check_results` has none of the three and `audit_events` has only `org_id`
+   (its time column is `"timestamp"`); on the Alembic schema `check_results`
+   and `audit_events` carry `org_id`/`created_at` but no `deleted_at`. Every
+   tick therefore logs "retention purge failed" rather than purging; the
+   Prometheus counters stay at zero. Fixing this needs a deliberate migration
+   adding `deleted_at` (plus `org_id`/`created_at` to 001's `check_results`)
+   or a purger rewrite against the `"timestamp"` columns — both are
+   schema-design decisions, so the gap is documented here rather than patched
+   ad hoc. `ScriptDefinition` is also hard-deleted despite §9.3's soft-delete
+   design.
 7. **Severity vocabulary drift.** Alert severity is
    `info|warning|critical|emergency` in code, while rmm-core spec §3.3 lists
    `critical|high|medium|low|info`.
