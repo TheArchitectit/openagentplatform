@@ -113,6 +113,54 @@ func TestClaim_FirstClaimWins(t *testing.T) {
 	}
 }
 
+func TestClaim_ConcurrentFirstClaims(t *testing.T) {
+	db := freshDB(t)
+	s := NewStore(db)
+	ctx := context.Background()
+
+	// Two simultaneous claims (right token both): exactly one org and one
+	// latch row; the loser sees ErrAlreadyInitialized (spec §14.3: never
+	// duplicate). The latch row's PK insert is the arbiter — this pins it.
+	const n = 6
+	type result struct {
+		orgID string
+		err   error
+	}
+	start := make(chan struct{})
+	results := make(chan result, n)
+	for i := 0; i < n; i++ {
+		go func(i int) {
+			<-start
+			orgID, _, err := s.Claim(ctx, "tok", "tok", "Bootstrap Test G", "bt-g", "sub-g")
+			results <- result{orgID, err}
+		}(i)
+	}
+	close(start)
+
+	var winners []string
+	for i := 0; i < n; i++ {
+		r := <-results
+		if r.err == nil {
+			winners = append(winners, r.orgID)
+			continue
+		}
+		if !errors.Is(r.err, ErrAlreadyInitialized) {
+			t.Fatalf("loser err = %v, want ErrAlreadyInitialized", r.err)
+		}
+	}
+	if len(winners) != 1 || winners[0] == "" {
+		t.Fatalf("winners = %v, want exactly one org id", winners)
+	}
+	var count int
+	if err := db.QueryRowContext(ctx,
+		`SELECT count(*) FROM tenants WHERE slug = 'bt-g'`).Scan(&count); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("tenants with slug bt-g = %d, want 1", count)
+	}
+}
+
 func TestUniqueOrgID(t *testing.T) {
 	db := freshDB(t)
 	s := NewStore(db)

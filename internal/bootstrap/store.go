@@ -42,12 +42,23 @@ func (s *Store) IsComplete(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-// Claim atomically completes first-boot bootstrap: it inserts the
-// bootstrap_complete latch, creates the org (tenants row), and records the
-// caller as its admin — all in one transaction so a concurrent second call
-// sees either nothing or the full result (spec §14.3: never duplicates).
-// The tenant insert is plain SQL here (not via tenancy.TenantStore) so the
-// three writes share one transaction; org_id is the TEXT convention.
+// Claim atomically completes first-boot bootstrap: it claims the
+// bootstrap_complete latch, creates the org (tenants row), records the
+// caller as its admin, and stamps the latch with the new org id — all in
+// one transaction so a concurrent second call sees either nothing or the
+// full result (spec §14.3: never duplicates). The tenant insert is plain
+// SQL here (not via tenancy.TenantStore) so the writes share one
+// transaction; org_id is the TEXT convention.
+//
+// The latch INSERT ... ON CONFLICT DO NOTHING at the top is the race
+// arbiter, and it must come before everything else: SELECT ... FOR UPDATE
+// would lock nothing on a fresh database where the row is absent, and if
+// the tenant insert came first, two same-slug contenders would deadlock on
+// the tenants unique index instead of serialising on the latch. The loser
+// waits for the winner's commit, sees RowsAffected 0, and rolls back
+// without ever touching tenants. The placeholder value is visible
+// uncommitted only to this transaction — the winner stamps the real org
+// id before committing, so IsComplete never observes a half-written latch.
 func (s *Store) Claim(ctx context.Context, token, expectedToken, orgName, orgSlug, subject string) (orgID string, created bool, err error) {
 	if expectedToken == "" {
 		return "", false, errors.New("bootstrap: endpoint disabled (no token configured)")
@@ -67,24 +78,22 @@ func (s *Store) Claim(ctx context.Context, token, expectedToken, orgName, orgSlu
 	}()
 
 	// Latch first, BEFORE the token check: spec §14.3 says post-bootstrap
-	// calls answer 403 "regardless of token value". The latch is a
-	// singleton and this read locks no rows when absent, so an
-	// unauthenticated-to-this-endpoint caller cannot weaponise the probe.
-	// INSERT ... RETURNING id lets a loser of the race see the existing
-	// row. ON CONFLICT DO NOTHING + re-read is deliberate — the conflict
-	// is the normal "someone got here first" path, not an error.
-	var existing string
-	latchErr := tx.QueryRowContext(ctx,
-		`SELECT value FROM app_state WHERE key = 'bootstrap_complete' FOR UPDATE`).Scan(&existing)
-	switch {
-	case latchErr == nil:
+	// calls answer 403 "regardless of token value".
+	res, err := tx.ExecContext(ctx,
+		`INSERT INTO app_state (key, value) VALUES ('bootstrap_complete', '')
+		 ON CONFLICT (key) DO NOTHING`)
+	if err != nil {
+		return "", false, fmt.Errorf("bootstrap: claim latch: %w", err)
+	}
+	if n, err := res.RowsAffected(); err != nil {
+		return "", false, fmt.Errorf("bootstrap: claim latch rows: %w", err)
+	} else if n == 0 {
 		return "", false, ErrAlreadyInitialized
-	case !errors.Is(latchErr, sql.ErrNoRows):
-		return "", false, fmt.Errorf("bootstrap: check latch: %w", latchErr)
 	}
 
 	// Single-org guard (spec §14.1: exactly one org): if any live tenant
-	// already exists, bootstrap has no business creating a second.
+	// already exists, bootstrap has no business creating a second. The
+	// rollback releases the placeholder latch.
 	var nTenants int
 	if err := tx.QueryRowContext(ctx,
 		`SELECT count(*) FROM tenants WHERE deleted_at IS NULL`).Scan(&nTenants); err != nil {
@@ -115,8 +124,8 @@ func (s *Store) Claim(ctx context.Context, token, expectedToken, orgName, orgSlu
 	}
 
 	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO app_state (key, value) VALUES ('bootstrap_complete', $1)`, id); err != nil {
-		return "", false, fmt.Errorf("bootstrap: set latch: %w", err)
+		`UPDATE app_state SET value = $1 WHERE key = 'bootstrap_complete'`, id); err != nil {
+		return "", false, fmt.Errorf("bootstrap: stamp latch: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {
