@@ -186,7 +186,7 @@ type TaskAction string
 
 // AutomatedTask is a cron-scheduled action bound to a Policy. It is persisted as
 // an element of the Policy.automated_tasks JSONB array
-// (py/alembic/versions/0005_policies.py). The cron_expr is validated against the
+// (internal/db/migrations/001_platform_schema.up.sql). The cron_expr is validated against the
 // internal/reports parseSimpleCron parser (+ @hourly/@daily/@weekly/@monthly
 // aliases) and rejected on parse failure (fail-closed).
 type AutomatedTask struct {
