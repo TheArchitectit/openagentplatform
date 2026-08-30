@@ -159,6 +159,23 @@ wrong value fails discovery ("all logins blocked" — this is also what the
 repo's dex config.yaml header warns about). `.env.example` now documents
 both contexts and defaults to the compose-correct value.
 
+### 3.12 `OIDC_REDIRECT_URL` was never passed to the server (found 2026-08-30)
+Compose's server env block referenced the variable only in a comment, so
+on any non-default host port the auth URL kept the compiled-in default
+`http://localhost:8080/auth/callback` and dex rejected it
+("unregistered redirect uri"). Fixed: compose now passes
+`OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL:-http://localhost:8080/auth/callback}`
+and it must match a `redirectURIs` entry in `deploy/dex/config.yaml`.
+
+### 3.13 Session cookies die on every recreate (by design, worth knowing)
+The session-signing Ed25519 key is generated per process when no key file
+is configured (`internal/auth/oidc.go`, `NewSessionMinter`). Any
+`up -d --force-recreate server` therefore invalidates outstanding
+`oap_session` cookies → they fail `VerifierMiddleware` with
+`401 {"error":"invalid_token"}` (a *middleware* 401; it never reaches
+handlers and writes no audit rows). Re-login after each recreate when
+smoke-testing. A persistent `SESSION_KEY_FILE` would change this.
+
 ## 4. Browser login caveat (test topology)
 
 dex's registered redirect URIs are `localhost:5173/8080`. From a remote
@@ -172,12 +189,11 @@ ssh -N -L 5173:localhost:5173 -L 8080:localhost:8080 -L 5556:localhost:5556 ai04
 
 ## 5. Open items (decision-gated, NOT fixed here)
 
-1. **Static users have no groups/org.** dex's staticPasswords emit no
-   `groups`/`org_id` claims → sessions mint role `viewer` + empty org;
-   org-scoped routes return `400 {"error":"org context required"}`.
-   Options: (a) add a dev-mode default org/role in `Verifier.Verify`,
-   (b) real LDAP/groups connector, (c) seed a tenant + org-claim plumbing.
-   Also note `MapGroupsToRole` can never fire for static users regardless.
+1. **~~Static users have no groups/org.~~ RESOLVED (2026-08-30, auth-rbac §14).**
+   `POST /api/v1/auth/bootstrap` (BOOTSTRAP_TOKEN-gated, one-time) creates the
+   first org and binds the caller as admin; login resolution then attaches the
+   org to every session (binding row, or single-org auto-bind). Verified live
+   on ai04 — see §8.
 2. **~~Stores don't EnsureSchema.~~ RESOLVED (2026-08-24).** A real
    migration runner now ships in the binary: `internal/db.Migrate`
    (golang-migrate, embedded canonical set `internal/db/migrations/`)
@@ -218,3 +234,41 @@ ssh -N -L 5173:localhost:5173 -L 8080:localhost:8080 -L 5556:localhost:5556 ai04
 | `.env.example` | compose-NATS note; issuer exact-match guidance; POST_LOGIN_REDIRECT_URL |
 | `openspec/specs/data-model/spec.md` | KL #1 records migration 003; §Description lists 001+002+003 |
 | `INDEX_MAP.md` / `HEADER_MAP.md` | this document registered per CLAUDE.md §4 |
+
+## 8. Revalidation @ a3a7680 (2026-08-30) — migrate runner + §14 bootstrap, live
+
+Proof-of-record for the self-migrating boot (task #61/#62) and first-boot
+bootstrap (auth-rbac §14, task #63) on the real box, in a **throwaway compose
+project** (`oapbt`, dir `~/oap-bootstrap-test`, ports 15442/14222/15556/18080/
+15173) so the running `deploy` stack was never touched.
+
+| Check | Result |
+|---|---|
+| Boot on a fresh volume | `schema migrations applied version=4 dirty=false` — embedded runner works unmodified on ai04 |
+| Scripted login (`test-login.sh`, port-rewritten for the throwaway dex) | `oap_session ISSUED` |
+| POST /api/v1/auth/bootstrap, no session | 401 (middleware) |
+| wrong token | 401 `invalid_token` |
+| first claim | **201** `{"status":"initialized","org_id":…,"org_slug":"acme"}` |
+| second claim, correct token | 403 `already_initialized` (latch, §14.3) |
+| re-login → `/auth/me` | `org_id` = created org, `role=admin` (binding, §14.4b) |
+| org-scoped routes (`/api/v1/agents`, `/api/v1/a2a/approvals`) | **200** (were 400 pre-bootstrap — §5.1 gap closed) |
+| audit trail | one row per attempt, reasons `invalid_token/created/already_initialized/bootstrap_disabled`; 0 events containing the token (§14.6) |
+| `BOOTSTRAP_TOKEN` empty → endpoint | 404 `bootstrap_disabled` (§14.2) |
+| teardown | `oapbt` `down -v` (own volumes only); `deploy_redis_data` guardrail intact; `deploy` stack restored, 5 healthy |
+
+Gotchas hit during revalidation (fixed in repo or above): compose lost
+`OIDC_REDIRECT_URL` (§3.12); session cookies don't survive recreates (§3.13);
+a throwaway stack must copy the **box** `nats.conf` (baked passwords) because
+server and nats share that one file; `deploy/.env` auto-interpolation silently
+empties unset vars — the original stack always ran with `--env-file .env` from
+`~/oap`, and now also needs a `deploy/docker-compose.override.yml` remapping
+postgres host port to 15432 (box `postgresql.service` owns 5432).
+
+**In-place upgrade of the `deploy` stack (NOT yet performed):** rebuilding the
+server image at ≥ a3a7680 and recreating will self-migrate its existing
+Alembic-era DB 001→004 — every up-migration is `CREATE TABLE IF NOT EXISTS`-
+guarded, so existing tables are skipped and only 004's `user_org_bindings` +
+`app_state` are added. Caveat: column drift between the old Alembic schema and
+the canonical 001 (known parity gaps) is untested against that DB; beta —
+acceptable to re-init the stack's DB fresh if the upgrade misbehaves. After
+upgrade, bootstrap the first org once with a real `BOOTSTRAP_TOKEN`.
