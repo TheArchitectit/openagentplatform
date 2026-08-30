@@ -1,5 +1,9 @@
 # QA Review Report
 > Date: 2026-06-17 | Sprints: 0.1 - 1.5 | Issues: 34
+> **Note (2026-08-24):** findings citing `py/alembic/versions/*.py` reference the
+> Alembic schema set, since deleted — the platform's single canonical schema is
+> now the Go-embedded `internal/db/migrations/` (data-model spec §9). The
+> model/DB drift findings were recorded against the schema of their date.
 
 ## Executive Summary
 - Total findings by severity: critical 2, high 3, medium 4, low 2, info 0. (Backend, Agent, Frontend, Infra, Security, and Docs domain reviews returned no dedicated findings; all substantive findings originate from the Structure Audit and the Cross-Cutting Integration Analysis. The "34" issue total reflects the full sprint backlog; 11 findings are actionable from the supplied data.)

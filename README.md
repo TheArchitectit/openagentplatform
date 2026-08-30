@@ -68,7 +68,7 @@ For the full component diagram (all phases) and ADRs, see
 - **A2A Adapters**: Python 3.12 (FastAPI, Pydantic) -- Anthropic, OpenAI,
   AutoGen, CrewAI, LangGraph, Semantic Kernel
 - **LLM Provider**: Ozore AI (OpenAI-compatible)
-- **Data**: PostgreSQL 16 + TimescaleDB + Alembic
+- **Data**: PostgreSQL 16 + TimescaleDB + embedded golang-migrate schema
 - **Messaging**: NATS 2.10 with mTLS
 - **Auth**: OIDC (Dex) + JWT sessions
 - **Policy**: OPA (Open Policy Agent) with rego
@@ -156,7 +156,7 @@ cmd/server        Go HTTP API server
 cmd/agent         Endpoint agent (daemon + registration)
 internal/         server-only Go packages (api, auth, config, db, events, schema)
 pkg/              reusable Go packages (logger, agent, models)
-py/               Python services, agents, and Alembic migrations
+py/               Python services and agents (LLM adapter orchestrator)
 web/              React + Vite frontend
 deploy/           docker-compose, NATS config, Dex config, postgres init
 docs/             documentation

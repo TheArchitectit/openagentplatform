@@ -154,7 +154,7 @@ so either contract reads the pricing correctly (P2-5 remediation in commit
 |-------|---------|-------------|
 | `app_env` | `"development"` | — |
 | `log_level` | `"info"` | — |
-| `postgres_dsn` | `postgresql+asyncpg://oap:oap@localhost:5432/oap` | `oap/db.py` |
+| `postgres_dsn` | `postgresql+asyncpg://oap:oap@localhost:5432/oap` | — (was `oap/db.py`, removed §6.1) |
 | `nats_url` | `nats://localhost:4222` | — |
 | `nats_cert_file` / `nats_key_file` / `nats_ca_file` | `None` | — |
 | `oidc_issuer_url` | `http://localhost:5556/dex` | — |
@@ -164,35 +164,32 @@ so either contract reads the pricing correctly (P2-5 remediation in commit
 | `sentry_dsn` | `None` | — |
 
 5.3. `get_settings()` MUST return a new `Settings()` instance on each call (no
-LRU cache). As of this spec, only `postgres_dsn` is actually consumed at import
-time (by `oap/db.py`); the NATS, OIDC, JWT, and Sentry fields are declared but
-not read by the service.
+LRU cache). As of this spec, `postgres_dsn` is declared but not read by the
+service (the dormant DB layer was removed — §6); the NATS, OIDC, JWT, and
+Sentry fields are likewise declared but not read.
 
-### 6. Database Layer
+### 6. Database Layer — REMOVED (2026-08-24)
 
-6.1. `oap/db.py` MUST create a module-level async SQLAlchemy engine from
-`get_settings().postgres_dsn` with `pool_size=10`, `max_overflow=20`,
-`pool_pre_ping=True`, `echo=False`, and an `async_sessionmaker` with
-`expire_on_commit=False` and `autoflush=False`.
+6.1. **Deleted.** `oap/db.py` (an async SQLAlchemy engine + session factory
+with no importers outside the also-deleted `py/alembic/env.py`) is gone, as are
+its `sqlalchemy[asyncio]` / `asyncpg` / `alembic` dependencies. It created an
+engine at import time but no request path ever opened a session, and no ORM
+model subclassed its `Base`. The Go server owns the schema and applies it at
+boot (`internal/db/migrations`, see the data-model spec §9); the Python adapter
+service no longer carries database code.
 
-6.2. `oap/db.py` MUST expose `Base` (a `DeclarativeBase`), a `session_scope()`
-async context manager that commits on success and rolls back on exception, and a
-`get_session()` async generator suitable as a FastAPI dependency.
-
-6.3. As of this spec, no ORM model in the codebase subclasses `Base`; the engine
-is created at import time but no request path opens a session. The DB layer is
-wired for Alembic migrations (`py/alembic/env.py` imports `oap.db.Base`) but is
-otherwise dormant in the running adapter service. Cost and budget state lives
-in memory on the `CostManager` instance and is lost on restart.
+6.2. Cost and budget state continues to live in memory on the `CostManager`
+instance and is lost on restart (unchanged — it never used the DB layer).
 
 ### 7. Packaging and Deployment Posture
 
 7.1. The service MUST be packaged as the `oap` Python project
 (`py/pyproject.toml`): name `oap`, version `0.1.0`, `requires-python = ">=3.12"`,
 hatchling build backend, wheel target `packages=["oap"]`. Runtime dependencies
-are `fastapi`, `uvicorn[standard]`, `sqlalchemy[asyncio]`, `alembic`, `asyncpg`,
-`pydantic-settings`, `pyjwt[crypto]`, and `httpx`; dev extras are `pytest`,
-`pytest-asyncio`, `ruff`, and `mypy`.
+are `fastapi`, `uvicorn[standard]`, `pydantic-settings`, `pyjwt[crypto]`, and
+`httpx`; dev extras are `pytest`, `pytest-asyncio`, `ruff`, and `mypy`.
+(The `sqlalchemy[asyncio]` / `alembic` / `asyncpg` runtime deps were dropped
+with the DB layer — §6.1.)
 
 7.2. The service MUST be launchable as `uvicorn oap.app:app --port 8001` from the
 `py/` directory (the module-level `app` in `app.py`). The Go side expects this
@@ -212,7 +209,9 @@ is `ruff check` plus `scripts/regression_check.py`). Local bring-up is manual.
 `uv run pytest`) on an `ubuntu-latest`/`macos-latest` × Python `3.11`/`3.12`
 matrix — note that the matrix includes 3.11 while `pyproject.toml` requires
 `>=3.12`, a minor inconsistency. The Makefile `test` target also runs
-`cd py && uv run pytest`, and `migrate` runs `cd py && uv run alembic upgrade head`.
+`cd py && uv run pytest`. The Makefile `migrate` target now applies the Go
+server's embedded schema (`go run ./cmd/migrate up`); the former
+`cd py && uv run alembic upgrade head` is gone with §6.1.
 
 ### 8. Health Endpoints
 
@@ -286,10 +285,10 @@ meant to sit behind the Go API, which enforces `auth.RequireRole` on the
 mutating `/a2a` sub-routes (`routes_sub.go:281-286`), but nothing prevents
 direct access to the Python port.
 
-**Dormant DB and settings.** Only `postgres_dsn` is consumed (by `db.py`); the
-NATS, OIDC, JWT, and Sentry settings are declared but unread, and `db.py` itself
-is imported only by `py/alembic/env.py` for migrations. Cost and budget state is
-in-process and non-persistent (see §6.3). The hard-coded CORS origin
+**Settings mostly unread.** Every `settings.py` field — `postgres_dsn` (the
+dormant DB layer was removed, §6.1), NATS, OIDC, JWT, and Sentry — is declared
+but never read by the running service. Cost and budget state is in-process and
+non-persistent (see §6.2). The hard-coded CORS origin
 (`http://localhost:5173`) and the `jwt_secret` default of `dev-secret-change-me`
 are development-only values that are not environment-overridable for CORS.
 

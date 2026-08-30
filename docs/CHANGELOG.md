@@ -8,6 +8,45 @@ for the BSL-licensed releases.
 
 ---
 
+## [Unreleased] - 2026-08-24 -- Schema migration runner + single canonical schema
+
+### Added
+
+- **golang-migrate runner** (`internal/db/migrate.go`): the server applies the
+  embedded schema at boot (`OAP_AUTO_MIGRATE=true`, default). golang-migrate
+  v4.19.1, `iofs` source over `internal/db/migrations/` (`//go:embed`), pgx/v5
+  driver, `schema_migrations` ledger, Postgres advisory lock so concurrent
+  boots serialise, 5-min statement timeout per migration.
+- **`cmd/migrate` CLI**: `up` / `status` / `force <n>` against `$POSTGRES_DSN`
+  for `OAP_AUTO_MIGRATE=false` rollouts, CI, and dirty-ledger diagnosis.
+- **`make migrate-new name=<slug>`** via `scripts/new-migration.sh` —
+  scaffolds the next contiguous `NNN_slug.{up,down}.sql` pair.
+- **Migration sanity test** (`internal/db/migrate_test.go`): up/down pairing,
+  contiguous numbering, golang-migrate filename convention — no DB needed.
+- Migrations 001–003 renamed from `deploy/migrations/` loose files to the
+  embedded `internal/db/migrations/` set (git-mv); down files are deliberate
+  no-ops (beta is roll-forward).
+
+### Removed
+
+- **Python/Alembic schema set** (`py/alembic/`, `py/alembic.ini`,
+  `py/oap/db.py`): zero consumers — no SQLAlchemy models, no Go references to
+  its exclusive tables. The three-way schema divergence it represented caused
+  the a2a-tables and `policies.deleted` boot failures (data-model spec KL #2,
+  now resolved). `alembic`, `sqlalchemy[asyncio]`, and `asyncpg` dropped from
+  `py/pyproject.toml`.
+- Manual `psql` migration steps from the AI04 runbook and the
+  `Makefile` `setup` flow — the server migrates itself.
+
+### Docs
+
+- data-model spec §9 rewritten for the single-source rule; KL #1/#2/#4/#6
+  updated. rmm-operations and adapter-service specs de-Alembic'd.
+  DEPLOYMENT/ARCHITECTURE/README/GAP_ANALYSIS/INFRASTRUCTURE/RMM_09 design
+  doc swept; QA_REVIEW annotated as a dated historical record.
+
+---
+
 ## [Unreleased] - 2026-08-24 -- RMM-05 CVE-to-Patch Correlation
 
 ### Added

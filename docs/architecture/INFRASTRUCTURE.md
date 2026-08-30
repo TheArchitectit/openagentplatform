@@ -192,7 +192,7 @@ Recovery procedure: Velero restore → PostgreSQL restore → NATS stream replay
 | 1 | 2 days | Docker Compose dev stack (13 services, .env, health checks) |
 | 2 | 3 days | Helm chart scaffolding (60+ templates, values.yaml, secrets) |
 | 3 | 5 days | CI/CD workflows (12 GitHub Actions, matrix builds, coverage gates) |
-| 4 | 2 days | Database migration infrastructure (Alembic/Django, rollback procedures) |
+| 4 | 2 days | Database migration infrastructure (Alembic/Django, rollback procedures) — delivered as golang-migrate + embedded SQL (internal/db/migrations, 2026-08-24) |
 | 5 | 5 days | Observability stack (OTel instrumentation, Prometheus rules, Grafana dashboards, Loki logs) |
 | 6 | 3 days | Security hardening (cert-manager, NetworkPolicies, PodSecurity, RBAC) |
 | 7 | 5 days | Multi-region + backup + DR (Velero, pg_dump CronJobs, NATS backup) |

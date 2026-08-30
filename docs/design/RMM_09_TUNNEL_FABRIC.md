@@ -70,7 +70,10 @@
 - `POST /mesh/session/:id/close` — terminate.
 - `GET /agents/:id/releases`, `POST /agents/:id/releases` — release registry + pinning (RMM-07).
 
-### 3.4 DB — `py/alembic/versions/0015_rmm09_mesh.py` (NEW)
+### 3.4 DB — mesh tables (as designed: Alembic `0015_rmm09_mesh.py`; in the
+shipped canonical schema these tables live in
+`internal/db/migrations/001_platform_schema.up.sql` — the Alembic set was
+deleted 2026-08-24, see data-model spec §9)
 
 - `mesh_peers(agent_id PK, org_id, public_key, allowed_ips, last_seen, status)`
 - `mesh_sessions(session_id PK, operator_id, agent_id, org_id, purpose, started_at, ended_at, status)`

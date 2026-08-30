@@ -190,33 +190,37 @@ See [COMMERCIAL.md](COMMERCIAL.md) for tier details.
 
 ## Database migration guide
 
-Migrations are managed by Alembic (Python) and live in
-`oap-data/alembic/`. Migrations run automatically on server startup in
-development; in production, run them explicitly before starting the
-new server version.
+The schema lives in the Go server: versioned SQL under
+`internal/db/migrations/`, embedded into the binary and applied automatically
+at startup by the golang-migrate runner (`internal/db/migrate.go`), serialised
+by a Postgres advisory lock so concurrent boots are safe. The former
+Python/Alembic set is deleted (see the data-model spec §9). Disable boot-time
+migration with `OAP_AUTO_MIGRATE=false` for DBA-managed rollouts; then apply
+with `go run ./cmd/migrate up` (or `make migrate`) before starting the new
+server version.
 
 ### Running migrations
 
 ```bash
-# Local
-make migrate
+# Local (reads $POSTGRES_DSN)
+make migrate            # status + up
+make migrate-status     # status only
 
-# Docker
-docker compose exec oap-server make migrate
+# Standalone CLI against any DSN
+go run ./cmd/migrate -dsn "$POSTGRES_DSN" up
 
-# Kubernetes
-kubectl exec -it deploy/oap-server -- make migrate
+# Kubernetes (server auto-migrates on boot; override with env)
+kubectl exec -it deploy/oap-server -- /app/oap-server  # migrates, then serves
 ```
 
 ### Creating a new migration
 
 ```bash
-cd oap-data
-uv run alembic revision --autogenerate -m "add foo table"
+make migrate-new name=add_foo_table   # scaffolds NNN_add_foo_table.{up,down}.sql
 ```
 
-Review the generated file in `oap-data/alembic/versions/` before
-committing. Migrations must be:
+Edit the generated `.up.sql` under `internal/db/migrations/`; down files are
+roll-forward no-ops in beta. Migrations must be:
 
 - Idempotent (safe to re-run)
 - Backward-compatible with the previous version
@@ -234,10 +238,13 @@ cat backup-2026-06-17.sql | docker compose exec -T postgres psql -U oap oap
 
 ### TimescaleDB hypertable management
 
-Metric tables are hypertables. To add a new hypertable:
+The `timescaledb` extension is enabled at bootstrap (`deploy/postgres/init.sql`),
+but no platform table is a hypertable out of the box — converting one is an
+opt-in tuning step. To convert the metric table (its time column is
+`"timestamp"`, quoted because it is a reserved word):
 
 ```sql
-SELECT create_hypertable('check_results', 'time');
+SELECT create_hypertable('check_results', 'timestamp', if_not_exists => TRUE);
 ```
 
 To enable compression (recommended after 7 days of data):

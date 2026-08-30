@@ -12,8 +12,8 @@
 > **App Path:** `internal/patches/`, `internal/alerts/`, `internal/events/`,
 > `internal/remote/`, `internal/api/patches.go`, `pkg/agent/patcher/`,
 > `pkg/agent/shell/`, `pkg/models/`, `cmd/agent/main.go`,
-> `cmd/server/server_adapters.go`, `py/alembic/versions/0005_policies.py`,
-> `py/alembic/versions/0006_patches.py`
+> `cmd/server/server_adapters.go`, `internal/db/migrations/001_platform_schema.up.sql`,
+> `internal/patches/winupdate_states.go`
 > **Build sprints:** `docs/sprints/RMM-00_RMM_OPERATIONS_FOUNDATION.md` ..
 > `docs/sprints/RMM-08_VNC_RDP_DECISION.md`
 
@@ -88,21 +88,22 @@ dispatch/result subjects (`pkg/agent/patcher/handler.go`:
 `.patch_install.results`). Server-side approval and batch deploy exist
 (`internal/patches/`, `internal/api/patches.go`).
 
-2.2. The gap is partial, not total. The migration already defines per-agent,
-per-catalog tracking with a lifecycle:
-`py/alembic/versions/0006_patches.py` defines `patch_job_targets` keyed by
-agent and `patch_catalog_id`, including an eight-state per-patch lifecycle
-constraint. `WinUpdate` is listed as not implemented in `rmm-core` §2.5/§4.4,
-and the policy seam exists (`win_update_policy` JSONB on `Policy`,
-`py/alembic/versions/0005_policies.py:40`). The live Go model/store does not
-expose or consistently use the migration's catalog and state columns.
+2.2. The gap was partial, not total. The canonical schema (001,
+`internal/db/migrations/`) defines per-agent tracking via `patch_job_targets`
+keyed by agent with a `status` lifecycle column. `WinUpdate` was listed as not
+implemented in `rmm-core` §2.5/§4.4. (Historical note: the deleted Alembic set
+added `patch_catalog_id` and an eight-state constraint to its
+`patch_job_targets` (`0006_patches.py`) and a `win_update_policy` JSONB column
+on `policies` (`0005_policies.py:40`) — neither was ever read by the Go
+stores, and neither exists in the canonical set. RMM-03 shipped the per-KB
+tracking instead as the dedicated `winupdate_kb_state` table, with its
+auto-approve rule mirroring `ApprovalWorkflow.ApplyPolicy` (critical severity
+auto-approves; everything else queues), not a dedicated policy column.)
 
-2.3. IN scope (RMM-03): reconcile the migration's tracking/lifecycle columns
-with the live Go model and store, then add whatever per-KB tracking or
-transition-table state machine is still missing — following the `rmm-core` §4.1
-convention and driven by the existing scan/install subjects and the
-`win_update_policy` seam. Do not create a second tracking table where the
-migration already defines one.
+2.3. Shipped (RMM-03, `1ec3b23`): per-KB WinUpdate state machine in
+`winupdate_kb_state` (001), driven by the existing scan/install subjects
+(`IngestKBScan` / `IngestKBInstall` / `IngestKBRebootDone` / `TransitionKB`);
+`patch_job_targets` was left as-is rather than reshaped in place.
 
 2.4. OUT of scope: inventing new NATS subjects or resurrecting `rmm.winupdate.*`
 topics. Reuse the existing `oap.agents.<id>.patch_*` subjects or add a sibling
@@ -110,10 +111,11 @@ under `oap.agents.<id>.` per open decision 10.1.
 
 ### 3. Scheduled Automation (AutomatedTask) — COMPLETE (RMM-06, shipped `3f8e495`)
 
-3.1. RMM-06 shipped as a **first-class `automated_tasks` table** (migration
-`py/alembic/versions/0016_rmm06_scheduled_automation.py`), not the JSONB column
-on `Policy` originally sketched in `0005_policies.py`. The table is org-scoped
-(`org_id`) with a `next_run_at` index for due-task lookups.
+3.1. RMM-06 shipped as a **first-class `automated_tasks` table** (canonical
+001; the deleted Alembic set carried it as `0016_rmm06_scheduled_automation`),
+not the JSONB column on `Policy` originally sketched in its `0005_policies.py`.
+The table is org-scoped (`org_id`) with a partial `next_run_at` index
+(`WHERE enabled`) for due-task lookups.
 
 3.2. **Grammar decision resolved (open decision 10.2 → Resolved):** cron-style
 recurrence, reusing the `internal/reports/` scheduler convention (`cron_expr`
@@ -207,12 +209,11 @@ added.
 (push) vs agent self-reboot — decide before finalizing any reboot transport or
 agent handler.
 
-### 7. CVE-to-Patch Correlation — IN (RMM-05)
+### 7. CVE-to-Patch Correlation — COMPLETE (RMM-05, shipped `717f095`)
 
-7.1. The data-layer seam already exists: `cve_ids` JSONB on the patch catalog
-(`py/alembic/versions/0006_patches.py:37`); web types ready
-(`web/src/lib/usePatches_types.ts`: `cve_ids`, `cvss_score`). There is no
-server-side ingestion, matching, or lookup.
+7.1. The data-layer seam exists: `cve_ids` JSONB on the patch catalog
+(canonical 001; the `cve_enrichment` table shipped with RMM-05); web types
+(`web/src/lib/usePatches_types.ts`: `cve_ids`, `cvss_score`).
 
 7.2. IN scope (RMM-05): server-side CVE intake (source + cadence per open
 decision 10.7), matching to patch KB records (populating `cve_ids`), and a
@@ -266,11 +267,13 @@ MUST restate the relevant one and gate on a recorded approval before building:
 
 ### 11. Data Model and Migration Notes
 
-11.1. Only additive, backward-compatible migrations are anticipated, extending
-the patcher/policy relations in `py/alembic/versions/0005_policies.py` and
-`0006_patches.py`. New tracking entities (WinUpdate per-KB, fleet maintenance
-windows, offline-SLA rule condition) are added, not reshaped; no existing table
-referenced by live rows is altered in place.
+11.1. Only additive, backward-compatible migrations — applied to the canonical
+set in `internal/db/migrations/` (the formerly-divergent Alembic `0005`/`0006`
+patcher/policy definitions are deleted; their live remnants are 001's
+`policies`, `patch_*`, and `winupdate_kb_state`). New tracking entities
+(WinUpdate per-KB, fleet maintenance windows, offline-SLA rule condition) are
+added, not reshaped; no existing table referenced by live rows is altered in
+place.
 
 11.2. `pkg/models/` additions MUST follow the existing flat Go struct + migration
 split (`models.go`, `models_extra.go`).

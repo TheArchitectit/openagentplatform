@@ -72,9 +72,9 @@ TanStack Router + TypeScript SPA with real feature routes:
 - Lib hooks: `useAgents`, `useChecks`, `useAlerts`, `usePatches`, `usePolicies`, `useScripts`, `useA2A`, `useSettings`
 - a11y utilities, theme system, permission gating (`require-permission.tsx`)
 
-### 1.5 Data Model (`pkg/models/`, alembic migrations)
+### 1.5 Data Model (`pkg/models/`, embedded SQL migrations)
 
-Real RMM schema: **organizations → clients → sites → agents**, with `check_definitions`, `check_assignments`, `check_results`, alert state machines, policy engine + violations, patch catalog + jobs + targets, script runs, hash-chained audit log. Alembic migrations present.
+Real RMM schema: **organizations → clients → sites → agents**, with `check_definitions`, `check_assignments`, `check_results`, alert state machines, policy engine + violations, patch catalog + jobs + targets, script runs, hash-chained audit log. The Alembic migrations noted at audit time have since been deleted in favour of the canonical embedded set (`internal/db/migrations/`, applied by the server at boot — data-model spec §9).
 
 ### 1.6 Cyber-Defense Foothold (partial)
 
@@ -275,6 +275,6 @@ a2a/           A2A gateway (registry, manager, router, bridge)
 py/oap/        Python FastAPI LLM adapter orchestrator (7 frameworks)
 web/           React/TS TanStack SPA
 secrets/       Vault + Infisical + OAuth secret management
-alembic/       DB migrations
+internal/db/migrations/  canonical schema (embedded, applied at server boot)
 mcp-server/    legacy/stale MCP server subtree (matches old STATUS.md)
 ```

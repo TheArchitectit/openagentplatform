@@ -1,12 +1,14 @@
 # Data Model
 
 > **Phase:** 0 (Foundation) — schema was Phase 0 Sprint 0.1 Story 0.1.3; extended through later phases
-> **STATUS: PARTIAL** — Go struct layer complete and in active use; a checked-in Go-oriented
-> platform DDL now exists (`deploy/migrations/001`+`002`) and the `TenantMigrator` is wired (opt-in).
-> Residual drift is the schema-source divergence and the retention/RLS column assumptions on
-> `check_results` (see Known Limitations #2, #6).
-> **Source:** authored 2026-08-23 from code (audit docs/QA_REVIEW_OPENSPEC_COVERAGE.md §4)
-> **App Path:** `pkg/models/`, `deploy/postgres/init.sql`, `internal/tenancy/`, `internal/*/store*.go`
+> **STATUS: PARTIAL** — Go struct layer complete and in active use; ONE canonical schema source
+> now exists (`internal/db/migrations/`, embedded and applied at server boot), resolving the
+> schema-source divergence (Known Limitations #2). Residual: the retention/RLS column
+> assumptions on `check_results` (Known Limitations #6).
+> **Source:** authored 2026-08-23 from code (audit docs/QA_REVIEW_OPENSPEC_COVERAGE.md §4);
+> §9 and Known Limitations #1/#2 rewritten 2026-08-24 for the migration-runner consolidation.
+> **App Path:** `pkg/models/`, `internal/db/migrations/`, `internal/db/migrate.go`,
+> `deploy/postgres/init.sql`, `internal/tenancy/`, `internal/*/store*.go`
 
 ---
 
@@ -25,14 +27,17 @@ Two structs are also NATS wire formats: `Heartbeat` is the payload agents
 publish on `oap.agents.<id>.heartbeat`, and `CheckResult` is the payload
 published on `oap.agents.<id>.results`.
 
-Persistence is PostgreSQL via `pgx`. Two checked-in schema sources exist and
-diverge (see Known Limitations #2): the Python/Alembic set under
-`py/alembic/versions/` (the `oap` database, TimescaleDB hypertables, UUID
-`org_id`) and `deploy/migrations/001_platform_schema.sql` +
-`002_platform_schema_addendum.sql` + `003_platform_schema_addendum2.sql`,
-added in 9996a99/26827e0 (001/002) by reconstructing
-the DDL from the SQL embedded in the Go stores (TEXT `org_id`); 003 (2026-08-30
-ai04 deploy) adds the a2a tables and `policies.deleted` that 001/002 missed.
+Persistence is PostgreSQL via `pgx`. There is ONE canonical schema source: the
+migration set embedded in the Go binary at `internal/db/migrations/`
+(`001_platform_schema`, `002_platform_schema_addendum`,
+`003_platform_schema_addendum2`), applied automatically at server boot via the
+golang-migrate runner in `internal/db/migrate.go` (§9). 001/002 were
+reconstructed in 9996a99/26827e0 from the SQL embedded in the Go stores (TEXT
+`org_id`); 003 (2026-08-30 ai04 deploy) adds the a2a tables and
+`policies.deleted` that 001/002 missed. The former `deploy/migrations/`
+loose-file copies (git-mv'd into the embed) and the decoupled Python/Alembic
+set under `py/alembic/versions/` are deleted — they were the three-schema-
+divergence that produced the a2a-tables and `policies.deleted` boot failures.
 `deploy/postgres/init.sql` enables the three extensions (§9.1). The stores are
 written to tolerate schema drift (descriptive errors or empty results when
 tables are absent). Org tenancy is enforced at the **application layer** via
@@ -98,9 +103,10 @@ through their parent key: `check_assignments`, `check_results`,
 `patch_job_targets`, `patch_approvals`, `script_runs`.
 
 1.3. Entities with a create/update surface MUST carry `created_at` and
-`updated_at` timestamps. Soft delete exists only in two places:
-`tenants.deleted_at` (001, filtered by `internal/tenancy/store.go`) and
-`agents.deleted_at` (Alembic 0002 only — the 001 `agents` table omits it). The
+`updated_at` timestamps. Soft delete exists in one place on the canonical
+schema: `tenants.deleted_at` (001, filtered by `internal/tenancy/store.go`).
+`agents` has no `deleted_at` column (the deleted Alembic set's 0002 added one
+to the old `oap` database only — the Go stores never referenced it). The
 retention purger additionally requires `deleted_at` on its target tables (§9.3,
 Known Limitations #6).
 
@@ -268,27 +274,36 @@ versioned `TenantMigrator` (opt-in at server start via
 `script_definitions`, `patch_jobs`, `audit_events` — each scoped by its
 existing TEXT `org_id` column. Migration v2 adds `org_id` indexes to ten
 tables (adding `script_runs` and `report_templates`, which gain no policy).
-`check_results` and `audit_events` carry the column only in the Alembic
-schema; on the `deploy/migrations` schema the v2/v3 statements fail
-(Known Limitations #2, #6).
+On the canonical embedded schema the assumption mostly holds — `audit_events`
+carries `org_id` — but `check_results` has no `org_id` (it scopes through
+`agent_id`), so the v3 policy on it fails (Known Limitations #6).
 
 ### 9. Schema Management and Retention
 
-9.0. **Migration inventory (relevant to this spec):** the platform uses a
-decoupled Python/Alembic migration set under `py/alembic/versions/` for the
-`oap` Postgres database. Recent RMM migrations: `0015_rmm09_mesh` (creates
-`mesh_peers`, `mesh_sessions`, `agent_releases` — all org-scoped) and
-`0016_rmm06_scheduled_automation` (creates `automated_tasks`, org-scoped,
-replacing the earlier JSONB-on-`Policy` sketch in `0005_policies`). The Go
-stores target these table names directly (e.g. `internal/mesh/store.go`,
-`internal/scheduled/store_tasks.go`).
+9.0. **Single canonical migration source (MUST).** The platform schema is
+versioned SQL in `internal/db/migrations/` (`NNN_name.up.sql` /
+`.down.sql`), embedded into the server binary and applied by
+`internal/db.Migrate` (golang-migrate, `iofs` source, pgx/v5 driver,
+`schema_migrations` ledger). The runner takes a Postgres advisory lock, so
+concurrent server boots serialise and late callers no-op; `migrate.ErrNoChange`
+is not an error. Boot-time application is default-on (`OAP_AUTO_MIGRATE=true`);
+set it false for DBA-managed rollouts, which then run `go run ./cmd/migrate
+up` / `status` / `force <n>`. Down files are deliberate no-ops — beta is
+roll-forward-only and a stale database is rebuilt by destroying the volume.
+Scaffolding new migrations: `make migrate-new name=<slug>`. The mesh/RMM
+tables the deleted Alembic set carried (`mesh_peers`, `mesh_sessions`,
+`agent_releases` from its 0015; `automated_tasks` from 0016, replacing the
+JSONB-on-`Policy` sketch) are present in 001's canonical DDL; the Go stores
+(e.g. `internal/mesh/store.go`, `internal/scheduled/store_tasks.go`) target
+these table names directly. No second schema source may be introduced — that
+divergence is what caused the a2a/`policies.deleted` boot failures (#1, #2).
 
 9.1. Database bootstrap MUST enable the `uuid-ossp`, `pgcrypto`, and
 `timescaledb` extensions (`deploy/postgres/init.sql`).
 
 9.2. Stores MUST tolerate schema drift: a missing table MUST surface as a
 descriptive error or empty result, never a panic, so the API can start before
-migrations are applied.
+migrations are applied (with `OAP_AUTO_MIGRATE=false`).
 
 9.3. A `RetentionPurger` MUST run on a 24h interval (wired in `cmd/server`)
 over `audit_events` and `check_results`, two-phase: soft-delete by setting
@@ -309,51 +324,51 @@ scoped so one tenant's purge cannot touch another tenant's rows.
 ## Known Limitations
 
 1. **Resolved (2026-08-24).** A checked-in platform DDL now exists:
-   `deploy/migrations/001_platform_schema.sql` (9996a99) plus
-   `002_platform_schema_addendum.sql` (26827e0), reconstructed from the SQL
-   embedded in the Go stores. `003_platform_schema_addendum2.sql` (2026-08-30,
-   ai04 test deploy) completes the set for the server's boot path: the a2a
-   registry/task tables (stores never run EnsureSchema) and `policies.deleted`
-   (queried by `internal/policy/store_crud.go` but missing from 001).
-2. **Two divergent schema sources.** The `oap` production database is managed
-   by the Python/Alembic set under `py/alembic/versions/` (UUID `org_id`,
-   TimescaleDB hypertables, `agents.deleted_at`), while `deploy/migrations/`
-   was reconstructed for the Go stores (TEXT `org_id`, `"timestamp"` columns,
-   no hypertables). The two disagree on column sets for `check_results`,
-   `script_runs`, and `agents` — neither is applied automatically by the Go
-   server, and which one a deployment runs depends on how the database was
-   bootstrapped. `TenantMigrator` (v2 indexes, v3 policies) is wired into
-   `cmd/server` behind `OAP_ENABLE_TENANT_MIGRATIONS=1` (W6, 3ad3f4f) and
-   targets the live table names on TEXT `org_id`; on a database built from
-   `deploy/migrations` it fails on `check_results`/`audit_events`, whose 001
-   DDL omits `org_id` (#6). `SetTenantContext` is parameterised with
-   tenant-ID validation (`internal/tenancy/rls.go`).
+   `001_platform_schema` (9996a99) plus `002_platform_schema_addendum`
+   (26827e0), reconstructed from the SQL embedded in the Go stores.
+   `003_platform_schema_addendum2` (2026-08-30, ai04 test deploy) completes the
+   set for the server's boot path: the a2a registry/task tables (stores never
+   run EnsureSchema) and `policies.deleted` (queried by
+   `internal/policy/store_crud.go` but missing from 001).
+2. **Resolved (2026-08-24).** There was once divergent schema sources — the
+   Python/Alembic set under `py/alembic/versions/` (the `oap` database: UUID
+   `org_id`, TimescaleDB hypertables, `agents.deleted_at`, `created_at` on
+   `check_results`/`audit_events`) alongside the Go-store reconstruction. The
+   Alembic set is DELETED: it had zero consumers (no SQLAlchemy models in
+   `py/oap`, no Go code touching its exclusive tables — the 8-table
+   Python-era local-identity model superseded by OIDC), and which schema a
+   deployment ran no longer depends on bootstrap history because the server
+   applies the embedded canonical set at boot (§9). `TenantMigrator` (v2
+   indexes, v3 policies) remains wired behind `OAP_ENABLE_TENANT_MIGRATIONS=1`
+   (W6, 3ad3f4f) and targets the live table names on TEXT `org_id`; it still
+   fails on `check_results`, whose canonical 001 DDL omits `org_id` (#6).
+   `SetTenantContext` is parameterised with tenant-ID validation
+   (`internal/tenancy/rls.go`).
 3. **Unused and diverged structs.** `User` has zero consumers outside
    `pkg/models`. `AuditEvent` diverged from the hash-chained
    `internal/audit.Event` actually written to `audit_events`.
    `CheckAssignmentDetail` and `PatchStats` are read-only DTOs, not rows.
 4. **Struct/column drift on `Agent`.** The `TotalMemoryMB` field is tagged
-   `db:"total_ram"` (matching the Alembic column) while the Go store SQL uses
-   `total_memory_mb` (matching the `deploy/migrations` column) — a concrete
-   instance of the #2 divergence. The upsert persists 16 of ~30 struct fields,
+   `db:"total_ram"` (a leftover from the deleted Alembic schema) while the Go
+   store SQL uses `total_memory_mb` (matching the canonical 001 column) — a
+   residual of the resolved #2 divergence; the tag is inert since no ORM reads
+   it. The upsert persists 16 of ~30 struct fields,
    so `disks`, `services`, `wmi_detail`, `inventory`, and `metadata` survive
    only as API transport.
 5. **Heartbeat has no history.** It mutates the `agents` row; there is no
    time-series of heartbeats despite timescaledb being enabled.
-6. **Retention purger is non-functional as checked in.** `purgeTable`
+6. **Retention purger is non-functional on the canonical schema.** `purgeTable`
    (`internal/tenancy/cleanup.go`) requires `deleted_at`, `created_at`, and
-   `org_id` on each target table, but no checked-in schema provides
-   `deleted_at` on either target: on the `deploy/migrations` schema
-   `check_results` has none of the three and `audit_events` has only `org_id`
-   (its time column is `"timestamp"`); on the Alembic schema `check_results`
-   and `audit_events` carry `org_id`/`created_at` but no `deleted_at`. Every
-   tick therefore logs "retention purge failed" rather than purging; the
-   Prometheus counters stay at zero. Fixing this needs a deliberate migration
-   adding `deleted_at` (plus `org_id`/`created_at` to 001's `check_results`)
-   or a purger rewrite against the `"timestamp"` columns — both are
-   schema-design decisions, so the gap is documented here rather than patched
-   ad hoc. `ScriptDefinition` is also hard-deleted despite §9.3's soft-delete
-   design.
+   `org_id` on each target table, but the canonical set provides neither in
+   full: `check_results` (001) has none of the three (its time column is
+   `"timestamp"`, and it scopes through `agent_id` with no `org_id`);
+   `audit_events` (002) has `org_id` but no `created_at`/`deleted_at`. Every
+   tick therefore logs "retention purge failed" rather than
+   purging; the Prometheus counters stay at zero. Fixing this needs a
+   deliberate migration adding `deleted_at`/`created_at` to the two targets or
+   a purger rewrite against the `"timestamp"` columns — a schema-design
+   decision, so the gap is documented here rather than patched ad hoc.
+   `ScriptDefinition` is also hard-deleted despite §9.3's soft-delete design.
 7. **Severity vocabulary drift.** Alert severity is
    `info|warning|critical|emergency` in code, while rmm-core spec §3.3 lists
    `critical|high|medium|low|info`.

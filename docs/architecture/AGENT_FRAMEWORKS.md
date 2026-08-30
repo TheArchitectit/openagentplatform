@@ -1242,6 +1242,11 @@ The subsystem is built across **16 tasks** (from `MASTER_IMPLEMENTATION_PLAN.md`
 - `adapters/src/oap/db/migrations/` — Alembic migrations
 - `adapters/src/oap/db/repository.py` — CRUD helpers
 
+> **Superseded (2026-08-24):** the shipped `py/oap` adapter never used this DB
+> layer — its dormant SQLAlchemy/Alembic code was deleted; platform schema
+> migrations moved to the Go server (`internal/db/migrations`, data-model
+> spec §9). The Python service is stateful in memory only.
+
 #### Task 3: Exception Taxonomy
 
 - `adapters/src/oap/exceptions.py` — 10 exception classes:

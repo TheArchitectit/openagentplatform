@@ -239,7 +239,8 @@ data lives in one database; time-series tables use hypertables.
 **Consequences:**
 - One backup target, one connection pool
 - TimescaleDB compression reduces metric storage by ~90%
-- Migrations via Alembic (Python) keep schema changes auditable
+- Versioned SQL migrations (`internal/db/migrations/`, embedded in the Go
+  binary, applied at boot by golang-migrate) keep schema changes auditable
 - No need for a separate InfluxDB/Prometheus TSDB for application data
 
 ---

@@ -105,6 +105,7 @@ Do not reopen v1.2.0 (`4194dac`) shipped work. See `STATUS.md` for project state
 | team-structure | TEAM_STRUCTURE.md | docs/ | 12-team enterprise structure documentation |
 | python-migration | PYTHON_TO_GO_MIGRATION.md | docs/ | Python to Go migration guide for developers |
 | go-migration | PYTHON_TO_GO_MIGRATION.md | docs/ | Python to Go migration guide for developers |
+| schema-migration | data-model spec §9 / internal/db/migrations/ | openspec/ + internal/db/ | canonical SQL schema, golang-migrate runner, cmd/migrate CLI |
 | team-cli | cmd/team-cli/README.md | cmd/team-cli/ | Team management CLI tool |
 | phase-gate | TEAM_TOOLS.md | docs/ | Phase transition requirements and deliverables |
 | aider | CLCODE_INTEGRATION.md | docs/ | Aider YAML configuration (see Claude Code) |
@@ -223,7 +224,7 @@ Do not reopen v1.2.0 (`4194dac`) shipped work. See `STATUS.md` for project state
 | **openspec/specs/a2a-relay** | COMPLETE managed relay: accounting core + WSS admission (mTLS+token), entitlement-gated matching/forwarding, admin surface, discovery federation, and E2E/private/load acceptance | When touching internal/relay |
 | **openspec/specs/check-library** | COMPLETE: 9 built-in check templates (full rmm-core §3.2 set) + seeding; catalog/API/seeder tested | When touching checklib/check catalog |
 | **openspec/specs/remote-access** | wired shell over NATS, WS bridge, agent handler, recordings; transport/storage limits | When touching remote/terminal/session/shell |
-| **openspec/specs/data-model** | all 25 pkg/models structs ↔ tables; PARTIAL (two divergent checked-in schema sources; retention purger non-functional — KL #6) | When touching models/schema |
+| **openspec/specs/data-model** | all 25 pkg/models structs ↔ tables; one canonical embedded schema source (internal/db/migrations, §9); PARTIAL (retention purger non-functional — KL #6) | When touching models/schema/migrations |
 | **openspec/specs/adapter-service** | COMPLETE py/oap FastAPI unit: routes, settings, cost; Go /api/v1/a2a/* proxy verified by live e2e (TestA2AProxyLiveE2E) | When touching py/oap or a2a proxy |
 | **openspec/specs/hitl-approval** | COMPLETE human-in-the-loop approvals: engine + escalation re-arm, decision API (admin/technician), SSE events stream, web approval queue + detail UI | When touching a2a/hitl or /approvals UI |
 | **SECRETS_MANAGEMENT.md** | GitHub Secrets setup and rotation | When handling credentials |

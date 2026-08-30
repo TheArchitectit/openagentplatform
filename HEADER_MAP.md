@@ -1874,10 +1874,10 @@ check-library 225, hitl-approval 114.
 | a2a-relay | COMPLETE | full stack — admission (mTLS+token), matching, blind forwarding, admin, discovery federation, E2E/private/load acceptance |
 | check-library | COMPLETE | 9 of 9 checker types cataloged; ConfigSchema informational by design (no override validation per §2.3) |
 | remote-access | PARTIAL | HTTP/WS/NATS/agent shell path and recording hooks are wired; transport and durable storage limitations remain |
-| data-model | PARTIAL | two divergent checked-in schema sources (Alembic vs deploy/migrations); retention purger non-functional (KL #6); Agent struct/column drift (`total_ram`) |
+| data-model | PARTIAL | one canonical schema source (internal/db/migrations, embedded, applied at boot — §9); retention purger non-functional (KL #6); Agent struct/column drift (`total_ram`) |
 | adapter-service | COMPLETE | py/oap unit + Go /api/v1/a2a/* proxy; live e2e verified (TestA2AProxyLiveE2E, 2026-08-29); adapters skip start() without SDKs by design |
 | hitl-approval | COMPLETE | engine + escalation re-arm, decision API (admin/technician gate), SSE stream, web queue + detail UI (R1–R6.5) |
-| platform-foundation | COMPLETE | env-only config, fixed pool sizing, embedded OpenAPI; no migration tool despite roadmap claim |
+| platform-foundation | COMPLETE | env-only config, fixed pool sizing, embedded OpenAPI; migration runner shipped 2026-08-24 (internal/db/migrate.go) |
 
 ---
 

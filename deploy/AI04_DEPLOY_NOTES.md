@@ -19,13 +19,12 @@ cp .env.example .env
 # 1. Fill every "change-me" in .env with real secrets: openssl rand -hex 32
 # 2. Mint the NATS mTLS material (compose server mounts these):
 ./deploy/nats/scripts/gen-certs.sh          # writes deploy/nats/certs/*.pem
-# 3. Create the database schema (idempotent, apply in order):
-docker compose -p oap -f deploy/docker-compose.yml --env-file .env up -d postgres
-for f in deploy/migrations/00{1,2,3}_*.sql; do
-  docker exec -i $(docker ps -qf name=postgres-1) psql -U oap -d oap < "$f"
-done
-# 4. Bring up the rest:
+# 3. Bring up the whole stack:
 docker compose -p oap -f deploy/docker-compose.yml --env-file .env up -d
+#    The server applies the embedded schema (internal/db/migrations) itself at
+#    boot (OAP_AUTO_MIGRATE=true), so no manual psql pass is needed. Ledger:
+#    docker exec $(docker ps -qf name=postgres) psql -U oap -d oap \
+#      -c 'SELECT version, dirty FROM schema_migrations'
 docker compose -p oap -f deploy/docker-compose.yml ps        # 5x healthy
 ```
 
@@ -49,14 +48,13 @@ server `/auth/login` → dex static-user form → consent approve → code →
 callback, prints the `oap_session` cookie result and exercises two authed
 endpoints.
 
-**Migration on an existing deployment:** compose does NOT run the
-`deploy/migrations/` SQL automatically (postgres' `docker-entrypoint-initdb.d`
-only seeds `init.sql`, and only on an empty volume). Every fresh host must
-apply 001→003 manually as above; an already-running stack upgrades in place:
-
-```bash
-docker exec -i <postgres-container> psql -U oap -d oap < deploy/migrations/003_platform_schema_addendum2.sql
-```
+**Migration on an existing deployment:** the server binary carries the schema
+(`internal/db/migrations/`, applied at boot through golang-migrate — see
+data-model spec §9). An already-running stack upgrades in place on the next
+server image rebuild + recreate; the ledger in `schema_migrations` makes the
+step idempotent. (Historical: before the runner landed, fresh hosts had to
+apply 001→003 by hand through `psql`, and `docker-entrypoint-initdb.d` seeds
+only `init.sql`, only on an empty volume.)
 
 ## 2. Verified working at deploy time
 
@@ -180,11 +178,12 @@ ssh -N -L 5173:localhost:5173 -L 8080:localhost:8080 -L 5556:localhost:5556 ai04
    Options: (a) add a dev-mode default org/role in `Verifier.Verify`,
    (b) real LDAP/groups connector, (c) seed a tenant + org-claim plumbing.
    Also note `MapGroupsToRole` can never fire for static users regardless.
-2. **Stores don't EnsureSchema.** Migration 003 papers the a2a gap; the
-   principled fix is calling the existing DDL constants at startup (or
-   wiring a real migration runner — Alembic is set NOT used for the Go
-   stores, and `py/alembic` vs `deploy/migrations` remain two divergent
-   schema sources; see data-model spec KL #2).
+2. **~~Stores don't EnsureSchema.~~ RESOLVED (2026-08-24).** A real
+   migration runner now ships in the binary: `internal/db.Migrate`
+   (golang-migrate, embedded canonical set `internal/db/migrations/`)
+   applies the schema at boot — `OAP_AUTO_MIGRATE=true` default.
+   `py/alembic` and the loose `deploy/migrations/` copies are deleted;
+   one schema source remains (data-model spec §9).
 3. **`nats.conf` env expansion** — repo keeps `${VAR}` placeholders; bake
    literals only if a host proves expansion broken (§3.4.5).
 4. **Retention purger non-functional** (data-model spec KL #6) — needs a
