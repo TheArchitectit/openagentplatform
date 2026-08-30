@@ -212,9 +212,65 @@ EOF
   echo "    A2A cert: a2a-${name}-cert.pem (valid ${DAYS_CERT} days)"
 }
 
+# gen_server_client_cert mints the PLATFORM SERVER's NATS client certificate —
+# the pair deploy/docker-compose.yml mounts into the server container at
+# /etc/oap-nats/. Required because nats.conf sets tls.verify:true (mTLS: every
+# client must present a cert signed by our CA) even while verify_and_map is
+# false (username comes from the URL, not the cert). The CN is informational
+# only in that mode; kept as "oap-server" to match the account username so
+# flipping verify_and_map back on later stays consistent.
+gen_server_client_cert() {
+  local name="oap-server"
+  local spiffe_uri="spiffe://${DOMAIN}/ns/oap/${name}"
+  echo "[+] Generating platform-server client certificate..."
+
+  openssl ecparam -genkey -name "$EC_CURVE" -noout -out "${name}-client-key.pem"
+
+  local ext_file
+  ext_file=$(mktemp)
+  cat > "$ext_file" <<EOF
+[req]
+distinguished_name = req_dn
+req_extensions     = v3_req
+prompt             = no
+
+[req_dn]
+CN = ${name}
+
+[v3_req]
+basicConstraints = CA:FALSE
+keyUsage         = critical, digitalSignature
+extendedKeyUsage = clientAuth
+subjectAltName   = @alt_names
+
+[alt_names]
+DNS.1 = ${name}
+URI.1 = ${spiffe_uri}
+EOF
+
+  openssl req -new \
+    -key "${name}-client-key.pem" \
+    -out "${name}-client-csr.pem" \
+    -config "$ext_file"
+
+  openssl x509 -req \
+    -in "${name}-client-csr.pem" \
+    -CA ca.pem \
+    -CAkey ca-key.pem \
+    -CAcreateserial \
+    -out "${name}-client-cert.pem" \
+    -days "$DAYS_CERT" \
+    -extfile "$ext_file" \
+    -extensions v3_req
+
+  rm -f "${name}-client-csr.pem" "$ext_file"
+  echo "    Server client cert: ${name}-client-cert.pem (valid ${DAYS_CERT} days)"
+}
+
 # ---- Generate all certs ------------------------------------------------------
 gen_ca
 gen_server_cert
+gen_server_client_cert
 
 # Default agents for development
 for agent in orchestrator planner executor reviewer; do

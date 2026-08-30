@@ -24,6 +24,14 @@ RUN pnpm run build
 FROM nginx:1.27-alpine AS runtime
 # Ship a minimal nginx config that serves the SPA on :80 with a history-API
 # fallback. The built assets land in /usr/share/nginx/html.
+#
+# The /api/, /auth/ and /a2a/ proxy_pass blocks are REQUIRED, not optional
+# convenience: the SPA uses a relative API_BASE ('/api/v1'), the Go server has
+# no CORS middleware, and the compose stack maps the web port straight to
+# nginx. Without the proxy, every API call from a browser would be same-origin
+# to nginx and 404, and the server on :8080 could not accept it cross-origin
+# either. Serving web and API same-origin through this proxy is the supported
+# topology; do not run the web container without it.
 COPY --from=build /src/dist /usr/share/nginx/html
 RUN printf 'server {\n\
   listen 80;\n\
@@ -31,8 +39,14 @@ RUN printf 'server {\n\
   root /usr/share/nginx/html;\n\
   index index.html;\n\
   location / { try_files $uri $uri/ /index.html; }\n\
+  location /api/ { proxy_pass http://server:8080; proxy_set_header Host $host; }\n\
+  location /auth/ { proxy_pass http://server:8080; proxy_set_header Host $host; }\n\
+  location /a2a/ { proxy_pass http://server:8080; proxy_set_header Host $host; }\n\
 }\n' > /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
+# Healthcheck uses 127.0.0.1 (not 'localhost'): on some base images 'localhost'
+# resolves IPv6-first and wget -q --spider fails against an IPv4-only nginx
+# listener, reporting the container unhealthy while it actually serves 200s.
 HEALTHCHECK --interval=10s --timeout=5s --retries=5 \
-  CMD wget -q --spider http://localhost/ || exit 1
+  CMD wget -q --spider http://127.0.0.1/ || exit 1

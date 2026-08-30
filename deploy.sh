@@ -168,7 +168,7 @@ fi
 
 # --- 5. build docker images (prove they compile) ------------------------------
 echo "[deploy] building server + web Docker images (dependency: compose build)"
-if ! docker compose -f deploy/docker-compose.yml build server web >/tmp/oap-docker-build.log 2>&1; then
+if ! docker compose -p oap -f deploy/docker-compose.yml build server web >/tmp/oap-docker-build.log 2>&1; then
 	echo "[deploy] ERROR: docker compose build failed. See tail of build log:" >&2
 	tail -30 /tmp/oap-docker-build.log >&2
 	exit 1
@@ -225,10 +225,10 @@ echo "go/python/web tests) — deploy.sh already ran the public-repo secret"
 echo "scan, so gitleaks should be green. On each runtime host:"
 echo
 echo "  1. Pull the released code and rebuild:"
-echo "       git pull && docker compose -f deploy/docker-compose.yml build"
+echo "       git pull && docker compose -p oap -f deploy/docker-compose.yml build"
 echo "  2. Restart the stack:"
-echo "       docker compose -f deploy/docker-compose.yml up -d"
+echo "       docker compose -p oap -f deploy/docker-compose.yml up -d"
 echo "  3. Verify health:"
-echo "       curl -sS http://localhost:8080/health"
+echo "       curl -sS http://localhost:8080/healthz"
 echo "============================================================"
 echo "[deploy] done."
