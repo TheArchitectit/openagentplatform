@@ -1,9 +1,13 @@
 # Auth & RBAC
 
 > **Phase:** 0 (Foundation) / 2 (A2A + Agents)
-> **STATUS: COMPLETE**
-> **Source:** `docs/architecture/ENDPOINT_API.md` §2, §9; `docs/architecture/A2A_PROTOCOL.md` §7
-> **App Path:** `internal/auth/middleware.go`, `internal/auth/oidc.go`
+> **STATUS: COMPLETE** (§14 first-boot bootstrap implemented 2026-08-24 and
+> verified green — see App Path and §14 for the surface)
+> **Source:** `docs/architecture/ENDPOINT_API.md` §2, §9; `docs/architecture/A2A_PROTOCOL.md` §7;
+> §14 from AI04_DEPLOY_NOTES §5.1 (first-admin gap)
+> **App Path:** `internal/auth/middleware.go`, `internal/auth/oidc.go`;
+> §14: `internal/api/routes_bootstrap.go`, `internal/bootstrap/store.go`,
+> `internal/db/migrations/004_first_boot_bootstrap.up.sql`
 
 ---
 
@@ -238,3 +242,62 @@ CI.
 13.3. Tests MUST assert the negative cases — expired token rejected, wrong
 audience rejected, insufficient scope rejected, cross-tenant access rejected —
 not only that valid credentials succeed.
+
+### 14. First-Boot Organization Bootstrap
+
+Motivation: the identity layer is external (OIDC/dex) while tenancy is
+internal (`tenants`, org-scoped via TEXT `org_id`). On a fresh database no
+org exists and no IdP subject is bound to one, so every org-scoped route
+returns `400 {"error":"org context required"}` — including for the first
+administrator. (Observed on the 2026-08-30 ai04 deploy; AI04_DEPLOY_NOTES
+§5.1. dex static users emit no groups/org claims, but the same gap applies
+to any IdP whose users carry no org claim.)
+
+14.1. `POST /api/v1/auth/bootstrap` MUST be provided, taking
+`{"token", "org_name", "org_slug"}`. A correct token MUST create exactly one
+org (a `tenants` row — inserted in the same transaction as the binding and
+latch, which rules out calling `tenancy.TenantStore` on its own DB handle;
+same column semantics as `TenantStore.Create`), record the caller's IdP subject
+(from a valid session cookie/bearer token — the caller MUST be authenticated
+first) as the org's admin in a `user_org_bindings` table
+(`subject TEXT PRIMARY KEY, org_id TEXT NOT NULL, role TEXT NOT NULL,
+created_at` — `org_id` TEXT matching every other org column in 001, no FK,
+application-level integrity), set `bootstrap_complete` in a single-row
+`app_state` control table, and respond with the created org. An incorrect
+token MUST respond `401`; the endpoint MUST be rate-limited as an auth
+surface (§11 default bucket applies until a dedicated limit is warranted).
+
+14.2. The bootstrap token MUST come from `BOOTSTRAP_TOKEN` (env). An empty
+value MUST disable the endpoint entirely (`404 {"error":"bootstrap_disabled"}`)
+— a deployment that manages orgs out-of-band never has it open. The token
+MUST be compared in constant time, MUST NOT be logged or returned by any
+endpoint, and MUST NOT be committed to the repo (`.env.example` documents it
+with an empty placeholder).
+
+14.3. Once `bootstrap_complete` is set, the endpoint MUST respond
+`403 {"error":"already_initialized"}` for any further call, permanently,
+regardless of token value. Re-running MUST NOT duplicate orgs.
+
+14.4. Org resolution at login (`handleCallback`) MUST follow, in order:
+(a) an explicit `org_id` claim on the ID token; (b) a `user_org_bindings`
+row for the subject; (c) if exactly one org exists and the subject has no
+binding, auto-bind the subject to it with the groups-mapped role — the
+single-org beta convenience that makes post-bootstrap logins work for every
+IdP user without per-user provisioning; (d) otherwise mint a session with an
+empty `OrgID` (org-scoped routes keep returning 400; multi-org deployments
+must bind users out-of-band via `user_org_bindings`, e.g. through IdP org
+claims in (a)).
+
+14.5. Sessions MUST carry `org_id` (already on `SessionClaims`); the role
+MUST remain groups-mapped (`MapGroupsToRole`) but bootstrap and auto-bind
+rows may store an explicit role (the first admin gets `admin` even when the
+IdP emits no groups — static dex users cannot be in `oap-admins`).
+
+14.6. Both the bootstrap success and every rejection MUST produce audit
+events (§12) with the caller principal, outcome, and org slug (never the
+token).
+
+14.7. The `user_org_bindings` and `app_state` tables MUST ship as a new
+canonical migration (`internal/db/migrations/004_*`, applied at boot like
+any other — the runner makes a fresh DB bootstrap-ready with no manual
+step).

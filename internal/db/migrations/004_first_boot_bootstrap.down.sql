@@ -1,0 +1,2 @@
+-- Rollback for 004_first_boot_bootstrap: deliberate no-op.
+-- Beta policy is roll-forward (see internal/db/migrate.go header).

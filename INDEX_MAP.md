@@ -220,6 +220,7 @@ Do not reopen v1.2.0 (`4194dac`) shipped work. See `STATUS.md` for project state
 | **openspec/specs/notifications** | wired email/Slack/webhook alert channels, retry and SSRF guard; persistence limits | When touching notify/alert channels |
 | **openspec/specs/resilience** | rate limiter, wired adapter breaker, graceful shutdown, retry; in-memory/distributed limits | When touching resilience/rate limits |
 | **openspec/specs/audit-log** | hash-chained audit events, GapCount verification, read API; retention/concurrency/hash limits | When touching audit |
+| **openspec/specs/auth-rbac** | OIDC/API-key/mTLS/agent credential types, RBAC roles, org context middleware; §14 first-boot org bootstrap (BOOTSTRAP_TOKEN + POST /api/v1/auth/bootstrap) | When touching auth/org binding |
 | **openspec/specs/event-bus** | core NATS client, tracing, eight-subject taxonomy, heartbeat/check ingest with single persistence owner | When touching internal/events subjects |
 | **openspec/specs/a2a-relay** | COMPLETE managed relay: accounting core + WSS admission (mTLS+token), entitlement-gated matching/forwarding, admin surface, discovery federation, and E2E/private/load acceptance | When touching internal/relay |
 | **openspec/specs/check-library** | COMPLETE: 9 built-in check templates (full rmm-core §3.2 set) + seeding; catalog/API/seeder tested | When touching checklib/check catalog |

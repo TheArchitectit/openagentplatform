@@ -16,6 +16,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/audit"
 	"github.com/openagentplatform/openagentplatform/internal/auth"
 	"github.com/openagentplatform/openagentplatform/internal/billing"
+	"github.com/openagentplatform/openagentplatform/internal/bootstrap"
 	"github.com/openagentplatform/openagentplatform/internal/config"
 	"github.com/openagentplatform/openagentplatform/internal/license"
 	"github.com/openagentplatform/openagentplatform/internal/licensing"
@@ -159,6 +160,11 @@ type Server struct {
 	// meshReleaseStore persists Ed25519-signed agent release records for
 	// self-update. May be nil; release endpoints return 503 when unset.
 	meshReleaseStore MeshReleaseStore
+	// bootstrapStore persists the one-time first-boot org latch and the
+	// subject→org bindings consulted at login (auth-rbac spec §14). May be
+	// nil; the bootstrap endpoint returns 503 and login org resolution falls
+	// back to ID-token claims only.
+	bootstrapStore *bootstrap.Store
 }
 
 // MeshReleaseStore is the persistence contract used by the mesh release API.

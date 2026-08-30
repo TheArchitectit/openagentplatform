@@ -8,6 +8,41 @@ for the BSL-licensed releases.
 
 ---
 
+## [Unreleased] - 2026-08-24 -- First-boot organization bootstrap (auth-rbac §14)
+
+### Added
+
+- **`POST /api/v1/auth/bootstrap`** (`internal/api/routes_bootstrap.go`):
+  one-time org + first-admin claim, closing the "no orgs, first login gets
+  400" gap (AI04_DEPLOY_NOTES §5.1). Requires a valid session (IdP login)
+  and the `BOOTSTRAP_TOKEN` env; mounted with the session verifier but NOT
+  org-context — an unbootstrapped caller has no org yet.
+- **Bootstrap store** (`internal/bootstrap/store.go`): transactional
+  `Claim` — constant-time token compare, `bootstrap_complete` latch in
+  `app_state`, single-org guard, creates the tenant and binds the caller as
+  `admin` in one commit (concurrent claims cannot duplicate the org).
+- **Login-time org resolution** (`resolveOrgForSubject` in
+  `handleCallback`): org from ID-token claim → `user_org_bindings` row →
+  single-org auto-bind → empty. Never blocks login; explicit binding beats
+  the groups→role map; `resolvedRole` in `internal/auth/oidc.go` applies
+  the same precedence at mint time.
+- **Migration 004** (`internal/db/migrations/004_first_boot_bootstrap`):
+  `user_org_bindings` + `app_state` (no-FK TEXT-convention tables).
+- `BOOTSTRAP_TOKEN` config field + `.env.example` / compose plumbing;
+  empty (default) disables the endpoint (404).
+- Tests: `internal/bootstrap/store_test.go` and
+  `internal/api/routes_bootstrap_test.go` — token rejection, latch
+  permanence, first-claim-wins, auto-bind, resolution order (live-DB via
+  `OAP_TEST_PG_DSN`).
+
+### Docs
+
+- auth-rbac spec §14 authored (requirements 14.1–14.7) and marked
+  implemented; INDEX_MAP gained the missing auth-rbac row; HEADER_MAP
+  gained the auth-rbac section table.
+
+---
+
 ## [Unreleased] - 2026-08-24 -- Schema migration runner + single canonical schema
 
 ### Added

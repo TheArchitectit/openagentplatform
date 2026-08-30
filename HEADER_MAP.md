@@ -1852,6 +1852,31 @@
 
 ---
 
+## openspec/specs/auth-rbac/spec.md
+
+| Line | Header |
+|------|--------|
+| 1 | # Auth & RBAC |
+| 14 | ## Description |
+| 35 | ## User Story |
+| 46 | ## Requirements |
+| 48 | ### 1. OIDC Authentication |
+| 63 | ### 2. Bearer Token (JWT) Authentication |
+| 79 | ### 3. Token Lifecycle Endpoints |
+| 101 | ### 4. API Keys |
+| 115 | ### 5. mTLS and Service Identity |
+| 127 | ### 6. OAuth 2.1 for Third Parties |
+| 138 | ### 7. Agent Enrollment Credentials |
+| 151 | ### 8. Role-Based Access Control |
+| 173 | ### 9. Multi-Tenant Isolation |
+| 184 | ### 10. Middleware Chain |
+| 197 | ### 11. Rate Limiting |
+| 222 | ### 12. Audit Logging |
+| 234 | ### 13. Security Verification |
+| 246 | ### 14. First-Boot Organization Bootstrap (implemented 2026-08-24; POST /api/v1/auth/bootstrap, BOOTSTRAP_TOKEN gate, migration 004) |
+
+---
+
 ## openspec/specs/ — P2 capability specs (authored 2026-08-23)
 
 Capability specs use a header block (Phase/STATUS/App Path), Description, User Story,

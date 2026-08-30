@@ -71,6 +71,17 @@ func (s *Server) handleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Resolve the caller's org (auth-rbac spec §14.4): ID-token claim →
+	// binding row → single-org auto-bind → empty. A stored binding's
+	// explicit role (e.g. the bootstrapped first admin) wins over the
+	// groups mapping below.
+	if orgID, role := s.resolveOrgForSubject(r.Context(), claims.Subject, claims); orgID != "" {
+		claims.OrgID = orgID
+		if role != "" {
+			claims.Role = role
+		}
+	}
+
 	sessionTok, err := s.sessionMinter.Mint(claims)
 	if err != nil {
 		s.log.Error("session mint failed", "err", err)

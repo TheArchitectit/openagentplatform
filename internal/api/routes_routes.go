@@ -56,6 +56,14 @@ func (s *Server) registerRoutes(r chi.Router) {
 		r.Post("/webhook", s.handleBillingWebhook)
 	})
 
+	// First-boot organization bootstrap (auth-rbac spec §14). Requires a
+	// session, but NOT org context — it exists precisely to create the
+	// first org, so it must not be gated by orgContextMiddleware.
+	r.Route("/api/v1/auth", func(r chi.Router) {
+		r.Use(auth.VerifierMiddleware(s.sessionMinter, s.oidcVerifier, sessionCookieName))
+		r.Post("/bootstrap", s.handleBootstrap)
+	})
+
 	// Protected API.
 	r.Group(func(r chi.Router) {
 		r.Use(auth.VerifierMiddleware(s.sessionMinter, s.oidcVerifier, sessionCookieName))

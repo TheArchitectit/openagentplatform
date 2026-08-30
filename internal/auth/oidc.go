@@ -115,6 +115,17 @@ func MapGroupsToRole(groups []string) string {
 	return best
 }
 
+// resolvedRole picks the effective role for a session: an explicitly
+// resolved role (a user_org_bindings entry — the bootstrapped first admin
+// gets "admin" even though dex static users emit no groups, auth-rbac spec
+// §14.5) takes precedence over the OIDC-groups mapping.
+func resolvedRole(c *Claims) string {
+	if c.Role != "" {
+		return c.Role
+	}
+	return MapGroupsToRole(c.Groups)
+}
+
 // NewSessionMinter creates a SessionMinter. If privKeyPEM is non-empty it is
 // parsed as a PKCS#8 PEM-encoded Ed25519 private key; otherwise a fresh
 // ephemeral key is generated (suitable for tests only).
@@ -192,7 +203,7 @@ func (m *SessionMinter) Mint(c *Claims) (string, error) {
 		Groups: c.Groups,
 		OrgID:  c.OrgID,
 		SiteID: c.SiteID,
-		Role:   MapGroupsToRole(c.Groups),
+		Role:   resolvedRole(c),
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   c.Subject,
 			Issuer:    m.issuer,

@@ -124,6 +124,9 @@ services:
       # migrations) at boot. Set OAP_AUTO_MIGRATE=false for DBA-managed
       # databases; rollout then happens via `go run ./cmd/migrate up`.
       OAP_AUTO_MIGRATE: ${OAP_AUTO_MIGRATE:-true}
+      # One-time first-boot org bootstrap token (auth-rbac spec §14).
+      # Empty (default) disables POST /api/v1/auth/bootstrap entirely.
+      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:-}
     ports:
       - "8080:8080"
     volumes:

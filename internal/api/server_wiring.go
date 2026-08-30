@@ -5,6 +5,7 @@ import (
 	"github.com/openagentplatform/openagentplatform/a2a/gateway"
 	"github.com/openagentplatform/openagentplatform/a2a/hitl"
 	"github.com/openagentplatform/openagentplatform/internal/billing"
+	"github.com/openagentplatform/openagentplatform/internal/bootstrap"
 	"github.com/openagentplatform/openagentplatform/internal/monitoring"
 	"github.com/openagentplatform/openagentplatform/internal/patches"
 	"github.com/openagentplatform/openagentplatform/internal/reports"
@@ -12,6 +13,13 @@ import (
 	"github.com/openagentplatform/openagentplatform/internal/scheduled"
 	"github.com/openagentplatform/openagentplatform/secrets/resolver"
 )
+
+// SetBootstrapStore wires the first-boot org bootstrap store (auth-rbac
+// spec §14). May be nil; the endpoint returns 503 and login falls back to
+// ID-token org claims only.
+func (s *Server) SetBootstrapStore(store *bootstrap.Store) {
+	s.bootstrapStore = store
+}
 
 // SetScriptStore wires the script definition and run persistence interface
 // into the server. Called from main. May be nil; script endpoints return

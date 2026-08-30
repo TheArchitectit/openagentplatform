@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/openagentplatform/openagentplatform/internal/alerts"
 	"github.com/openagentplatform/openagentplatform/internal/api"
+	"github.com/openagentplatform/openagentplatform/internal/bootstrap"
 	"github.com/openagentplatform/openagentplatform/internal/checks"
 	"github.com/openagentplatform/openagentplatform/internal/config"
 	"github.com/openagentplatform/openagentplatform/internal/events"
@@ -279,6 +280,13 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 				log.Info("tenant migrations applied")
 			}
 		}
+	}
+
+	// First-boot organization bootstrap (auth-rbac spec §14). Shares the
+	// tenancy stdlib handle; nil tenantDB means the store is unavailable
+	// and the endpoint returns 503.
+	if tenantDB != nil {
+		apiServer.SetBootstrapStore(bootstrap.NewStore(tenantDB))
 	}
 
 	return &Server{

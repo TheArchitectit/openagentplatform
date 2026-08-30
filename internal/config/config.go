@@ -34,12 +34,17 @@ type Config struct {
 	PostLoginRedirectURL string
 
 	// AutoMigrate applies the embedded schema migrations (internal/db/
-	// migrations) at server boot, before any store is constructed. Default
+	// migrations) at server boot, before any store touches a table. Default
 	// true: in beta there is no database whose contents matter, so "boot an
 	// empty host and get a working platform" is the intended behaviour. Set
 	// OAP_AUTO_MIGRATE=false for a managed database where a DBA applies the
 	// same files out-of-band.
 	AutoMigrate bool
+
+	// BootstrapToken guards the one-time first-boot org bootstrap endpoint
+	// (auth-rbac spec §14). Empty (default) disables the endpoint entirely.
+	// Generate one with e.g. `openssl rand -hex 32` during installation.
+	BootstrapToken string
 
 	SessionIssuer   string
 	SessionAudience string
@@ -88,6 +93,7 @@ func Load() (*Config, error) {
 		OIDCRedirectURL:      getEnv("OIDC_REDIRECT_URL", "http://localhost:8080/auth/callback"),
 		PostLoginRedirectURL: getEnv("POST_LOGIN_REDIRECT_URL", "/"),
 		AutoMigrate:          getEnv("OAP_AUTO_MIGRATE", "true") == "true",
+		BootstrapToken:       getEnv("BOOTSTRAP_TOKEN", ""),
 		SessionIssuer:        getEnv("SESSION_ISSUER", "openagentplatform"),
 		SessionAudience:      getEnv("SESSION_AUDIENCE", "oap-web"),
 		SessionKeyPath:       os.Getenv("SESSION_KEY_PATH"),
