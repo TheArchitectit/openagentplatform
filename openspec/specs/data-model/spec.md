@@ -29,8 +29,10 @@ Persistence is PostgreSQL via `pgx`. Two checked-in schema sources exist and
 diverge (see Known Limitations #2): the Python/Alembic set under
 `py/alembic/versions/` (the `oap` database, TimescaleDB hypertables, UUID
 `org_id`) and `deploy/migrations/001_platform_schema.sql` +
-`002_platform_schema_addendum.sql`, added in 9996a99/26827e0 by reconstructing
-the DDL from the SQL embedded in the Go stores (TEXT `org_id`).
+`002_platform_schema_addendum.sql` + `003_platform_schema_addendum2.sql`,
+added in 9996a99/26827e0 (001/002) by reconstructing
+the DDL from the SQL embedded in the Go stores (TEXT `org_id`); 003 (2026-08-30
+ai04 deploy) adds the a2a tables and `policies.deleted` that 001/002 missed.
 `deploy/postgres/init.sql` enables the three extensions (§9.1). The stores are
 written to tolerate schema drift (descriptive errors or empty results when
 tables are absent). Org tenancy is enforced at the **application layer** via
@@ -309,7 +311,10 @@ scoped so one tenant's purge cannot touch another tenant's rows.
 1. **Resolved (2026-08-24).** A checked-in platform DDL now exists:
    `deploy/migrations/001_platform_schema.sql` (9996a99) plus
    `002_platform_schema_addendum.sql` (26827e0), reconstructed from the SQL
-   embedded in the Go stores.
+   embedded in the Go stores. `003_platform_schema_addendum2.sql` (2026-08-30,
+   ai04 test deploy) completes the set for the server's boot path: the a2a
+   registry/task tables (stores never run EnsureSchema) and `policies.deleted`
+   (queried by `internal/policy/store_crud.go` but missing from 001).
 2. **Two divergent schema sources.** The `oap` production database is managed
    by the Python/Alembic set under `py/alembic/versions/` (UUID `org_id`,
    TimescaleDB hypertables, `agents.deleted_at`), while `deploy/migrations/`

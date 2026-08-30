@@ -101,8 +101,10 @@ func (s *Server) handleCallback(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   -1,
 	})
 
-	// Redirect back to the web UI.
-	http.Redirect(w, r, s.cfg.OIDCRedirectURL, http.StatusFound)
+	// Redirect back to the web UI. Relative default ("/") resolves against
+	// the browser's origin, so this works direct-to-server and through the
+	// web nginx proxy alike.
+	http.Redirect(w, r, s.cfg.PostLoginRedirectURL, http.StatusFound)
 }
 
 // handleLogout clears the session cookie.
