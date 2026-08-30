@@ -120,6 +120,10 @@ services:
       # code-exchange redirect_uri). The browser's post-login destination is
       # now the separate POST_LOGIN_REDIRECT_URL (default "/").
       POST_LOGIN_REDIRECT_URL: ${POST_LOGIN_REDIRECT_URL:-/}
+      # The server applies the embedded canonical schema (internal/db/
+      # migrations) at boot. Set OAP_AUTO_MIGRATE=false for DBA-managed
+      # databases; rollout then happens via `go run ./cmd/migrate up`.
+      OAP_AUTO_MIGRATE: ${OAP_AUTO_MIGRATE:-true}
     ports:
       - "8080:8080"
     volumes:

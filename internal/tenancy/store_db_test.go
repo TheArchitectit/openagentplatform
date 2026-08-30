@@ -14,7 +14,7 @@ import (
 
 // openTestDB returns a live *sql.DB against the DSN in OAP_TEST_PG_DSN,
 // skipping when unset. The tenants/tenant_configs tables must exist
-// (deploy/migrations/001 + 002 create them).
+// (internal/db/migrations/001 + 002 create them).
 func openTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 	dsn := os.Getenv("OAP_TEST_PG_DSN")

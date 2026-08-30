@@ -1,4 +1,4 @@
-.PHONY: up up-dev down test lint build migrate seed fmt clean build-agent build-agent-all setup setup-dev reset logs help
+.PHONY: up up-dev down test lint build migrate migrate-status migrate-new seed fmt clean build-agent build-agent-all setup setup-dev reset logs help
 
 COMPOSE_FILE := deploy/docker-compose.yml
 COMPOSE_DEV_FILE := deploy/docker-compose.dev.yml
@@ -10,7 +10,9 @@ help:
 	@echo "  make up-dev        - Start with hot reload for development"
 	@echo "  make down          - Stop the stack"
 	@echo "  make logs          - Tail logs from all services"
-	@echo "  make migrate       - Run database migrations"
+	@echo "  make migrate       - Apply schema migrations (embedded set; server also auto-migrates at boot)"
+	@echo "  make migrate-status- Show current vs pending schema versions"
+	@echo "  make migrate-new name=add_foo - Scaffold the next migration pair"
 	@echo "  make seed          - Load sample data"
 	@echo "  make reset         - Destroy volumes and start fresh"
 	@echo "  make test          - Run all tests"
@@ -32,7 +34,8 @@ setup:
 	docker compose -f $(COMPOSE_FILE) up -d
 	@echo "Waiting for services to be healthy..."
 	@sleep 10
-	@$(MAKE) migrate
+	@# No migrate step: the server applies the embedded schema at boot
+	@# (OAP_AUTO_MIGRATE=true, and the stack's compose file sets it).
 	@$(MAKE) seed
 	@echo ""
 	@echo "✅ Setup complete!"
@@ -46,8 +49,6 @@ setup-dev:
 	docker compose -f $(COMPOSE_FILE) up -d
 	@echo "Waiting for services to be healthy..."
 	@sleep 10
-	@$(MAKE) migrate
-	@echo ""
 	@echo "✅ Development stack ready!"
 	@echo "   Start dev mode with: make up-dev"
 
@@ -89,10 +90,18 @@ build-agent-all:
 	GOOS=windows go build -o bin/oap-agent-windows.exe ./cmd/agent
 
 migrate:
-	cd py && uv run alembic upgrade head
+	@# Applies pending schema migrations from the canonical embedded set
+	@# (internal/db/migrations). The server does this itself at boot
+	@# (OAP_AUTO_MIGRATE=true); this target is for OAP_AUTO_MIGRATE=false
+	@# setups, CI, and humans checking ledger state.
+	go run ./cmd/migrate status
+	go run ./cmd/migrate up
+
+migrate-status:
+	go run ./cmd/migrate status
 
 migrate-new:
-	cd py && uv run alembic revision --autogenerate -m "$(name)"
+	@./scripts/new-migration.sh "$(name)"
 
 seed:
 	@# Sample data: the built-in check library is seeded automatically when the

@@ -45,6 +45,21 @@ func main() {
 	defer pool.Close()
 	log.Info("db pool ready")
 
+	// --- Schema migrations -------------------------------------------------
+	// Apply the embedded canonical schema (internal/db/migrations) before any
+	// store touches a table. Concurrent server boots are safe: the migrate
+	// driver holds a Postgres advisory lock for the duration. Disabled with
+	// OAP_AUTO_MIGRATE=false for DBA-managed databases.
+	if cfg.AutoMigrate {
+		migCtx, migCancel := context.WithTimeout(rootCtx, 5*time.Minute)
+		if err := db.Migrate(migCtx, cfg.PostgresDSN, log); err != nil {
+			migCancel()
+			log.Error("schema migration failed", "err", err)
+			os.Exit(1)
+		}
+		migCancel()
+	}
+
 	// --- Seed built-in check library -------------------------------------
 	seedCtx, seedCancel := context.WithTimeout(rootCtx, 15*time.Second)
 	if seedRes, err := checklib.Seed(seedCtx, pool, log); err != nil {

@@ -1,0 +1,3 @@
+-- No down migration: beta schema, roll-forward only. A fresh database is rebuilt via
+-- 'compose down -v && up' (see deploy/AI04_DEPLOY_NOTES.md); dropping platform tables in place
+-- would destroy data without a supported restore path.

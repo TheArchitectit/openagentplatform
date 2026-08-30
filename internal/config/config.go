@@ -33,6 +33,14 @@ type Config struct {
 	// used (direct :8080 or the web proxy) — see AI04_DEPLOY_NOTES.md.
 	PostLoginRedirectURL string
 
+	// AutoMigrate applies the embedded schema migrations (internal/db/
+	// migrations) at server boot, before any store is constructed. Default
+	// true: in beta there is no database whose contents matter, so "boot an
+	// empty host and get a working platform" is the intended behaviour. Set
+	// OAP_AUTO_MIGRATE=false for a managed database where a DBA applies the
+	// same files out-of-band.
+	AutoMigrate bool
+
 	SessionIssuer   string
 	SessionAudience string
 	SessionKeyPath  string
@@ -79,6 +87,7 @@ func Load() (*Config, error) {
 		OIDCClientSecret:     os.Getenv("OIDC_CLIENT_SECRET"),
 		OIDCRedirectURL:      getEnv("OIDC_REDIRECT_URL", "http://localhost:8080/auth/callback"),
 		PostLoginRedirectURL: getEnv("POST_LOGIN_REDIRECT_URL", "/"),
+		AutoMigrate:          getEnv("OAP_AUTO_MIGRATE", "true") == "true",
 		SessionIssuer:        getEnv("SESSION_ISSUER", "openagentplatform"),
 		SessionAudience:      getEnv("SESSION_AUDIENCE", "oap-web"),
 		SessionKeyPath:       os.Getenv("SESSION_KEY_PATH"),

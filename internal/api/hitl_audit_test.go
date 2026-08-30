@@ -14,7 +14,7 @@ import (
 )
 
 // openAuditPool returns a live pgxpool against OAP_TEST_PG_DSN, skipping when
-// unset. The audit_events table must exist (deploy/migrations/002).
+// unset. The audit_events table must exist (internal/db/migrations/002).
 func openAuditPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 	dsn := os.Getenv("OAP_TEST_PG_DSN")

@@ -12,7 +12,7 @@ import (
 )
 
 // pgAgentStore is the default implementation of agentStore backed by Postgres.
-// It assumes the schema laid out in deploy/migrations/001_platform_schema.sql
+// It assumes the schema laid out in internal/db/migrations/001_platform_schema.up.sql
 // has the relevant tables (sites, agents, check_results) but tolerates schema
 // drift by returning a descriptive error rather than panicking.
 type pgAgentStore struct {
