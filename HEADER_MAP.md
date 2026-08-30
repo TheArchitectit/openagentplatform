@@ -85,6 +85,32 @@
 
 ---
 
+## deploy/AI04_DEPLOY_NOTES.md
+
+| Line | Header |
+|------|--------|
+| 1 | # AI04 Test Deploy — Field Notes & Runbook |
+| 14 | ## 1. Quick start (what works today) |
+| 61 | ## 2. Verified working at deploy time |
+| 71 | ## 3. Defects found → fixed in repo |
+| 73 | ### 3.1 Compose project-name collision (HAZARD) |
+| 80 | ### 3.2 Postgres/NATS port collisions |
+| 85 | ### 3.3 `Dockerfile.web` shipped no API proxy |
+| 92 | ### 3.4 NATS config incompatible with pinned nats 2.10.22 |
+| 110 | ### 3.5 Dex startup: entrypoint + trustedPeers |
+| 119 | ### 3.6 Server NATS TLS material missing from compose |
+| 127 | ### 3.7 a2a tables absent on a fresh DB (server init crash) |
+| 136 | ### 3.8 Policy seeder fails on fresh DB |
+| 143 | ### 3.9 Web healthcheck "unhealthy" while serving 200s |
+| 149 | ### 3.10 Post-login redirect loop |
+| 157 | ### 3.11 `OIDC_ISSUER_URL` value confusion |
+| 164 | ## 4. Browser login caveat (test topology) |
+| 175 | ## 5. Open items (decision-gated, NOT fixed here) |
+| 193 | ## 6. Incident notes (what to NOT do on this box) |
+| 205 | ## 7. File-by-file repo changes from this deploy |
+
+---
+
 ## AGENT_GUARDRAILS.md
 
 | Line | Header |
@@ -1832,7 +1858,7 @@ Capability specs use a header block (Phase/STATUS/App Path), Description, User S
 numbered Requirements, and Known Limitations where applicable. Updated line counts:
 audit-log 242, billing-stripe 223, endpoint-agent 411, event-bus 249,
 multi-tenancy 278, notifications 267, observability 279, remote-access 313,
-reporting 248, resilience 213, data-model 360, adapter-service 300,
+reporting 248, resilience 213, data-model 365, adapter-service 300,
 check-library 225, hitl-approval 114.
 
 | Spec | STATUS | Current fidelity note |
