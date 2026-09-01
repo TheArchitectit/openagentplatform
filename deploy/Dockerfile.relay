@@ -31,10 +31,14 @@ COPY --from=build /out/oap-relay /app/oap-relay
 # mapping; admission there is still mTLS-gated by -trust-ca.
 EXPOSE 7000
 
-# Liveness = the WSS listener completes a TLS handshake and presents its
-# certificate. No client cert is presented, so the mTLS gate rejects after the
-# ServerHello — which is exactly the "listening and TLS-serving" signal.
+# Liveness = the WSS listener completes a TLS handshake and presents a
+# certificate that chains to the relay CA. No client cert is presented, so
+# the mTLS gate rejects after the ServerHello — which is exactly the
+# "listening and TLS-serving" signal. Shell form (single CMD line, not exec
+# array): s_client reads stdin, so the probe needs `</dev/null`, and shell
+# form is what makes the `|` pipe work. Docker's default is 3 x 30s; the
+# compose relay service overrides with the same pipeline (kept in sync).
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD openssl s_client -connect 127.0.0.1:7000 -servername relay </dev/null 2>/dev/null | grep -q "BEGIN CERTIFICATE"
+  CMD openssl s_client -connect 127.0.0.1:7000 -servername relay -CAfile /etc/oap-relay/tls/ca-cert.pem </dev/null 2>&1 | grep -q "Verify return code: 0"
 
 ENTRYPOINT ["/app/oap-relay"]

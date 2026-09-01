@@ -195,7 +195,13 @@ services:
       - ./relay/certs:/etc/oap-relay/tls:ro
       - ./relay/trust.yaml:/etc/oap-relay/trust.yaml:ro
     healthcheck:
-      test: ["CMD", "openssl", "s_client", "-connect", "127.0.0.1:7000", "-servername", "relay"]
+      # CMD-SHELL, not exec-form ["CMD", ...]: s_client reads stdin, and in
+      # exec form there is no shell to interpret `</dev/null`, so the probe
+      # blocks until the 5s timeout and the container flips unhealthy. The
+      # shell form closes stdin immediately; -CAfile additionally verifies
+      # the presented cert chains to the mounted relay CA, not just that
+      # *a* certificate came back.
+      test: ['CMD-SHELL', 'openssl s_client -connect 127.0.0.1:7000 -servername relay -CAfile /etc/oap-relay/tls/ca-cert.pem </dev/null 2>&1 | grep -q "Verify return code: 0"']
       interval: 30s
       timeout: 5s
       retries: 3
