@@ -45,6 +45,11 @@ coverage.out
 deploy/nats/certs/*.pem
 deploy/nats/certs/*.key
 deploy/nats/certs/*.crt
+deploy/relay/certs/*
+!deploy/relay/certs/.gitkeep
+# Relay token-signing private key + generated trust config (per-deploy secrets)
+deploy/relay/platform.key
+deploy/relay/trust.yaml
 .vite/
 
 # pi-agent runtime cache (local only — never commit)

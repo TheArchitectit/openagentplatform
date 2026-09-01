@@ -147,6 +147,59 @@ services:
           memory: 512M
           cpus: "0.5"
 
+  # Managed A2A relay (cmd/relay, RELAY-01..06). Dedicated binary, NOT part of
+  # cmd/server (W8). Terminates TLS itself — WSS data plane + mTLS admin API.
+  # Generate cert + trust material first: deploy/relay/gen-relay-certs.sh.
+  # The relay is optional (licensing/relay customers); `up` it explicitly:
+  #   docker compose up -d relay
+  relay:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.relay
+      network: host
+    restart: unless-stopped
+    # No depends_on: the relay is intentionally stateless and standalone — it
+    # shares no datastore with the server (see a2a-relay spec Known
+    # Limitations; persistence is tracked separately).
+    command:
+      - -listen
+      - ":7000"
+      - -cert
+      - /etc/oap-relay/tls/relay-server-cert.pem
+      - -key
+      - /etc/oap-relay/tls/relay-server-key.pem
+      - -trust-ca
+      - /etc/oap-relay/tls/ca-cert.pem
+      - -trust-config
+      - /etc/oap-relay/trust.yaml
+      # Admin surface must be reachable from the host for operators; bind all
+      # interfaces in-container and pin the host mapping to 127.0.0.1 below.
+      - -admin-addr
+      - "0.0.0.0:9090"
+      - -max-connections
+      - ${RELAY_MAX_CONNECTIONS:-1000}
+      - -idle-timeout
+      - ${RELAY_IDLE_TIMEOUT:-30m}
+    ports:
+      # WSS data plane: reachable by agents/peers. Host mapping loopback-only
+      # on shared boxes — open publicly only with a real PKI in front.
+      - "7000:7000"
+      # Admin API: loopback-only on the host; mTLS client certs still required.
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./relay/certs:/etc/oap-relay/tls:ro
+      - ./relay/trust.yaml:/etc/oap-relay/trust.yaml:ro
+    healthcheck:
+      test: ["CMD", "openssl", "s_client", "-connect", "127.0.0.1:7000", "-servername", "relay"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+
   web:
     build:
       context: ..

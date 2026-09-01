@@ -1,0 +1,40 @@
+# syntax=docker/dockerfile:1
+#
+# Multi-stage build for the managed A2A relay (cmd/relay). Build context is the
+# repo root (see deploy/docker-compose.yml: context: ..).
+
+# ---------- build stage ----------
+FROM golang:1.26.3-alpine AS build
+WORKDIR /src
+
+# Same module-cache dance as Dockerfile.server: go.work + module files first.
+COPY go.mod go.sum ./
+COPY go.work ./
+COPY a2a/go.mod a2a/go.sum ./a2a/
+COPY secrets/go.mod ./secrets/
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 go build -o /out/oap-relay ./cmd/relay
+
+# ---------- runtime stage ----------
+FROM alpine:3.20 AS runtime
+# openssl: the container healthcheck probes the WSS listener's TLS handshake
+# (the admin surface requires mTLS, and the WSS surface is WebSocket-only, so
+# there is no plain HTTP endpoint a wget healthcheck could reach).
+RUN apk add --no-cache ca-certificates openssl
+WORKDIR /app
+COPY --from=build /out/oap-relay /app/oap-relay
+
+# WSS data plane. The admin listener (default 127.0.0.1:9090) is bound to
+# 0.0.0.0 in compose so the host can reach it over a loopback-only port
+# mapping; admission there is still mTLS-gated by -trust-ca.
+EXPOSE 7000
+
+# Liveness = the WSS listener completes a TLS handshake and presents its
+# certificate. No client cert is presented, so the mTLS gate rejects after the
+# ServerHello — which is exactly the "listening and TLS-serving" signal.
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD openssl s_client -connect 127.0.0.1:7000 -servername relay </dev/null 2>/dev/null | grep -q "BEGIN CERTIFICATE"
+
+ENTRYPOINT ["/app/oap-relay"]
