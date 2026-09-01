@@ -111,6 +111,7 @@
 | 208 | ## 6. Incident notes (what to NOT do on this box) |
 | 220 | ## 7. File-by-file repo changes from this deploy |
 | 238 | ## 8. Revalidation @ a3a7680 (2026-08-30) — migrate runner + §14 bootstrap, live |
+| 269 | ## 9. Real-stack in-place upgrade @ a6e23e3 (2026-09-01) — §8's open step, done |
 
 ---
 

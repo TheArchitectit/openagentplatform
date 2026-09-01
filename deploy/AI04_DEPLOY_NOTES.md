@@ -264,11 +264,25 @@ empties unset vars — the original stack always ran with `--env-file .env` from
 `~/oap`, and now also needs a `deploy/docker-compose.override.yml` remapping
 postgres host port to 15432 (box `postgresql.service` owns 5432).
 
-**In-place upgrade of the `deploy` stack (NOT yet performed):** rebuilding the
-server image at ≥ a3a7680 and recreating will self-migrate its existing
-Alembic-era DB 001→004 — every up-migration is `CREATE TABLE IF NOT EXISTS`-
-guarded, so existing tables are skipped and only 004's `user_org_bindings` +
-`app_state` are added. Caveat: column drift between the old Alembic schema and
-the canonical 001 (known parity gaps) is untested against that DB; beta —
-acceptable to re-init the stack's DB fresh if the upgrade misbehaves. After
-upgrade, bootstrap the first org once with a real `BOOTSTRAP_TOKEN`.
+**In-place upgrade of the `deploy` stack (PERFORMED 2026-09-01, §9).**
+
+## 9. Real-stack in-place upgrade @ a6e23e3 (2026-09-01) — §8's open step, done
+
+The `deploy` stack was rebuilt at `a6e23e3` and recreated against its existing
+DB, after a `pg_dump -Fc` backup to `~/oap-backups/` (checksummed). Verified
+live:
+
+- Server boot self-migrated the existing DB: `schema migrations applied
+  version=4 dirty=false` — the 00x `IF NOT EXISTS` guards held; zero schema
+  errors, zero panics.
+- `user_org_bindings` + `app_state` created; `schema_migrations` = 4/dirty=f.
+- Scripted login → `POST /api/v1/auth/bootstrap` → **201**, org `acme`
+  created (`org_id` 7e0542a3…); second claim → 403 `already_initialized`.
+- Re-login: `/auth/me` carries the org with `role=admin`; `/api/v1/agents`
+  and `/api/v1/a2a/approvals` now **200** (previously 400 on this very DB).
+- Audit trail: `created` + `already_initialized` rows, no token material.
+- Post-upgrade state: 5/5 healthy, `readyz` `database: healthy / nats: ok`,
+  exactly 1 tenant + 1 admin binding, no duplicate orgs.
+- Gotcha: `deploy/scripts/test-login.sh` deletes its cookie jar on exit —
+  for a scripted *follow-up* call (bootstrap), drive the flow manually with a
+  persistent jar or set `JAR=` outside the script's trap.
