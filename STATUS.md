@@ -71,7 +71,7 @@ See `CHANGELOG.md` for release notes.
 | Item | Severity | Tracking |
 |------|----------|----------|
 | OpenSpec P3 RMM parity gaps remain open — cloud control plane, hypervisor monitoring, active security/EDR, power/UPS monitoring are absent in both code and spec. RMM-00..09 are shipped; what remains is genuinely new surface, spec-first per the audit process. | Medium | openspec/specs/rmm-operations/spec.md; docs/plans/DEFERRED_WORK_HANDOFF.md |
-| Managed A2A relay transport not shipped — RelayService remains an in-memory library; the planned WSS/security work is ordered as RELAY-00..06 (design docs in docs/sprints/, parked by owner decision). | Low | openspec/specs/a2a-relay/spec.md; docs/sprints/RELAY-0*.md |
+| Managed A2A relay is complete as code (RELAY-00..06, acceptance green, audit `460b18a`) but not yet operated: next steps are compose deployment wiring + state persistence (spec Known Limitations). In progress 2026-09-01. | Medium | openspec/specs/a2a-relay/spec.md; docs/plans/DEFERRED_WORK_HANDOFF.md §5.2 |
 | Separate spec-review repository publication is blocked until the user supplies an authorized remote URL. | Low | docs/reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md |
 
 ---
