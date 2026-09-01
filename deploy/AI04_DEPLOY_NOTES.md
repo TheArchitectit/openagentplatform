@@ -342,3 +342,30 @@ verification on the real stack:
   the 5s timeout every probe → container unhealthy. Both Dockerfile +
   compose now use CMD-SHELL with `</dev/null` and verify the presented cert
   chains to the relay CA (`-CAfile` + `Verify return code: 0`).
+
+### 10.2 Work-vs-spec audit (post-deploy) @ 2313cfb — 3 gaps found + fixed + re-verified live
+
+Per the standing audit-after-spec rule, §8 implementation was audited
+against the spec text; three conformance gaps surfaced and were fixed
+(`2313cfb`), then re-proven on ai04:
+
+- **§8.5a gap (F1):** `TotalConnections` was never persisted — the lifetime
+  connection billing counter reset on restart (live symptom: 4 established
+  connections, `total_connections=0`). Fix: establish buffers a per-tenant
+  count delta (only for connections whose ledger INSERT succeeded); flush
+  writes it via new `Store.AddTenantConnections`.
+- **§8.4 gap (F2):** the periodic flush only wrote tenant aggregates, not
+  the connection's own `BytesRelayed` (spec explicitly requires both), so a
+  crash left stale in-flight ledger rows. Fix: flush snapshots each active
+  connection's byte count via `UpdateBytes`.
+- **§8.7 gap (F3):** `RELAY_STORE_DSN` had no env fallback in the binary —
+  it only worked because compose expands it into the flag. `ParseFlags` now
+  honors the four README-documented `RELAY_*` env overrides; flags win.
+- Re-verification on ai04: E2E probe matched + forwarded both directions →
+  flush wrote `acme total_connections=2, bytes=66` (was 0/44 pre-fix);
+  `restart relay` → rehydrated, admin API served the persisted counters
+  (`{"tenant_id":"acme","total_connections":2,"bytes_relayed":66}`).
+- Gotcha worth keeping: the on-box `platform.key` is PEM PKCS#8; probe
+  clients need the raw 64-byte Ed25519 private key (last 32 bytes of the
+  PKCS#8 DER + last 32 bytes of the SPKI DER, concatenated — derive on-box,
+  never copy the key off the box).
