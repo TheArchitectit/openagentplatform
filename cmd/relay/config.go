@@ -6,15 +6,16 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/openagentplatform/openagentplatform/internal/relay"
 )
 
-// Flags is the relay binary's configuration surface. Every value is supplied via
-// a command-line flag or its ALLOWED_ENV_ prefix environment variable (see
-// ParseFlags). The relay requires TLS for its WSS listener (spec R.1), so
-// CertFile and KeyFile are mandatory.
+// Flags is the relay binary's configuration surface. Values come from
+// command-line flags; four of them also honor a documented RELAY_* env
+// fallback (see ParseFlags). The relay requires TLS for its WSS listener
+// (spec R.1), so CertFile and KeyFile are mandatory.
 type Flags struct {
 	WSSListenAddr   string        // e.g. ":7000"
 	CertFile        string        // TLS cert for WSS
@@ -102,23 +103,63 @@ func (f *Flags) adminTLSConfig() (*tls.Config, error) {
 }
 
 // ParseFlags populates a Flags from command-line flags (and returns the flagset
-// so tests can inject custom args). Defaults: listen on :7000, 1000 per-tenant
-// connections, 30-minute idle timeout. Cert/key/trust-config are empty by
-// default and MUST be supplied for a real run (relayConfig fail-closed).
+// so tests can inject custom args). Four flags have a documented RELAY_* env
+// fallback (RELAY_LISTEN_ADDR, RELAY_MAX_CONNECTIONS, RELAY_IDLE_TIMEOUT,
+// RELAY_STORE_DSN — a2a-relay §8.7 requires the env equivalent for the store
+// DSN); an explicit command-line flag always wins. Defaults: listen on :7000,
+// 1000 per-tenant connections, 30-minute idle timeout. Cert/key/trust-config
+// are empty by default and MUST be supplied for a real run (relayConfig
+// fail-closed).
 func ParseFlags(args []string) (*Flags, error) {
 	fs := flag.NewFlagSet("relay", flag.ContinueOnError)
 	f := &Flags{}
-	fs.StringVar(&f.WSSListenAddr, "listen", ":7000", "WSS listen address")
+	fs.StringVar(&f.WSSListenAddr, "listen", envDefault("RELAY_LISTEN_ADDR", ":7000"), "WSS listen address")
 	fs.StringVar(&f.CertFile, "cert", "", "TLS certificate file for WSS (required)")
 	fs.StringVar(&f.KeyFile, "key", "", "TLS key file for WSS (required)")
 	fs.StringVar(&f.AdminAddr, "admin-addr", "127.0.0.1:9090", "admin listener bind address")
 	fs.StringVar(&f.TrustCAPath, "trust-ca", "", "platform CA cert PEM for WSS + admin mTLS (required)")
 	fs.StringVar(&f.TrustConfigPath, "trust-config", "", "issued-identity trust config path (RELAY-02)")
-	fs.IntVar(&f.MaxConnections, "max-connections", 1000, "per-tenant max concurrent connections (0 = unlimited)")
-	fs.DurationVar(&f.IdleTimeout, "idle-timeout", 30*time.Minute, "idle connection reaping window")
-	fs.StringVar(&f.StoreDSN, "store-dsn", "", "Postgres DSN for durable connection/metric state (a2a-relay §8); empty = in-memory")
+	fs.IntVar(&f.MaxConnections, "max-connections", envDefaultInt("RELAY_MAX_CONNECTIONS", 1000), "per-tenant max concurrent connections (0 = unlimited)")
+	fs.DurationVar(&f.IdleTimeout, "idle-timeout", envDefaultDuration("RELAY_IDLE_TIMEOUT", 30*time.Minute), "idle connection reaping window")
+	fs.StringVar(&f.StoreDSN, "store-dsn", os.Getenv("RELAY_STORE_DSN"), "Postgres DSN for durable connection/metric state (a2a-relay §8); empty = in-memory")
 	if err := fs.Parse(args); err != nil {
 		return nil, err
 	}
 	return f, nil
+}
+
+// envDefault returns the env value if set (non-empty), else def.
+func envDefault(env, def string) string {
+	if v := os.Getenv(env); v != "" {
+		return v
+	}
+	return def
+}
+
+// envDefaultInt returns the parsed int from env if valid, else def.
+// An unparseable value falls back to the default (logged by callers who
+// care; here it is silently ignored to keep flag parsing side-effect free).
+func envDefaultInt(env string, def int) int {
+	v := os.Getenv(env)
+	if v == "" {
+		return def
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return def
+	}
+	return n
+}
+
+// envDefaultDuration returns the parsed duration from env if valid, else def.
+func envDefaultDuration(env string, def time.Duration) time.Duration {
+	v := os.Getenv(env)
+	if v == "" {
+		return def
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		return def
+	}
+	return d
 }

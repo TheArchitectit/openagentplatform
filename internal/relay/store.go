@@ -27,6 +27,10 @@ type Store interface {
 	UpdateBytes(ctx context.Context, connKey string, bytes int64) error
 	// AddBytes adds delta to the tenant's aggregate meter.
 	AddTenantBytes(ctx context.Context, tenantID string, delta int64) error
+	// AddTenantConnections adds delta to the tenant's lifetime connection
+	// counter (§8.5a: TotalConnections is a billing aggregate and must
+	// survive restarts).
+	AddTenantConnections(ctx context.Context, tenantID string, delta int64) error
 	// LoadTenantMetrics returns every tenant's persisted aggregates,
 	// keyed by tenant ID (rehydration, §8.5a).
 	LoadTenantMetrics(ctx context.Context) (map[string]*RelayMetrics, error)
@@ -90,7 +94,7 @@ func (s *PGStore) UpdateBytes(ctx context.Context, connKey string, bytes int64) 
 	return nil
 }
 
-// AddTenantBytes adds delta to the tenant aggregate meter (§8.4).
+// AddTenantBytes adds delta to the tenant aggregate byte meter (§8.4).
 func (s *PGStore) AddTenantBytes(ctx context.Context, tenantID string, delta int64) error {
 	_, err := s.pool.Exec(ctx, `
 		INSERT INTO relay_metrics (tenant_id, total_bytes_relayed, updated_at)
@@ -101,6 +105,22 @@ func (s *PGStore) AddTenantBytes(ctx context.Context, tenantID string, delta int
 		tenantID, delta)
 	if err != nil {
 		return fmt.Errorf("relay store: add tenant bytes: %w", err)
+	}
+	return nil
+}
+
+// AddTenantConnections adds delta to the tenant's lifetime connection count
+// (§8.5a). Additive upsert — never overwrites concurrent tenants' rows.
+func (s *PGStore) AddTenantConnections(ctx context.Context, tenantID string, delta int64) error {
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO relay_metrics (tenant_id, total_connections, updated_at)
+		VALUES ($1, $2, now())
+		ON CONFLICT (tenant_id) DO UPDATE
+		SET total_connections = relay_metrics.total_connections + EXCLUDED.total_connections,
+		    updated_at = now()`,
+		tenantID, delta)
+	if err != nil {
+		return fmt.Errorf("relay store: add tenant connections: %w", err)
 	}
 	return nil
 }

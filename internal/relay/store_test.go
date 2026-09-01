@@ -13,6 +13,7 @@ type fakeStore struct {
 	closed    map[string]time.Time
 	bytes     map[string]int64            // connKey -> final bytes
 	tenantAdd map[string]int64            // tenantID -> accumulated deltas
+	tenantConns map[string]int64          // tenantID -> accumulated connection-count deltas
 	metrics   map[string]*RelayMetrics    // preloaded for rehydration
 	stale     int64                       // rows CloseStaleActive reports closed
 	failAdd   bool                        // force AddTenantBytes to fail
@@ -25,6 +26,7 @@ func newFakeStore() *fakeStore {
 		closed:   make(map[string]time.Time),
 		bytes:    make(map[string]int64),
 		tenantAdd: make(map[string]int64),
+		tenantConns: make(map[string]int64),
 		rebuffer: make(map[string]int64),
 	}
 }
@@ -50,6 +52,11 @@ func (f *fakeStore) AddTenantBytes(_ context.Context, tenantID string, delta int
 		return context.DeadlineExceeded
 	}
 	f.tenantAdd[tenantID] += delta
+	return nil
+}
+
+func (f *fakeStore) AddTenantConnections(_ context.Context, tenantID string, delta int64) error {
+	f.tenantConns[tenantID] += delta
 	return nil
 }
 
@@ -201,5 +208,45 @@ func TestStore_WriteFailure_NonFatal(t *testing.T) {
 	}
 	if err := svc.CloseConnection(context.Background(), conn.ID); err != nil {
 		t.Fatalf("close: %v", err)
+	}
+}
+
+// §8.5a: the lifetime connection counter must be buffered on establish and
+// flushed with the deltas (audit F1: it was never persisted, so billing's
+// TotalConnections reset on restart).
+func TestStore_FlushConnectionCount(t *testing.T) {
+	svc := NewRelayService(RelayConfig{}, nil)
+	fs := newFakeStore()
+	if err := svc.SetStore(context.Background(), fs); err != nil {
+		t.Fatalf("SetStore: %v", err)
+	}
+	if _, err := svc.EstablishConnection(context.Background(), "t1", "a", "b"); err != nil {
+		t.Fatalf("establish: %v", err)
+	}
+	if _, err := svc.EstablishConnection(context.Background(), "t1", "a", "c"); err != nil {
+		t.Fatalf("establish: %v", err)
+	}
+	if fs.tenantConns["t1"] != 0 {
+		t.Fatalf("no flush yet; tenantConns should be 0, got %d", fs.tenantConns["t1"])
+	}
+	svc.FlushPendingBytes(context.Background())
+	if got := fs.tenantConns["t1"]; got != 2 {
+		t.Fatalf("flushed connection delta = %d, want 2", got)
+	}
+}
+
+// §8.4: the periodic flush also updates in-flight connections' BytesRelayed
+// (audit F2: only close persisted bytes, so a crash left stale ledger rows).
+func TestStore_FlushInFlightBytes(t *testing.T) {
+	svc := NewRelayService(RelayConfig{}, nil)
+	fs := newFakeStore()
+	if err := svc.SetStore(context.Background(), fs); err != nil {
+		t.Fatalf("SetStore: %v", err)
+	}
+	conn, _ := svc.EstablishConnection(context.Background(), "t1", "a", "b")
+	_ = svc.RecordBytes(context.Background(), conn.ID, 77)
+	svc.FlushPendingBytes(context.Background())
+	if got := fs.bytes[conn.ID]; got != 77 {
+		t.Fatalf("in-flight bytes = %d, want 77", got)
 	}
 }

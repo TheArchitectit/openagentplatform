@@ -124,6 +124,68 @@ func TestConfig_ParseAndValidate(t *testing.T) {
 			t.Error("ClientCAs should not be nil")
 		}
 	})
+
+	// §8.7: RELAY_STORE_DSN env equivalent, plus the README-documented env
+	// fallbacks. Explicit flags win over env. Own function: t.Setenv is
+	// incompatible with the parent's t.Parallel.
+}
+
+func TestConfig_EnvFallbacks(t *testing.T) {
+	t.Run("env fallbacks and flag precedence", func(t *testing.T) {
+		t.Setenv("RELAY_LISTEN_ADDR", ":7100")
+		t.Setenv("RELAY_MAX_CONNECTIONS", "250")
+		t.Setenv("RELAY_IDLE_TIMEOUT", "5m")
+		t.Setenv("RELAY_STORE_DSN", "postgres://env-dsn")
+
+		f, err := ParseFlags([]string{})
+		if err != nil {
+			t.Fatalf("ParseFlags: %v", err)
+		}
+		if f.WSSListenAddr != ":7100" {
+			t.Errorf("env listen = %q, want :7100", f.WSSListenAddr)
+		}
+		if f.MaxConnections != 250 {
+			t.Errorf("env max-connections = %d, want 250", f.MaxConnections)
+		}
+		if f.IdleTimeout != 5*time.Minute {
+			t.Errorf("env idle-timeout = %v, want 5m", f.IdleTimeout)
+		}
+		if f.StoreDSN != "postgres://env-dsn" {
+			t.Errorf("env store-dsn = %q, want postgres://env-dsn", f.StoreDSN)
+		}
+
+		f, err = ParseFlags([]string{"-listen", ":7000", "-max-connections", "42", "-idle-timeout", "1m", "-store-dsn", "postgres://flag-dsn"})
+		if err != nil {
+			t.Fatalf("ParseFlags with flags: %v", err)
+		}
+		if f.WSSListenAddr != ":7000" {
+			t.Errorf("flag should win over env: listen = %q", f.WSSListenAddr)
+		}
+		if f.MaxConnections != 42 {
+			t.Errorf("flag should win over env: max-connections = %d, want 42", f.MaxConnections)
+		}
+		if f.IdleTimeout != time.Minute {
+			t.Errorf("flag should win over env: idle-timeout = %v, want 1m", f.IdleTimeout)
+		}
+		if f.StoreDSN != "postgres://flag-dsn" {
+			t.Errorf("flag should win over env: store-dsn = %q, want postgres://flag-dsn", f.StoreDSN)
+		}
+	})
+
+	t.Run("invalid env values fall back to defaults", func(t *testing.T) {
+		t.Setenv("RELAY_MAX_CONNECTIONS", "not-a-number")
+		t.Setenv("RELAY_IDLE_TIMEOUT", "garbage")
+		f, err := ParseFlags([]string{})
+		if err != nil {
+			t.Fatalf("ParseFlags: %v", err)
+		}
+		if f.MaxConnections != 1000 {
+			t.Errorf("invalid env max-connections = %d, want default 1000", f.MaxConnections)
+		}
+		if f.IdleTimeout != 30*time.Minute {
+			t.Errorf("invalid env idle-timeout = %v, want default 30m", f.IdleTimeout)
+		}
+	})
 }
 
 // generateTestCert writes a self-signed ECDSA P-256 cert + key to temp files

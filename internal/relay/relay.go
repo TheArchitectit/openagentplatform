@@ -13,6 +13,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log/slog"
+	"maps"
 	"sync"
 	"time"
 )
@@ -87,6 +88,9 @@ type RelayService struct {
 	// pendingBytes buffers per-tenant metering deltas between flushes
 	// (spec §8.4: periodic flush, not per-RecordBytes writes).
 	pendingBytes map[string]int64
+	// pendingConns buffers per-tenant lifetime-connection-count deltas
+	// between flushes (§8.5a: TotalConnections survives restarts).
+	pendingConns map[string]int64
 }
 
 // NewRelayService creates a new relay service.
@@ -99,6 +103,7 @@ func NewRelayService(config RelayConfig, log *slog.Logger) *RelayService {
 		connections: make(map[string]*RelayConnection),
 		metrics:     make(map[string]*RelayMetrics),
 		pendingBytes: make(map[string]int64),
+		pendingConns: make(map[string]int64),
 		log:         log,
 	}
 	svc.matchEngine = NewMatchEngine(svc)
@@ -123,9 +128,7 @@ func (s *RelayService) SetStore(ctx context.Context, store Store) error {
 			"err", err)
 	} else {
 		s.mu.Lock()
-		for id, m := range metrics {
-			s.metrics[id] = m
-		}
+		maps.Copy(s.metrics, metrics)
 		s.mu.Unlock()
 		s.log.Info("relay: tenant metrics rehydrated", "tenants", len(metrics))
 	}
@@ -141,20 +144,32 @@ func (s *RelayService) SetStore(ctx context.Context, store Store) error {
 // Store returns the installed store (nil = in-memory mode).
 func (s *RelayService) Store() Store { return s.store }
 
-// FlushPendingBytes writes buffered metering deltas to the store (§8.4).
-// Safe to call concurrently; a flush error keeps the deltas buffered for
-// the next round.
+// FlushPendingBytes writes buffered metering deltas to the store (§8.4):
+// per-tenant aggregate deltas plus a snapshot of each live connection's
+// BytesRelayed, so a crash mid-connection leaves at most one flush interval
+// stale in the ledger. Safe to call concurrently; a flush error keeps the
+// deltas buffered for the next round.
 func (s *RelayService) FlushPendingBytes(ctx context.Context) {
 	if s.store == nil {
 		return
 	}
 	s.mu.Lock()
-	if len(s.pendingBytes) == 0 {
+	if len(s.pendingBytes) == 0 && len(s.pendingConns) == 0 {
 		s.mu.Unlock()
 		return
 	}
 	pending := s.pendingBytes
 	s.pendingBytes = make(map[string]int64)
+	pendingConns := s.pendingConns
+	s.pendingConns = make(map[string]int64)
+	// Snapshot the in-flight byte counts under the lock (§8.4: the flush
+	// must update the connection's BytesRelayed, not only the aggregate).
+	snapshots := make(map[string]int64, len(s.connections))
+	for id, conn := range s.connections {
+		if conn.Status == ConnectionStatusActive && conn.BytesRelayed > 0 {
+			snapshots[id] = conn.BytesRelayed
+		}
+	}
 	s.mu.Unlock()
 
 	for tenantID, delta := range pending {
@@ -165,6 +180,23 @@ func (s *RelayService) FlushPendingBytes(ctx context.Context) {
 			s.mu.Unlock()
 			s.log.Warn("relay: metrics flush failed; delta rebuffered",
 				"tenant", tenantID, "delta", delta, "err", err)
+		}
+	}
+	for tenantID, delta := range pendingConns {
+		if err := s.store.AddTenantConnections(ctx, tenantID, delta); err != nil {
+			s.mu.Lock()
+			s.pendingConns[tenantID] += delta
+			s.mu.Unlock()
+			s.log.Warn("relay: connection-count flush failed; delta rebuffered",
+				"tenant", tenantID, "delta", delta, "err", err)
+		}
+	}
+	for connKey, bytes := range snapshots {
+		if err := s.store.UpdateBytes(ctx, connKey, bytes); err != nil {
+			// In-flight snapshot only; close/reap write the final count
+			// synchronously. A failed periodic update self-heals on the
+			// next flush or at close.
+			s.log.Warn("relay: in-flight bytes persist failed", "connection_id", connKey, "err", err)
 		}
 	}
 }
@@ -262,14 +294,23 @@ func (s *RelayService) EstablishConnection(ctx context.Context, tenantID, source
 	}
 	metrics.ConnectionCount++
 	metrics.TotalConnections++
+	// Buffer the lifetime-count delta for the periodic flush (§8.5a);
+	// only connections persisted to the store are counted, so a store
+	// blip doesn't bill a connection the ledger never recorded.
+	persisted := s.store != nil
 	s.mu.Unlock()
 
 	// Persist synchronously (spec §8.3). Failure never aborts admission —
 	// the in-memory record stands and the store write is retried never; the
 	// gap is bounded to this connection's ledger row (logged, not fatal).
-	if s.store != nil {
+	if persisted {
 		if err := s.store.InsertConnection(ctx, conn); err != nil {
 			s.log.Warn("relay: connection persist failed", "connection_id", connID, "err", err)
+			persisted = false
+		} else {
+			s.mu.Lock()
+			s.pendingConns[tenantID]++
+			s.mu.Unlock()
 		}
 	}
 
