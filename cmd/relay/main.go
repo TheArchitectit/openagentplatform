@@ -17,7 +17,11 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/openagentplatform/openagentplatform/internal/db"
 	"github.com/openagentplatform/openagentplatform/internal/relay"
 	"github.com/openagentplatform/openagentplatform/pkg/logger"
 )
@@ -76,6 +80,28 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	// Durable state (a2a-relay §8.7): optional Postgres-backed ledger. The
+	// relay is the sole schema consumer of its own tables, so it applies the
+	// embedded migration set itself at boot when a store DSN is configured.
+	var store relay.Store
+	if flags.StoreDSN != "" {
+		if err := db.Migrate(ctx, flags.StoreDSN, log); err != nil {
+			fmt.Fprintf(os.Stderr, "relay: store migrate: %v\n", err)
+			os.Exit(1)
+		}
+		pool, err := pgxpool.New(ctx, flags.StoreDSN)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "relay: store pool: %v\n", err)
+			os.Exit(1)
+		}
+		store = relay.NewPGStore(pool)
+		if err := svc.SetStore(ctx, store); err != nil {
+			fmt.Fprintf(os.Stderr, "relay: store install: %v\n", err)
+			os.Exit(1)
+		}
+		log.Info("relay: durable state enabled", "store", "postgres")
+	}
+
 	// Bind the raw TCP listener; ListenAndServe wraps it in TLS (R.1 requires
 	// WSS). Bind failures are fatal and reported before any goroutine starts.
 	tcpLn, err := net.Listen("tcp", cfg.ListenAddr)
@@ -98,15 +124,38 @@ func main() {
 		log.Info("relay: starting discovery federation", "peers", fed.PeerCount())
 		go fed.Start(ctx)
 	}
+
+	// Periodic byte-meter flush (§8.4); final flush on shutdown below.
+	if store != nil {
+		svc.StartFlushLoop(ctx)
+	}
+
 	if err := svc.ListenAndServe(ctx, tcpLn); err != nil {
 		log.Error("relay: listener exited", "err", err)
+		if store != nil {
+			svc.FlushPendingBytes(context.Background())
+			store.Close()
+		}
 		os.Exit(1)
 	}
 
 	// If the admin server errored, surface it after WSS shutdown.
 	if err := <-adminErr; err != nil {
 		log.Error("relay: admin listener exited", "err", err)
+		if store != nil {
+			svc.FlushPendingBytes(context.Background())
+			store.Close()
+		}
 		os.Exit(1)
+	}
+
+	// Graceful shutdown: flush buffered metering deltas before exit (§8.4),
+	// bounded so a wedged store can't hang shutdown forever.
+	if store != nil {
+		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		svc.FlushPendingBytes(flushCtx)
+		store.Close()
 	}
 
 	log.Info("relay: shutdown complete")

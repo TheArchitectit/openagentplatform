@@ -111,7 +111,6 @@ func TestConnectionStatus_Constants(t *testing.T) {
 	}{
 		{ConnectionStatusActive, "active"},
 		{ConnectionStatusClosed, "closed"},
-		{ConnectionStatusError, "error"},
 	}
 
 	for _, tt := range tests {

@@ -57,7 +57,6 @@ type ConnectionStatus string
 const (
 	ConnectionStatusActive ConnectionStatus = "active"
 	ConnectionStatusClosed ConnectionStatus = "closed"
-	ConnectionStatusError  ConnectionStatus = "error"
 )
 
 // RelayMetrics contains relay usage metrics.
@@ -83,6 +82,11 @@ type RelayService struct {
 	forwarder   *Forwarder
 	trust       *TrustConfig // I.3: identity + entitlement verification (RELAY-02)
 	jti         *jtiCache    // I.3: token replay prevention (RELAY-02 §1.3)
+	store       Store        // optional durable state (spec §8); nil = in-memory only
+
+	// pendingBytes buffers per-tenant metering deltas between flushes
+	// (spec §8.4: periodic flush, not per-RecordBytes writes).
+	pendingBytes map[string]int64
 }
 
 // NewRelayService creates a new relay service.
@@ -94,11 +98,91 @@ func NewRelayService(config RelayConfig, log *slog.Logger) *RelayService {
 		config:      config,
 		connections: make(map[string]*RelayConnection),
 		metrics:     make(map[string]*RelayMetrics),
+		pendingBytes: make(map[string]int64),
 		log:         log,
 	}
 	svc.matchEngine = NewMatchEngine(svc)
 	svc.forwarder = NewForwarder(svc.matchEngine)
 	return svc
+}
+
+// SetStore installs the optional durable-state store (spec §8.1) and
+// rehydrates/reconciles per §8.5: persisted tenant aggregates are loaded,
+// stale 'active' rows from a previous process are marked closed. Called
+// after NewRelayService, before ServeWS. A rehydration failure is logged
+// and non-fatal: the relay starts with zeroed in-memory aggregates rather
+// than refusing to serve.
+func (s *RelayService) SetStore(ctx context.Context, store Store) error {
+	s.mu.Lock()
+	s.store = store
+	s.mu.Unlock()
+
+	metrics, err := store.LoadTenantMetrics(ctx)
+	if err != nil {
+		s.log.Warn("relay: metrics rehydration failed; starting from zero",
+			"err", err)
+	} else {
+		s.mu.Lock()
+		for id, m := range metrics {
+			s.metrics[id] = m
+		}
+		s.mu.Unlock()
+		s.log.Info("relay: tenant metrics rehydrated", "tenants", len(metrics))
+	}
+
+	if closed, err := store.CloseStaleActive(ctx, time.Now().UTC()); err != nil {
+		s.log.Warn("relay: stale-active reconciliation failed", "err", err)
+	} else if closed > 0 {
+		s.log.Info("relay: reconciled crash-orphaned connections", "count", closed)
+	}
+	return nil
+}
+
+// Store returns the installed store (nil = in-memory mode).
+func (s *RelayService) Store() Store { return s.store }
+
+// FlushPendingBytes writes buffered metering deltas to the store (§8.4).
+// Safe to call concurrently; a flush error keeps the deltas buffered for
+// the next round.
+func (s *RelayService) FlushPendingBytes(ctx context.Context) {
+	if s.store == nil {
+		return
+	}
+	s.mu.Lock()
+	if len(s.pendingBytes) == 0 {
+		s.mu.Unlock()
+		return
+	}
+	pending := s.pendingBytes
+	s.pendingBytes = make(map[string]int64)
+	s.mu.Unlock()
+
+	for tenantID, delta := range pending {
+		if err := s.store.AddTenantBytes(ctx, tenantID, delta); err != nil {
+			// Put the delta back so no metering is lost on a blip.
+			s.mu.Lock()
+			s.pendingBytes[tenantID] += delta
+			s.mu.Unlock()
+			s.log.Warn("relay: metrics flush failed; delta rebuffered",
+				"tenant", tenantID, "delta", delta, "err", err)
+		}
+	}
+}
+
+// StartFlushLoop runs the periodic byte-meter flush (§8.4, 30s default).
+func (s *RelayService) StartFlushLoop(ctx context.Context) {
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				s.FlushPendingBytes(ctx)
+			}
+		}
+	}()
 }
 
 // SetTrustConfig installs the I.3 trust configuration (identity + entitlement
@@ -180,6 +264,15 @@ func (s *RelayService) EstablishConnection(ctx context.Context, tenantID, source
 	metrics.TotalConnections++
 	s.mu.Unlock()
 
+	// Persist synchronously (spec §8.3). Failure never aborts admission —
+	// the in-memory record stands and the store write is retried never; the
+	// gap is bounded to this connection's ledger row (logged, not fatal).
+	if s.store != nil {
+		if err := s.store.InsertConnection(ctx, conn); err != nil {
+			s.log.Warn("relay: connection persist failed", "connection_id", connID, "err", err)
+		}
+	}
+
 	s.log.Info("relay connection established",
 		"connection_id", connID,
 		"tenant_id", tenantID,
@@ -193,14 +286,15 @@ func (s *RelayService) EstablishConnection(ctx context.Context, tenantID, source
 // CloseConnection closes a relay connection.
 func (s *RelayService) CloseConnection(ctx context.Context, connectionID string) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	conn, ok := s.connections[connectionID]
 	if !ok {
+		s.mu.Unlock()
 		return fmt.Errorf("connection %s not found", connectionID)
 	}
 
 	if conn.Status != ConnectionStatusActive {
+		s.mu.Unlock()
 		return fmt.Errorf("connection %s is not active", connectionID)
 	}
 
@@ -210,11 +304,24 @@ func (s *RelayService) CloseConnection(ctx context.Context, connectionID string)
 	if metrics, ok := s.metrics[conn.TenantID]; ok {
 		metrics.ConnectionCount--
 	}
+	bytesRelayed := conn.BytesRelayed
+	closedAt := time.Now().UTC()
+	s.mu.Unlock()
+
+	// Persist close + final byte count synchronously (spec §8.3).
+	if s.store != nil {
+		if err := s.store.UpdateBytes(ctx, connectionID, bytesRelayed); err != nil {
+			s.log.Warn("relay: final bytes persist failed", "connection_id", connectionID, "err", err)
+		}
+		if err := s.store.MarkClosed(ctx, connectionID, closedAt); err != nil {
+			s.log.Warn("relay: close persist failed", "connection_id", connectionID, "err", err)
+		}
+	}
 
 	s.log.Info("relay connection closed",
 		"connection_id", connectionID,
 		"tenant_id", conn.TenantID,
-		"bytes_relayed", conn.BytesRelayed,
+		"bytes_relayed", bytesRelayed,
 	)
 
 	return nil
@@ -264,6 +371,12 @@ func (s *RelayService) RecordBytes(ctx context.Context, connectionID string, byt
 		metrics.TotalBytesRelayed += bytes
 	}
 
+	// Buffer the delta for the periodic store flush (spec §8.4) — per-frame
+	// writes would put the billing store on the data-plane hot path.
+	if s.store != nil {
+		s.pendingBytes[conn.TenantID] += bytes
+	}
+
 	return nil
 }
 
@@ -297,9 +410,9 @@ func (s *RelayService) AllMetrics(ctx context.Context) map[string]*RelayMetrics 
 // CleanupIdleConnections closes idle connections.
 func (s *RelayService) CleanupIdleConnections(ctx context.Context) int {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	closed := 0
+	var closedKeys []string
 	for _, conn := range s.connections {
 		if conn.Status == ConnectionStatusActive {
 			// Idle means no bytes have flowed for the timeout window — not
@@ -314,7 +427,25 @@ func (s *RelayService) CleanupIdleConnections(ctx context.Context) int {
 				if metrics, ok := s.metrics[conn.TenantID]; ok {
 					metrics.ConnectionCount--
 				}
+				closedKeys = append(closedKeys, conn.ID)
 				closed++
+			}
+		}
+	}
+	s.mu.Unlock()
+
+	// Persist reaps (spec §8.3): final bytes + close, outside the lock.
+	if s.store != nil && len(closedKeys) > 0 {
+		for _, key := range closedKeys {
+			conn, _ := s.GetConnection(ctx, key)
+			if conn == nil {
+				continue
+			}
+			if err := s.store.UpdateBytes(ctx, key, conn.BytesRelayed); err != nil {
+				s.log.Warn("relay: reaped bytes persist failed", "connection_id", key, "err", err)
+			}
+			if err := s.store.MarkClosed(ctx, key, time.Now().UTC()); err != nil {
+				s.log.Warn("relay: reaped close persist failed", "connection_id", key, "err", err)
 			}
 		}
 	}

@@ -72,7 +72,9 @@ MUST create a `RelayConnection` with a deterministic record shape:
 
 2.2. New connections MUST be created in status `ConnectionStatusActive`
 (`"active"`). The status vocabulary MUST additionally define `"closed"`
-and `"error"` (`ConnectionStatus` constants).
+(`ConnectionStatus` constants). The former `"error"` constant was removed
+2026-09-01 — no state transition ever assigned it (dead code, spec Known
+Limitations; removal is the cleanup).
 
 2.3. Connection IDs MUST be unique per call and embed the tenant and
 both agent IDs plus a nanosecond timestamp (format
@@ -239,6 +241,59 @@ out-of-band (WireGuard/SSH model from RMM-09); the relay only ever moves
 ciphertext it cannot decrypt. Zero payload attack surface on the relay. The
 load/E2E stage (RELAY-06) validates the relayed session end-to-end.
 
+### 8. Durable State (Persistence) — ADDED 2026-09-01
+
+> Decision record: the in-memory-only accounting core (§1.3) is retained as
+> the default; persistence is an opt-in layer, not a rewrite. Rationale: the
+> relay shares no datastore with the platform server by design (dedicated
+> binary, R.2), so persistence is driven by a DSN flag on `cmd/relay`, not by
+> the server's pool. Billing continuity is the driver: `TotalBytesRelayed`
+> is the billing counter, and an in-memory-only relay loses it on restart.
+
+8.1. A PostgreSQL-backed store MUST be available as an optional dependency
+of `RelayService` via a `SetStore` hook. When no store is installed the
+service MUST behave exactly as before (in-memory only) — zero behavior
+change, zero new required configuration.
+
+8.2. The store's schema MUST ship in the platform's canonical embedded
+migration set (`internal/db/migrations`, table `relay_connections` +
+`relay_metrics`, migration 005), following the 001–004 conventions:
+`org_id`-shaped tenant TEXT columns, `CREATE TABLE IF NOT EXISTS` guards,
+no foreign keys (application-level integrity). The relay binary applies
+these migrations itself at boot when a store DSN is configured (the relay
+is the sole schema consumer of its own tables).
+
+8.3. When a store is installed, `EstablishConnection` and `CloseConnection`
+MUST write through synchronously (establish INSERTs the record; close
+marks it `closed`). A write failure MUST NOT abort the in-memory
+admission path — the connection stays admitted and the failure is logged;
+the relay's data plane must not go down because its billing store blipped.
+
+8.4. When a store is installed, byte metering (§4) MUST be persisted on a
+periodic flush (30s default) and at graceful shutdown, rather than on every
+`RecordBytes` call. Documented bound: a crash loses at most one flush
+interval of byte counts. Flushes MUST be deltas (read-modify-write the
+tenant aggregate; update the connection's `BytesRelayed`), never full
+overwrites of concurrent tenants' rows.
+
+8.5. On boot with a store configured, the service MUST (a) rehydrate
+per-tenant `relay_metrics` aggregates (lifetime `TotalConnections`,
+`TotalBytesRelayed`) so billing counters survive restarts, and (b)
+reconcile stale rows: any connection persisted as `active` whose socket no
+longer exists (crash leftover) MUST be marked `closed` at boot — an
+in-memory service can never resurrect a TCP leg.
+
+8.6. Persisted connections MUST retain the §2 record shape; the store
+treats the table as a ledger of final states (establish/close) plus
+periodic byte deltas, not a live session cache. Live connection state
+(in-memory map, match engine, forwarder) remains in process memory only —
+a restart drops legs by design; what survives is the billing/audit record.
+
+8.7. The `cmd/relay` binary MUST accept a store DSN via `-store-dsn` (and
+`RELAY_STORE_DSN` env equivalent). Empty (default) = in-memory mode. When
+set, the binary applies migrations (8.2), installs the store (8.1), and
+starts the flush loop; on SIGINT/SIGTERM it flushes before exit.
+
 ---
 
 ## Known Limitations
@@ -258,10 +313,15 @@ load/E2E stage (RELAY-06) validates the relayed session end-to-end.
   `/admin/metrics`. Requires `--trust-ca`; role SANs (`relay-admin` /
   `relay-operator`) enforce tenant visibility. Durable billing export is
   out of scope (RELAY-04 boundary).
-- **`ConnectionStatusError` is dead code** — declared and tested as a
-  constant but never assigned by any state transition.
+- **`ConnectionStatusError` removed 2026-09-01** — was declared and tested
+  as a constant but never assigned by any state transition (dead code);
+  §2.2 amended and the constant deleted.
 - **Idleness is now tracked by last activity** (fixed in the W8 commit):
   `RelayConnection.LastActivityAt` refreshes on every `RecordBytes` call
   and `CleanupIdleConnections` reaps on inactivity, not establishment age.
   A busy long-lived connection is no longer closed for being old.
-- **No persistence.** All connection and metric state is lost on restart.
+- **Persistence is opt-in (§8, shipped 2026-09-01).** Default remains
+  in-memory; with `-store-dsn` set, billing counters and the connection
+  ledger survive restarts (live legs do not — §8.6). Durable billing
+  export beyond the two relay tables remains out of scope (RELAY-04
+  boundary).

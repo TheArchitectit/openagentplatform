@@ -24,6 +24,7 @@ type Flags struct {
 	TrustConfigPath string        // issued-identity trust config (consumed in RELAY-02)
 	MaxConnections  int           // per-tenant connection cap (0 = unlimited)
 	IdleTimeout     time.Duration // idle reaping window
+	StoreDSN        string        // optional Postgres DSN for durable state (§8.7); empty = in-memory
 }
 
 // relayConfig builds the internal relay.RelayConfig from the parsed flags. It is
@@ -115,6 +116,7 @@ func ParseFlags(args []string) (*Flags, error) {
 	fs.StringVar(&f.TrustConfigPath, "trust-config", "", "issued-identity trust config path (RELAY-02)")
 	fs.IntVar(&f.MaxConnections, "max-connections", 1000, "per-tenant max concurrent connections (0 = unlimited)")
 	fs.DurationVar(&f.IdleTimeout, "idle-timeout", 30*time.Minute, "idle connection reaping window")
+	fs.StringVar(&f.StoreDSN, "store-dsn", "", "Postgres DSN for durable connection/metric state (a2a-relay §8); empty = in-memory")
 	if err := fs.Parse(args); err != nil {
 		return nil, err
 	}

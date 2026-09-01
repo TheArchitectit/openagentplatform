@@ -29,6 +29,18 @@ oap-relay \
 | `-trust-config` | — | `""` | Issued-identity trust config path (RELAY-02) |
 | `-max-connections` | `RELAY_MAX_CONNECTIONS` | `1000` | Per-tenant max concurrent connections (0 = unlimited) |
 | `-idle-timeout` | `RELAY_IDLE_TIMEOUT` | `30m` | Idle connection reaping window |
+| `-store-dsn` | `RELAY_STORE_DSN` | `""` | Postgres DSN for durable state (a2a-relay §8); empty = in-memory |
+
+### Durable state (optional)
+
+Set `-store-dsn` (or `RELAY_STORE_DSN`) to persist the connection ledger and
+per-tenant billing meters to PostgreSQL. The relay applies the platform's
+embedded migration set (tables `relay_connections` + `relay_metrics`) to that
+database itself at boot. What survives a restart: connection records (final
+byte counts, establish/close ledger) and lifetime billing aggregates. What
+does not: live legs — a restart drops sockets by design; the store is a
+billing/audit record, not a session cache. Byte metering flushes every 30s
+and at shutdown (a crash loses at most one flush interval).
 
 ## Trust Config
 

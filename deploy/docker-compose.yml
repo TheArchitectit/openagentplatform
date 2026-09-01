@@ -180,6 +180,11 @@ services:
       - ${RELAY_MAX_CONNECTIONS:-1000}
       - -idle-timeout
       - ${RELAY_IDLE_TIMEOUT:-30m}
+      # Durable state (a2a-relay §8): set RELAY_STORE_DSN in .env to persist
+      # the connection ledger + billing meters (e.g. to the stack's postgres).
+      # Empty (default) = in-memory only; state is lost on restart.
+      - -store-dsn
+      - ${RELAY_STORE_DSN:-}
     ports:
       # WSS data plane: reachable by agents/peers. Host mapping loopback-only
       # on shared boxes — open publicly only with a real PKI in front.
