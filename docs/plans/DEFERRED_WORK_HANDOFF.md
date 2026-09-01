@@ -1,8 +1,8 @@
 # Deferred Work Handoff — Master
 
 **Version:** 1.2.0
-**Status:** SEAM_VERIFIED — baseline pinned, dependency order fixed, vocabulary final; RMM-00 COMPLETE
-**Date:** 2026-08-24
+**Status:** RMM TRACK COMPLETE — RMM-00..09 all shipped on `main` (RMM-06 `3f8e495`, RMM-09 `5ea6076`); RELAY track remains parked at RELAY-00..06 design docs
+**Date:** 2026-09-01 (status refresh; original 2026-08-24)
 **Baseline:** v1.2.0 (`git rev-parse --short HEAD` = `4194dac`)
 **Role:** Master / coordinator for deferred work left out of v1.2.0. This is the
 single authoritative entry point for the deferred RMM and RELAY work and the
@@ -21,14 +21,19 @@ deferred spec-review publication handoff.
 ## 1. Purpose and Inventory
 
 v1.2.0 completed the W1-W8 wiring remediation and the OpenSpec P0-P2 audit pass.
-Two categories of deferred work remain, tracked here:
+Two categories of deferred work were tracked here:
 
 1. **RMM parity gaps** — Windows patch automation, maintenance windows,
    agent auto-update, offline-SLA alerting, scheduled report digests, and the
    remaining RMM capacity checks identified against the shipped Go implementation.
+   **(COMPLETE 2026-09-01: RMM-00..09 all shipped — see §3.1/§5.1. What remains
+   of the P3 gap list — cloud control plane, hypervisor monitoring, active
+   security/EDR, power/UPS monitoring — is genuinely new surface, not tracked
+   by sprints here.)**
 2. **RELAY subsystem** — the relay service is shipped as a parked library pending a
    binary wiring decision; idle-reap is only partially refined; tenant isolation,
-   observability, and Python-contract reconciliation remain open.
+   observability, and Python-contract reconciliation remain open. The RELAY-00..06
+   design docs are authored and parked (§5.2).
 
 In addition there is one **operational deferred item**:
 
@@ -93,9 +98,10 @@ F0. Baseline (v1.2.0) — established
 | 4 | RMM-03 — Windows Update per-KB lifecycle | RMM-00 + state/identity decisions | **COMPLETE** (implemented and verified in-tree) |
 | 5 | RMM-04 — Reboot coordination | RMM-00 + approved reboot command contract | **COMPLETE** (implemented and verified in-tree) |
 | 6 | RMM-05 — CVE-to-patch correlation | RMM-00 + source/provenance decisions | **COMPLETE** (NVD source approved, implemented and verified in-tree) |
-| 7 | RMM-06 — Scheduled automation decision gate | RMM-00 + approved scheduling grammar | **DESIGN APPROVED** (cron grammar resolved 2026-08-25; see record) |
+| 7 | RMM-06 — Scheduled automation decision gate | RMM-00 + approved scheduling grammar | **COMPLETE** (design approved then shipped `3f8e495`: dispatcher + cron grammar) |
 | 8 | RMM-07 — Agent self-update decision gate | RMM-00 + trust/rollout/transport decisions | **COMPLETE** (merged into RMM-09, shipped `5ea6076`) |
 | 9 | RMM-08 — VNC/RDP decision gate | RMM-00 + binary transport/consent/security decisions | **COMPLETE** (merged into RMM-09, shipped `5ea6076`) |
+| 10 | RMM-09 — Secure Tunnel Fabric (incl. agent self-update + SSH/VNC-over-tunnel) | RMM-00..05 | **COMPLETE** (build steps 1–5 + Ed25519 self-update, closed `5ea6076`; design record `docs/design/RMM_09_TUNNEL_FABRIC.md`) |
 
 ### 3.2 RELAY Track Order
 
@@ -149,7 +155,7 @@ Silently skipping a transition is a protocol violation.
 
 ## 5. Authored Handoff Documents
 
-### 5.1 RMM-00..08
+### 5.1 RMM-00..09
 
 | ID | Document | Focus | Status |
 |----|----------|-------|--------|
@@ -159,9 +165,10 @@ Silently skipping a transition is a protocol violation.
 | RMM-03 | `RMM-03_WINUPDATE_STATE_MACHINE.md` | Windows Update per-KB lifecycle | **COMPLETE** (implemented and verified in-tree) |
 | RMM-04 | `RMM-04_REBOOT_COORDINATION.md` | Reboot coordination | **COMPLETE** (implemented and verified in-tree) |
 | RMM-05 | `RMM-05_CVE_CORRELATION.md` | CVE-to-patch correlation | **COMPLETE** (NVD source approved, implemented and verified in-tree) |
-| RMM-06 | `RMM-06_SCHEDULED_AUTOMATION_DECISION.md` | Scheduled automation decision gate | **DESIGN APPROVED** (cron grammar resolved 2026-08-25; bitmask rejected) |
+| RMM-06 | `RMM-06_SCHEDULED_AUTOMATION_DECISION.md` | Scheduled automation decision gate | **COMPLETE** (design approved 2026-08-25, then shipped `3f8e495`: `internal/scheduled` dispatcher + cron grammar + `automated_tasks`) |
 | RMM-07 | `RMM-07_AGENT_SELF_UPDATE_DECISION.md` | Agent self-update decision gate | **COMPLETE** (merged into RMM-09, shipped `5ea6076`) |
 | RMM-08 | `RMM-08_VNC_RDP_DECISION.md` | VNC/RDP decision gate | **COMPLETE** (merged into RMM-09, shipped `5ea6076`) |
+| RMM-09 | `../design/RMM_09_TUNNEL_FABRIC.md` | Secure tunnel fabric + agent self-update + SSH/VNC over tunnel | **COMPLETE** (build steps 1–5, closed `5ea6076`) |
 
 ### 5.2 RELAY-00..06
 

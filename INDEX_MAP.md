@@ -74,7 +74,7 @@ Do not reopen v1.2.0 (`4194dac`) shipped work. See `STATUS.md` for project state
 | sprint-guide | SPRINT_GUIDE.md | docs/sprints/ | How to write sprints |
 | deferred-work-handoff | DEFERRED_WORK_HANDOFF.md | docs/plans/ | **START HERE** — master entry point for deferred RMM, relay, and review-repository work |
 | rmm-operations | spec.md | openspec/specs/rmm-operations/ | RMM contract for eight deferred operations; §10 holds the eight open decisions |
-| rmm-sprints | RMM-00..08 | docs/sprints/ | RMM entry point is RMM-00 (foundation), then RMM-01..05, then decision-gated RMM-06..08 |
+| rmm-sprints | RMM-00..09 | docs/sprints/ | RMM-00..09 ALL COMPLETE (shipped; RMM-07/08 merged into RMM-09 tunnel fabric, closed `5ea6076`) |
 | relay-sprints | RELAY-00..06 | docs/sprints/ | RELAY entry point is RELAY-00 (architecture/security), then RELAY-01..06; I.3/D.2/E.2/E.3/E.4 all implemented and acceptance-run (RELAY-06 COMPLETE 2026-08-27) |
 | spec-review-publication | SPEC_REVIEW_BUNDLE_HANDOFF.md | docs/reviews/ | Publication runbook for the separate review repository — BLOCKED_DECISION until a remote URL is supplied |
 | validation | SPRINT_TEMPLATE.md | docs/sprints/ | Completion gate & validation loop |
@@ -207,7 +207,7 @@ Do not reopen v1.2.0 (`4194dac`) shipped work. See `STATUS.md` for project state
 | **RELEASE_NOTES_v1.2.0.md (root)** | v1.2.0 wiring remediation (W1–W8) + OpenSpec reconciliation release notes | When tracking releases |
 | **CHANGELOG.md (root)** | Project changelog; docs/CHANGELOG.md holds the sprint-by-sprint (phase) history | When tracking release history |
 | **openspec/specs/rmm-core** | RMM core spec (rewritten 2026-08-23 to Go reality; §14 links the deferred contract) | When implementing RMM features |
-| **openspec/specs/rmm-operations** | Planned contract for eight deferred RMM operations; decisions and sprint ordering are explicit | Before starting RMM-00..08 |
+| **openspec/specs/rmm-operations** | RMM operations contract — RMM-00..09 all shipped (see §2 for shipped-code anchors); P3 parity gaps (cloud control, hypervisor, EDR, power) remain unauthored | Before extending RMM operations |
 | **openspec/specs/a2a-relay** | COMPLETE managed relay: accounting core + WSS admission (mTLS+token), entitlement-gated matching/forwarding, admin surface, discovery federation, and E2E/private/load acceptance | Before starting RELAY-00..06 |
 | **docs/plans/DEFERRED_WORK_HANDOFF.md** | Master dependency order, validation rules, and stop conditions for lower-capability agents | When handing off deferred work |
 | **docs/reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md** | Non-force publication runbook for the existing separate spec-review repository | When a remote URL is supplied |
@@ -452,7 +452,7 @@ openagentplatform/
 | Active work entry point | docs/plans/DEFERRED_WORK_HANDOFF.md |
 | RMM operations contract | openspec/specs/rmm-operations/spec.md |
 | A2A relay contract | openspec/specs/a2a-relay/spec.md |
-| RMM sprint set (RMM-00..08) | docs/sprints/RMM-00..08 |
+| RMM sprint set (RMM-00..09, COMPLETE) | docs/sprints/RMM-00..08 + docs/design/RMM_09_TUNNEL_FABRIC.md |
 | Relay sprint set (RELAY-00..06) | docs/sprints/RELAY-00..06 |
 | Spec-review publication runbook | docs/reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md |
 | Game design guardrails | 2026_GAME_DESIGN.md |

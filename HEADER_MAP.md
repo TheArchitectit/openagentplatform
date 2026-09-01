@@ -1743,17 +1743,21 @@
 | Line | Header |
 |------|--------|
 | 1 | # RMM Operations |
-| 21 | ## Description |
-| 63 | ### 1. Scope, Readiness, and Ordering |
-| 79 | ### 2. Windows Update per-KB State — IN (RMM-03) |
-| 104 | ### 3. Scheduled Automation — DEFERRED (RMM-06) |
-| 117 | ### 4. Maintenance Windows — IN (RMM-02) |
-| 139 | ### 5. Offline-Agent SLA Alerting — IN (RMM-01) |
-| 162 | ### 6. Reboot Coordination — IN (RMM-04) |
-| 177 | ### 7. CVE-to-Patch Correlation — IN (RMM-05) |
-| 192 | ### 8. Agent Self-Update — DEFERRED (RMM-07) |
-| 203 | ### 9. VNC/RDP Remote Protocols — DEFERRED (RMM-08) |
-| 214 | ### 10. Open Decisions (never invent) |
+| 22 | ## Description |
+| 50 | ## User Story |
+| 62 | ## Requirements |
+| 64 | ### 1. Scope, Readiness, and Ordering |
+| 80 | ### 2. Windows Update per-KB State — IN (RMM-03) |
+| 112 | ### 3. Scheduled Automation (AutomatedTask) — COMPLETE (RMM-06, shipped `3f8e495`) |
+| 139 | ### 4. Maintenance Windows (Fleet Alert Suppression) — IN (RMM-02) |
+| 164 | ### 5. Offline-Agent SLA Alerting — IN (RMM-01) |
+| 193 | ### 6. Reboot Coordination — IN (RMM-04) |
+| 212 | ### 7. CVE-to-Patch Correlation — COMPLETE (RMM-05, shipped `717f095`) |
+| 229 | ### 8. Agent Self-Update — COMPLETE (RMM-07 → merged into RMM-09, shipped `5ea6076`) |
+| 240 | ### 9. VNC/RDP Remote Protocols — COMPLETE (RMM-08 → merged into RMM-09, shipped `5ea6076`) |
+| 252 | ### 10. Open Decisions (never invent) |
+| 268 | ### 11. Data Model and Migration Notes |
+| 283 | ## Cross-References |
 
 ---
 
@@ -1783,11 +1787,25 @@
 | Line | Header |
 |------|--------|
 | 1 | # Deferred Work Handoff — Master |
-| 68 | ## 3. Dependency Ordering |
-| 199 | ## 6. Lower-Capability-Agent Checklist |
-| 223 | ## 7. Exact Validation Rules |
-| 246 | ## 8. Exact Stop Rules |
-| 286 | ## 10. Joint Closeout |
+| 21 | ## 1. Purpose and Inventory |
+| 48 | ## 2. Baseline |
+| 50 | ### 2.1 v1.2.0 Is the Only Valid Baseline |
+| 62 | ### 2.2 What Is NOT Deferred |
+| 73 | ## 3. Dependency Ordering |
+| 91 | ### 3.1 RMM Track Order |
+| 106 | ### 3.2 RELAY Track Order |
+| 118 | ### 3.3 Cross-Track Rule |
+| 125 | ### 3.4 Operational Item Ordering |
+| 132 | ## 4. Status Vocabulary |
+| 156 | ## 5. Authored Handoff Documents |
+| 158 | ### 5.1 RMM-00..09 |
+| 173 | ### 5.2 RELAY-00..06 |
+| 185 | ### 5.3 Operational Deferred Item — Spec-Review Bundle Publication |
+| 200 | ## 6. Lower-Capability-Agent Checklist |
+| 224 | ## 7. Exact Validation Rules |
+| 247 | ## 8. Exact Stop Rules |
+| 273 | ## 9. Out of Scope for This Handoff (Do Not Edit) |
+| 287 | ## 10. Joint Closeout (F9) |
 
 ---
 

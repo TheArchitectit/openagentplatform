@@ -1,6 +1,6 @@
 # Project Status — OpenAgentPlatform
 
-**Last Updated:** 2026-08-23
+**Last Updated:** 2026-09-01
 **Branch:** main
 **Current Version:** v1.2.0
 **Roadmap:** [docs/plans/MASTER_IMPLEMENTATION_PLAN.md](docs/plans/MASTER_IMPLEMENTATION_PLAN.md)
@@ -49,18 +49,29 @@ See `CHANGELOG.md` for release notes.
 
 ---
 
-## Known Issues / Outstanding Work
+**Resolved since v1.2.0:**
 
-**Resolved in v1.2.0 (2026-08-23):** the W1–W8 built-but-unwired subsystems
-(heartbeat persistence, duplicate check results, notification/shell/reports 503s,
-RLS execution, adapter proxy contract) and the A2A dashboard contract divergence
-are now wired and reconciled. See [RELEASE_NOTES_v1.2.0.md](RELEASE_NOTES_v1.2.0.md)
-and [docs/SPRINT_WIRING_REMEDIATION_PLAN.md](docs/SPRINT_WIRING_REMEDIATION_PLAN.md).
+- **RMM deferred sprints COMPLETE (2026-08-24/25).** All nine RMM-00..09 items
+  shipped on `main`: RMM-00 ops foundation, RMM-01 offline-SLA alerting
+  (`6ff3a17`), RMM-02 alert-suppression windows (`4cf02a0`-era `4cf3602`),
+  RMM-03 WinUpdate per-KB state machine, RMM-04 reboot coordination, RMM-05
+  CVE correlation, RMM-06 scheduled automation (cron grammar, `3f8e495`),
+  RMM-07/08 merged into RMM-09, RMM-09 secure tunnel fabric (steps 1–5 +
+  Ed25519 self-update, `5ea6076`). `rmm-operations` spec §2–§3 marked
+  COMPLETE at the source.
+- **Auth-rbac §14 first-boot org bootstrap** shipped (`dd4fe0f` + race-arbiter
+  fix `a3a7680`): `POST /api/v1/auth/bootstrap` with `BOOTSTRAP_TOKEN`,
+  `user_org_bindings`/`app_state` (migration 004), login org resolution.
+  Live-verified on the ai04 box, including the real stack's in-place
+  self-migration to schema v4 (deploy/AI04_DEPLOY_NOTES.md §8–§9).
+- **Single canonical schema source:** golang-migrate runner with embedded
+  migrations applied at boot (`852e0f7`); the Alembic set and loose
+  `deploy/migrations/` copies are deleted (`2dd82ed`, `86723ce`).
 
 | Item | Severity | Tracking |
 |------|----------|----------|
-| OpenSpec P3 RMM parity gaps remain open; eight deferred operations now have a planned contract and ordered RMM-00..08 handoff sprints. This documentation does not mark them shipped. | Medium | openspec/specs/rmm-operations/spec.md; docs/plans/DEFERRED_WORK_HANDOFF.md |
-| Managed A2A relay transport not shipped — RelayService remains an in-memory library; the planned WSS/security work is ordered as RELAY-00..06. | Low | openspec/specs/a2a-relay/spec.md; docs/plans/DEFERRED_WORK_HANDOFF.md |
+| OpenSpec P3 RMM parity gaps remain open — cloud control plane, hypervisor monitoring, active security/EDR, power/UPS monitoring are absent in both code and spec. RMM-00..09 are shipped; what remains is genuinely new surface, spec-first per the audit process. | Medium | openspec/specs/rmm-operations/spec.md; docs/plans/DEFERRED_WORK_HANDOFF.md |
+| Managed A2A relay transport not shipped — RelayService remains an in-memory library; the planned WSS/security work is ordered as RELAY-00..06 (design docs in docs/sprints/, parked by owner decision). | Low | openspec/specs/a2a-relay/spec.md; docs/sprints/RELAY-0*.md |
 | Separate spec-review repository publication is blocked until the user supplies an authorized remote URL. | Low | docs/reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md |
 
 ---
