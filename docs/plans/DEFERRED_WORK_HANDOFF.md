@@ -1,7 +1,7 @@
 # Deferred Work Handoff — Master
 
 **Version:** 1.2.0
-**Status:** RMM TRACK COMPLETE — RMM-00..09 all shipped on `main` (RMM-06 `3f8e495`, RMM-09 `5ea6076`); RELAY track remains parked at RELAY-00..06 design docs
+**Status:** RMM TRACK COMPLETE — RMM-00..09 all shipped on `main` (RMM-06 `3f8e495`, RMM-09 `5ea6076`); RELAY track COMPLETE as code (RELAY-00..06, audit+QA `460b18a`) but not deployed as a managed service — remaining: compose deployment wiring, persistence
 **Date:** 2026-09-01 (status refresh; original 2026-08-24)
 **Baseline:** v1.2.0 (`git rev-parse --short HEAD` = `4194dac`)
 **Role:** Master / coordinator for deferred work left out of v1.2.0. This is the
@@ -107,13 +107,13 @@ F0. Baseline (v1.2.0) — established
 
 | Order | Item | Depends on |
 |------:|------|------------|
-| 1 | RELAY-00 — Architecture and security decisions | F0 (established) |
-| 2 | RELAY-01 — Binary/config/deployment foundation; fail-closed WSS | RELAY-00 |
-| 3 | RELAY-02 — Issued identity and entitlement decision gate | RELAY-00; I.3 resolved (layered mTLS + bearer token) |
-| 4 | RELAY-03 — WSS rendezvous decision + contingent forwarding | RELAY-01 + approved/implemented RELAY-02 |
-| 5 | RELAY-04 — Secure metering/observability contract | RELAY-03 + operator API decisions |
-| 6 | RELAY-05 — Discovery federation decision gate | RELAY-01..04; D.2 resolved (gRPC discovery service) |
-| 7 | RELAY-06 — E2E/private/load acceptance | RELAY-01..05; I.3/D.2/E.4 resolved |
+| 1 | RELAY-00 — Architecture and security decisions | F0 (established) — **APPROVED** |
+| 2 | RELAY-01 — Binary/config/deployment foundation; fail-closed WSS | RELAY-00 — **COMPLETE** (`c48936c`) |
+| 3 | RELAY-02 — Issued identity and entitlement decision gate | RELAY-00; I.3 resolved (layered mTLS + bearer token) — **APPROVED**, built in RELAY-03 |
+| 4 | RELAY-03 — WSS rendezvous decision + contingent forwarding | RELAY-01 + approved/implemented RELAY-02 — **COMPLETE** |
+| 5 | RELAY-04 — Secure metering/observability contract | RELAY-03 + operator API decisions — **COMPLETE** |
+| 6 | RELAY-05 — Discovery federation decision gate | RELAY-01..04; D.2 resolved (gRPC discovery service) — **COMPLETE** |
+| 7 | RELAY-06 — E2E/private/load acceptance | RELAY-01..05; I.3/D.2/E.4 resolved — **COMPLETE** (`460b18a`) |
 
 ### 3.3 Cross-Track Rule
 
@@ -174,13 +174,13 @@ Silently skipping a transition is a protocol violation.
 
 | ID | Document | Focus | Status |
 |----|----------|-------|--------|
-| RELAY-00 | `RELAY-00_ARCHITECTURE_SECURITY.md` | Architecture/security outcomes and blockers | PENDING |
-| RELAY-01 | `RELAY-01_BINARY_CONFIG_DEPLOYMENT.md` | Fail-closed WSS binary/config/deployment foundation | PENDING |
-| RELAY-02 | `RELAY-02_ISSUED_IDENTITY_ENTITLEMENT.md` | Identity/credential/entitlement decision gate | **APPROVED** (contract frozen 2026-08-26; build lands in RELAY-03) |
-| RELAY-03 | `RELAY-03_WSS_MATCHING_FORWARDING.md` | Rendezvous decisions + contingent forwarding | PENDING (I.3/D.2 resolved) |
-| RELAY-04 | `RELAY-04_METERING_OBSERVABILITY.md` | Secure operator metering/observability contract | PENDING |
-| RELAY-05 | `RELAY-05_DISCOVERY.md` | Discovery federation decision gate | PENDING (D.2 resolved — gRPC discovery service) |
-| RELAY-06 | `RELAY-06_E2E_PRIVATE_LOAD.md` | Gated E2E/private/load acceptance | PENDING (I.3/D.2/E.4 resolved) |
+| RELAY-00 | `RELAY-00_ARCHITECTURE_SECURITY.md` | Architecture/security outcomes and blockers | **APPROVED** (decision gate populated 2026-08-25) |
+| RELAY-01 | `RELAY-01_BINARY_CONFIG_DEPLOYMENT.md` | Fail-closed WSS binary/config/deployment foundation | **COMPLETE** (`c48936c`: `cmd/relay` binary + WSS listener skeleton + deploy foundation) |
+| RELAY-02 | `RELAY-02_ISSUED_IDENTITY_ENTITLEMENT.md` | Identity/credential/entitlement decision gate | **APPROVED** (contract frozen 2026-08-26; build landed in RELAY-03 I.3 wiring `8ccb4a6`) |
+| RELAY-03 | `RELAY-03_WSS_MATCHING_FORWARDING.md` | Rendezvous decisions + contingent forwarding | **COMPLETE** (rendezvous + leg matching + forwarding) |
+| RELAY-04 | `RELAY-04_METERING_OBSERVABILITY.md` | Secure operator metering/observability contract | **COMPLETE** (mTLS operator API per `docs/design/RELAY_04_OPERATOR_API_ADR.md`) |
+| RELAY-05 | `RELAY-05_DISCOVERY.md` + `RELAY-05_DISCOVERY_IMPLEMENTATION.md` | Discovery federation decision gate + implementation | **COMPLETE** (gRPC discovery; §1.4 provenance signing `4d6d5de`) |
+| RELAY-06 | `RELAY-06_E2E_PRIVATE_LOAD.md` | Gated E2E/private/load acceptance | **COMPLETE** (E.2/E.3/E.4 all run and green; audit+QA round `460b18a` 2026-08-27) |
 
 ### 5.3 Operational Deferred Item — Spec-Review Bundle Publication
 
