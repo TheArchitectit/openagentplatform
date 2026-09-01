@@ -112,6 +112,7 @@
 | 220 | ## 7. File-by-file repo changes from this deploy |
 | 238 | ## 8. Revalidation @ a3a7680 (2026-08-30) — migrate runner + §14 bootstrap, live |
 | 269 | ## 9. Real-stack in-place upgrade @ a6e23e3 (2026-09-01) — §8's open step, done |
+| 290 | ## 10. Relay deployment @ 9472c24 (2026-09-01) — managed A2A relay live on ai04 |
 
 ---
 

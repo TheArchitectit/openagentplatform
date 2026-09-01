@@ -200,7 +200,7 @@ Do not reopen v1.2.0 (`4194dac`) shipped work. See `STATUS.md` for project state
 | **LOGGING_INTEGRATION.md** | Webhook/file/queue integration hooks | When adding external logging |
 | **API_SPECIFICATIONS.md** | OpenAPI vs OpenSpec guidance | When documenting APIs |
 | **QA_REVIEW_OPENSPEC_COVERAGE.md** | 2026-08-23 audit: 21 specs vs code — stale/PLANNED-but-built/missing verdicts | When touching openspec/ or platform docs |
-| **AI04_DEPLOY_NOTES.md** (deploy/) | 2026-08-30 ai04 test deploy: compose runbook, 13 startup defects found+fixed (NATS/dex/web-proxy/migrations 003/redirect-URI), §8 live revalidation of migrate-runner boot + §14 bootstrap | Before ANY compose/deploy change or shared-host deploy |
+| **AI04_DEPLOY_NOTES.md** (deploy/) | 2026-09-01 ai04 deploy runbook: compose, 13 startup defects, §8 revalidation, §9 real-stack upgrade @ a6e23e3, §10 relay live on ai04 (WSS E2E + admin mTLS green) | Before ANY compose/deploy change or shared-host deploy |
 | **SPRINT_WIRING_REMEDIATION_PLAN.md** | W1–W8 ordered fixes for built-but-unwired subsystems (heartbeat, dup results, 503 stacks, RLS, proxy) | When fixing wiring/integration bugs |
 | **STATUS.md (root)** | OAP phase status 0–6, known issues, gates | When checking project state |
 | **PROJECT_PLAN.md (root)** | OAP plan summary; canonical roadmap = docs/plans/MASTER_IMPLEMENTATION_PLAN.md | When planning work |

@@ -286,3 +286,36 @@ live:
 - Gotcha: `deploy/scripts/test-login.sh` deletes its cookie jar on exit —
   for a scripted *follow-up* call (bootstrap), drive the flow manually with a
   persistent jar or set `JAR=` outside the script's trap.
+
+## 10. Relay deployment @ 9472c24 (2026-09-01) — managed A2A relay live
+
+`cmd/relay` is now a compose service on the real `deploy` stack (service was
+added upstream in the same commit). Live-verified on ai04:
+
+- Material: `~/oap-upgrade/deploy/relay/gen-relay-certs.sh` with `TENANT=acme`
+  (matches the bootstrapped org) → own CA, relay server cert, admin operator
+  cert (`oap:role:relay-admin`), two agent certs (`oap:tenant:acme` SANs),
+  Ed25519 token key + `trust.yaml` (wildcard relay entitlement within `acme`).
+  Outputs are gitignored; `platform.key` must never leave the box in prod.
+- Service: `deploy-relay-1` healthy — WSS `:7000` (host-reachable), admin API
+  `127.0.0.1:9091` (host remap; see override file). Healthcheck = TLS
+  handshake against the WSS listener.
+- Admin API over mTLS: `/admin/health` → 200 `{"status":"ok",...}`;
+  `/admin/metrics` → 200 with tenant row. Negative: no client cert → TLS
+  alert 116 (`certificate required`); agent cert on `/admin/metrics` → 403
+  `unrecognized_role`.
+- WSS data plane E2E: two mTLS legs (agent-a→agent-b, tenant `acme`) with
+  Ed25519-signed rendezvous tokens → **matched + bidirectional binary
+  forwarding**, `bytes_relayed` 11+11, `/admin/metrics` `total_connections=2,
+  bytes_relayed=22`. Live negative tests also fired: `principal spoof
+  attempt; closing` (msg/CN mismatch) and `token replay detected; closing`
+  (reused JTI) — the I.3 gates are enforcing.
+- ai04 override: cockpit (systemd) owns host 9090, so the override file now
+  also remaps relay admin `127.0.0.1:9091:9090` (alongside postgres 15432).
+- Probe used: a tiny Go client signing
+  `b64url("agent|target|tenant|iat|exp").b64url(sig)` with the raw 64-byte
+  key (seed+pub) and speaking the gorilla handshake + binary frames (the
+  forwarder forwards `BinaryMessage` only — text frames are dropped by
+  design). Token key convention: `platform_public_key` is the RAW 32-byte
+  public key, not DER SPKI; the admin API needs a cert with the
+  `oap:role:relay-admin` SAN.
