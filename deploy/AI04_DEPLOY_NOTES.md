@@ -319,3 +319,26 @@ added upstream in the same commit). Live-verified on ai04:
   design). Token key convention: `platform_public_key` is the RAW 32-byte
   public key, not DER SPKI; the admin API needs a cert with the
   `oap:role:relay-admin` SAN.
+
+## 10.1 Durable relay state @ 6715324 (2026-09-01) — persistence live + verified
+
+The relay's opt-in durable state (a2a-relay spec §8) is enabled on ai04 via
+`RELAY_STORE_DSN` in `.env` (points at the stack's postgres container). Live
+verification on the real stack:
+
+- Relay boot applied the embedded migrations itself: `schema migrations
+  applied version=5 dirty=false`, then `relay: durable state enabled`.
+- Connection ledger: `relay_connections` got the E2E legs (status `closed`,
+  final byte counts). `relay_metrics` accumulates per-tenant lifetime
+  aggregates.
+- Restart survival proven twice: (1) graceful restart — the shutdown flush
+  wrote `acme total_bytes_relayed=22`; boot rehydrated (`tenant metrics
+  rehydrated, tenants=1`); (2) container recreate (healthcheck fix rebuild) —
+  ledger still 4 rows / 44 bytes, `acme` meter 44 bytes intact.
+- Crash window per spec §8.4: byte deltas flush every 30s + at shutdown, so
+  a hard crash loses at most one interval.
+- Healthcheck regression found and fixed at `1a0cd8b`: exec-form
+  `["CMD", ...]` in compose has no shell, so s_client blocked on stdin until
+  the 5s timeout every probe → container unhealthy. Both Dockerfile +
+  compose now use CMD-SHELL with `</dev/null` and verify the presented cert
+  chains to the relay CA (`-CAfile` + `Verify return code: 0`).
