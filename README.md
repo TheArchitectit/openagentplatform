@@ -173,7 +173,6 @@ python3 scripts/regression_check.py --all   # check everything
 python3 scripts/regression_check.py --all --no-audit  # skip audit table
 ```
 
-
 ## Documentation
 
 - [Setup](docs/SETUP.md) -- 5-minute walkthrough
@@ -202,14 +201,27 @@ See [docs/COMMERCIAL.md](docs/COMMERCIAL.md) for tier details.
 
 **Status:** All sprints 0.1 -- 6.0 complete + v1.2.0 remediation | **Version:** v1.2.0 | **Last updated:** 2026-08-23
 
+---
+
+---
+
+### ☕ Support This Project
+
+Help keep this project going — use a referral link below and both of us get credits!
+
+| Service | Your Bonus | Details | Referral Code |
+| --------- | ----------- | --------- | --------------- |
+| [**Neuralwatt**](https://portal.neuralwatt.com/auth/register?ref=NW-ROGER-ET3Y) | $10 in credits | Spend $10+ → you get $10, we get $20 | `NW-ROGER-ET3Y` |
+| [**Synthetic**](https://synthetic.new/?referral=UAWqkKQQLFkzMkY) | $10 in credits | Subscribe → both get $10 credit | `UAWqkKQQLFkzMkY` |
+
+## ☁️ Cloud Credits
+
+Power your AI projects with [Ozore.com](https://ozore.com/?ref=cwe4kdx0) — use code **lundrog50** for 50% off your first month.
+
 ## ☕ Support
 
 If this project helped you, consider buying me a coffee:
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-TheArchitectit-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/TheArchitectit)
-
----
-
-## ☕ Sponsor
 
 If this project helps you, consider sponsoring on GitHub: [github.com/sponsors/TheArchitectit](https://github.com/sponsors/TheArchitectit)
