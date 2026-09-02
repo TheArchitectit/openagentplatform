@@ -10,7 +10,6 @@ one place, extensible through AI agents and an A2A-compatible API.
 [![React 19](https://img.shields.io/badge/React-19-61DAFB.svg?logo=react)](https://react.dev/)
 [![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-336791.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![NATS](https://img.shields.io/badge/NATS-2.10-27AAE1.svg?logo=nats)](https://nats.io/)
-[![Sponsor](https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-FF69B4?style=flat&logo=github-sponsors)](https://github.com/sponsors/TheArchitectit)
 
 ## Quick Start (5 minutes)
 
