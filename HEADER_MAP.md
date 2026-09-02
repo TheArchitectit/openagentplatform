@@ -1920,6 +1920,10 @@ check-library 225, hitl-approval 114.
 | audit-log | COMPLETE | `GapCount` reports filtered-chain discontinuities; retention anchors, concurrent extension, hash coverage, and synchronous policy remain concerns |
 | event-bus | PARTIAL | core NATS with eight-subject taxonomy; tolerant heartbeat decode and single check-result persistence owner are fixed; no replay/ack durability |
 | a2a-relay | COMPLETE | full stack — admission (mTLS+token), matching, blind forwarding, admin, discovery federation, E2E/private/load acceptance |
+| cloud-control | DRAFT | hybrid MSP+per-org credentials, compute+storage+network inventory, tag drift, cost telemetry, auto-enrollment — spec only, not implemented |
+| eve-monitoring | DRAFT | dual host-agent + cluster-API integration (Proxmox/libvirt/vSphere), hypervisor-as-tag, HA/storage/backup events — spec only |
+| active-security | DRAFT | EDR ingest via webhook+pull (CrowdStrike/Defender/SentinelOne), SIEM forwarding (Splunk/ELK), burst handling — spec only |
+| power-monitoring | DRAFT | SNMP UPS check, agent battery check, power-event alert rules — spec only |
 | check-library | COMPLETE | 9 of 9 checker types cataloged; ConfigSchema informational by design (no override validation per §2.3) |
 | remote-access | PARTIAL | HTTP/WS/NATS/agent shell path and recording hooks are wired; transport and durable storage limitations remain |
 | data-model | PARTIAL | one canonical schema source (internal/db/migrations, embedded, applied at boot — §9); retention purger non-functional (KL #6); Agent struct/column drift (`total_ram`) |

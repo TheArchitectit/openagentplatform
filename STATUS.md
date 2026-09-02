@@ -70,7 +70,7 @@ See `CHANGELOG.md` for release notes.
 
 | Item | Severity | Tracking |
 |------|----------|----------|
-| OpenSpec P3 RMM parity gaps remain open — cloud control plane, hypervisor monitoring, active security/EDR, power/UPS monitoring are absent in both code and spec. RMM-00..09 are shipped; what remains is genuinely new surface, spec-first per the audit process. | Medium | openspec/specs/rmm-operations/spec.md; docs/plans/DEFERRED_WORK_HANDOFF.md |
+| OpenSpec P3 RMM parity gaps are now spec-drafted (DRAFT) — cloud control plane, hypervisor/EVE monitoring, active security/EDR, power/UPS monitoring. Each is a self-contained spec; implementation gated on user review and approval. RMM-00..09 remain shipped. | Medium | openspec/specs/cloud-control; openspec/specs/eve-monitoring; openspec/specs/active-security; openspec/specs/power-monitoring |
 | Managed A2A relay is deployed as a live compose service (`9472c24`, ai04 verified 2026-09-01: WSS two-leg rendezvous + admin mTLS green) with opt-in durable state shipped (`6715324`): migration 005, Postgres store, restart-survival proven live on ai04 (ledger + billing meters survive restart; live legs drop by design). Persistence deployed + verified `6715324`/`1a0cd8b` (healthcheck fix). | Medium | openspec/specs/a2a-relay/spec.md §8; deploy/AI04_DEPLOY_NOTES.md §10 |
 | Separate spec-review repository publication is blocked until the user supplies an authorized remote URL. | Low | docs/reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md |
 

@@ -207,7 +207,11 @@ Do not reopen v1.2.0 (`4194dac`) shipped work. See `STATUS.md` for project state
 | **RELEASE_NOTES_v1.2.0.md (root)** | v1.2.0 wiring remediation (W1–W8) + OpenSpec reconciliation release notes | When tracking releases |
 | **CHANGELOG.md (root)** | Project changelog; docs/CHANGELOG.md holds the sprint-by-sprint (phase) history | When tracking release history |
 | **openspec/specs/rmm-core** | RMM core spec (rewritten 2026-08-23 to Go reality; §14 links the deferred contract) | When implementing RMM features |
-| **openspec/specs/rmm-operations** | RMM operations contract — RMM-00..09 all shipped (see §2 for shipped-code anchors); P3 parity gaps (cloud control, hypervisor, EDR, power) remain unauthored | Before extending RMM operations |
+| **openspec/specs/rmm-operations** | RMM operations contract — RMM-00..09 all shipped (see §2 for shipped-code anchors) | Before extending RMM operations |
+| **openspec/specs/cloud-control** | P3 RMM parity: hybrid MSP+per-org credentials, compute+storage+network inventory, tag drift, cost telemetry, auto-enrollment — DRAFT | When designing cloud-resource integration |
+| **openspec/specs/eve-monitoring** | P3 RMM parity: dual host-agent + cluster-API integration (Proxmox/libvirt/vSphere), hypervisor-as-tag, HA/storage events — DRAFT | When designing hypervisor integration |
+| **openspec/specs/active-security** | P3 RMM parity: EDR ingest via webhook+pull (CrowdStrike/Defender/SentinelOne), SIEM forwarding (Splunk/ELK), burst handling, dedup — DRAFT | When designing EDR/SIEM integration |
+| **openspec/specs/power-monitoring** | P3 RMM parity: SNMP UPS check, agent battery check, power-event alert rules — DRAFT | When designing power monitoring |
 | **openspec/specs/a2a-relay** | COMPLETE managed relay: accounting core + WSS admission (mTLS+token), entitlement-gated matching/forwarding, admin surface, discovery federation, and E2E/private/load acceptance | Before starting RELAY-00..06 |
 | **docs/plans/DEFERRED_WORK_HANDOFF.md** | Master dependency order, validation rules, and stop conditions for lower-capability agents | When handing off deferred work |
 | **docs/reviews/SPEC_REVIEW_BUNDLE_HANDOFF.md** | Non-force publication runbook for the existing separate spec-review repository | When a remote URL is supplied |
