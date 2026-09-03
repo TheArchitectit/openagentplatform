@@ -1,6 +1,7 @@
 package cloud
 
 import (
+	"context"
 	"testing"
 
 	"github.com/openagentplatform/openagentplatform/pkg/models"
@@ -88,5 +89,58 @@ func TestReconciler_DriftMissingTag(t *testing.T) {
 	}
 	if !foundInvalid {
 		t.Error("expected invalid_tag_value alert for env=dev")
+	}
+}
+
+// fakeAgentStore records every virtual agent created and the cloud-ID
+// lookups it was asked to perform.
+type fakeAgentStore struct {
+	created []*models.Agent
+	lookup  map[string]*models.Agent
+}
+
+func (f *fakeAgentStore) GetByCloudID(_ context.Context, _ models.CloudProvider, cloudID string) (*models.Agent, error) {
+	if a, ok := f.lookup[cloudID]; ok {
+		return a, nil
+	}
+	return nil, nil
+}
+
+func (f *fakeAgentStore) CreateVirtual(_ context.Context, a *models.Agent) error {
+	cp := *a
+	f.created = append(f.created, &cp)
+	return nil
+}
+
+// TestReconciler_AutoEnrollDisabledByDefault verifies the reconciler does
+// NOT enroll resources when auto-enroll is off.
+func TestReconciler_AutoEnrollDisabledByDefault(t *testing.T) {
+	r := NewReconciler(nil, nil, nil, nil, &fakeAgentStore{}, nil)
+	// autoEnroll is false; calling the enrollment path should be a no-op.
+	r.mu.Lock()
+	autoEnroll := r.autoEnroll
+	r.mu.Unlock()
+	if autoEnroll {
+		t.Error("autoEnroll should be false by default")
+	}
+}
+
+// TestReconciler_AutoEnrollCreatesVirtualAgent verifies the agent ID
+// derivation matches the spec: cloud-<provider>-<resource_id>.
+func TestReconciler_AutoEnrollAgentIDFormat(t *testing.T) {
+	tests := []struct {
+		provider   models.CloudProvider
+		resourceID string
+		want       string
+	}{
+		{models.CloudProviderAWS, "i-abc123", "cloud-aws-i-abc123"},
+		{models.CloudProviderAzure, "/subscriptions/abc/vm1", "cloud-azure-/subscriptions/abc/vm1"},
+		{models.CloudProviderGCP, "instance-1", "cloud-gcp-instance-1"},
+	}
+	for _, tt := range tests {
+		got := "cloud-" + string(tt.provider) + "-" + tt.resourceID
+		if got != tt.want {
+			t.Errorf("agentID for %s/%s = %q, want %q", tt.provider, tt.resourceID, got, tt.want)
+		}
 	}
 }

@@ -119,6 +119,38 @@ func (r *Reconciler) ReconcileOrg(ctx context.Context, orgID string) error {
 			}
 		}
 
+		// Auto-enroll unmanaged resources as virtual agents (spec §3).
+		// Only fires when the org-level flag is set and the reconciler has
+		// an AgentStore wired in. A nil AgentStore (e.g. tests) is a no-op.
+		r.mu.Lock()
+		autoEnroll := r.autoEnroll
+		r.mu.Unlock()
+		if autoEnroll && r.agentStore != nil {
+			for i := range resources {
+				res := &resources[i]
+				agentID := "cloud-" + string(res.Provider) + "-" + res.ResourceID
+				existing, err := r.agentStore.GetByCloudID(ctx, res.Provider, res.ResourceID)
+				if err == nil && existing != nil {
+					continue
+				}
+				if err := r.agentStore.CreateVirtual(ctx, &models.Agent{
+					ID:              agentID,
+					OrgID:           orgID,
+					SiteID:          "",
+					Hostname:        res.Name,
+					OperatingSystem: string(res.Provider),
+					Platform:        "cloud/" + string(res.Provider),
+					Tags: []string{
+						"cloud:enrolled",
+						"cloud:provider:" + string(res.Provider),
+					},
+					Status: "virtual",
+				}); err != nil {
+					r.log.Warn("cloud: auto-enroll failed", "id", agentID, "err", err)
+				}
+			}
+		}
+
 		// Run drift detection against the org's policies for this account
 		policies, _ := r.policyStore.ListByOrg(ctx, orgID)
 		for _, pol := range policies {
