@@ -160,6 +160,13 @@ func (r *Reconciler) ReconcileOrg(ctx context.Context, orgID string) error {
 			r.checkDrift(pol, resources)
 		}
 
+		// Auto-enrollment: create virtual agents for cloud resources that
+		// have no matching OAP agent. Spec §3 — opt-in per org via the
+		// process-wide SetAutoEnroll flag.
+		if r.autoEnroll {
+			r.autoEnrollResources(ctx, orgID, resources)
+		}
+
 		// Fetch and persist the cost snapshot for the current billing period
 		period := time.Now().UTC().Format("2006-01")
 		costInfo, _ := client.GetCost(ctx, "", acct.AccountID, period)
@@ -257,4 +264,31 @@ func (r *Reconciler) lookupProvider(name string) (ProviderClient, bool) {
 	defer r.mu.Unlock()
 	p, ok := r.providers[name]
 	return p, ok
+}
+
+// autoEnrollResources creates a virtual agent for every cloud resource
+// that has no matching OAP agent. The agent is created with
+// platform = "cloud/<provider>" and tagged for later promotion.
+func (r *Reconciler) autoEnrollResources(ctx context.Context, orgID string, resources []models.CloudResource) {
+	if r.agentStore == nil {
+		return
+	}
+	for i := range resources {
+		res := &resources[i]
+		existing, err := r.agentStore.GetByCloudID(ctx, res.Provider, res.ResourceID)
+		if err == nil && existing != nil {
+			continue
+		}
+		agent := &models.Agent{
+			ID:       "cloud-" + string(res.Provider) + "-" + res.ResourceID,
+			OrgID:    orgID,
+			Hostname: res.Name,
+			Platform: "cloud/" + string(res.Provider),
+			Status:   "virtual",
+			Tags:     []string{"cloud:enrolled", "cloud:provider:" + string(res.Provider)},
+		}
+		if err := r.agentStore.CreateVirtual(ctx, agent); err != nil {
+			r.log.Warn("cloud: auto-enroll failed", "id", agent.ID, "err", err)
+		}
+	}
 }
