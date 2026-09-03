@@ -353,8 +353,4 @@ func (s *Server) mountAPISubRoutes(r chi.Router) {
 	// Scheduled automation (RMM-06). When no scheduled store is
 	// configured these return 503.
 	s.mountScheduled(r)
-
-	// Cloud control (P3 RMM parity). When no cloud stores are configured
-	// these return 503.
-	s.mountCloudRoutes(r)
 }
