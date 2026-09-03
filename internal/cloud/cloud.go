@@ -1,18 +1,22 @@
 package cloud
 
-import "context"
+import (
+	"context"
+
+	"github.com/openagentplatform/openagentplatform/pkg/models"
+)
 
 type AccountStore interface {
-	Create(ctx context.Context, a *CloudAccount) error
-	Get(ctx context.Context, id string) (*CloudAccount, error)
-	ListByOrg(ctx context.Context, orgID string) ([]*CloudAccount, error)
+	Create(ctx context.Context, a *models.CloudAccount) error
+	Get(ctx context.Context, id string) (*models.CloudAccount, error)
+	ListByOrg(ctx context.Context, orgID string) ([]*models.CloudAccount, error)
 	Delete(ctx context.Context, id string) error
 }
 
 type ResourceStore interface {
-	Upsert(ctx context.Context, r *CloudResource) error
-	Get(ctx context.Context, id string) (*CloudResource, error)
-	ListByOrg(ctx context.Context, orgID string, filter ResourceFilter) ([]*CloudResource, error)
+	Upsert(ctx context.Context, r *models.CloudResource) error
+	Get(ctx context.Context, id string) (*models.CloudResource, error)
+	ListByOrg(ctx context.Context, orgID string, filter ResourceFilter) ([]*models.CloudResource, error)
 	Archive(ctx context.Context, id string) error
 }
 
@@ -24,13 +28,13 @@ type ResourceFilter struct {
 }
 
 type PolicyStore interface {
-	Create(ctx context.Context, p *CloudPolicy) error
-	Get(ctx context.Context, id string) (*CloudPolicy, error)
-	ListByOrg(ctx context.Context, orgID string) ([]*CloudPolicy, error)
+	Create(ctx context.Context, p *models.CloudPolicy) error
+	Get(ctx context.Context, id string) (*models.CloudPolicy, error)
+	ListByOrg(ctx context.Context, orgID string) ([]*models.CloudPolicy, error)
 	Delete(ctx context.Context, id string) error
 }
 
 type CostStore interface {
-	Insert(ctx context.Context, c *CostSnapshot) error
-	GetLatest(ctx context.Context, orgID, provider, accountID string) (*CostSnapshot, error)
+	Insert(ctx context.Context, c *models.CostSnapshot) error
+	GetLatest(ctx context.Context, orgID, provider, accountID string) (*models.CostSnapshot, error)
 }
