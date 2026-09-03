@@ -50,8 +50,14 @@ type AlertRule struct {
 	// 120s liveness threshold. Nil means the condition is absent and the rule
 	// behaves exactly as before.
 	OfflineSilenceSeconds *int      `json:"offline_silence_seconds,omitempty"`
-	CreatedAt             time.Time `json:"created_at"`
-	UpdatedAt             time.Time `json:"updated_at"`
+	// HypervisorClusterID scopes EVE alerts to a specific cluster.
+	HypervisorClusterID string `json:"hypervisor_cluster_id,omitempty"`
+	// HypervisorEventTypes filters which EVE events trigger this rule.
+	HypervisorEventTypes []string `json:"hypervisor_event_types,omitempty"`
+	// StoragePoolAlertPct is the utilization threshold for storage warnings.
+	StoragePoolAlertPct *int `json:"storage_pool_alert_pct,omitempty"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
 }
 
 // AlertSuppressionWindow is a fleet-level window during which alert

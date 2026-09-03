@@ -169,6 +169,10 @@ type Server struct {
 	// (openspec/specs/cloud-control). May be nil; cloud endpoints return
 	// 503 when unset. Use SetCloudStores to wire.
 	cloud *cloudStores
+	// eve is the optional EVE/hypervisor persistence bundle
+	// (openspec/specs/eve-monitoring). May be nil; eve endpoints return
+	// 503 when unset. Use SetEVEStores to wire.
+	eve *eveStores
 }
 
 // MeshReleaseStore is the persistence contract used by the mesh release API.

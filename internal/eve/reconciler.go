@@ -16,20 +16,26 @@ import (
 
 // ClusterStore is the persistence seam for hypervisor_clusters rows.
 type ClusterStore interface {
+	Create(ctx context.Context, c *models.HypervisorCluster) error
 	Get(ctx context.Context, id string) (*models.HypervisorCluster, error)
 	ListByOrg(ctx context.Context, orgID string) ([]*models.HypervisorCluster, error)
+	Update(ctx context.Context, c *models.HypervisorCluster) error
+	Delete(ctx context.Context, id string) error
 	UpdateLastSeen(ctx context.Context, id string, at time.Time) error
 }
 
 // ResourceStore is the persistence seam for hypervisor_resources rows.
 type ResourceStore interface {
 	Upsert(ctx context.Context, r *models.HypervisorResource) error
+	Get(ctx context.Context, id string) (*models.HypervisorResource, error)
 	ListByCluster(ctx context.Context, clusterID string) ([]*models.HypervisorResource, error)
+	MarkEnrolled(ctx context.Context, id string) error
 }
 
 // EventStore is the persistence seam for hypervisor_events rows.
 type EventStore interface {
 	Insert(ctx context.Context, e *models.HypervisorEvent) error
+	ListByCluster(ctx context.Context, clusterID string) ([]*models.HypervisorEvent, error)
 }
 
 // DriftAlertSink is the alert emission seam. The server wires a NATS-backed

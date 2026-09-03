@@ -13,6 +13,7 @@ import (
 // stays under the file-size soft limit.
 func (s *Server) mountAPISubRoutes(r chi.Router) {
 	s.mountCloudRoutes(r)
+	s.mountEveRoutes(r)
 	r.Route("/checks", func(r chi.Router) {
 		r.Get("/", s.handleListChecks)
 		// Built-in check library: read-only catalog is available
