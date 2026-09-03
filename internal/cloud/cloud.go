@@ -18,6 +18,8 @@ type ResourceStore interface {
 	Get(ctx context.Context, id string) (*models.CloudResource, error)
 	ListByOrg(ctx context.Context, orgID string, filter ResourceFilter) ([]*models.CloudResource, error)
 	Archive(ctx context.Context, id string) error
+	UpdateStatus(ctx context.Context, id, status string) error
+	ListDrift(ctx context.Context, orgID string) ([]*models.CloudResource, error)
 }
 
 type ResourceFilter struct {
@@ -31,10 +33,12 @@ type PolicyStore interface {
 	Create(ctx context.Context, p *models.CloudPolicy) error
 	Get(ctx context.Context, id string) (*models.CloudPolicy, error)
 	ListByOrg(ctx context.Context, orgID string) ([]*models.CloudPolicy, error)
+	Update(ctx context.Context, p *models.CloudPolicy) error
 	Delete(ctx context.Context, id string) error
 }
 
 type CostStore interface {
 	Insert(ctx context.Context, c *models.CostSnapshot) error
 	GetLatest(ctx context.Context, orgID, provider, accountID string) (*models.CostSnapshot, error)
+	ListByOrg(ctx context.Context, orgID string) ([]*models.CostSnapshot, error)
 }

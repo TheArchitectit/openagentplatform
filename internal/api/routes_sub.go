@@ -12,6 +12,7 @@ import (
 // remain in registerRoutes). Extracted from registerRoutes so that file
 // stays under the file-size soft limit.
 func (s *Server) mountAPISubRoutes(r chi.Router) {
+	s.mountCloudRoutes(r)
 	r.Route("/checks", func(r chi.Router) {
 		r.Get("/", s.handleListChecks)
 		// Built-in check library: read-only catalog is available
@@ -351,4 +352,8 @@ func (s *Server) mountAPISubRoutes(r chi.Router) {
 	// Scheduled automation (RMM-06). When no scheduled store is
 	// configured these return 503.
 	s.mountScheduled(r)
+
+	// Cloud control (P3 RMM parity). When no cloud stores are configured
+	// these return 503.
+	s.mountCloudRoutes(r)
 }

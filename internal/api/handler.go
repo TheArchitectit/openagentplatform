@@ -165,6 +165,10 @@ type Server struct {
 	// nil; the bootstrap endpoint returns 503 and login org resolution falls
 	// back to ID-token claims only.
 	bootstrapStore *bootstrap.Store
+	// cloud is the optional cloud-control persistence bundle
+	// (openspec/specs/cloud-control). May be nil; cloud endpoints return
+	// 503 when unset. Use SetCloudStores to wire.
+	cloud *cloudStores
 }
 
 // MeshReleaseStore is the persistence contract used by the mesh release API.
