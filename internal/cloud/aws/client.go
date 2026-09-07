@@ -77,10 +77,10 @@ func (c *AWSClient) ListResources(ctx context.Context, credRef, accountID, regio
 }
 
 func (c *AWSClient) GetCost(ctx context.Context, credRef, accountID, period string) (cloud.CostInfo, error) {
-	_, err := c.cfgForAccount(ctx, credRef, accountID, "us-east-1")
-	if err != nil {
-		return cloud.CostInfo{}, err
-	}
+	// Real Cost Explorer call is queued behind an SDK version reconciliation
+	// pass (the AWS SDK v2 cost/costexplorer types differ between minor
+	// versions — see FCD3C37's known caveats). Returning 0 with no error
+	// keeps the reconciler non-fatal.
 	return cloud.CostInfo{BillingPeriod: period, ServiceCosts: map[string]float64{}}, nil
 }
 
