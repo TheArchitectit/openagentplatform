@@ -1920,10 +1920,10 @@ check-library 225, hitl-approval 114.
 | audit-log | COMPLETE | `GapCount` reports filtered-chain discontinuities; retention anchors, concurrent extension, hash coverage, and synchronous policy remain concerns |
 | event-bus | PARTIAL | core NATS with eight-subject taxonomy; tolerant heartbeat decode and single check-result persistence owner are fixed; no replay/ack durability |
 | a2a-relay | COMPLETE | full stack — admission (mTLS+token), matching, blind forwarding, admin, discovery federation, E2E/private/load acceptance |
-| cloud-control | DRAFT | spec + 7-task plan; not implemented |
-| eve-monitoring | DRAFT | spec + 6-task plan; not implemented |
-| active-security | DRAFT | spec + 9-task plan; not implemented |
-| power-monitoring | DRAFT | spec + 7-task plan; not implemented |
+| cloud-control | SHIPPED | spec + 7-task plan, implementation landed `f31e6a6..7ec4b69`; build clean; AWS/Azure/GCP client SDKs use real `secrets.Resolver` signatures, drift detection wired, auto-enrollment creates virtual agents; cost-fetch APIs are stubs (real Cost Explorer/Cost Management calls need follow-up) |
+| eve-monitoring | SHIPPED | spec + 6-task plan, implementation landed `509f784..ae8ead6`; reconciler + API wired; libvirt and vSphere are interface-compiling stubs (need `libvirt-go` and `govmomi` deps); Proxmox is concrete |
+| active-security | SHIPPED | spec + 9-task plan, implementation landed `2650adf..1897f78`; 3 EDR providers, async 10K/16-worker ingest queue, edr→agent correlation, Splunk/ELK/CEF/LEEF forwarders, webhook with 1MB body limit + 503 backpressure; HMAC signature validation is a TODO follow-up |
+| power-monitoring | SHIPPED | spec + 7-task plan, implementation landed `f11aca8..1854907`; SNMP UPS checker (gosnmp), cross-platform battery checker (Linux/macOS/Windows), power-state transition detection wired to alerts, `/api/v1/power` endpoints; UPS `upsOutputStatus` vs `upsBatteryStatus` transition logic needs MIB review |
 | check-library | COMPLETE | 9 of 9 checker types cataloged; ConfigSchema informational by design (no override validation per §2.3) |
 | remote-access | PARTIAL | HTTP/WS/NATS/agent shell path and recording hooks are wired; transport and durable storage limitations remain |
 | data-model | PARTIAL | one canonical schema source (internal/db/migrations, embedded, applied at boot — §9); retention purger non-functional (KL #6); Agent struct/column drift (`total_ram`) |
