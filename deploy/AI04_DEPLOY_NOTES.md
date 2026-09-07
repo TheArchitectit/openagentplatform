@@ -369,3 +369,27 @@ against the spec text; three conformance gaps surfaced and were fixed
   clients need the raw 64-byte Ed25519 private key (last 32 bytes of the
   PKCS#8 DER + last 32 bytes of the SPKI DER, concatenated — derive on-box,
   never copy the key off the box).
+
+## 11. P3 RMM parity redeploy @ a3fca20 (2026-09-07) — all four domains live on ai04
+
+The ai04 `deploy` stack was at `2313cfb` (2026-09-01 era). Rebuilt and
+redeployed the full stack at `a3fca20` to land the four P3 RMM parity
+domains plus their follow-ups:
+
+- Pull: `git pull --ff-only` → `a3fca20` (was `2313cfb`).
+- Rebuild: `docker compose -p deploy up -d --build` — all 6 services healthy.
+- Server boot: `schema migrations applied version=16 dirty=false`
+  (up from v5 at the prior deploy — migrations 006 through 016 are the
+  P3 tables: cloud_accounts/resources/policies, hypervisor_clusters/
+  resources/events, edr_integrations/agent_mapping/security_events/
+  siem_forwarders, power_state_log).
+- Relay: `relay: tenant metrics rehydrated tenants=1`, `relay: durable
+  state enabled` — persistence survived the recreate.
+- New endpoints verified live (auth-gated → 401 without session, which
+  confirms the route group is mounted):
+  - `GET /api/v1/cloud/accounts` → 401
+  - `GET /api/v1/eve/clusters` → 401
+  - `GET /api/v1/security/events` → 401
+  - `GET /api/v1/power/events` → 401
+  - `POST /api/v1/security-events/ingest/crowdstrike` → 503 (public
+    route, stores not yet wired — confirms the no-stores path works)
