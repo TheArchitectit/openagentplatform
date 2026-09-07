@@ -179,8 +179,6 @@ github.com/lestrrat-go/jwx/v3 v3.1.1 h1:yd9AdPmZ4INnQ7k42IrzXYpnEG803+SrQ6hdMvzH
 github.com/lestrrat-go/jwx/v3 v3.1.1/go.mod h1:uw/MN2M/Xiu4FhwcIwH11Zsh9JWx9SWzgALl7/uIEkU=
 github.com/lestrrat-go/option/v2 v2.0.0 h1:XxrcaJESE1fokHy3FpaQ/cXW8ZsIdWcdFzzLOcID3Ss=
 github.com/lestrrat-go/option/v2 v2.0.0/go.mod h1:oSySsmzMoR0iRzCDCaUfsCzxQHUEuhOViQObyy7S6Vg=
-github.com/libvirt/libvirt-go v7.4.0+incompatible h1:crnSLkwPqCdXtg6jib/FxBG/hweAc/3Wxth1AehCXL4=
-github.com/libvirt/libvirt-go v7.4.0+incompatible/go.mod h1:34zsnB4iGeOv7Byj6qotuW8Ya4v4Tr43ttjz/F0wjLE=
 github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 h1:6E+4a0GO5zZEnZ81pIr0yLvtUWk2if982qA3F3QD6H4=
 github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0/go.mod h1:zJYVVT2jmtg6P3p1VtQj7WsuWi/y4VnjVBn7F8KPB3I=
 github.com/miekg/dns v1.1.57 h1:Jzi7ApEIzwEPLHWRcafCN9LZSBbqQpxjt/wpgvg7wcM=
