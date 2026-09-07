@@ -177,6 +177,10 @@ type Server struct {
 	// (openspec/specs/active-security). May be nil; security endpoints
 	// return 503 when unset. Use SetSecurityStores to wire.
 	security *securityStores
+	// power is the optional power-monitoring persistence bundle
+	// (openspec/specs/power-monitoring). May be nil; power endpoints
+	// return 503 when unset. Use SetPowerStores to wire.
+	power *powerStores
 	// securityQueue is the async burst-tolerant ingest queue for EDR
 	// webhook events (a2a-security spec §7). May be nil; webhook handler
 	// returns 503 when unset.
