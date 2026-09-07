@@ -39,6 +39,7 @@ type upsConfig struct {
 type upsResult struct {
 	UPSModel       string `json:"ups_model,omitempty"`
 	UPSStatus      string `json:"ups_status"`
+	BatteryStatus  string `json:"battery_status,omitempty"`
 	BatteryPercent int    `json:"battery_percent"`
 	LoadPercent    int    `json:"load_percent"`
 	InputVoltage   int    `json:"input_voltage"`
@@ -137,6 +138,13 @@ func snmpVersion(v string) gosnmp.SnmpVersion {
 
 func parseUPSValues(vars []gosnmp.SnmpPDU) upsResult {
 	r := upsResult{}
+	// RFC 1628 status detection:
+	//   upsOutputStatus (1.3.6.1.2.1.33.1.4.1) → 1=unknown, 2=onLine,
+	//     3=onBattery, 4=boosted, 5=bypassed, 6=reduced, 7=trimmed
+	//   upsBatteryStatus (1.3.6.1.2.1.33.1.2.1) → 1=unknown, 2=normal,
+	//     3=low, 4=depleted — battery health, NOT line state.
+	// Use upsOutputStatus for OL/OB; use upsBatteryStatus only for
+	// battery health reporting (LB/RB warnings).
 	for _, v := range vars {
 		switch v.Name {
 		case ".1.3.6.1.2.1.33.1.1.2.0":
@@ -145,22 +153,25 @@ func parseUPSValues(vars []gosnmp.SnmpPDU) upsResult {
 			}
 		case ".1.3.6.1.2.1.33.1.2.1.0":
 			if n, ok := v.Value.(int); ok {
-				r.UPSStatus = decodeBatteryStatus(n)
+				r.BatteryStatus = decodeBatteryStatus(n)
 			}
 		case ".1.3.6.1.2.1.33.1.4.1.0":
 			if n, ok := v.Value.(int); ok {
-				if n == 2 { // upsOutputStatus: onBattery
+				switch n {
+				case 3: // onBattery
 					if r.UPSStatus != "OB" {
 						r.PreviousStatus = r.UPSStatus
 						r.UPSStatus = "OB"
 						r.PowerTransition = "on_battery"
 					}
-				} else if n == 1 { // onLine
+				case 2: // onLine
 					if r.UPSStatus == "OB" {
 						r.PreviousStatus = "OB"
 						r.UPSStatus = "OL"
 						r.PowerTransition = "on_line"
 					}
+				default:
+					// Unknown / bypassed / etc — keep prior state, no transition.
 				}
 			}
 		case ".1.3.6.1.2.1.33.1.4.4.0":
@@ -183,7 +194,7 @@ func parseUPSValues(vars []gosnmp.SnmpPDU) upsResult {
 func decodeBatteryStatus(code int) string {
 	switch code {
 	case 2:
-		return "OL"
+		return "OK"
 	case 3:
 		return "LB"
 	case 4:
