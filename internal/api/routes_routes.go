@@ -56,6 +56,12 @@ func (s *Server) registerRoutes(r chi.Router) {
 		r.Post("/webhook", s.handleBillingWebhook)
 	})
 
+	// EDR webhook endpoint. Authentication is enforced inside the
+	// handler via the per-vendor HMAC header (TODO follow-up); the
+	// endpoint must be reachable without a session cookie because EDR
+	// vendors cannot present one. Returns 202 + 503 with Retry-After.
+	r.Post("/api/v1/security-events/ingest/{provider}", s.handleSecurityWebhook)
+
 	// First-boot organization bootstrap (auth-rbac spec §14). Requires a
 	// session, but NOT org context — it exists precisely to create the
 	// first org, so it must not be gated by orgContextMiddleware.

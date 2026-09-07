@@ -14,6 +14,7 @@ import (
 func (s *Server) mountAPISubRoutes(r chi.Router) {
 	s.mountCloudRoutes(r)
 	s.mountEveRoutes(r)
+	s.mountSecurityRoutes(r)
 	r.Route("/checks", func(r chi.Router) {
 		r.Get("/", s.handleListChecks)
 		// Built-in check library: read-only catalog is available

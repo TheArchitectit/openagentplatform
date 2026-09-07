@@ -173,6 +173,14 @@ type Server struct {
 	// (openspec/specs/eve-monitoring). May be nil; eve endpoints return
 	// 503 when unset. Use SetEVEStores to wire.
 	eve *eveStores
+	// security is the optional active-security persistence bundle
+	// (openspec/specs/active-security). May be nil; security endpoints
+	// return 503 when unset. Use SetSecurityStores to wire.
+	security *securityStores
+	// securityQueue is the async burst-tolerant ingest queue for EDR
+	// webhook events (a2a-security spec §7). May be nil; webhook handler
+	// returns 503 when unset.
+	securityQueue securityQueue
 }
 
 // MeshReleaseStore is the persistence contract used by the mesh release API.
