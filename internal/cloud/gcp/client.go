@@ -2,6 +2,7 @@ package gcp
 
 import (
 	"context"
+	"fmt"
 
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/option"
@@ -53,5 +54,12 @@ func (c *GCPClient) ListResources(ctx context.Context, credRef, accountID, regio
 }
 
 func (c *GCPClient) GetCost(ctx context.Context, credRef, accountID, period string) (cloud.CostInfo, error) {
-	return cloud.CostInfo{BillingPeriod: period, ServiceCosts: map[string]float64{}}, nil
+	// GCP cost data requires either a BigQuery billing export dataset
+	// (the canonical approach) or the Cloud Billing Catalog API (which
+	// only lists SKU prices, not actual spend). Neither is a simple
+	// credential-scoped call from a CloudProviderClient — both need
+	// GCP-side configuration (export dataset creation, IAM roles, etc).
+	// Return a clear error so the reconciler logs the gap rather than
+	// silently recording 0 cost.
+	return cloud.CostInfo{}, fmt.Errorf("gcp: cost fetch requires BigQuery billing export dataset — not yet implemented in CloudProviderClient (track via OAP roadmap)")
 }
