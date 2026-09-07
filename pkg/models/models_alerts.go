@@ -56,8 +56,14 @@ type AlertRule struct {
 	HypervisorEventTypes []string `json:"hypervisor_event_types,omitempty"`
 	// StoragePoolAlertPct is the utilization threshold for storage warnings.
 	StoragePoolAlertPct *int `json:"storage_pool_alert_pct,omitempty"`
-	CreatedAt           time.Time `json:"created_at"`
-	UpdatedAt           time.Time `json:"updated_at"`
+	// PowerEventTypes filters which power events trigger this rule
+	// (on_battery, low_battery, on_line, etc.). Empty matches all.
+	PowerEventTypes []string `json:"power_event_types,omitempty"`
+	// PowerSource scopes the rule to a specific source: "ups" or
+	// "battery". Empty matches either.
+	PowerSource string `json:"power_source,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // AlertSuppressionWindow is a fleet-level window during which alert
