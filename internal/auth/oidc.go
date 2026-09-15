@@ -14,6 +14,7 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/openagentplatform/openagentplatform/pkg/models"
 )
 
 // Role constants for RBAC mapping from OIDC groups.
@@ -225,6 +226,19 @@ func (m *SessionMinter) Mint(c *Claims) (string, error) {
 func (m *SessionMinter) MintPublicKey() string {
 	pub := m.signKey.Public().(ed25519.PublicKey)
 	return base64.RawURLEncoding.EncodeToString(pub)
+}
+
+// SignPayload signs arbitrary bytes with the session signing key and
+// returns the base64 (raw URL) signature. Agents use the matching public
+// key (see MintPublicKey, delivered at registration as signing_key) to
+// verify that agent-bound commands — script runs in particular — were
+// minted by the platform rather than by anything that could reach the
+// broker.
+func (m *SessionMinter) SignPayload(payload []byte) (string, error) {
+	if m == nil {
+		return "", errors.New("auth: session minter not configured")
+	}
+	return models.SignPayload(m.signKey, payload)
 }
 
 // Parse validates a session JWT and returns its claims.

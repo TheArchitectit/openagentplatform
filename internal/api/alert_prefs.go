@@ -204,8 +204,13 @@ func (s *Server) putAlertRuleChannels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify rule existence.
-	rules, err := s.alertStore.GetAlertRules(r.Context(), "")
+	// Verify the rule exists and belongs to the caller's org. An empty
+	// org scope would match rules across all orgs, so scope to claims.
+	orgID := ""
+	if claims, ok := auth.UserFromContext(r.Context()); ok && claims != nil {
+		orgID = claims.OrgID
+	}
+	rules, err := s.alertStore.GetAlertRules(r.Context(), orgID)
 	if err != nil {
 		s.log.Error("list alert rules for channel set failed", "err", err)
 		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)

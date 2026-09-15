@@ -12,6 +12,32 @@ import (
 	"github.com/openagentplatform/openagentplatform/pkg/models"
 )
 
+// signAgentCommand wraps an agent-bound command payload in a signed
+// envelope (pkg/models.SignedCommand). Agents that hold the server's
+// public key (delivered at registration as signing_key) refuse unsigned
+// or forged commands. When no session minter is configured — tests only —
+// the payload is published as-is.
+func (s *Server) signAgentCommand(payload []byte) []byte {
+	if s.sessionMinter == nil {
+		return payload
+	}
+	sig, err := s.sessionMinter.SignPayload(payload)
+	if err != nil {
+		s.log.Warn("agent command signing failed; publishing unsigned", "err", err)
+		return payload
+	}
+	wrapped, err := json.Marshal(models.SignedCommand{
+		Payload:   payload,
+		Algorithm: models.SignedCommandAlgorithm,
+		Signature: sig,
+	})
+	if err != nil {
+		s.log.Warn("agent command envelope marshal failed; publishing unsigned", "err", err)
+		return payload
+	}
+	return wrapped
+}
+
 // handleRunScript enqueues a script run on the specified agent(s). Body:
 // { "agent_ids": ["..."] }. Returns the list of created run_ids.
 func (s *Server) handleRunScript(w http.ResponseWriter, r *http.Request) {
@@ -54,10 +80,21 @@ func (s *Server) handleRunScript(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Tenant guard: every target agent must belong to the caller's org.
+	// Without this check any authenticated user could execute arbitrary
+	// scripts on another org's endpoints by supplying their agent IDs.
+	allowed, rejected := s.filterAgentsInOrg(r.Context(), orgID, req.AgentIDs)
+	if len(allowed) == 0 {
+		s.recordAudit(r, "script.run.rejected", "script", id, map[string]any{"rejected_agents": rejected})
+		w.Header().Set("Content-Type", "application/json")
+		http.Error(w, `{"error":"no_valid_agents"}`, http.StatusForbidden)
+		return
+	}
+
 	actor := actorFromContext(r)
 	now := time.Now().UTC()
-	runIDs := make([]string, 0, len(req.AgentIDs))
-	for _, agentID := range req.AgentIDs {
+	runIDs := make([]string, 0, len(allowed))
+	for _, agentID := range allowed {
 		run := &models.ScriptRun{
 			ID:          uuid.NewString(),
 			ScriptID:    script.ID,
@@ -73,31 +110,40 @@ func (s *Server) handleRunScript(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		runIDs = append(runIDs, run.ID)
-		// Publish a RunScript command to the agent's NATS subject.
+		// Publish a RunScript command to the agent's scripts subject
+		// (pkg/agent.ScriptsSubject — the agent has no subscription on
+		// the .commands subject), wrapped in a signed envelope. Script
+		// bodies are arbitrary code executed at the agent's privilege;
+		// NATS reachability alone must not be sufficient to command an
+		// endpoint. The agent verifies the Ed25519 signature against the
+		// public key delivered at registration (signing_key). Field
+		// names follow pkg/agent.ScriptCommand's JSON contract.
 		if s.eventBus != nil {
 			cmd := map[string]any{
-				"type":            "RunScript",
-				"run_id":          run.ID,
-				"script_id":       script.ID,
-				"runtime":         script.Runtime,
-				"script_body":     script.Body,
-				"timeout_seconds": script.TimeoutSeconds,
-				"timestamp":       now.Unix(),
+				"type":        "RunScript",
+				"run_id":      run.ID,
+				"script_id":   script.ID,
+				"runtime":     script.Runtime,
+				"script":      script.Body,
+				"timeout_sec": script.TimeoutSeconds,
+				"timestamp":   now.Unix(),
 			}
 			payload, _ := json.Marshal(cmd)
-			subject := fmt.Sprintf("oap.agents.%s.commands", agentID)
-			if err := s.eventBus.Publish(r.Context(), subject, payload); err != nil {
+			data := s.signAgentCommand(payload)
+			subject := fmt.Sprintf("oap.agents.%s.scripts", agentID)
+			if err := s.eventBus.Publish(r.Context(), subject, data); err != nil {
 				s.log.Warn("publish run-script failed", "agent_id", agentID, "err", err)
 			}
 		}
 	}
-	s.recordAudit(r, "script.run", "script", id, map[string]any{"run_ids": runIDs, "agents": req.AgentIDs})
+	s.recordAudit(r, "script.run", "script", id, map[string]any{"run_ids": runIDs, "agents": allowed, "rejected_agents": rejected})
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"script_id":    id,
-		"run_ids":      runIDs,
-		"queued_count": len(runIDs),
+		"script_id":       id,
+		"run_ids":         runIDs,
+		"queued_count":    len(runIDs),
+		"rejected_agents": rejected,
 	})
 }
 
