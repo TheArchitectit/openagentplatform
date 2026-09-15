@@ -8,6 +8,7 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -123,7 +124,19 @@ func main() {
 		_ = checksSub.Unsubscribe()
 	}()
 
-	scriptsSub, err := agent.RunScriptsHandler(ctx, cfg.AgentID, cfg.ScriptTimeoutSec, natsClient, log)
+	// The server's Ed25519 public key (delivered at registration) lets
+	// the agent verify that script commands were minted by the platform.
+	var scriptVerifyKey ed25519.PublicKey
+	if cfg.SigningKey != "" {
+		key, err := agent.ParseSigningKey(cfg.SigningKey)
+		if err != nil {
+			log.Warn("invalid signing key; script signature enforcement disabled", "err", err)
+		} else {
+			scriptVerifyKey = key
+			log.Info("script command signature verification enabled")
+		}
+	}
+	scriptsSub, err := agent.RunScriptsHandler(ctx, cfg.AgentID, cfg.ScriptTimeoutSec, natsClient, scriptVerifyKey, log)
 	if err != nil {
 		log.Error("scripts handler failed", "err", err)
 		os.Exit(1)

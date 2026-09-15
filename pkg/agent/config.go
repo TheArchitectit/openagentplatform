@@ -19,6 +19,15 @@ type Config struct {
 	AgentID   string `json:"agent_id"    yaml:"agent_id"`
 	AuthToken string `json:"auth_token"  yaml:"auth_token"`
 
+	// RegistrationToken is the per-site enrollment credential presented
+	// to /api/v1/agents/register. It can be removed from the config file
+	// after successful registration.
+	RegistrationToken string `json:"registration_token,omitempty" yaml:"registration_token,omitempty"`
+	// SigningKey is the server's base64 Ed25519 public key (delivered at
+	// registration as signing_key). When set, script commands are only
+	// accepted inside a validly signed envelope.
+	SigningKey string `json:"signing_key,omitempty" yaml:"signing_key,omitempty"`
+
 	NATSURL    string `json:"nats_url"    yaml:"nats_url"`
 	NATSCAFile string `json:"nats_ca"     yaml:"nats_ca"`
 	NATSCert   string `json:"nats_cert"   yaml:"nats_cert"`
@@ -115,6 +124,12 @@ func applyEnv(c *Config) {
 	}
 	if v := os.Getenv("AGENT_AUTH_TOKEN"); v != "" {
 		c.AuthToken = v
+	}
+	if v := os.Getenv("AGENT_REGISTRATION_TOKEN"); v != "" {
+		c.RegistrationToken = v
+	}
+	if v := os.Getenv("AGENT_SIGNING_KEY"); v != "" {
+		c.SigningKey = v
 	}
 	if v := os.Getenv("NATS_URL"); v != "" {
 		c.NATSURL = v

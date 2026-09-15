@@ -6,9 +6,13 @@ package agent
 
 import (
 	"context"
+	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,6 +20,7 @@ import (
 	"github.com/nats-io/nats.go"
 
 	"github.com/openagentplatform/openagentplatform/pkg/agent/executor"
+	"github.com/openagentplatform/openagentplatform/pkg/models"
 )
 
 // ScriptCommand arrives on the agent's scripts subject.
@@ -34,14 +39,14 @@ type ScriptCommand struct {
 
 // ScriptOutputChunk is streamed to the output subject.
 type ScriptOutputChunk struct {
-	RunID     string `json:"run_id,omitempty"`
-	ScriptID  string `json:"script_id"`
-	AgentID   string `json:"agent_id"`
-	Stream    string `json:"stream"` // "stdout" | "stderr" | "exit" | "error"
-	Data      string `json:"data,omitempty"`
-	ExitCode  int    `json:"exit_code,omitempty"`
-	DurationMs int64 `json:"duration_ms,omitempty"`
-	Timestamp int64  `json:"timestamp"`
+	RunID      string `json:"run_id,omitempty"`
+	ScriptID   string `json:"script_id"`
+	AgentID    string `json:"agent_id"`
+	Stream     string `json:"stream"` // "stdout" | "stderr" | "exit" | "error"
+	Data       string `json:"data,omitempty"`
+	ExitCode   int    `json:"exit_code,omitempty"`
+	DurationMs int64  `json:"duration_ms,omitempty"`
+	Timestamp  int64  `json:"timestamp"`
 }
 
 // ScriptsSubject returns the NATS subject for incoming script commands.
@@ -106,18 +111,70 @@ func (r *runRegistry) cancel(id string) bool {
 	return true
 }
 
+// ParseSigningKey decodes the base64 (raw URL) Ed25519 public key the
+// server delivers at registration (signing_key).
+func ParseSigningKey(b64 string) (ed25519.PublicKey, error) {
+	raw, err := base64.RawURLEncoding.DecodeString(strings.TrimSpace(b64))
+	if err != nil {
+		return nil, fmt.Errorf("signing key: decode: %w", err)
+	}
+	if len(raw) != ed25519.PublicKeySize {
+		return nil, fmt.Errorf("signing key: expected %d bytes, got %d", ed25519.PublicKeySize, len(raw))
+	}
+	return ed25519.PublicKey(raw), nil
+}
+
+// decodeScriptCommand extracts a ScriptCommand from a NATS message.
+//
+// When verifyKey is non-nil the command MUST arrive inside a valid signed
+// envelope (models.SignedCommand): script bodies are arbitrary code
+// executed at this agent's privilege, so broker reachability alone must
+// not be enough to run code here. When verifyKey is nil — legacy agents
+// that never received a signing key — both forms are accepted and any
+// present signature is ignored.
+func decodeScriptCommand(data []byte, verifyKey ed25519.PublicKey, log *slog.Logger) (ScriptCommand, error) {
+	var env models.SignedCommand
+	if err := json.Unmarshal(data, &env); err == nil && env.Signature != "" {
+		if verifyKey == nil {
+			log.Warn("scripts: signed command received but no signing key configured; accepting without verification")
+			var plain ScriptCommand
+			if err := json.Unmarshal(env.Payload, &plain); err != nil {
+				return ScriptCommand{}, fmt.Errorf("scripts: decode signed payload: %w", err)
+			}
+			return plain, nil
+		}
+		var cmd ScriptCommand
+		if err := models.VerifySignedCommand(&env, verifyKey, &cmd); err != nil {
+			return ScriptCommand{}, err
+		}
+		return cmd, nil
+	}
+	if verifyKey != nil {
+		return ScriptCommand{}, errors.New("scripts: unsigned command rejected (signing key configured)")
+	}
+	var cmd ScriptCommand
+	if err := json.Unmarshal(data, &cmd); err != nil {
+		return ScriptCommand{}, fmt.Errorf("scripts: decode: %w", err)
+	}
+	return cmd, nil
+}
+
 // RunScriptsHandler subscribes to the scripts subject and executes each
 // request, streaming stdout/stderr to the per-run output subject and
 // publishing the final result. It also subscribes to a cancel subject
-// so the platform can abort a running script.
-func RunScriptsHandler(ctx context.Context, agentID string, defaultTimeoutSec int, nc *NATSClient, log *slog.Logger) (*nats.Subscription, error) {
+// so the platform can abort a running script. verifyKey may be nil to
+// run without signature enforcement.
+func RunScriptsHandler(ctx context.Context, agentID string, defaultTimeoutSec int, nc *NATSClient, verifyKey ed25519.PublicKey, log *slog.Logger) (*nats.Subscription, error) {
 	registry := newRunRegistry()
 	subject := ScriptsSubject(agentID)
 
 	sub, err := nc.Subscribe(subject, func(msg *nats.Msg) {
-		var cmd ScriptCommand
-		if err := json.Unmarshal(msg.Data, &cmd); err != nil {
-			log.Warn("scripts: bad payload", "err", err, "subject", subject)
+		cmd, err := decodeScriptCommand(msg.Data, verifyKey, log)
+		if err != nil {
+			log.Warn("scripts: rejected command",
+				"err", err,
+				"subject", subject,
+				"data_len", len(msg.Data))
 			return
 		}
 		if cmd.RunID == "" {
