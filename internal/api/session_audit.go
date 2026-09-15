@@ -46,14 +46,14 @@ func (s *Server) handleListRecordings(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusServiceUnavailable, "recording_store_unavailable")
 		return
 	}
-	claims, _ := auth.UserFromContext(r.Context())
+	claims, ok := auth.UserFromContext(r.Context())
 	q := r.URL.Query()
 	f := remote.RecordingListFilter{
 		AgentID:   q.Get("agent_id"),
 		UserID:    q.Get("user_id"),
 		SessionID: q.Get("session_id"),
 	}
-	if claims != nil && !isAdminRole(claims.Role) {
+	if ok && claims != nil && !isAdminRole(claims.Role) {
 		// Non-admins are scoped to their own recordings; the caller
 		// can also narrow further with the other params.
 		f.UserID = claims.Subject
@@ -321,7 +321,11 @@ func (s *Server) streamRecordingAsJSON(w http.ResponseWriter, r *http.Request, s
 			continue
 		}
 		for _, ev := range decoded {
-			raw, _ := remote.DecodeForJSON(ev.Data)
+			raw, err := remote.DecodeForJSON(ev.Data)
+			if err != nil {
+				s.log.Warn("decode event data failed", "session_id", sessionID, "err", err)
+				continue
+			}
 			events = append(events, playEvent{
 				OffsetMS: ev.Timestamp.Sub(meta.StartedAt).Milliseconds(),
 				Dir:      string(ev.Direction),
@@ -432,8 +436,8 @@ func (s *Server) handleExportRecording(w http.ResponseWriter, r *http.Request) {
 // canAccessRecording enforces RBAC: admins see everything; non-admins
 // only see their own recordings.
 func (s *Server) canAccessRecording(r *http.Request, m *remote.RecordingMetadata) bool {
-	claims, _ := auth.UserFromContext(r.Context())
-	if claims == nil {
+	claims, ok := auth.UserFromContext(r.Context())
+	if !ok || claims == nil {
 		return false
 	}
 	if isAdminRole(claims.Role) {

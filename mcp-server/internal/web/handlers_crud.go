@@ -124,12 +124,12 @@ func (s *Server) listFailures(c echo.Context) error {
 	category := c.QueryParam("category")
 	projectSlug := c.QueryParam("project")
 
-	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	if limit <= 0 || limit > maxPageLimit {
+	limit, err := strconv.Atoi(c.QueryParam("limit"))
+	if err != nil || limit <= 0 || limit > maxPageLimit {
 		limit = defaultPageLimit
 	}
-	offset, _ := strconv.Atoi(c.QueryParam("offset"))
-	if offset < 0 {
+	offset, err := strconv.Atoi(c.QueryParam("offset"))
+	if err != nil || offset < 0 {
 		offset = 0
 	}
 

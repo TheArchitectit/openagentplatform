@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, BellOff, RefreshCw, Wifi, WifiOff } from "lucide-react";
-import { getWsClient, type WsEnvelope, type Status } from "@/lib/websocket";
+import { getWsClient, type WsEnvelope, type Status, type Channel } from "@/lib/websocket";
 import { cn } from "@/lib/cn";
 
 export interface LiveEvent {
@@ -24,12 +24,12 @@ interface LiveEventsProps {
 	/** Maximum number of events to keep in the feed. Default 50. */
 	maxEvents?: number;
 	/** Channels to subscribe to. Default ['alerts']. */
-	channels?: string[];
+	channels?: Channel[];
 	/** Called when the panel is unmounted. */
 	onUnmount?: () => void;
 }
 
-const DEFAULT_CHANNELS = ["alerts"];
+const DEFAULT_CHANNELS: Channel[] = ["alerts"];
 const DEFAULT_MAX_EVENTS = 50;
 
 function formatEventTime(ts: Date): string {
@@ -108,12 +108,12 @@ export function LiveEvents({
 		};
 
 		for (const ch of channels) {
-			client.subscribe(ch as any, handler);
+			client.subscribe(ch, handler);
 		}
 
 		unsubscribeRef.current = () => {
 			for (const ch of channels) {
-				client.unsubscribe(ch as any, handler);
+				client.unsubscribe(ch, handler);
 			}
 		};
 

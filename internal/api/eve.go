@@ -43,7 +43,11 @@ func (s *Server) listEVEClusters(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"eve_unavailable"}`, http.StatusServiceUnavailable)
 		return
 	}
-	tc, _ := tenancy.GetTenant(r.Context())
+	tc, ok := tenancy.GetTenant(r.Context())
+	if !ok {
+		http.Error(w, `{"error":"no tenant context"}`, http.StatusForbidden)
+		return
+	}
 	clusters, err := s.eve.clusters.ListByOrg(r.Context(), tc.OrgID)
 	if err != nil {
 		http.Error(w, `{"error":"list_failed"}`, http.StatusInternalServerError)
@@ -65,7 +69,11 @@ func (s *Server) createEVECluster(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"bad_request"}`, http.StatusBadRequest)
 		return
 	}
-	tc, _ := tenancy.GetTenant(r.Context())
+	tc, ok := tenancy.GetTenant(r.Context())
+	if !ok {
+		http.Error(w, `{"error":"no tenant context"}`, http.StatusForbidden)
+		return
+	}
 	cluster.OrgID = tc.OrgID
 	if err := s.eve.clusters.Create(r.Context(), &cluster); err != nil {
 		http.Error(w, `{"error":"create_failed"}`, http.StatusInternalServerError)

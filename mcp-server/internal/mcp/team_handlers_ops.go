@@ -164,7 +164,14 @@ func (s *MCPServer) handleTeamStatus(ctx context.Context, args map[string]interf
 
 	var resultText string
 	if phase, ok := args["phase"].(string); ok && phase != "" {
-		status, _ := mgr.GetPhaseStatus(phase)
+		status, err := mgr.GetPhaseStatus(phase)
+		if err != nil {
+			metrics.RecordTeamToolCall("team_status", false)
+			return &mcp.CallToolResult{
+				Content: []interface{}{mcp.TextContent{Type: "text", Text: fmt.Sprintf("Error getting phase %q: %v", phase, err)}},
+				IsError: true,
+			}, nil
+		}
 		data, _ := json.MarshalIndent(status, "", "  ")
 		resultText = string(data)
 	} else {

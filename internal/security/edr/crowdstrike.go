@@ -92,7 +92,10 @@ func (p *CrowdStrikeProvider) PullRecentEvents(ctx context.Context, since time.T
 		return nil, err
 	}
 	url := fmt.Sprintf("%s/detects/queries/detects/v1?filter=created_timestamp:>%d", p.baseURL, since.Unix())
-	req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("build events request: %w", err)
+	}
 	req.Header.Set("Authorization", "Bearer "+p.token)
 	resp, err := p.httpClient.Do(req)
 	if err != nil {

@@ -58,10 +58,17 @@ func (c *CompositeClient) fallbackReview(ctx context.Context, imageBase64 string
 
 // HealthCheck reports health for all backends.
 func (c *CompositeClient) HealthCheck(ctx context.Context) (HealthStatus, error) {
-	localStatus, _ := c.local.HealthCheck(ctx)
+	localStatus, err := c.local.HealthCheck(ctx)
+	if err != nil {
+		localStatus = HealthStatus{Backend: "local", Healthy: false, Error: err.Error()}
+	}
 	var fbStatus []HealthStatus
 	for _, fb := range c.fallbacks {
-		s, _ := fb.HealthCheck(ctx)
+		s, err := fb.HealthCheck(ctx)
+		if err != nil {
+			s.Healthy = false
+			s.Error = err.Error()
+		}
 		fbStatus = append(fbStatus, s)
 	}
 

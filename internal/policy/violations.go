@@ -278,7 +278,11 @@ func (m *ViolationManager) handlePass(ctx context.Context, policyID, agentID, de
 
 	// Fire the recovery alert so notification channels learn that the
 	// issue is gone.
-	pol, _ := m.store.GetPolicy(ctx, "", policyID)
+	pol, err := m.store.GetPolicy(ctx, "", policyID)
+	if err != nil {
+		m.log.Warn("load policy for recovery alert failed",
+			"policy_id", policyID, "err", err)
+	}
 	hostname, siteID := m.lookupAgent(ctx, agentID)
 	severity, category := m.severityFor(pol)
 	compliance := map[string]any{

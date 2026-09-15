@@ -177,7 +177,11 @@ func (s *Server) listSecurityEvents(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"security_unavailable"}`, http.StatusServiceUnavailable)
 		return
 	}
-	tc, _ := tenancy.GetTenant(r.Context())
+	tc, ok := tenancy.GetTenant(r.Context())
+	if !ok {
+		http.Error(w, `{"error":"no tenant context"}`, http.StatusForbidden)
+		return
+	}
 	events, err := s.security.events.ListByOrg(r.Context(), tc.OrgID, 100)
 	if err != nil {
 		http.Error(w, `{"error":"list_failed"}`, http.StatusInternalServerError)
@@ -208,7 +212,11 @@ func (s *Server) listEDRIntegrations(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"security_unavailable"}`, http.StatusServiceUnavailable)
 		return
 	}
-	tc, _ := tenancy.GetTenant(r.Context())
+	tc, ok := tenancy.GetTenant(r.Context())
+	if !ok {
+		http.Error(w, `{"error":"no tenant context"}`, http.StatusForbidden)
+		return
+	}
 	items, err := s.security.integrations.ListByOrg(r.Context(), tc.OrgID)
 	if err != nil {
 		http.Error(w, `{"error":"list_failed"}`, http.StatusInternalServerError)
@@ -230,7 +238,11 @@ func (s *Server) createEDRIntegration(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"bad_request"}`, http.StatusBadRequest)
 		return
 	}
-	tc, _ := tenancy.GetTenant(r.Context())
+	tc, ok := tenancy.GetTenant(r.Context())
+	if !ok {
+		http.Error(w, `{"error":"no tenant context"}`, http.StatusForbidden)
+		return
+	}
 	i.OrgID = tc.OrgID
 	if err := s.security.integrations.Create(r.Context(), &i); err != nil {
 		http.Error(w, `{"error":"create_failed"}`, http.StatusInternalServerError)
@@ -289,7 +301,11 @@ func (s *Server) listSIEMForwarders(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"security_unavailable"}`, http.StatusServiceUnavailable)
 		return
 	}
-	tc, _ := tenancy.GetTenant(r.Context())
+	tc, ok := tenancy.GetTenant(r.Context())
+	if !ok {
+		http.Error(w, `{"error":"no tenant context"}`, http.StatusForbidden)
+		return
+	}
 	items, err := s.security.forwarders.ListByOrg(r.Context(), tc.OrgID)
 	if err != nil {
 		http.Error(w, `{"error":"list_failed"}`, http.StatusInternalServerError)
@@ -311,7 +327,11 @@ func (s *Server) createSIEMForwarder(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"bad_request"}`, http.StatusBadRequest)
 		return
 	}
-	tc, _ := tenancy.GetTenant(r.Context())
+	tc, ok := tenancy.GetTenant(r.Context())
+	if !ok {
+		http.Error(w, `{"error":"no tenant context"}`, http.StatusForbidden)
+		return
+	}
 	f.OrgID = tc.OrgID
 	if err := s.security.forwarders.Create(r.Context(), &f); err != nil {
 		http.Error(w, `{"error":"create_failed"}`, http.StatusInternalServerError)

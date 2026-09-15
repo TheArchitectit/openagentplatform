@@ -157,7 +157,11 @@ func (s *Server) handleApproveApproval(w http.ResponseWriter, r *http.Request) {
 		writeApprovalDecisionError(w, err)
 		return
 	}
-	req, _ := s.hitlManager.GetRequest(id)
+	req, err := s.hitlManager.GetRequest(id)
+	if err != nil {
+		writeApprovalDecisionError(w, err)
+		return
+	}
 	writeRESTJSON(w, http.StatusOK, req)
 }
 
@@ -187,7 +191,11 @@ func (s *Server) handleRejectApproval(w http.ResponseWriter, r *http.Request) {
 		writeApprovalDecisionError(w, err)
 		return
 	}
-	req, _ := s.hitlManager.GetRequest(id)
+	req, err := s.hitlManager.GetRequest(id)
+	if err != nil {
+		writeApprovalDecisionError(w, err)
+		return
+	}
 	writeRESTJSON(w, http.StatusOK, req)
 }
 

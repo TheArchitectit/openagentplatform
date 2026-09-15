@@ -377,12 +377,19 @@ function KeyRevealModal({
   onClose: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
 
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(result.secret).then(() => {
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(result.secret);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+    } catch {
+      // Clipboard access can be denied (insecure origin, dismissed permission
+      // prompt). The secret is shown exactly once, so a silent failure would
+      // leave the user believing the key is on the clipboard when it is not.
+      setCopyFailed(true);
+    }
   }, [result.secret]);
 
   return (
@@ -420,6 +427,10 @@ function KeyRevealModal({
               {copied ? (
                 <>
                   <Check className="h-3 w-3" /> Copied
+                </>
+              ) : copyFailed ? (
+                <>
+                  <X className="h-3 w-3" /> Copy failed — select the key
                 </>
               ) : (
                 <>

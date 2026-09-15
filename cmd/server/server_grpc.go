@@ -109,7 +109,10 @@ func authenticateMetadata(ctx context.Context, auth *gateway.Authenticator) (*ga
 			// Reuse the HTTP authenticator path by building a synthetic request
 			// carrying the bearer token. SetTokenValidator wires oauth2Validator,
 			// which authenticateBearer consults.
-			req, _ := http.NewRequest(http.MethodPost, "/a2a/grpc", nil)
+			req, err := http.NewRequest(http.MethodPost, "/a2a/grpc", nil)
+			if err != nil {
+				return nil, status.Error(codes.Internal, "build auth request")
+			}
 			req.Header.Set("Authorization", ids[0])
 			return auth.Authenticate(req)
 		}

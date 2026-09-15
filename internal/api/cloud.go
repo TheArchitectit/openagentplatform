@@ -61,7 +61,11 @@ func (s *Server) listCloudAccounts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"cloud_unavailable"}`, http.StatusServiceUnavailable)
 		return
 	}
-	tc, _ := tenancy.GetTenant(r.Context())
+	tc, ok := tenancy.GetTenant(r.Context())
+	if !ok {
+		http.Error(w, `{"error":"no tenant context"}`, http.StatusForbidden)
+		return
+	}
 	orgID := tc.OrgID
 	accounts, err := s.cloud.accounts.ListByOrg(r.Context(), orgID)
 	if err != nil {
@@ -84,7 +88,11 @@ func (s *Server) createCloudAccount(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"bad_request"}`, http.StatusBadRequest)
 		return
 	}
-	tc, _ := tenancy.GetTenant(r.Context())
+	tc, ok := tenancy.GetTenant(r.Context())
+	if !ok {
+		http.Error(w, `{"error":"no tenant context"}`, http.StatusForbidden)
+		return
+	}
 	acct.OrgID = tc.OrgID
 	if err := s.cloud.accounts.Create(r.Context(), &acct); err != nil {
 		http.Error(w, `{"error":"create_failed"}`, http.StatusInternalServerError)
@@ -112,7 +120,11 @@ func (s *Server) listCloudResources(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"cloud_unavailable"}`, http.StatusServiceUnavailable)
 		return
 	}
-	tc, _ := tenancy.GetTenant(r.Context())
+	tc, ok := tenancy.GetTenant(r.Context())
+	if !ok {
+		http.Error(w, `{"error":"no tenant context"}`, http.StatusForbidden)
+		return
+	}
 	orgID := tc.OrgID
 	resources, err := s.cloud.resources.ListByOrg(r.Context(), orgID, cloud.ResourceFilter{})
 	if err != nil {
@@ -170,7 +182,11 @@ func (s *Server) listCloudPolicies(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"cloud_unavailable"}`, http.StatusServiceUnavailable)
 		return
 	}
-	tc, _ := tenancy.GetTenant(r.Context())
+	tc, ok := tenancy.GetTenant(r.Context())
+	if !ok {
+		http.Error(w, `{"error":"no tenant context"}`, http.StatusForbidden)
+		return
+	}
 	orgID := tc.OrgID
 	policies, err := s.cloud.policies.ListByOrg(r.Context(), orgID)
 	if err != nil {
@@ -193,7 +209,11 @@ func (s *Server) createCloudPolicy(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"bad_request"}`, http.StatusBadRequest)
 		return
 	}
-	tc, _ := tenancy.GetTenant(r.Context())
+	tc, ok := tenancy.GetTenant(r.Context())
+	if !ok {
+		http.Error(w, `{"error":"no tenant context"}`, http.StatusForbidden)
+		return
+	}
 	pol.OrgID = tc.OrgID
 	if err := s.cloud.policies.Create(r.Context(), &pol); err != nil {
 		http.Error(w, `{"error":"create_failed"}`, http.StatusInternalServerError)
@@ -213,7 +233,11 @@ func (s *Server) updateCloudPolicy(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"bad_request"}`, http.StatusBadRequest)
 		return
 	}
-	tc, _ := tenancy.GetTenant(r.Context())
+	tc, ok := tenancy.GetTenant(r.Context())
+	if !ok {
+		http.Error(w, `{"error":"no tenant context"}`, http.StatusForbidden)
+		return
+	}
 	pol.OrgID = tc.OrgID
 	if err := s.cloud.policies.Update(r.Context(), &pol); err != nil {
 		http.Error(w, `{"error":"update_failed"}`, http.StatusInternalServerError)
@@ -240,7 +264,11 @@ func (s *Server) listCloudCosts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"cloud_unavailable"}`, http.StatusServiceUnavailable)
 		return
 	}
-	tc, _ := tenancy.GetTenant(r.Context())
+	tc, ok := tenancy.GetTenant(r.Context())
+	if !ok {
+		http.Error(w, `{"error":"no tenant context"}`, http.StatusForbidden)
+		return
+	}
 	orgID := tc.OrgID
 	snapshots, err := s.cloud.costs.ListByOrg(r.Context(), orgID)
 	if err != nil {
@@ -258,7 +286,11 @@ func (s *Server) listCloudDrift(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"cloud_unavailable"}`, http.StatusServiceUnavailable)
 		return
 	}
-	tc, _ := tenancy.GetTenant(r.Context())
+	tc, ok := tenancy.GetTenant(r.Context())
+	if !ok {
+		http.Error(w, `{"error":"no tenant context"}`, http.StatusForbidden)
+		return
+	}
 	orgID := tc.OrgID
 	drift, err := s.cloud.resources.ListDrift(r.Context(), orgID)
 	if err != nil {

@@ -27,7 +27,7 @@ function DashboardPage() {
 
       {/* Agents + Checks KPIs */}
       <div role="group" aria-label="Agent and check KPIs" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
-        {[...agentKpis, ...checkRow].map((kpi: any) => (
+        {[...agentKpis, ...checkRow].map((kpi) => (
           <KpiCard key={kpi.label} kpi={kpi} />
         ))}
       </div>
@@ -36,7 +36,7 @@ function DashboardPage() {
       <section aria-labelledby="alerts-heading">
         <h2 id="alerts-heading" className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Alerts</h2>
         <div role="group" aria-label="Alert KPIs" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {alertRow.map((kpi: any) => (
+          {alertRow.map((kpi) => (
             <KpiCard key={kpi.label} kpi={kpi} />
           ))}
         </div>
@@ -51,7 +51,7 @@ function DashboardPage() {
           </Link>
         </div>
         <div role="group" aria-label="Patch KPIs" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {patchKpis.map((kpi: any) => (
+          {patchKpis.map((kpi) => (
             <KpiCard key={kpi.label} kpi={kpi} />
           ))}
         </div>
@@ -66,7 +66,7 @@ function DashboardPage() {
           </Link>
         </div>
         <div role="group" aria-label="Script KPIs" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {scriptKpis.map((kpi: any) => (
+          {scriptKpis.map((kpi) => (
             <KpiCard key={kpi.label} kpi={kpi} />
           ))}
         </div>
@@ -183,7 +183,7 @@ function DashboardPage() {
           <div className="text-center text-xs text-gray-500 py-6" role="status">No recent activity.</div>
         ) : (
           <ul role="list" aria-label="Recent audit events" className="space-y-2.5">
-            {activityItems.map((item: any) => {
+            {activityItems.map((item) => {
               const toneColor =
                 item.tone === 'success' ? 'text-emerald-400'
                   : item.tone === 'danger' ? 'text-red-400'

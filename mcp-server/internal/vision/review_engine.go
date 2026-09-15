@@ -185,7 +185,10 @@ func (e *ReviewEngine) Iterate(ctx context.Context, reviewID string) (*Report, e
 		}
 	}
 
-	iterations, _ := e.storage.ListIterations(reviewID)
+	iterations, err := e.storage.ListIterations(reviewID)
+	if err != nil {
+		e.log.Warn("list iterations failed", "review_id", reviewID, "error", err)
+	}
 	return &Report{
 		Review:     *review,
 		Iterations: iterations,

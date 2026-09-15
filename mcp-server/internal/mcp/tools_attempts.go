@@ -216,7 +216,14 @@ func (s *MCPServer) handleResetAttempts(ctx context.Context, args map[string]int
 	}
 
 	// Get current count before resolving
-	status, _ := s.taskAttemptStore.GetThreeStrikesStatus(ctx, sessionToken, taskID)
+	status, err := s.taskAttemptStore.GetThreeStrikesStatus(ctx, sessionToken, taskID)
+	if err != nil {
+		slog.Error("Failed to get three strikes status", "error", err, "session_token", sessionToken)
+		return &mcp.CallToolResult{
+			Content: []interface{}{mcp.TextContent{Type: "text", Text: fmt.Sprintf(`{"valid":false,"error":"Failed to get attempts status: %s"}`, jsonEscapeString(err.Error()))}},
+			IsError: true,
+		}, nil
+	}
 	attemptsCleared := status.AttemptsCount
 
 	// Resolve attempts

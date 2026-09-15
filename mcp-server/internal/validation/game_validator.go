@@ -215,8 +215,15 @@ func (v *GodotValidator) runHeadlessTests(ctx context.Context, projectPath strin
 		"--script", testScript,
 	)
 
-	output, _ := cmd.CombinedOutput()
+	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
+	if err != nil {
+		result.Errors = append(result.Errors, models.BuildError{
+			Type:     models.GameErrorTest,
+			Message:  fmt.Sprintf("godot headless test run failed: %v", err),
+			Severity: "error",
+		})
+	}
 
 	// Parse test results
 	scanner := bufio.NewScanner(strings.NewReader(outputStr))

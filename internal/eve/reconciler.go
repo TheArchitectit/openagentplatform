@@ -104,7 +104,14 @@ func (r *Reconciler) ReconcileCluster(ctx context.Context, clusterID string) err
 	prevStatuses := make(map[string]string)
 
 	// Snapshot prior VM statuses for transition detection
-	existing, _ := r.resources.ListByCluster(ctx, clusterID)
+	existing, err := r.resources.ListByCluster(ctx, clusterID)
+	if err != nil {
+		// Transition detection needs the prior snapshot; without it we
+		// still reconcile state, just without emitting transitions.
+		r.log.Warn("eve: list resources for transition detection failed",
+			"cluster", clusterID, "err", err)
+		existing = nil
+	}
 	for _, res := range existing {
 		prevStatuses[res.ResourceID] = res.Status
 	}

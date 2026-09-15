@@ -58,8 +58,18 @@ func (s *Server) getAlert(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
 		return
 	}
-	history, _ := s.alertStore.GetStateHistory(r.Context(), id)
-	notifs, _ := s.alertStore.GetNotificationHistory(r.Context(), id)
+	history, err := s.alertStore.GetStateHistory(r.Context(), id)
+	if err != nil {
+		s.log.Error("get alert state history failed", "id", id, "err", err)
+		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
+		return
+	}
+	notifs, err := s.alertStore.GetNotificationHistory(r.Context(), id)
+	if err != nil {
+		s.log.Error("get alert notification history failed", "id", id, "err", err)
+		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"alert":                alert,

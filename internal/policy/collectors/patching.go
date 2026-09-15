@@ -106,7 +106,7 @@ func checkPatching(ctx context.Context, goos string) (updates int, lastPatchDays
 			}
 		}
 		if path, _ := exec.LookPath("dnf"); path != "" {
-			out, _ := exec.CommandContext(ctx, "dnf", "check-update", "-q").CombinedOutput()
+			out, _ := exec.CommandContext(ctx, "dnf", "check-update", "-q").CombinedOutput() // guardrails-allow PREVENT-009: exit status is the signal, not an error
 			// dnf exits 100 when updates are available; we treat
 			// that as success and count the rows.
 			s := strings.TrimSpace(string(out))
@@ -117,7 +117,7 @@ func checkPatching(ctx context.Context, goos string) (updates int, lastPatchDays
 			return count, 0, "dnf", nil
 		}
 		if path, _ := exec.LookPath("yum"); path != "" {
-			out, _ := exec.CommandContext(ctx, "yum", "check-update", "-q").CombinedOutput()
+			out, _ := exec.CommandContext(ctx, "yum", "check-update", "-q").CombinedOutput() // guardrails-allow PREVENT-009: exit status is the signal, not an error
 			s := strings.TrimSpace(string(out))
 			count := 0
 			if s != "" {

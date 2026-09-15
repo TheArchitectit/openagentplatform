@@ -68,8 +68,12 @@ func ensureScheduledSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	if err != nil {
 		return err
 	}
-	_, _ = pool.Exec(ctx, `CREATE INDEX IF NOT EXISTS ix_automated_tasks_org_id ON automated_tasks (org_id)`)
-	_, _ = pool.Exec(ctx, `CREATE INDEX IF NOT EXISTS ix_automated_tasks_next_run_at ON automated_tasks (next_run_at)`)
+	if _, err := pool.Exec(ctx, `CREATE INDEX IF NOT EXISTS ix_automated_tasks_org_id ON automated_tasks (org_id)`); err != nil {
+		return err
+	}
+	if _, err := pool.Exec(ctx, `CREATE INDEX IF NOT EXISTS ix_automated_tasks_next_run_at ON automated_tasks (next_run_at)`); err != nil {
+		return err
+	}
 	return nil
 }
 

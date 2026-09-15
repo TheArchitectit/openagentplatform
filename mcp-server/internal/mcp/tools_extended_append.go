@@ -51,7 +51,11 @@ func (s *MCPServer) handleCheckUncertainty(ctx context.Context, args map[string]
 
 	// Get previous uncertainty level
 	var previousLevel models.UncertaintyLevel = models.UncertaintyResolved
-	prevRecord, _ := s.uncertaintyStore.GetLatestUncertainty(sessionID)
+	prevRecord, err := s.uncertaintyStore.GetLatestUncertainty(sessionID)
+	if err != nil {
+		// Best-effort: a missing prior record just means no previous level.
+		slog.Warn("get latest uncertainty failed", "session_id", sessionID, "error", err)
+	}
 	if prevRecord != nil {
 		previousLevel = prevRecord.UncertaintyLevel
 	}
@@ -80,7 +84,11 @@ func (s *MCPServer) handleCheckUncertainty(ctx context.Context, args map[string]
 	}
 
 	// Check escalation threshold
-	thresholdReached, _ := s.uncertaintyStore.HasReachedEscalationThreshold(sessionID, 3)
+	thresholdReached, err := s.uncertaintyStore.HasReachedEscalationThreshold(sessionID, 3)
+	if err != nil {
+		slog.Warn("escalation threshold check failed", "session_id", sessionID, "error", err)
+		thresholdReached = true // fail safe, as in requiresEscalation
+	}
 
 	// Prepare guidance based on uncertainty level
 	guide := s.getUncertaintyGuide(currentLevel)

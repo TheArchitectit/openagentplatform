@@ -478,8 +478,10 @@ func (s *RelayService) CleanupIdleConnections(ctx context.Context) int {
 	// Persist reaps (spec §8.3): final bytes + close, outside the lock.
 	if s.store != nil && len(closedKeys) > 0 {
 		for _, key := range closedKeys {
-			conn, _ := s.GetConnection(ctx, key)
-			if conn == nil {
+			conn, err := s.GetConnection(ctx, key)
+			if err != nil {
+				s.log.Warn("relay: reaped connection lookup failed",
+					"connection_id", key, "err", err)
 				continue
 			}
 			if err := s.store.UpdateBytes(ctx, key, conn.BytesRelayed); err != nil {

@@ -99,14 +99,14 @@ func (h *RemoteHandler) HandleGetShellSession(w http.ResponseWriter, r *http.Req
 		writeJSONError(w, http.StatusServiceUnavailable, "shell_manager_not_configured")
 		return
 	}
-	claims, _ := auth.UserFromContext(r.Context())
+	claims, ok := auth.UserFromContext(r.Context())
 	id := chi.URLParam(r, "session_id")
 	sess := h.Manager.Get(id)
 	if sess == nil {
 		writeJSONError(w, http.StatusNotFound, "session_not_found")
 		return
 	}
-	if claims != nil && !isAdminRole(claims.Role) && sess.UserID != claims.Subject {
+	if ok && claims != nil && !isAdminRole(claims.Role) && sess.UserID != claims.Subject {
 		writeJSONError(w, http.StatusForbidden, "session_forbidden")
 		return
 	}

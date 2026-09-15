@@ -125,7 +125,12 @@ func (s *MCPServer) requiresEscalation(level models.UncertaintyLevel, sessionID 
 
 	// High uncertainty may require escalation if threshold reached
 	if level == models.UncertaintyHigh {
-		thresholdReached, _ := s.uncertaintyStore.HasReachedEscalationThreshold(sessionID, 2)
+		thresholdReached, err := s.uncertaintyStore.HasReachedEscalationThreshold(sessionID, 2)
+		if err != nil {
+			// Fail safe: an unreadable history is treated as escalated so a
+			// store outage never suppresses an escalation.
+			return true
+		}
 		return thresholdReached
 	}
 

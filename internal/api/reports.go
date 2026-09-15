@@ -110,8 +110,14 @@ func (s *Server) listReportRuns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := r.URL.Query()
-	limit, _ := strconv.Atoi(q.Get("limit"))
-	offset, _ := strconv.Atoi(q.Get("offset"))
+	limit, err := strconv.Atoi(q.Get("limit"))
+	if err != nil {
+		limit = 0 // store applies its own default
+	}
+	offset, err := strconv.Atoi(q.Get("offset"))
+	if err != nil {
+		offset = 0
+	}
 
 	runs, err := store.ListRuns(r.Context(), claims.OrgID, limit, offset)
 	if err != nil {

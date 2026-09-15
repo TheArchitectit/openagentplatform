@@ -81,7 +81,10 @@ func (p *SentinelOneProvider) ParseWebhookEvent(payload []byte) (*models.Securit
 
 func (p *SentinelOneProvider) PullRecentEvents(ctx context.Context, since time.Time) ([]*models.SecurityEvent, error) {
 	url := p.baseURL + "/web/api/v2.1/threats?createdAt__gte=" + since.UTC().Format(time.RFC3339)
-	req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("build events request: %w", err)
+	}
 	req.Header.Set("Authorization", "ApiToken "+p.apiToken)
 	resp, err := p.httpClient.Do(req)
 	if err != nil {

@@ -51,7 +51,10 @@ func NewServer(cfg *config.Config, log *slog.Logger, db *pgxpool.Pool, eventBus 
 		log.Error("session minter init failed", "err", err)
 		// Fall back to an ephemeral key so the server can still start
 		// (sessions will not survive a restart).
-		sm, _ = auth.NewSessionMinter(cfg.SessionIssuer, cfg.SessionAudience, time.Hour, "")
+		sm, err = auth.NewSessionMinter(cfg.SessionIssuer, cfg.SessionAudience, time.Hour, "")
+		if err != nil {
+			log.Error("ephemeral session minter init failed — session issuance disabled", "err", err)
+		}
 	}
 	s.sessionMinter = sm
 

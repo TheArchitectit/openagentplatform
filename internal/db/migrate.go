@@ -51,7 +51,11 @@ func Migrate(ctx context.Context, dsn string, log *slog.Logger) error {
 	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("db: migrate up: %w", err)
 	}
-	v, dirty, _ := m.Version()
+	v, dirty, err := m.Version()
+	if err != nil {
+		log.Warn("schema version unavailable", "err", err)
+		return nil
+	}
 	log.Info("schema migrations applied", "version", v, "dirty", dirty)
 	return nil
 }

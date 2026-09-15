@@ -152,7 +152,12 @@ func (r *Reconciler) ReconcileOrg(ctx context.Context, orgID string) error {
 		}
 
 		// Run drift detection against the org's policies for this account
-		policies, _ := r.policyStore.ListByOrg(ctx, orgID)
+		policies, err := r.policyStore.ListByOrg(ctx, orgID)
+		if err != nil {
+			r.log.Warn("cloud: list policies for drift detection failed",
+				"org", orgID, "err", err)
+			continue
+		}
 		for _, pol := range policies {
 			if !pol.Enabled || pol.Provider != acct.Provider || pol.AccountID != acct.AccountID {
 				continue
@@ -169,8 +174,10 @@ func (r *Reconciler) ReconcileOrg(ctx context.Context, orgID string) error {
 
 		// Fetch and persist the cost snapshot for the current billing period
 		period := time.Now().UTC().Format("2006-01")
-		costInfo, _ := client.GetCost(ctx, "", acct.AccountID, period)
-		if costInfo.TotalCostUSD > 0 {
+		costInfo, err := client.GetCost(ctx, "", acct.AccountID, period)
+		if err != nil {
+			r.log.Warn("cloud: cost fetch failed", "account", acct.AccountID, "err", err)
+		} else if costInfo.TotalCostUSD > 0 {
 			snapshot := &models.CostSnapshot{
 				ID:            orgID + "-" + acct.AccountID + "-" + period,
 				OrgID:         orgID,

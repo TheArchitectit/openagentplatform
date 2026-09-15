@@ -95,7 +95,10 @@ func (p *DefenderProvider) PullRecentEvents(ctx context.Context, since time.Time
 		return nil, err
 	}
 	url := fmt.Sprintf("https://api.security.microsoft.com/api/alerts?$filter=detectionDateTime ge %s", since.UTC().Format(time.RFC3339))
-	req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("build events request: %w", err)
+	}
 	req.Header.Set("Authorization", "Bearer "+p.token)
 	resp, err := p.httpClient.Do(req)
 	if err != nil {

@@ -21,8 +21,8 @@ func (s *Server) getUserAlertPreferences(w http.ResponseWriter, r *http.Request)
 		http.Error(w, `{"error":"preference_store_not_configured"}`, http.StatusServiceUnavailable)
 		return
 	}
-	claims, _ := auth.UserFromContext(r.Context())
-	if claims == nil {
+	claims, ok := auth.UserFromContext(r.Context())
+	if !ok || claims == nil {
 		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 		return
 	}
@@ -49,8 +49,8 @@ func (s *Server) putUserAlertPreferences(w http.ResponseWriter, r *http.Request)
 		http.Error(w, `{"error":"preference_store_not_configured"}`, http.StatusServiceUnavailable)
 		return
 	}
-	claims, _ := auth.UserFromContext(r.Context())
-	if claims == nil {
+	claims, ok := auth.UserFromContext(r.Context())
+	if !ok || claims == nil {
 		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 		return
 	}
@@ -84,8 +84,8 @@ func (s *Server) getGlobalAlertPreferences(w http.ResponseWriter, r *http.Reques
 		http.Error(w, `{"error":"preference_store_not_configured"}`, http.StatusServiceUnavailable)
 		return
 	}
-	claims, _ := auth.UserFromContext(r.Context())
-	if claims == nil || claims.Role != auth.RoleAdmin {
+	claims, ok := auth.UserFromContext(r.Context())
+	if !ok || claims == nil || claims.Role != auth.RoleAdmin {
 		http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
 		return
 	}
@@ -111,8 +111,8 @@ func (s *Server) putGlobalAlertPreferences(w http.ResponseWriter, r *http.Reques
 		http.Error(w, `{"error":"preference_store_not_configured"}`, http.StatusServiceUnavailable)
 		return
 	}
-	claims, _ := auth.UserFromContext(r.Context())
-	if claims == nil || claims.Role != auth.RoleAdmin {
+	claims, ok := auth.UserFromContext(r.Context())
+	if !ok || claims == nil || claims.Role != auth.RoleAdmin {
 		http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
 		return
 	}

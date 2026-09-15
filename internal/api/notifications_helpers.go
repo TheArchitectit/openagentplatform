@@ -32,8 +32,8 @@ func (s *Server) updateNotificationChannel(w http.ResponseWriter, r *http.Reques
 		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
 		return
 	}
-	claims, _ := auth.UserFromContext(r.Context())
-	if claims == nil || existing.OrgID != claims.OrgID {
+	claims, ok := auth.UserFromContext(r.Context())
+	if !ok || claims == nil || existing.OrgID != claims.OrgID {
 		http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
 		return
 	}
@@ -97,8 +97,8 @@ func (s *Server) deleteNotificationChannel(w http.ResponseWriter, r *http.Reques
 		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
 		return
 	}
-	claims, _ := auth.UserFromContext(r.Context())
-	if claims == nil || existing.OrgID != claims.OrgID {
+	claims, ok := auth.UserFromContext(r.Context())
+	if !ok || claims == nil || existing.OrgID != claims.OrgID {
 		http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
 		return
 	}
@@ -137,8 +137,8 @@ func (s *Server) testNotificationChannel(w http.ResponseWriter, r *http.Request)
 		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
 		return
 	}
-	claims, _ := auth.UserFromContext(r.Context())
-	if claims == nil || channel.OrgID != claims.OrgID {
+	claims, ok := auth.UserFromContext(r.Context())
+	if !ok || claims == nil || channel.OrgID != claims.OrgID {
 		http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
 		return
 	}

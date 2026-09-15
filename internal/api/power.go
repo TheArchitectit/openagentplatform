@@ -39,7 +39,11 @@ func (s *Server) listPowerEvents(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"power_unavailable"}`, http.StatusServiceUnavailable)
 		return
 	}
-	tc, _ := tenancy.GetTenant(r.Context())
+	tc, ok := tenancy.GetTenant(r.Context())
+	if !ok {
+		http.Error(w, `{"error":"no tenant context"}`, http.StatusForbidden)
+		return
+	}
 	events, err := s.power.events.ListByOrg(r.Context(), tc.OrgID, 100)
 	if err != nil {
 		http.Error(w, `{"error":"list_failed"}`, http.StatusInternalServerError)
@@ -56,7 +60,11 @@ func (s *Server) listPowerState(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"power_unavailable"}`, http.StatusServiceUnavailable)
 		return
 	}
-	tc, _ := tenancy.GetTenant(r.Context())
+	tc, ok := tenancy.GetTenant(r.Context())
+	if !ok {
+		http.Error(w, `{"error":"no tenant context"}`, http.StatusForbidden)
+		return
+	}
 	state, err := s.power.events.LatestByOrg(r.Context(), tc.OrgID)
 	if err != nil {
 		http.Error(w, `{"error":"list_failed"}`, http.StatusInternalServerError)

@@ -128,7 +128,10 @@ func (g *Gater) LicenseMiddleware() func(http.Handler) http.Handler {
 
 // GetLicenseFromContext retrieves the license from the context.
 func GetLicenseFromContext(ctx context.Context) *License {
-	license, _ := ctx.Value(LicenseContextKey).(*License)
+	license, ok := ctx.Value(LicenseContextKey).(*License)
+	if !ok {
+		return nil
+	}
 	return license
 }
 

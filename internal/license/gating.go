@@ -15,8 +15,8 @@ import (
 func FeatureGate(requiredFeature string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			lic, _ := LicenseFromContext(r.Context())
-			if lic == nil {
+			lic, ok := LicenseFromContext(r.Context())
+			if !ok || lic == nil {
 				// No license loaded — treat as community; gate the feature.
 				writeFeatureRequired(w, requiredFeature, "community")
 				return

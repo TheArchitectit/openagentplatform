@@ -30,10 +30,10 @@ func (s *Server) listNotificationChannels(w http.ResponseWriter, r *http.Request
 		http.Error(w, `{"error":"alert_store_not_configured"}`, http.StatusServiceUnavailable)
 		return
 	}
-	claims, _ := auth.UserFromContext(r.Context())
+	claims, ok := auth.UserFromContext(r.Context())
 	orgID := ""
 	userID := ""
-	if claims != nil {
+	if ok && claims != nil {
 		orgID = claims.OrgID
 		userID = claims.Subject
 	}
@@ -54,8 +54,8 @@ func (s *Server) createNotificationChannel(w http.ResponseWriter, r *http.Reques
 		http.Error(w, `{"error":"alert_store_not_configured"}`, http.StatusServiceUnavailable)
 		return
 	}
-	claims, _ := auth.UserFromContext(r.Context())
-	if claims == nil {
+	claims, ok := auth.UserFromContext(r.Context())
+	if !ok || claims == nil {
 		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
 		return
 	}
@@ -133,8 +133,8 @@ func (s *Server) getNotificationChannel(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, `{"error":"internal_error"}`, http.StatusInternalServerError)
 		return
 	}
-	claims, _ := auth.UserFromContext(r.Context())
-	if claims == nil || channel.OrgID != claims.OrgID {
+	claims, ok := auth.UserFromContext(r.Context())
+	if !ok || claims == nil || channel.OrgID != claims.OrgID {
 		http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
 		return
 	}

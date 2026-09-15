@@ -3,6 +3,7 @@ package hitl
 import (
 	"context"
 	"log"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -154,7 +155,7 @@ func (ee *EscalationEngine) escalate(req *ApprovalRequest, cfg ApprovalTypeConfi
 		Reason:     "timeout — escalated to next group",
 		Timestamp:  now,
 		Metadata: map[string]string{
-			"escalation_depth":  string(rune('0' + req.EscalationDepth)),
+			"escalation_depth":  strconv.Itoa(req.EscalationDepth),
 			"escalation_groups": joinGroups(cfg.EscalationGroups),
 		},
 	})

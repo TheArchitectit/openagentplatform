@@ -229,7 +229,15 @@ func (d *PatchDeployer) deployParallel(ctx context.Context, targets []DeployTarg
 		wg.Add(1)
 		go func(idx int, target DeployTarget) {
 			defer wg.Done()
-			tr, _ := d.installWithRetries(ctx, target, job)
+			tr, ok := d.installWithRetries(ctx, target, job)
+			if !ok {
+				tr = TargetResult{
+					AgentID:  target.AgentID,
+					Hostname: target.Hostname,
+					Status:   TargetStatusFailed,
+					Error:    "install returned no result",
+				}
+			}
 			results[idx] = tr
 		}(i, t)
 	}

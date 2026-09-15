@@ -47,13 +47,13 @@ func checkScreenLock(ctx context.Context, goos string) (bool, int, string) {
 	case "windows":
 		// Query two registry values: the screen-saver timeout and the
 		// secure-flag (whether the lock requires a password on resume).
-		timeout, _ := queryRegDWORD(ctx, `HKCU\Software\Policies\Microsoft\Windows\Control Panel\Desktop`, "ScreenSaveTimeOut")
-		secure, _ := queryRegDWORD(ctx, `HKCU\Software\Policies\Microsoft\Windows\Control Panel\Desktop`, "ScreenSaverIsSecure")
+		timeout, _ := queryRegDWORD(ctx, `HKCU\Software\Policies\Microsoft\Windows\Control Panel\Desktop`, "ScreenSaveTimeOut")  // guardrails-allow PREVENT-009: error means the value is absent
+		secure, _ := queryRegDWORD(ctx, `HKCU\Software\Policies\Microsoft\Windows\Control Panel\Desktop`, "ScreenSaverIsSecure") // guardrails-allow PREVENT-009: error means the value is absent
 		if timeout == 0 {
-			timeout, _ = queryRegDWORD(ctx, `HKCU\Control Panel\Desktop`, "ScreenSaveTimeOut")
+			timeout, _ = queryRegDWORD(ctx, `HKCU\Control Panel\Desktop`, "ScreenSaveTimeOut") // guardrails-allow PREVENT-009: error means the value is absent
 		}
 		if secure == 0 {
-			secure, _ = queryRegDWORD(ctx, `HKCU\Control Panel\Desktop`, "ScreenSaverIsSecure")
+			secure, _ = queryRegDWORD(ctx, `HKCU\Control Panel\Desktop`, "ScreenSaverIsSecure") // guardrails-allow PREVENT-009: error means the value is absent
 		}
 		return secure == 1, timeout, "registry"
 	case "darwin":
