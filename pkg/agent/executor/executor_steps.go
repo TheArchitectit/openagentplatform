@@ -147,19 +147,14 @@ func (b *cappedBuffer) Write(p []byte) (int, error) {
 		b.buf = append(b.buf, p...)
 		return len(p), nil
 	}
-	// Fill remaining capacity, then start dropping into a fixed-size ring
-	// of the most recent MaxOutputBytes bytes.
-	remaining := MaxOutputBytes - len(b.buf)
-	if remaining > 0 {
-		b.buf = append(b.buf, p[:remaining]...)
-		p = p[remaining:]
-	}
-	// Shift and append for the overflow tail.
-	if len(b.buf) == MaxOutputBytes {
-		copy(b.buf, b.buf[len(p):])
-		b.buf = append(b.buf[:0], b.buf...)
-		b.buf = append(b.buf, p...)
-	}
+	// Overflow: keep the MOST RECENT MaxOutputBytes bytes. The previous
+	// implementation appended b.buf onto its own prefix with overlapping
+	// copies, which could grow len(b.buf) past the cap and corrupt the
+	// retained output.
+	b.buf = append(b.buf, p...)
+	drop := len(b.buf) - MaxOutputBytes
+	copy(b.buf, b.buf[drop:])
+	b.buf = b.buf[:MaxOutputBytes]
 	return len(p), nil
 }
 

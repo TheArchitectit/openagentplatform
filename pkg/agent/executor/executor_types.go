@@ -141,6 +141,7 @@ func Default() *Registry {
 		r.Register(NewPowerShellExecutor())
 		r.Register(NewPythonExecutor())
 		r.Register(NewNodeExecutor())
+		r.Register(NewCmdExecutor())
 		defaultReg = r
 	})
 	return defaultReg
