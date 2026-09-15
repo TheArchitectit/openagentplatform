@@ -36,8 +36,8 @@ type HeartbeatHandler struct {
 	// onlineTracks agent IDs that we have already seen as online during this
 	// process's lifetime. We use it to avoid emitting a redundant
 	// AgentOnline event for every heartbeat.
-	onlineMu  sync.Mutex
-	online    map[string]struct{}
+	onlineMu sync.Mutex
+	online   map[string]struct{}
 
 	stopCh chan struct{}
 	wg     sync.WaitGroup
@@ -232,4 +232,10 @@ func agentIDFromSubject(subject string) string {
 	// id may itself contain dots (UUIDs do not, but be permissive and take
 	// everything between "agents" and the last segment).
 	return strings.Join(parts[2:len(parts)-1], ".")
+}
+
+// AgentIDFromSubject is the exported form of agentIDFromSubject for
+// consumers outside this package (e.g. the WebSocket event bridge).
+func AgentIDFromSubject(subject string) string {
+	return agentIDFromSubject(subject)
 }

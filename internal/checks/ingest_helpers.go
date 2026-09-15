@@ -35,6 +35,10 @@ type CheckResultPayload struct {
 	DurationMs int64          `json:"duration_ms,omitempty"`
 	Timestamp  time.Time      `json:"timestamp"`
 	Metadata   map[string]any `json:"metadata,omitempty"`
+	// OrgID is the tenant the result belongs to (derived from the check
+	// definition). Consumers such as the WebSocket bridge use it to
+	// scope delivery.
+	OrgID string `json:"org_id,omitempty"`
 }
 
 // AlertPayload is the alert lifecycle event published to
@@ -49,7 +53,9 @@ type AlertPayload struct {
 	Message  string `json:"message"`
 	// ClientID is the tenant-scoped client that owns the agent. Empty when
 	// the agent is not associated with a client.
-	ClientID  string    `json:"client_id,omitempty"`
+	ClientID string `json:"client_id,omitempty"`
+	// OrgID scopes delivery to the tenant that owns the check.
+	OrgID     string    `json:"org_id,omitempty"`
 	Timestamp time.Time `json:"timestamp"`
 }
 
@@ -72,12 +78,13 @@ type rawResult struct {
 	ClientID string `json:"client_id,omitempty"`
 }
 
-// evaluate runs the threshold evaluator and returns the decision plus
-// the alert payload to publish (if any). The function tolerates store
+// evaluate runs the threshold evaluator and returns the decision, the
+// alert payload to publish (if any), and the owning org derived from the
+// check definition (empty when unknown). The function tolerates store
 // and lookup failures: a missing check definition or recent-results
 // list is treated as "no context" and the evaluator falls back to its
 // defaults.
-func (r *ResultIngestor) evaluate(ctx context.Context, raw rawResult, model *models.CheckResult) (Evaluation, *AlertPayload) {
+func (r *ResultIngestor) evaluate(ctx context.Context, raw rawResult, model *models.CheckResult) (Evaluation, *AlertPayload, string) {
 	var (
 		checkDef  *models.CheckDefinition
 		prev      []models.CheckResult
@@ -120,8 +127,12 @@ func (r *ResultIngestor) evaluate(ctx context.Context, raw rawResult, model *mod
 	}
 
 	eval := r.evaluator.Evaluate(model, checkDef, prev)
+	orgID := ""
+	if checkDef != nil {
+		orgID = checkDef.OrgID
+	}
 	if !eval.AlertNeeded {
-		return eval, nil
+		return eval, nil, orgID
 	}
 
 	payload := &AlertPayload{
@@ -133,8 +144,9 @@ func (r *ResultIngestor) evaluate(ctx context.Context, raw rawResult, model *mod
 		Message:   buildAlertMessage(raw, eval),
 		ClientID:  raw.ClientID,
 		Timestamp: raw.Timestamp,
+		OrgID:     orgID,
 	}
-	return eval, payload
+	return eval, payload, orgID
 }
 
 // publish marshals and publishes a payload on the given subject. Errors
