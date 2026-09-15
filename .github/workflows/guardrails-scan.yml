@@ -1,0 +1,86 @@
+name: Guardrails Scan
+
+# Runs the DevGate pattern + semantic scanners against this repo. DevGate is a
+# submodule at .devgate (see .gitmodules); its bundled rule baseline is merged
+# with our overlay at .guardrails/prevention-rules/pattern-rules.json, where an
+# overlay entry replaces the same rule_id (retuning a baseline false positive)
+# and new OAP-* ids append.
+#
+# Blocking: error/critical pattern rules and the SEMANTIC-001 promise check.
+# Advisory: warning-severity rules, which are counted and printed but do not
+# fail the job. The warning backlog is tracked in docs/STATUS.md.
+
+on:
+  push:
+    branches: [main, 'sprint/**']
+    paths:
+      - "**/*.go"
+      - "**/*.ts"
+      - "**/*.tsx"
+      - ".guardrails/**"
+      - ".guardrailsignore"
+      - ".devgate"
+      - ".github/workflows/guardrails-scan.yml"
+  pull_request:
+    branches: [main, 'sprint/**']
+    paths:
+      - "**/*.go"
+      - "**/*.ts"
+      - "**/*.tsx"
+      - ".guardrails/**"
+      - ".guardrailsignore"
+      - ".devgate"
+      - ".github/workflows/guardrails-scan.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: guardrails-scan-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pattern-scan:
+    name: Pattern Scan (blocking)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run DevGate pattern scan
+        run: node .devgate/scripts/guardrails-scan.mjs
+
+  semantic-scan:
+    name: Semantic Scan (blocking)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # semantic-scan.mjs loads the TypeScript compiler API to build an AST.
+      # typescript@7 ships CLI-only (the compiler API left the root export),
+      # so pin to 5.x. Installed at the repo root because ESM `import
+      # "typescript"` in the submodule's script resolves from the cwd upward —
+      # NODE_PATH does not apply to ESM specifier resolution.
+      - name: Install TypeScript compiler API
+        run: npm install --no-save --no-package-lock typescript@5
+
+      - name: Run DevGate semantic scan
+        run: node .devgate/scripts/semantic-scan.mjs

@@ -10,64 +10,66 @@ import (
 	"github.com/openagentplatform/openagentplatform/gate"
 )
 
-// TestGateRunnerIntegration uses real Gate implementations (SecretScan,
-// SchemaScan) against temp files to verify the runner correctly collects
-// findings in both Sequential and Parallel modes.
+// countByRule tallies findings per rule id so assertions read as "this rule
+// fired N times" rather than depending on finding order.
+func countByRule(findings []gate.Finding) map[string]int {
+	counts := make(map[string]int, len(findings))
+	for _, f := range findings {
+		counts[f.Rule]++
+	}
+	return counts
+}
+
+// TestGateRunnerIntegration runs real Gate implementations against a temp tree
+// to verify the runner collects findings in both Sequential and Parallel modes.
 func TestGateRunnerIntegration(t *testing.T) {
 	dir := t.TempDir()
 
-	// Write a file with an AWS access key pattern (AKIA + 16 uppercase alphanumeric chars).
-	secretFile := filepath.Join(dir, "deploy.sh")
-	secretContent := `#!/bin/bash
-export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EFGH123
-echo "deploying"
+	// A filesystem fixture with one registry violation: an HTTP handler
+	// calling fmt.Println is OAP-002, an error-severity rule.
+	handler := filepath.Join(dir, "handler.go")
+	handlerSrc := `package handler
+
+import "fmt"
+
+func Handle() {
+	fmt.Println("debug line")
+}
 `
-	if err := os.WriteFile(secretFile, []byte(secretContent), 0o644); err != nil {
+	if err := os.WriteFile(handler, []byte(handlerSrc), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	// Write a file with a GitHub token.
-	tokenFile := filepath.Join(dir, "config.env")
-	tokenContent := `DATABASE_URL=postgres://localhost/mydb
-GITHUB_TOKEN=ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef1234
-`
-	if err := os.WriteFile(tokenFile, []byte(tokenContent), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	// Write valid JSON.
+	// Valid and invalid JSON, plus YAML with a tab-indent error, for SchemaScan.
 	validJSON := filepath.Join(dir, "good.json")
 	if err := os.WriteFile(validJSON, []byte(`{"name": "test", "value": 42}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-
-	// Write invalid JSON.
 	badJSON := filepath.Join(dir, "bad.json")
 	if err := os.WriteFile(badJSON, []byte(`{"name": "test", value: }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-
-	// Write valid YAML.
 	validYAML := filepath.Join(dir, "good.yaml")
 	if err := os.WriteFile(validYAML, []byte("name: test\nvalue: 42\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-
-	// Write YAML with tab indentation (invalid).
 	badYAML := filepath.Join(dir, "bad.yaml")
 	if err := os.WriteFile(badYAML, []byte("name:\n\tvalue: 42\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	secretGate := NewSecretScan()
-	schemaGate := NewSchemaScan()
-
-	allPaths := []string{secretFile, tokenFile, validJSON, badJSON, validYAML, badYAML}
-	secretPaths := []string{secretFile, tokenFile}
+	ruleScan, schemaScan := testScanners(t)
+	// The registry is authored for the JS/Python scanners, whose regex dialect
+	// is a superset of Go's RE2. Whatever this gate could not compile must be
+	// visible, not silently missing from the scan.
+	for _, skipped := range ruleScan.Skipped() {
+		t.Logf("rule %s not enforced by this gate: %s", skipped.RuleID, skipped.Reason)
+	}
+	allPaths := []string{handler, validJSON, badJSON, validYAML, badYAML}
 	schemaPaths := []string{validJSON, badJSON, validYAML, badYAML}
 
 	t.Run("sequential", func(t *testing.T) {
-		runner := gate.NewRunner(gate.Sequential, secretGate, schemaGate)
+		runner := gate.NewRunner(gate.Sequential, ruleScan, schemaScan)
 		results, err := runner.Run(context.Background(), allPaths)
 		if err != nil {
 			t.Fatalf("Run returned error: %v", err)
@@ -76,39 +78,35 @@ GITHUB_TOKEN=ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef1234
 			t.Fatalf("expected 2 results, got %d", len(results))
 		}
 
-		// SecretScan results.
-		sec := results[0]
-		if sec.Gate != "secret-scan" {
-			t.Errorf("result[0].Gate = %q, want %q", sec.Gate, "secret-scan")
+		rules := results[0]
+		if rules.Gate != "rule-scan" {
+			t.Errorf("result[0].Gate = %q, want %q", rules.Gate, "rule-scan")
 		}
-		if sec.Err != nil {
-			t.Errorf("secret-scan error: %v", sec.Err)
+		if rules.Err != nil {
+			t.Errorf("rule-scan error: %v", rules.Err)
 		}
-		// deploy.sh has AWS key, config.env has GitHub token.
-		if len(sec.Findings) < 2 {
-			t.Errorf("secret-scan: expected >= 2 findings, got %d: %+v", len(sec.Findings), sec.Findings)
+		if count := countByRule(rules.Findings)["OAP-002"]; count == 0 {
+			t.Errorf("rule-scan: expected an OAP-002 finding, got %+v", rules.Findings)
 		}
 
-		// SchemaScan results.
-		sch := results[1]
-		if sch.Gate != "schema" {
-			t.Errorf("result[1].Gate = %q, want %q", sch.Gate, "schema")
+		schema := results[1]
+		if schema.Gate != "schema" {
+			t.Errorf("result[1].Gate = %q, want %q", schema.Gate, "schema")
 		}
-		if sch.Err != nil {
-			t.Errorf("schema error: %v", sch.Err)
+		if schema.Err != nil {
+			t.Errorf("schema error: %v", schema.Err)
 		}
-		// bad.json has invalid JSON, bad.yaml has tab indentation.
-		rules := extractRules(sch.Findings)
-		if !containsStr(rules, "invalid-json") {
-			t.Errorf("schema: expected invalid-json finding, got rules: %v", rules)
+		ruleIDs := extractRules(schema.Findings)
+		if !containsStr(ruleIDs, "invalid-json") {
+			t.Errorf("schema: expected invalid-json finding, got rules: %v", ruleIDs)
 		}
-		if !containsStr(rules, "yaml-tab") {
-			t.Errorf("schema: expected yaml-tab finding, got rules: %v", rules)
+		if !containsStr(ruleIDs, "yaml-tab") {
+			t.Errorf("schema: expected yaml-tab finding, got rules: %v", ruleIDs)
 		}
 	})
 
 	t.Run("parallel", func(t *testing.T) {
-		runner := gate.NewRunner(gate.Parallel, secretGate, schemaGate)
+		runner := gate.NewRunner(gate.Parallel, ruleScan, schemaScan)
 		results, err := runner.Run(context.Background(), allPaths)
 		if err != nil {
 			t.Fatalf("Run returned error: %v", err)
@@ -117,40 +115,26 @@ GITHUB_TOKEN=ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef1234
 			t.Fatalf("expected 2 results, got %d", len(results))
 		}
 		// Gate order in results is preserved even in parallel mode.
-		if results[0].Gate != "secret-scan" || results[1].Gate != "schema" {
+		if results[0].Gate != "rule-scan" || results[1].Gate != "schema" {
 			t.Errorf("unexpected result order: %v", []string{results[0].Gate, results[1].Gate})
 		}
-		if len(results[0].Findings) < 2 {
-			t.Errorf("parallel secret-scan: expected >= 2 findings, got %d", len(results[0].Findings))
-		}
-	})
-
-	t.Run("secret-only", func(t *testing.T) {
-		runner := gate.NewRunner(gate.Sequential, secretGate)
-		results, err := runner.Run(context.Background(), secretPaths)
-		if err != nil {
-			t.Fatalf("Run returned error: %v", err)
-		}
-		rules := extractRules(results[0].Findings)
-		if !containsStr(rules, "aws-access-key") {
-			t.Errorf("expected aws-access-key finding, got rules: %v", rules)
-		}
-		if !containsStr(rules, "github-token") {
-			t.Errorf("expected github-token finding, got rules: %v", rules)
+		if count := countByRule(results[0].Findings)["OAP-002"]; count == 0 {
+			t.Errorf("parallel rule-scan: expected an OAP-002 finding, got %+v", results[0].Findings)
 		}
 	})
 
 	t.Run("schema-only", func(t *testing.T) {
-		runner := gate.NewRunner(gate.Sequential, schemaGate)
+		runner := gate.NewRunner(gate.Sequential, schemaScan)
 		results, err := runner.Run(context.Background(), schemaPaths)
 		if err != nil {
 			t.Fatalf("Run returned error: %v", err)
 		}
-		rules := extractRules(results[0].Findings)
-		if !containsStr(rules, "invalid-json") {
-			t.Errorf("expected invalid-json finding, got rules: %v", rules)
+		ruleIDs := extractRules(results[0].Findings)
+		if !containsStr(ruleIDs, "invalid-json") {
+			t.Errorf("expected invalid-json finding, got rules: %v", ruleIDs)
 		}
-		// valid.json and valid.yaml should produce no findings.
+		// good.json and good.yaml contribute nothing; bad.json and bad.yaml
+		// contribute exactly one finding each.
 		if len(results[0].Findings) != 2 {
 			t.Errorf("schema: expected 2 findings (bad.json + bad.yaml), got %d: %+v",
 				len(results[0].Findings), results[0].Findings)
@@ -158,7 +142,7 @@ GITHUB_TOKEN=ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef1234
 	})
 
 	t.Run("empty-paths", func(t *testing.T) {
-		runner := gate.NewRunner(gate.Sequential, secretGate, schemaGate)
+		runner := gate.NewRunner(gate.Sequential, ruleScan, schemaScan)
 		results, err := runner.Run(context.Background(), nil)
 		if err != nil {
 			t.Fatalf("Run returned error: %v", err)

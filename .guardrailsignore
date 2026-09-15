@@ -1,0 +1,25 @@
+# .guardrailsignore — paths the DevGate scan gates must not report on.
+#
+# One fnmatch glob per line; "*" crosses "/" (same semantics as rule globs).
+# A trailing "/" excludes a directory prefix. Blank lines and '#' comments
+# are ignored. Loaded by .devgate/scripts/guardrails-scan.mjs and by the Go
+# gate/ package (see gate/gates/ignore.go).
+#
+# Keep this list to machine-generated or third-party content only. Anything
+# hand-written belongs in the violation backlog, not here.
+
+# TanStack Router emits this file; it carries @ts-nocheck and is overwritten
+# on every dev/build run, so findings on it are unfixable by definition.
+web/src/routeTree.gen.ts
+
+# Generated protobuf/gRPC stubs.
+*.pb.go
+*.pb.gw.go
+*_grpc.pb.go
+
+# Build output and dependencies.
+node_modules/
+dist/
+build/
+coverage/
+vendor/

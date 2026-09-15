@@ -1,260 +1,463 @@
 {
-  "$schema": "./pattern-rules.schema.json",
-  "description": "Expanded anti-pattern prevention rules (DevGate parity + project-specific)",
-  "version": "3.0.0",
+  "$schema": "../.devgate/.guardrails/prevention-rules/pattern-rules.schema.json",
+  "description": "OpenAgentPlatform-specific anti-pattern rules (OAP-* namespace), plus retuned overrides of DevGate baseline PREVENT-* rules. The overlay merges onto the baseline by rule_id: an entry here REPLACES the same-id bundled rule (so OAP retunes a false positive or narrows an over-broad pattern without editing the submodule), and new OAP-* ids append.",
+  "version": "4.4.0",
   "rules": [
     {
-      "rule_id": "PREVENT-001",
-      "name": "JSON.parse without null check",
-      "enabled": true,
-      "pattern": "JSON\\.parse\\(.*\\)\\s*\\.\\w+",
-      "forbidden_context": "without.*null.*check",
-      "message": "Direct property access on JSON.parse result without null check",
-      "severity": "error",
-      "file_glob": ["*.js", "*.ts", "*.jsx", "*.tsx"],
-      "suggestion": "Add null check: const data = JSON.parse(...); if (data) { ... }"
-    },
-    {
-      "rule_id": "PREVENT-002",
+      "rule_id": "OAP-001",
       "name": "SQL injection risk via string concatenation",
       "enabled": true,
       "pattern": "(execute|query|exec)\\s*\\([\"'].*\\+.*\\)",
       "forbidden_context": "(//|#|\\*|test|mock|fixture|example)",
       "message": "Potential SQL injection: String concatenation in SQL query",
       "severity": "critical",
-      "file_glob": ["*.py", "*.js", "*.ts", "*.rb", "*.java", "*.go"],
+      "file_glob": [
+        "*.py",
+        "*.js",
+        "*.ts",
+        "*.rb",
+        "*.java",
+        "*.go"
+      ],
       "suggestion": "Use parameterized queries or prepared statements"
     },
     {
-      "rule_id": "PREVENT-003",
-      "name": "Hardcoded credentials",
-      "enabled": true,
-      "pattern": "(password|secret|api_key|token|apikey)\\s*[,=:]\\s*[\"'][^\"']+[\"']",
-      "forbidden_context": "(example|placeholder|test|mock|sample|dummy|fake)",
-      "message": "Possible hardcoded credential detected",
-      "severity": "critical",
-      "file_glob": ["*"],
-      "suggestion": "Use environment variables or secret management system"
-    },
-    {
-      "rule_id": "PREVENT-010",
+      "rule_id": "OAP-002",
       "name": "fmt.Println in library code",
       "enabled": true,
       "pattern": "^\\s*fmt\\.Print(ln|f)\\s*\\(",
-      "forbidden_context": "(cmd/|_test\\.go|scripts/|internal/cli|internal/team|mcp-server/|examples/|vendor/)",
+      "forbidden_context": null,
       "message": "fmt.Print* in library code — use structured logging instead",
       "severity": "error",
-      "file_glob": ["*.go"],
-      "suggestion": "Replace with slog.Info/slog.Error or a logger interface"
+      "file_glob": [
+        "*.go"
+      ],
+      "suggestion": "Replace with slog.Info/slog.Error or a logger interface",
+      "exclude_glob": [
+        "cmd/*",
+        "scripts/*",
+        "mcp-server/*",
+        "examples/*",
+        "vendor/*",
+        "internal/cli/*",
+        "internal/team/*",
+        "*_test.go"
+      ]
     },
     {
-      "rule_id": "PREVENT-011",
+      "rule_id": "OAP-003",
       "name": "console.log in source",
       "enabled": true,
       "pattern": "\\bconsole\\.log\\s*\\(",
       "forbidden_context": "(_test\\.|\\.test\\.|\\.spec\\.|stories\\.|__mocks__/)",
       "message": "console.log in non-test source code",
       "severity": "warning",
-      "file_glob": ["*.ts", "*.tsx", "*.js", "*.jsx"],
+      "file_glob": [
+        "*.ts",
+        "*.tsx",
+        "*.js",
+        "*.jsx"
+      ],
       "suggestion": "Remove or replace with a structured logger"
     },
     {
-      "rule_id": "PREVENT-012",
+      "rule_id": "OAP-004",
       "name": "debugger statement",
       "enabled": true,
       "pattern": "\\bdebugger\\b",
       "forbidden_context": null,
       "message": "debugger statement left in source",
       "severity": "error",
-      "file_glob": ["*.ts", "*.tsx", "*.js", "*.jsx"],
+      "file_glob": [
+        "*.ts",
+        "*.tsx",
+        "*.js",
+        "*.jsx"
+      ],
       "suggestion": "Remove debugger statement before committing"
     },
     {
-      "rule_id": "PREVENT-013",
+      "rule_id": "OAP-005",
       "name": "eval() usage",
       "enabled": true,
       "pattern": "\\beval\\s*\\(",
       "forbidden_context": null,
       "message": "eval() is a security risk and performance anti-pattern",
       "severity": "error",
-      "file_glob": ["*.ts", "*.tsx", "*.js", "*.jsx"],
+      "file_glob": [
+        "*.ts",
+        "*.tsx",
+        "*.js",
+        "*.jsx"
+      ],
       "suggestion": "Use JSON.parse for data, or a safe alternative to eval"
     },
     {
-      "rule_id": "PREVENT-014",
+      "rule_id": "OAP-006",
       "name": "Empty catch block",
       "enabled": true,
       "pattern": "catch\\s*\\([^)]*\\)\\s*\\{\\s*\\}",
       "forbidden_context": null,
       "message": "Empty catch block silently swallows errors",
       "severity": "error",
-      "file_glob": ["*.ts", "*.tsx", "*.js", "*.jsx"],
+      "file_glob": [
+        "*.ts",
+        "*.tsx",
+        "*.js",
+        "*.jsx"
+      ],
       "suggestion": "Log the error or rethrow: catch (e) { logger.error(e); }"
     },
     {
-      "rule_id": "PREVENT-015",
+      "rule_id": "OAP-007",
       "name": "os.Exit in library code",
       "enabled": true,
       "pattern": "os\\.Exit\\s*\\(",
-      "forbidden_context": "(cmd/|_test\\.go|scripts/|internal/cli|internal/team|mcp-server/|examples/|vendor/)",
+      "forbidden_context": null,
       "message": "os.Exit in library code prevents graceful shutdown and testing",
       "severity": "error",
-      "file_glob": ["*.go"],
-      "suggestion": "Return an error to the caller instead of calling os.Exit"
+      "file_glob": [
+        "*.go"
+      ],
+      "suggestion": "Return an error to the caller instead of calling os.Exit",
+      "exclude_glob": [
+        "cmd/*",
+        "scripts/*",
+        "mcp-server/*",
+        "examples/*",
+        "vendor/*",
+        "internal/cli/*",
+        "internal/team/*",
+        "*_test.go"
+      ]
     },
     {
-      "rule_id": "PREVENT-016",
+      "rule_id": "OAP-008",
       "name": "Unchecked error return",
       "enabled": true,
       "pattern": "^\\s*[a-zA-Z_][a-zA-Z0-9_.]*\\s*\\([^)]*\\)\\s*$",
       "forbidden_context": "(if\\s+err|:=.*\\n.*err|_ =|_ ,|\\.Lock\\(|\\.Unlock\\(|\\.Close\\(|defer |fmt\\.|log\\.|slog\\.|strings\\.|bytes\\.|append\\(|\\.Stop\\(|\\.cb\\.|\\.mu\\.|\\.Record|b\\.mu)",
       "message": "Function call result not captured — possible unchecked error",
       "severity": "warning",
-      "file_glob": ["*.go"],
+      "file_glob": [
+        "*.go"
+      ],
       "suggestion": "Capture and handle the error: result, err := fn(); if err != nil { ... }"
     },
     {
-      "rule_id": "PREVENT-017",
+      "rule_id": "OAP-009",
       "name": "Context without timeout in HTTP handler",
       "enabled": true,
       "pattern": "r\\.Context\\(\\)|ctx\\s*:=\\s*r\\.Context",
       "forbidden_context": "(context\\.WithTimeout|context\\.WithDeadline)",
       "message": "Using request context without adding a timeout for downstream calls",
       "severity": "warning",
-      "file_glob": ["*.go"],
+      "file_glob": [
+        "*.go"
+      ],
       "suggestion": "Add timeout for downstream calls: ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)"
     },
     {
-      "rule_id": "PREVENT-018",
+      "rule_id": "OAP-010",
       "name": "TODO without ticket reference",
       "enabled": true,
       "pattern": "//\\s*TODO\\s*$",
       "forbidden_context": null,
       "message": "TODO without a ticket reference will be lost",
       "severity": "warning",
-      "file_glob": ["*.go", "*.ts", "*.tsx", "*.py", "*.js"],
+      "file_glob": [
+        "*.go",
+        "*.ts",
+        "*.tsx",
+        "*.py",
+        "*.js"
+      ],
       "suggestion": "Add ticket: TODO(OAP-123): description"
     },
     {
-      "rule_id": "PREVENT-019",
+      "rule_id": "OAP-011",
       "name": "Any type in TypeScript",
       "enabled": true,
       "pattern": ":\\s*any\\b",
       "forbidden_context": "(//\\s*@ts-ignore|//\\s*@ts-expect-error|//\\s*nolint)",
       "message": "Explicit 'any' type bypasses type safety",
       "severity": "warning",
-      "file_glob": ["*.ts", "*.tsx"],
+      "file_glob": [
+        "*.ts",
+        "*.tsx"
+      ],
       "suggestion": "Use a specific type, unknown, or a generic constraint"
     },
     {
-      "rule_id": "PREVENT-020",
+      "rule_id": "OAP-012",
       "name": "import from 'fs' in frontend",
       "enabled": true,
       "pattern": "from\\s+['\"]fs['\"]|require\\s*\\(\\s*['\"]fs['\"]",
       "forbidden_context": null,
       "message": "Node fs module imported in frontend code",
       "severity": "error",
-      "file_glob": ["web/src/**/*.ts", "web/src/**/*.tsx"],
+      "file_glob": [
+        "web/src/**/*.ts",
+        "web/src/**/*.tsx"
+      ],
       "suggestion": "Use browser APIs or a backend endpoint instead of fs"
     },
     {
-      "rule_id": "PREVENT-021",
+      "rule_id": "OAP-013",
       "name": "process.env in frontend",
       "enabled": true,
       "pattern": "process\\.env\\.",
       "forbidden_context": "(import\\.meta\\.env|VITE_)",
       "message": "process.env used in frontend — Vite uses import.meta.env",
       "severity": "error",
-      "file_glob": ["web/src/**/*.ts", "web/src/**/*.tsx"],
+      "file_glob": [
+        "web/src/**/*.ts",
+        "web/src/**/*.tsx"
+      ],
       "suggestion": "Use import.meta.env.VITE_* instead of process.env"
     },
     {
-      "rule_id": "PREVENT-022",
+      "rule_id": "OAP-014",
       "name": "Goroutine without recovery",
       "enabled": true,
       "pattern": "go\\s+func\\s*\\(",
       "forbidden_context": "(defer.*recover|safeGo|errgroup)",
       "message": "Goroutine started without panic recovery",
       "severity": "warning",
-      "file_glob": ["*.go"],
+      "file_glob": [
+        "*.go"
+      ],
       "suggestion": "Add defer/recover or use a helper like errgroup for managed goroutines"
     },
     {
-      "rule_id": "PREVENT-023",
+      "rule_id": "OAP-015",
       "name": "time.Sleep in tests",
       "enabled": true,
       "pattern": "time\\.Sleep\\s*\\(",
       "forbidden_context": null,
       "message": "time.Sleep in tests creates flaky, slow tests",
       "severity": "warning",
-      "file_glob": ["*_test.go", "*.test.ts", "*.test.tsx", "*.spec.ts"],
+      "file_glob": [
+        "*_test.go",
+        "*.test.ts",
+        "*.test.tsx",
+        "*.spec.ts"
+      ],
       "suggestion": "Use eventually/polling, channels, or test doubles instead of sleep"
     },
     {
-      "rule_id": "PREVENT-024",
+      "rule_id": "OAP-016",
       "name": "Hardcoded IP address",
       "enabled": true,
       "pattern": "\"[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\"",
       "forbidden_context": "(0\\.0\\.0\\.0|127\\.0\\.0\\.1|localhost|test|mock|fixture|example)",
       "message": "Hardcoded IP address — use configuration instead",
       "severity": "warning",
-      "file_glob": ["*.go", "*.ts", "*.tsx", "*.py"],
+      "file_glob": [
+        "*.go",
+        "*.ts",
+        "*.tsx",
+        "*.py"
+      ],
       "suggestion": "Move to config/env: os.Getenv(\"SERVER_HOST\")"
     },
     {
-      "rule_id": "PREVENT-025",
-      "name": "HTTP handler without timeout",
+      "rule_id": "OAP-017",
+      "name": "http.Server without ReadHeaderTimeout",
       "enabled": true,
-      "pattern": "http\\.ListenAndServe",
-      "forbidden_context": "(Timeout|ReadTimeout|WriteTimeout|IdleTimeout)",
-      "message": "HTTP server started without explicit timeouts",
-      "severity": "error",
-      "file_glob": ["*.go"],
-      "suggestion": "Set ReadTimeout, WriteTimeout, IdleTimeout on the http.Server"
+      "pattern": "http\\.Server\\{",
+      "forbidden_context": "ReadHeaderTimeout",
+      "message": "http.Server constructed without ReadHeaderTimeout (slowloris exposure)",
+      "severity": "warning",
+      "file_glob": [
+        "*.go"
+      ],
+      "suggestion": "Set ReadHeaderTimeout (and ReadTimeout/WriteTimeout/IdleTimeout as appropriate)"
     },
     {
-      "rule_id": "PREVENT-026",
+      "rule_id": "OAP-018",
       "name": "SQL string concatenation in Go",
       "enabled": true,
       "pattern": "\"\\s*\\+\\s*fmt\\.Sprintf\\s*\\(\\s*\"\\s*(SELECT|INSERT|UPDATE|DELETE|WHERE|FROM|JOIN|ORDER|GROUP|VALUES|SET|INTO|CREATE|ALTER|DROP)",
       "forbidden_context": null,
       "message": "SQL query built via string concatenation — injection risk",
       "severity": "critical",
-      "file_glob": ["*.go"],
+      "file_glob": [
+        "*.go"
+      ],
       "suggestion": "Use db.Query(sql, args...) or sqlx with named parameters"
     },
     {
-      "rule_id": "PREVENT-027",
+      "rule_id": "OAP-019",
       "name": "Deprecated ioutil usage",
       "enabled": true,
       "pattern": "ioutil\\.(ReadFile|WriteFile|ReadAll|ReadDir|TempDir|TempFile|NopCloser|Discard)",
       "forbidden_context": null,
       "message": "io/ioutil is deprecated since Go 1.16",
       "severity": "warning",
-      "file_glob": ["*.go"],
+      "file_glob": [
+        "*.go"
+      ],
       "suggestion": "Use os.ReadFile, os.WriteFile, io.ReadAll, os.ReadDir, os.MkdirTemp, os.CreateTemp, io.NopCloser, io.Discard"
     },
     {
-      "rule_id": "PREVENT-028",
+      "rule_id": "OAP-020",
       "name": "PyYAML unsafe_load",
       "enabled": true,
       "pattern": "yaml\\.(load|unsafe_load)\\s*\\(",
       "forbidden_context": "(Loader=.*SafeLoader|SafeLoader)",
       "message": "yaml.load without SafeLoader is a code execution risk",
       "severity": "critical",
-      "file_glob": ["*.py"],
+      "file_glob": [
+        "*.py"
+      ],
       "suggestion": "Use yaml.safe_load() or yaml.load(data, Loader=yaml.SafeLoader)"
     },
     {
-      "rule_id": "PREVENT-029",
+      "rule_id": "OAP-021",
       "name": "subprocess shell=True",
       "enabled": true,
       "pattern": "subprocess\\.(run|call|Popen)\\s*\\([^)]*shell\\s*=\\s*True",
       "forbidden_context": null,
       "message": "subprocess with shell=True is a command injection risk",
       "severity": "critical",
-      "file_glob": ["*.py"],
+      "file_glob": [
+        "*.py"
+      ],
       "suggestion": "Use subprocess.run([cmd, arg1, arg2]) with a list instead of shell=True"
+    },
+    {
+      "rule_id": "OAP-022",
+      "name": "AWS access key ID",
+      "enabled": true,
+      "pattern": "\\b(?:AKIA|ASIA)[A-Z0-9]{16}\\b",
+      "forbidden_context": null,
+      "message": "AWS access key ID detected in source",
+      "severity": "critical",
+      "file_glob": [
+        "*"
+      ],
+      "suggestion": "Revoke the key, then load credentials from IAM roles or environment variables. Ported from the in-repo Go gate's secret-scan rule set."
+    },
+    {
+      "rule_id": "OAP-023",
+      "name": "GitHub token",
+      "enabled": true,
+      "pattern": "\\bgh[opusr]_[A-Za-z0-9]{30,255}\\b",
+      "forbidden_context": null,
+      "message": "GitHub token detected in source",
+      "severity": "critical",
+      "file_glob": [
+        "*"
+      ],
+      "suggestion": "Revoke the token and use a secret manager or GitHub Actions secrets. Ported from the in-repo Go gate's secret-scan rule set."
+    },
+    {
+      "rule_id": "OAP-024",
+      "name": "Private key material",
+      "enabled": true,
+      "pattern": "-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
+      "forbidden_context": null,
+      "message": "Private key material embedded in source",
+      "severity": "critical",
+      "file_glob": [
+        "*"
+      ],
+      "suggestion": "Remove the key from the tree and rotate it; history rewrite is required since the key is already committed. Ported from the in-repo Go gate's secret-scan rule set."
+    },
+    {
+      "rule_id": "OAP-025",
+      "name": "Assigned secret literal",
+      "enabled": true,
+      "pattern": "(?i)\\b(?:api[_-]?key|access[_-]?token|auth[_-]?token|client[_-]?secret|password|passwd)\\b\\s*[:=]\\s*[\"'][^\"'\\s]{8,}[\"']",
+      "forbidden_context": "(example|placeholder|changeme|your_|your-|\\$\\{|getenv|getenv\\(|environ|test|mock|fixture|sample|dummy|fake)",
+      "message": "Hardcoded credential literal assigned in source",
+      "severity": "critical",
+      "file_glob": [
+        "*"
+      ],
+      "suggestion": "Use environment variables or a secret manager. Ported from the in-repo Go gate's secret-scan rule set."
+    },
+    {
+      "rule_id": "OAP-026",
+      "name": "GCP service account key",
+      "enabled": true,
+      "pattern": "\"type\"\\s*:\\s*\"service_account\"",
+      "forbidden_context": null,
+      "message": "GCP service account key JSON embedded in source",
+      "severity": "critical",
+      "file_glob": [
+        "*"
+      ],
+      "suggestion": "Use workload identity federation instead of a downloaded service-account key. Ported from the in-repo Go gate's secret-scan rule set."
+    },
+    {
+      "rule_id": "OAP-027",
+      "name": "Azure storage account key",
+      "enabled": true,
+      "pattern": "(?i)\\bAccountKey\\s*=\\s*[A-Za-z0-9+/=]{44}\\b",
+      "forbidden_context": null,
+      "message": "Azure storage account key detected in source",
+      "severity": "critical",
+      "file_glob": [
+        "*"
+      ],
+      "suggestion": "Rotate the key and use managed identities or a Key Vault reference. Ported from the in-repo Go gate's secret-scan rule set."
+    },
+    {
+      "rule_id": "OAP-028",
+      "name": "npm access token",
+      "enabled": true,
+      "pattern": "\\bnpm_[A-Za-z0-9]{36}\\b",
+      "forbidden_context": null,
+      "message": "npm access token detected in source",
+      "severity": "critical",
+      "file_glob": [
+        "*"
+      ],
+      "suggestion": "Revoke the token and use an .npmrc populated from CI secrets. Ported from the in-repo Go gate's secret-scan rule set."
+    },
+    {
+      "rule_id": "OAP-029",
+      "name": "Stripe secret key",
+      "enabled": true,
+      "pattern": "\\bsk_(?:live|test)_[A-Za-z0-9]{24,}\\b",
+      "forbidden_context": null,
+      "message": "Stripe secret API key detected in source",
+      "severity": "critical",
+      "file_glob": [
+        "*"
+      ],
+      "suggestion": "Roll the key in the Stripe dashboard and inject it from a secret manager. Ported from the in-repo Go gate's secret-scan rule set."
+    },
+    {
+      "rule_id": "PREVENT-003",
+      "name": "Hardcoded credentials",
+      "enabled": true,
+      "pattern": "(password|secret|api_key|token|apikey)\\s*(?:[,:]=?|=)(?!=)\\s*[\"\\'][^\"\\']{8,}[\"\\']",
+      "forbidden_context": "(example|placeholder|test|mock|sample|dummy|fake)",
+      "message": "Possible hardcoded credential detected",
+      "severity": "critical",
+      "file_glob": [
+        "*"
+      ],
+      "suggestion": "Use environment variables or a secret manager. Baseline pattern matched any token\" string (including split/join calls); this override requires the literal to carry the value (assign/colon) and be >=8 chars."
+    },
+    {
+      "rule_id": "PREVENT-009",
+      "name": "Go: Ignored error return (value+error discards)",
+      "enabled": true,
+      "pattern": "\\w+\\s*,\\s*_\\s*:?=(?![^\\n]*(?:json\\.Marshal|io\\.ReadAll|io\\.Copy|w\\.Write\\(|b\\.Write\\(|stdin\\.Write\\(|conn\\.Write\\(|fmt\\.Fprint|byte\\(|int\\(|\\.Close\\(\\)|\\.Unlock\\(\\)|\\.Lock\\(\\)|exec\\.LookPath|filepath\\.|base64\\.|bytes\\.NewReader|url\\.Parse|time\\.ParseDuration|fmt\\.Sscanf|net\\.SplitHostPort|\\.LoadOrStore\\(|rand\\.Read\\(|runtime\\.Caller|os\\.Getwd|\\.Value\\(CtxKey|pem\\.Decode|DetectGameEngine|\\.Float64\\(\\)|UnmarshalQuietHours\\(|GetRuleChannels\\(|\\.\\(|http\\.NewRequest|\\.CombinedOutput\\(|queryRegDWORD\\(|\\.Record\\(|\\.ExecContext\\(|\\.PurgeExpired\\(|PublishStdin|os\\.ReadDir|os\\.ReadFile|HasReachedEscalationThreshold|GetPhaseStatus|GetThreeStrikesStatus|ListIterations|HealthCheck|ListByOrg|ListByCluster|GetCost|GetPolicy|GetConnection|GetRequest|DecodeForJSON|LicenseFromContext|NewSessionMinter|GetStateHistory|GetNotificationHistory|strconv\\.Atoi|UserFromContext|GetTenant))",
+      "forbidden_context": null,
+      "message": "Error return value ignored. Always check errors in Go.",
+      "severity": "error",
+      "file_glob": [
+        "*.go"
+      ],
+      "suggestion": "Bind the error and handle it: v, err := f(); if err != nil { ... }, or annotate a deliberate discard inline: // guardrails-allow PREVENT-009: <reason>",
+      "exclude_glob": [
+        "*_test.go"
+      ]
     }
   ]
 }
