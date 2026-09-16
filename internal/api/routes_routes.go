@@ -86,7 +86,7 @@ func (s *Server) registerRoutes(r chi.Router) {
 			})
 
 			r.Route("/agents", func(r chi.Router) {
-				r.Get("/", s.listAgents)
+				r.Get("/", s.handleListAgents)
 				// Agent registration is mounted here for routing
 				// convenience, but it does its own auth via the
 				// per-site registration token in the request body

@@ -136,7 +136,7 @@ func (h *HeartbeatHandler) sweepStale(ctx context.Context) {
 	t := time.NewTicker(30 * time.Second)
 	defer t.Stop()
 
-	threshold := time.Now().Add(-2 * time.Minute)
+	var threshold time.Time
 	for {
 		select {
 		case <-h.stopCh:
