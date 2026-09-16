@@ -347,7 +347,11 @@ func (s *Server) handleRunCheckNow(w http.ResponseWriter, r *http.Request) {
 	// org before publishing to its subject. This also covers assignment
 	// rows created before org scoping was enforced on the assignment
 	// endpoints.
-	allowed, _ := s.filterAgentsInOrg(r.Context(), orgID, assignmentIDs(assignments))
+	allowed, rejected := s.filterAgentsInOrg(r.Context(), orgID, assignmentIDs(assignments))
+	if len(rejected) > 0 {
+		s.log.Warn("run-now rejected agents outside org",
+			"check_id", id, "org_id", orgID, "rejected_agents", rejected)
+	}
 	allowedSet := make(map[string]struct{}, len(allowed))
 	for _, a := range allowed {
 		allowedSet[a] = struct{}{}

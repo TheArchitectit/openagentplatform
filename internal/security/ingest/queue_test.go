@@ -2,15 +2,19 @@ package ingest
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 )
 
 func TestQueueSubmit(t *testing.T) {
-	handled := 0
+	// Atomic: the worker goroutine increments this while the test polls
+	// it. A plain int races (caught by -race) between the callback and
+	// the poll loop below.
+	var handled atomic.Int64
 	q := NewQueueWithSize(
 		func(ctx context.Context, j IngestJob) error {
-			handled++
+			handled.Add(1)
 			return nil
 		},
 		10, 2, nil,
@@ -24,11 +28,11 @@ func TestQueueSubmit(t *testing.T) {
 			t.Fatalf("Submit %d returned false", i)
 		}
 	}
-	for i := 0; i < 100 && handled < 5; i++ {
+	for i := 0; i < 100 && handled.Load() < 5; i++ {
 		time.Sleep(10 * time.Millisecond)
 	}
-	if handled != 5 {
-		t.Errorf("handled = %d, want 5", handled)
+	if got := handled.Load(); got != 5 {
+		t.Errorf("handled = %d, want 5", got)
 	}
 }
 
