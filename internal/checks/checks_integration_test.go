@@ -92,7 +92,7 @@ func TestIntegration_EvaluateFlow(t *testing.T) {
 	}
 
 	// 3rd consecutive failure (2 in store + current) should fire.
-	eval, alert := ing.evaluate(context.Background(), raw, model)
+	eval, alert, orgID := ing.evaluate(context.Background(), raw, model)
 	if !eval.AlertNeeded {
 		t.Error("3rd consecutive failure should fire")
 	}
@@ -104,6 +104,11 @@ func TestIntegration_EvaluateFlow(t *testing.T) {
 	}
 	if alert.Message == "" {
 		t.Error("alert message should not be empty")
+	}
+	// No check-definition org was configured in this fixture; the org
+	// must come back empty rather than guessed.
+	if orgID != "" {
+		t.Errorf("orgID = %q, want empty for org-less check definition", orgID)
 	}
 }
 

@@ -39,7 +39,7 @@ type Store interface {
 
 	GetAlertRules(ctx context.Context, orgID string) ([]models.AlertRule, error)
 	CreateAlertRule(ctx context.Context, r *models.AlertRule) error
-	UpdateAlertRule(ctx context.Context, r *models.AlertRule) error
+	UpdateAlertRule(ctx context.Context, orgID string, r *models.AlertRule) error
 	DeleteAlertRule(ctx context.Context, orgID, id string) error
 
 	// Fleet-level alert-suppression windows (RMM-02). Distinct from patch

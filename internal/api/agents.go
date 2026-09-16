@@ -37,7 +37,7 @@ type agentStore interface {
 	ListAgents(ctx context.Context, filter AgentListFilter) ([]models.Agent, int, error)
 	ListCheckResultsByAgent(ctx context.Context, agentID string, limit int) ([]models.CheckResult, error)
 	ListCheckResultsByAgentPaged(ctx context.Context, agentID string, limit, offset int) ([]models.CheckResult, int, error)
-	ListCheckResultsPaged(ctx context.Context, agentID, checkID, status, search string, limit, offset int) ([]models.CheckResult, int, error)
+	ListCheckResultsPaged(ctx context.Context, orgID, agentID, checkID, status, search string, limit, offset int) ([]models.CheckResult, int, error)
 }
 
 // AgentListFilter is the filter applied to GET /api/v1/agents.
@@ -132,11 +132,20 @@ func (s *Server) handleRegisterAgent(w http.ResponseWriter, r *http.Request) {
 	subjects := NATSSubjectsForAgent(agentID)
 
 	resp := map[string]any{
-		"agent_id":      agentID,
+		"agent_id": agentID,
+		// Both keys carry the same token: "token" is the canonical
+		// server-side name, "auth_token" is what pkg/agent's config
+		// persists. Keeping both avoids breaking older agent builds.
 		"token":         token,
+		"auth_token":    token,
 		"expires_in":    int((24 * time.Hour).Seconds()),
 		"nats_subjects": subjects,
 		"agent":         agent,
+	}
+	// Deliver the Ed25519 public key so the agent can verify signed
+	// commands (script runs) end-to-end.
+	if s.sessionMinter != nil {
+		resp["signing_key"] = s.sessionMinter.MintPublicKey()
 	}
 	if s.eventBus != nil {
 		evt := map[string]any{
@@ -278,10 +287,22 @@ func (s *Server) handleListAgentCheckResults(w http.ResponseWriter, r *http.Requ
 	checkID := q.Get("check_id")
 	status := q.Get("status")
 
-	// We delegate the underlying list to the store; the check_id and
-	// status filters require a more specific query, so we use the
-	// platform-wide ListCheckResultsPaged and post-filter by agent_id.
-	results, total, err := s.agentStore().ListCheckResultsPaged(r.Context(), id, checkID, status, "", limit, offset)
+	// Tenant scope: the agent must belong to the caller's org. This both
+	// yields a correct 404 for foreign agent IDs and constrains the
+	// results query to the caller's org.
+	orgID := ""
+	if claims, ok := authFromCtx(r); ok && claims != nil {
+		orgID = claims.OrgID
+	}
+	if _, err := s.agentStore().GetAgent(r.Context(), orgID, id); err != nil {
+		http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
+		return
+	}
+
+	// The check_id and status filters require the platform-wide
+	// ListCheckResultsPaged query, which is org-scoped via the agent
+	// join.
+	results, total, err := s.agentStore().ListCheckResultsPaged(r.Context(), orgID, id, checkID, status, "", limit, offset)
 	if err != nil {
 		s.log.Error("list check results failed",
 			"agent_id", id, "err", err)
@@ -319,8 +340,26 @@ func (s *Server) handleListAllCheckResults(w http.ResponseWriter, r *http.Reques
 		offset = 0
 	}
 
+	// Tenant scope: results are limited to agents in the caller's org.
+	// Fail closed when the request has no org context.
+	orgID := ""
+	if claims, ok := authFromCtx(r); ok && claims != nil {
+		orgID = claims.OrgID
+	}
+	if orgID == "" {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"results": []models.CheckResult{},
+			"total":   0,
+			"limit":   limit,
+			"offset":  offset,
+		})
+		return
+	}
+
 	results, total, err := s.agentStore().ListCheckResultsPaged(
 		r.Context(),
+		orgID,
 		q.Get("agent_id"),
 		q.Get("check_id"),
 		q.Get("status"),
@@ -345,11 +384,20 @@ func (s *Server) handleListAllCheckResults(w http.ResponseWriter, r *http.Reques
 	})
 }
 
-// agentStore builds the agentStore backed by s.db. In production this should
-// be replaced with a dedicated repository type. Kept inline so the API
+// agentStore builds the agentStore backed by s.db, unless a test override
+// has been installed (see setAgentStore). In production this should be
+// replaced with a dedicated repository type. Kept inline so the API
 // package has a single, testable persistence seam.
 func (s *Server) agentStore() agentStore {
+	if s.agentStoreOverride != nil {
+		return s.agentStoreOverride
+	}
 	return &pgAgentStore{pool: s.db}
+}
+
+// setAgentStore installs a store override. Test-only seam.
+func (s *Server) setAgentStore(st agentStore) {
+	s.agentStoreOverride = st
 }
 
 // mintAgentToken uses the session minter to mint an EdDSA-signed agent JWT.

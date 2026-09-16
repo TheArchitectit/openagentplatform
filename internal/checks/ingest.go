@@ -178,7 +178,7 @@ func (r *ResultIngestor) onResult(msg *nats.Msg) {
 	// 2. Evaluate thresholds. We fetch the check definition and the
 	//    recent result history. Failures here are non-fatal; if we
 	//    can't evaluate we still broadcast the raw result.
-	evaluation, alertPayload := r.evaluate(ctx, raw, model)
+	evaluation, alertPayload, orgID := r.evaluate(ctx, raw, model)
 
 	// 3. Broadcast the result to oap.events.checks.result.
 	payload := &CheckResultPayload{
@@ -192,6 +192,7 @@ func (r *ResultIngestor) onResult(msg *nats.Msg) {
 		DurationMs: raw.DurationMs,
 		Timestamp:  raw.Timestamp,
 		Metadata:   raw.Metadata,
+		OrgID:      orgID,
 	}
 	evt := &CheckResultEvent{
 		Type:      "check.result",

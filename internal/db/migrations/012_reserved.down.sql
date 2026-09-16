@@ -1,0 +1,2 @@
+-- Reserved: version kept empty so migration numbering stays contiguous
+-- (internal/db status reporting assumes 1..N with no gaps).

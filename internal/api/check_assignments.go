@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -54,7 +55,10 @@ func (s *Server) handleAssignCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	now := time.Now().UTC()
 	agentCreated := 0
-	for _, aid := range req.AgentIDs {
+	// Tenant guard: only agents belonging to the caller's org may be
+	// targeted (see filterAgentsInOrg).
+	allowed, rejected := s.filterAgentsInOrg(r.Context(), orgID, req.AgentIDs)
+	for _, aid := range allowed {
 		a := &models.CheckAssignment{
 			ID:         uuid.NewString(),
 			CheckID:    checkID,
@@ -78,7 +82,8 @@ func (s *Server) handleAssignCheck(w http.ResponseWriter, r *http.Request) {
 		siteCreated += n
 	}
 	s.recordAudit(r, "check.assign", "check", checkID, map[string]any{
-		"agent_ids":         req.AgentIDs,
+		"agent_ids":         allowed,
+		"rejected_agents":   rejected,
 		"site_ids":          req.SiteIDs,
 		"agents_created":    agentCreated,
 		"site_fanned_count": siteCreated,
@@ -88,6 +93,7 @@ func (s *Server) handleAssignCheck(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"check_id":          checkID,
 		"agents_assigned":   agentCreated,
+		"rejected_agents":   rejected,
 		"sites_fanned":      len(req.SiteIDs),
 		"site_agents_added": siteCreated,
 		"total":             agentCreated + siteCreated,
@@ -205,7 +211,10 @@ func (s *Server) handleBulkAssign(w http.ResponseWriter, r *http.Request) {
 	}
 	now := time.Now().UTC()
 	agentCreated := 0
-	for _, aid := range req.AgentIDs {
+	// Tenant guard: only agents belonging to the caller's org may be
+	// targeted (see filterAgentsInOrg).
+	allowed, rejected := s.filterAgentsInOrg(r.Context(), orgID, req.AgentIDs)
+	for _, aid := range allowed {
 		a := &models.CheckAssignment{
 			ID:         uuid.NewString(),
 			CheckID:    req.CheckID,
@@ -229,7 +238,8 @@ func (s *Server) handleBulkAssign(w http.ResponseWriter, r *http.Request) {
 		siteCreated += n
 	}
 	s.recordAudit(r, "check.bulk_assign", "check", req.CheckID, map[string]any{
-		"agent_ids":         req.AgentIDs,
+		"agent_ids":         allowed,
+		"rejected_agents":   rejected,
 		"site_ids":          req.SiteIDs,
 		"agents_created":    agentCreated,
 		"site_agents_added": siteCreated,
@@ -239,6 +249,7 @@ func (s *Server) handleBulkAssign(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"check_id":          req.CheckID,
 		"agents_assigned":   agentCreated,
+		"rejected_agents":   rejected,
 		"sites_fanned":      len(req.SiteIDs),
 		"site_agents_added": siteCreated,
 		"total":             agentCreated + siteCreated,
@@ -249,4 +260,31 @@ func (s *Server) handleBulkAssign(w http.ResponseWriter, r *http.Request) {
 // middleware). Returns the claims and true on success, nil/false otherwise.
 func authFromCtx(r *http.Request) (*auth.SessionClaims, bool) {
 	return auth.UserFromContext(r.Context())
+}
+
+// filterAgentsInOrg is the tenant guard for every endpoint that targets
+// agents by ID (script runs, check assignments, run-now fan-out). It keeps
+// only agents that belong to the given org and returns the rest as
+// rejected. An empty orgID fails closed: every agent is rejected, because
+// there is no way to prove ownership.
+//
+// GetAgent returns ErrAgentNotFound both for missing agents and for agents
+// outside the org, so rejected IDs do not leak which foreign agent IDs
+// actually exist.
+func (s *Server) filterAgentsInOrg(ctx context.Context, orgID string, agentIDs []string) (allowed, rejected []string) {
+	allowed = make([]string, 0, len(agentIDs))
+	rejected = make([]string, 0)
+	if orgID == "" {
+		// Fail closed: no org context, no targeting.
+		return allowed, append(rejected, agentIDs...)
+	}
+	store := s.agentStore()
+	for _, id := range agentIDs {
+		if _, err := store.GetAgent(ctx, orgID, id); err != nil {
+			rejected = append(rejected, id)
+			continue
+		}
+		allowed = append(allowed, id)
+	}
+	return allowed, rejected
 }

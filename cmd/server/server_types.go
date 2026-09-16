@@ -41,6 +41,9 @@ type Server struct {
 	heartbeat      *events.HeartbeatHandler
 	dispatcher     *events.CheckDispatcher
 	ingestor       *checks.ResultIngestor
+	// wsEvents forwards platform NATS events to the WebSocket hub so
+	// dashboards receive live, org-scoped updates.
+	wsEvents       *wsEventBridge
 	alertEngine    *alerts.AlertEngine
 	policyEngine   *policy.PolicyEngine
 	patchScheduler *patches.PatchScheduler

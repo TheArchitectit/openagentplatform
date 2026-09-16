@@ -185,6 +185,10 @@ type Server struct {
 	// webhook events (a2a-security spec §7). May be nil; webhook handler
 	// returns 503 when unset.
 	securityQueue securityQueue
+	// agentStoreOverride, when non-nil, is returned by agentStore()
+	// instead of building a pgAgentStore from db. Used by tests to
+	// exercise the tenant guards without a database.
+	agentStoreOverride agentStore
 }
 
 // MeshReleaseStore is the persistence contract used by the mesh release API.

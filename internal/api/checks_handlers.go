@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/openagentplatform/openagentplatform/internal/audit"
 	"github.com/openagentplatform/openagentplatform/internal/auth"
+	"github.com/openagentplatform/openagentplatform/pkg/agent"
 	"github.com/openagentplatform/openagentplatform/pkg/models"
 )
 
@@ -307,9 +308,11 @@ func (s *Server) handleDeleteCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleRunCheckNow queues a check for immediate execution on all
-// assigned agents. It looks up the assignment list and publishes a
-// "RunCheck" command to each agent's NATS subject. Returns the list of
-// agents that were signalled.
+// assigned agents. It maps the check definition onto the agent-side
+// CheckCommand wire shape (pkg/agent.CheckCommand — the agent's checks
+// subscriber decodes that struct and dispatches to the matching checker),
+// signs it, and publishes to each agent's checks subject. Returns the
+// list of agents that were signalled.
 func (s *Server) handleRunCheckNow(w http.ResponseWriter, r *http.Request) {
 	if s.db == nil {
 		http.Error(w, `{"error":"db_unavailable"}`, http.StatusServiceUnavailable)
@@ -325,7 +328,8 @@ func (s *Server) handleRunCheckNow(w http.ResponseWriter, r *http.Request) {
 	if claims, ok := authFromCtx(r); ok && claims != nil {
 		orgID = claims.OrgID
 	}
-	if _, err := store.GetCheck(r.Context(), orgID, id); err != nil {
+	def, err := store.GetCheck(r.Context(), orgID, id)
+	if err != nil {
 		if errors.Is(err, ErrCheckNotFound) {
 			http.Error(w, `{"error":"not_found"}`, http.StatusNotFound)
 			return
@@ -339,28 +343,44 @@ func (s *Server) handleRunCheckNow(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"list_assignments_failed"}`, http.StatusInternalServerError)
 		return
 	}
+	// Tenant guard: verify each assigned agent belongs to the caller's
+	// org before publishing to its subject. This also covers assignment
+	// rows created before org scoping was enforced on the assignment
+	// endpoints.
+	allowed, rejected := s.filterAgentsInOrg(r.Context(), orgID, assignmentIDs(assignments))
+	if len(rejected) > 0 {
+		s.log.Warn("run-now rejected agents outside org",
+			"check_id", id, "org_id", orgID, "rejected_agents", rejected)
+	}
+	allowedSet := make(map[string]struct{}, len(allowed))
+	for _, a := range allowed {
+		allowedSet[a] = struct{}{}
+	}
+
 	signalled := make([]string, 0, len(assignments))
 	if s.eventBus != nil {
-		cmd := map[string]any{
-			"type":      "RunCheck",
-			"check_id":  id,
-			"timestamp": time.Now().UTC().Unix(),
-		}
+		cmd := checkCommandFromDefinition(def)
 		payload, _ := json.Marshal(cmd)
+		data := s.signAgentCommand(payload)
 		for _, a := range assignments {
-			subject := fmt.Sprintf("oap.agents.%s.commands", a.AgentID)
-			if err := s.eventBus.Publish(r.Context(), subject, payload); err != nil {
+			if _, ok := allowedSet[a.AgentID]; !ok {
+				s.log.Warn("run-now skipped agent outside org", "agent_id", a.AgentID, "org_id", orgID)
+				continue
+			}
+			// The agent listens on its checks subject (pkg/agent.
+			// ChecksSubject); it has no subscription on .commands.
+			subject := fmt.Sprintf("oap.agents.%s.checks", a.AgentID)
+			if err := s.eventBus.Publish(r.Context(), subject, data); err != nil {
 				s.log.Warn("publish run-check failed", "agent_id", a.AgentID, "err", err)
 				continue
 			}
 			signalled = append(signalled, a.AgentID)
 		}
 	} else {
-		// No event bus configured — surface the assignment list as the
-		// "would-have-been-signalled" set so the UI can still show feedback.
-		for _, a := range assignments {
-			signalled = append(signalled, a.AgentID)
-		}
+		// No event bus configured — surface the in-org assignment list as
+		// the "would-have-been-signalled" set so the UI can still show
+		// feedback.
+		signalled = append(signalled, allowed...)
 	}
 	s.recordAudit(r, "check.run_now", "check", id, map[string]any{"agents": signalled})
 	w.Header().Set("Content-Type", "application/json")
@@ -369,6 +389,49 @@ func (s *Server) handleRunCheckNow(w http.ResponseWriter, r *http.Request) {
 		"queued_count": len(signalled),
 		"agents":       signalled,
 	})
+}
+
+// assignmentIDs flattens an assignment list into agent IDs.
+func assignmentIDs(assignments []models.CheckAssignmentDetail) []string {
+	ids := make([]string, 0, len(assignments))
+	for _, a := range assignments {
+		ids = append(ids, a.AgentID)
+	}
+	return ids
+}
+
+// checkCommandFromDefinition maps a stored check definition onto the
+// agent's CheckCommand wire shape. The agent dispatches on Type (the
+// checker registry key) and reads its settings from the well-known
+// top-level fields and Options.
+func checkCommandFromDefinition(def *models.CheckDefinition) agent.CheckCommand {
+	cmd := agent.CheckCommand{
+		CheckID:     def.ID,
+		Type:        def.CheckType,
+		Timeout:     def.TimeoutSeconds,
+		IntervalSec: def.IntervalSeconds,
+		Options:     def.Config,
+	}
+	if def.Config != nil {
+		str := func(key string) string {
+			v, _ := def.Config[key].(string)
+			return v
+		}
+		cmd.Target = str("target")
+		cmd.Script = str("script")
+		cmd.Command = str("command")
+		cmd.Expected = str("expected")
+		if raw, ok := def.Config["args"].([]any); ok {
+			args := make([]string, 0, len(raw))
+			for _, v := range raw {
+				if s, ok := v.(string); ok {
+					args = append(args, s)
+				}
+			}
+			cmd.Args = args
+		}
+	}
+	return cmd
 }
 
 // toInt accepts any numeric value from a JSON decode and returns int.

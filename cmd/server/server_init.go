@@ -85,6 +85,9 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		Evaluator: checks.NewThresholdEvaluator(checks.ThresholdConfig{}),
 		Logger:    log,
 	})
+	// Bridge platform NATS events to the WebSocket hub so connected
+	// browsers receive live, org-scoped updates instead of polling.
+	wsEvents := newWSEventBridge(natsClient, apiServer, agentStore, log)
 
 	// --- Notifications ----------------------------------------------------
 	// Registry of channel notifiers (email, slack, webhook). Shared by the
@@ -300,6 +303,7 @@ func NewServer(cfg *config.Config, log *slog.Logger, pool *pgxpool.Pool, natsCli
 		heartbeat:          heartbeat,
 		dispatcher:         dispatcher,
 		ingestor:           ingestor,
+		wsEvents:           wsEvents,
 		alertEngine:        alertEngine,
 		policyEngine:       policyEngine,
 		patchScheduler:     patchScheduler,

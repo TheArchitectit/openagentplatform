@@ -178,13 +178,20 @@ func (s *Server) closeAlert(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(`{"status":"closed"}`))
 }
 
-// listAlertRules returns all alert rules, optionally filtered by org_id.
+// listAlertRules returns the caller's org alert rules. The org is taken
+// from the authenticated session claims — never from a query parameter.
 func (s *Server) listAlertRules(w http.ResponseWriter, r *http.Request) {
 	if s.alertStore == nil {
 		http.Error(w, `{"error":"alert_store_not_configured"}`, http.StatusServiceUnavailable)
 		return
 	}
 	orgID := orgIDFromContext(r)
+	if orgID == "" {
+		// Fail closed: without org context, list nothing.
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[]`))
+		return
+	}
 	rules, err := s.alertStore.GetAlertRules(r.Context(), orgID)
 	if err != nil {
 		s.log.Error("list alert rules failed", "err", err)
@@ -232,10 +239,16 @@ func (s *Server) createAlertRule(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(rule)
 }
 
-// updateAlertRule updates an existing alert rule.
+// updateAlertRule updates an existing alert rule, scoped to the caller's
+// org. Rules owned by another org return 404.
 func (s *Server) updateAlertRule(w http.ResponseWriter, r *http.Request) {
 	if s.alertStore == nil {
 		http.Error(w, `{"error":"alert_store_not_configured"}`, http.StatusServiceUnavailable)
+		return
+	}
+	orgID := orgIDFromContext(r)
+	if orgID == "" {
+		http.Error(w, `{"error":"org context required"}`, http.StatusBadRequest)
 		return
 	}
 	id := chi.URLParam(r, "id")
@@ -249,8 +262,10 @@ func (s *Server) updateAlertRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rule.ID = id
+	// The org can never be changed through an update.
+	rule.OrgID = orgID
 	rule.UpdatedAt = time.Now().UTC()
-	if err := s.alertStore.UpdateAlertRule(r.Context(), &rule); err != nil {
+	if err := s.alertStore.UpdateAlertRule(r.Context(), orgID, &rule); err != nil {
 		if errors.Is(err, alerts.ErrAlertRuleNotFound) {
 			http.Error(w, `{"error":"rule_not_found"}`, http.StatusNotFound)
 			return

@@ -29,6 +29,9 @@ func (s *Server) Start(ctx context.Context) error {
 	if err := s.ingestor.Start(hbCtx); err != nil {
 		return errors.New("result ingestor start: " + err.Error())
 	}
+	if err := s.wsEvents.Start(); err != nil {
+		return errors.New("ws event bridge start: " + err.Error())
+	}
 	if err := s.alertEngine.Start(hbCtx); err != nil {
 		return errors.New("alert engine start: " + err.Error())
 	}
@@ -130,6 +133,10 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}))
 	s.graceful.Register("ingestor", resilience.CloserFunc(func(_ context.Context) error {
 		s.ingestor.Stop()
+		return nil
+	}))
+	s.graceful.Register("ws-event-bridge", resilience.CloserFunc(func(_ context.Context) error {
+		s.wsEvents.Stop()
 		return nil
 	}))
 	s.graceful.Register("alert-engine", resilience.CloserFunc(func(_ context.Context) error {

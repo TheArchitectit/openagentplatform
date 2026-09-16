@@ -56,6 +56,14 @@ func (s *Server) registerRoutes(r chi.Router) {
 		r.Post("/webhook", s.handleBillingWebhook)
 	})
 
+	// Agent enrollment endpoint. Mounted publicly because the agent has
+	// no session yet: authentication is performed inside the handler via
+	// the per-site registration token in the request body (see
+	// handleRegisterAgent). The session verifier would 401 every
+	// token-less enrollment request, so this route must stay outside the
+	// protected group.
+	r.Post("/api/v1/agents/register", s.handleRegisterAgent)
+
 	// EDR webhook endpoint. Authentication is enforced inside the
 	// handler via the per-vendor HMAC header (TODO follow-up); the
 	// endpoint must be reachable without a session cookie because EDR
@@ -87,14 +95,6 @@ func (s *Server) registerRoutes(r chi.Router) {
 
 			r.Route("/agents", func(r chi.Router) {
 				r.Get("/", s.listAgents)
-				// Agent registration is mounted here for routing
-				// convenience, but it does its own auth via the
-				// per-site registration token in the request body
-				// (see handleRegisterAgent). The session-cookie
-				// verifier middleware will be invoked, but the
-				// handler accepts requests without a cookie as long
-				// as the registration token validates.
-				r.Post("/register", s.handleRegisterAgent)
 				r.Route("/{id}", func(r chi.Router) {
 					r.Get("/", s.handleGetAgent)
 					// Per-agent check-result history. Supports limit,
@@ -156,10 +156,4 @@ func (s *Server) registerRoutes(r chi.Router) {
 	if s.remote != nil {
 		r.Get("/api/v1/shell/{session_id}/ws", s.remote.HandleShellWebSocket)
 	}
-
-	// Public agent-side endpoint: registration. This is mounted inside
-	// the protected group above (see /api/v1/agents/register) because
-	// chi does not allow two Route() calls to register the same prefix
-	// on the same mux. The registration handler performs its own auth
-	// via the per-site registration token in the request body.
 }

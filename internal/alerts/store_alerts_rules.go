@@ -119,15 +119,23 @@ func (s *pgAlertStore) CreateAlertRule(ctx context.Context, r *models.AlertRule)
 	return nil
 }
 
-// UpdateAlertRule updates an existing alert rule by id. Returns
+// UpdateAlertRule updates an existing alert rule, scoped to the given
+// org. An empty orgID fails closed (no row matches). Returns
 // ErrAlertRuleNotFound if no row matches.
-func (s *pgAlertStore) UpdateAlertRule(ctx context.Context, r *models.AlertRule) error {
+func (s *pgAlertStore) UpdateAlertRule(ctx context.Context, orgID string, r *models.AlertRule) error {
 	if s.pool == nil {
 		return errors.New("alerts: nil pool")
 	}
 	if r.ID == "" {
 		return errors.New("alerts: rule ID required")
 	}
+	if orgID == "" {
+		// Fail closed: without an org scope there is no way to prove
+		// ownership of the rule.
+		return ErrAlertRuleNotFound
+	}
+	// The org can never be changed through an update.
+	r.OrgID = orgID
 	chans, err := jsonOrNull(r.NotifyChannels)
 	if err != nil {
 		return fmt.Errorf("alerts: marshal channels: %w", err)
@@ -138,24 +146,24 @@ func (s *pgAlertStore) UpdateAlertRule(ctx context.Context, r *models.AlertRule)
 	}
 	const q = `
 		UPDATE alert_rules SET
-			name = $2,
-			description = $3,
-			check_id = $4,
-			agent_id = $5,
-			site_id = $6,
-			min_severity = $7,
-			notify_channels = $8,
-			enabled = $9,
-			offline_silence_seconds = $10,
-			updated_at = $11
-		WHERE id = $1 AND org_id = $12
+			name = $3,
+			description = $4,
+			check_id = $5,
+			agent_id = $6,
+			site_id = $7,
+			min_severity = $8,
+			notify_channels = $9,
+			enabled = $10,
+			offline_silence_seconds = $11,
+			updated_at = $12
+		WHERE id = $1 AND org_id = $2
 	`
 	tag, err := s.pool.Exec(ctx, q,
-		r.ID, r.Name, r.Description,
+		r.ID, orgID, r.Name, r.Description,
 		r.CheckID, r.AgentID, r.SiteID,
 		r.MinSeverity, chans, r.Enabled,
 		silence,
-		r.UpdatedAt, r.OrgID,
+		r.UpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("alerts: update rule: %w", err)

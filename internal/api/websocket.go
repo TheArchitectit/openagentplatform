@@ -54,8 +54,12 @@ type wsClient struct {
 	mu     sync.Mutex
 	closed bool
 	userID string
-	log    *slog.Logger
-	hub    *wsHub
+	// orgID is the caller's tenant from the authenticated session. All
+	// event broadcasts are filtered by it; an empty orgID receives
+	// nothing (fail closed).
+	orgID string
+	log   *slog.Logger
+	hub   *wsHub
 }
 
 // wsHub is the per-process subscription manager. It is shared by all
@@ -127,10 +131,31 @@ func (h *wsHub) unsubscribe(c *wsClient, ch wsChannel) {
 	}
 }
 
-// Broadcast sends a message to every client subscribed to channel ch.
-// Non-blocking: if a client's send buffer is full, the client is
+// Broadcast sends a message to every client subscribed to channel ch,
+// regardless of tenant. Prefer BroadcastOrg for anything derived from
+// tenant-scoped platform events.
+//
+// Non-blocking: if a client's send buffer is full, the message is
 // dropped (its read loop will tear the connection down).
 func (h *wsHub) Broadcast(ch wsChannel, event string, data any) {
+	h.broadcastFiltered(ch, event, data, nil)
+}
+
+// BroadcastOrg sends a message to every client subscribed to channel ch
+// whose session org matches orgID. An empty orgID fails closed: nothing
+// is delivered, because there is no way to prove which tenant may see
+// the event.
+func (h *wsHub) BroadcastOrg(ch wsChannel, event, orgID string, data any) {
+	if orgID == "" {
+		h.log.Warn("ws broadcast without org scope dropped", "channel", ch, "event", event)
+		return
+	}
+	h.broadcastFiltered(ch, event, data, func(c *wsClient) bool {
+		return c.orgID == orgID
+	})
+}
+
+func (h *wsHub) broadcastFiltered(ch wsChannel, event string, data any, match func(*wsClient) bool) {
 	payload, err := json.Marshal(data)
 	if err != nil {
 		h.log.Warn("ws broadcast: marshal failed", "err", err, "channel", ch)
@@ -151,7 +176,9 @@ func (h *wsHub) Broadcast(ch wsChannel, event string, data any) {
 	subs := h.byChan[ch]
 	clients := make([]*wsClient, 0, len(subs))
 	for c := range subs {
-		clients = append(clients, c)
+		if match == nil || match(c) {
+			clients = append(clients, c)
+		}
 	}
 	h.mu.RUnlock()
 	for _, c := range clients {
@@ -256,6 +283,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		send:   make(chan []byte, 64),
 		subs:   make(map[wsChannel]struct{}),
 		userID: claims.Subject,
+		orgID:  claims.OrgID,
 		log:    s.log,
 		hub:    hub,
 	}
@@ -378,49 +406,40 @@ func validChannel(ch wsChannel) bool {
 	return false
 }
 
-// PublishHeartbeat broadcasts a heartbeat event to all clients on
-// the "agents" channel. It is exported so that the heartbeat event
-// handler (or any other code path that mutates agent state) can
-// trigger a real-time update.
-func (s *Server) PublishHeartbeat(ctx context.Context, hb any) {
-	if s.wsHub == nil {
-		return
-	}
-	s.wsHub.Broadcast(wsChannelAgents, "heartbeat", hb)
+// PublishHeartbeat broadcasts an agent heartbeat event to clients of
+// orgID on the "agents" channel. It is the delivery target for the
+// NATS→WebSocket event bridge; orgID scopes delivery to the tenant the
+// heartbeat belongs to.
+func (s *Server) PublishHeartbeat(_ context.Context, orgID string, hb any) {
+	s.Hub().BroadcastOrg(wsChannelAgents, "heartbeat", orgID, hb)
 }
 
-// PublishCheckResult broadcasts a check-result event to all clients
+// PublishAgentEvent broadcasts an agent lifecycle event (online,
+// offline) to clients of orgID on the "agents" channel.
+func (s *Server) PublishAgentEvent(_ context.Context, orgID, event string, data any) {
+	s.Hub().BroadcastOrg(wsChannelAgents, event, orgID, data)
+}
+
+// PublishCheckResult broadcasts a check-result event to clients of orgID
 // on the "checks" channel.
-func (s *Server) PublishCheckResult(ctx context.Context, cr any) {
-	if s.wsHub == nil {
-		return
-	}
-	s.wsHub.Broadcast(wsChannelChecks, "result", cr)
+func (s *Server) PublishCheckResult(_ context.Context, orgID string, cr any) {
+	s.Hub().BroadcastOrg(wsChannelChecks, "result", orgID, cr)
 }
 
-// PublishAlert broadcasts an alert event to all clients on the
+// PublishAlert broadcasts an alert event to clients of orgID on the
 // "alerts" channel.
-func (s *Server) PublishAlert(ctx context.Context, a any) {
-	if s.wsHub == nil {
-		return
-	}
-	s.wsHub.Broadcast(wsChannelAlerts, "alert", a)
+func (s *Server) PublishAlert(_ context.Context, orgID string, a any) {
+	s.Hub().BroadcastOrg(wsChannelAlerts, "alert", orgID, a)
 }
 
-// PublishPatchEvent broadcasts a patch lifecycle event to all clients
-// on the "patches" channel (approved, deployed, rolled back, etc.).
-func (s *Server) PublishPatchEvent(ctx context.Context, event string, data any) {
-	if s.wsHub == nil {
-		return
-	}
-	s.wsHub.Broadcast(wsChannelPatches, event, data)
+// PublishPatchEvent broadcasts a patch lifecycle event to clients of
+// orgID on the "patches" channel (approved, deployed, rolled back, etc.).
+func (s *Server) PublishPatchEvent(_ context.Context, orgID, event string, data any) {
+	s.Hub().BroadcastOrg(wsChannelPatches, event, orgID, data)
 }
 
-// PublishScriptEvent broadcasts a script execution event to all clients
-// on the "scripts" channel (started, completed, failed, etc.).
-func (s *Server) PublishScriptEvent(ctx context.Context, event string, data any) {
-	if s.wsHub == nil {
-		return
-	}
-	s.wsHub.Broadcast(wsChannelScripts, event, data)
+// PublishScriptEvent broadcasts a script execution event to clients of
+// orgID on the "scripts" channel (started, completed, failed, etc.).
+func (s *Server) PublishScriptEvent(_ context.Context, orgID, event string, data any) {
+	s.Hub().BroadcastOrg(wsChannelScripts, event, orgID, data)
 }
