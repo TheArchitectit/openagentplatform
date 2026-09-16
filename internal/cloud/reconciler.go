@@ -172,10 +172,14 @@ func (r *Reconciler) ReconcileOrg(ctx context.Context, orgID string) error {
 			r.autoEnrollResources(ctx, orgID, resources)
 		}
 
-		// Fetch and persist the cost snapshot for the current billing period
+		// Fetch and persist the cost snapshot for the current billing
+		// period. Idempotency (digest 09-04): a re-run over the same
+		// period must not insert a duplicate snapshot — skip when the
+		// store already holds one for this billing period.
 		period := time.Now().UTC().Format("2006-01")
-		costInfo, err := client.GetCost(ctx, "", acct.AccountID, period)
-		if err != nil {
+		if latest, err := r.costStore.GetLatest(ctx, orgID, string(acct.Provider), acct.AccountID); err == nil && latest != nil && latest.BillingPeriod == period {
+			// Snapshot for this period already captured.
+		} else if costInfo, err := client.GetCost(ctx, "", acct.AccountID, period); err != nil {
 			r.log.Warn("cloud: cost fetch failed", "account", acct.AccountID, "err", err)
 		} else if costInfo.TotalCostUSD > 0 {
 			snapshot := &models.CostSnapshot{
