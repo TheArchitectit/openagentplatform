@@ -166,11 +166,6 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *Server) listAgents(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write([]byte(`[]`))
-}
-
 func (s *Server) createAgent(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	_, _ = w.Write([]byte(`{}`))

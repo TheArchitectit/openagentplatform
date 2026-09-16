@@ -125,9 +125,8 @@ func NewRegistry() *Registry {
 
 // DefaultRegistry is initialized lazily on first call to Default.
 var (
-	defaultOnce  sync.Once
-	defaultReg   *Registry
-	defaultRegMu sync.Mutex
+	defaultOnce sync.Once
+	defaultReg  *Registry
 )
 
 // Default returns the process-wide default registry, building it on first

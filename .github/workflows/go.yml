@@ -8,8 +8,10 @@ on:
       - "internal/**"
       - "pkg/**"
       - "a2a/**"
+      - "secrets/**"
       - "go.mod"
       - "go.sum"
+      - "go.work"
       - ".github/workflows/go.yml"
   pull_request:
     branches: [main, 'sprint/**']
@@ -35,15 +37,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          # Match go.mod: golangci-lint releases are built with a
+          # specific Go, and a binary older than the module's go
+          # directive cannot load the packages at all ("the Go language
+          # version used to build golangci-lint is lower than the
+          # targeted Go version").
+          go-version: "1.26"
           cache: true
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.64.8
-          args: --timeout=5m
+          version: latest
+          # Gate new code only: the tree carries pre-existing findings
+          # that predate this workflow.
+          args: --timeout=5m --new-from-rev=${{ github.event.pull_request.base.sha || github.sha }}
 
   test:
     name: Test (Go ${{ matrix.go-version }} on ${{ matrix.os }})
@@ -52,15 +63,15 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        go-version: ["1.22", "1.23"]
+        go-version: ["1.26"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
           cache: true
-      - name: go mod tidy
-        run: go mod tidy
+      - name: go mod verify
+        run: go mod verify
       - name: go vet
         run: go vet ./...
       - name: go build

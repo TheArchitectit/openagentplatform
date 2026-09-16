@@ -1,0 +1,4 @@
+# scripts/team_manager.py is stdlib-only (argparse, json, fcntl, gzip,
+# dataclasses...). No third-party runtime dependencies.
+#
+# CI installs pytest/pytest-cov separately for the test-python job.

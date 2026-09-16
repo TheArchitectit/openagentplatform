@@ -3158,7 +3158,9 @@ def main():
             else:
                 print(f"❌ Team size violations found:")
                 for violation in results["violations"]:
-                    print(f"   {violation['message']}")
+                    # validate_team_size builds violations with an "issue"
+                    # key; honour an optional "message" override.
+                    print(f"   {violation.get('message', violation['issue'])}")
                 sys.exit(1)
 
         elif args.command == "delete-team":

@@ -21,7 +21,7 @@ func streamTo(r io.Reader, stream string, buf *cappedBuffer, cb func(string, str
 	for scanner.Scan() {
 		line := scanner.Text()
 		buf.WriteString(line)
-		buf.WriteByte('\n')
+		_ = buf.WriteByte('\n')
 		if cb != nil {
 			cb(stream, line)
 		}
